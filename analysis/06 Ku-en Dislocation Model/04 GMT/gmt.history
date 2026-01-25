@@ -1,0 +1,13 @@
+# GMT 6 Session common arguments shelf
+BEGIN GMT 6.1.0
+B	0.2+lelongation rate (\265strain/yr)
+J	M
+JM	M18
+Jx	x0.035i/0.035i
+Jz	z-0.035i
+R	122.50/124.50/11.63/13.10
+X	1i
+Y	3i
+Z	z
+@L	9
+END

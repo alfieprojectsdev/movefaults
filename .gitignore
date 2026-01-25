@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*.class
+.venv/
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+htmlcov/
+*.bak
+
+# OS / Editor
+.DS_Store
+.AppleDouble
+.LSOverride
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.trash/
+Thumbs.db
+
+# Large File Types & Data
+*.pdf
+*.zip
+*.7z
+*.gz
+*.rar
+*.exe
+*.mp4
+*.nc
+*.grad
+*.kin
+*.xlsx
+*.xlsm
+*.gmt
+*.cpt
+
+# Ignore asset folders from saved HTML pages
+*_files/
+
+# Specific large files/dirs to ignore if they sneak past extensions
+analysis/06 Ku-en Dislocation Model/04 GMT/PH_topo.grad
+analysis/06 Ku-en Dislocation Model/04 GMT/PH_topo.nc
+analysis/08 Bootstrapping/boostrap.mp4
+
+# Exemption for critical documentation PDFs (if any)
+# You can uncomment and specify paths to PDFs that MUST be in the repo.
+# !docs/bern52/BERN52_Guide.pdf
+

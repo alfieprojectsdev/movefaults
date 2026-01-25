@@ -1,0 +1,1 @@
+teqc_2018_12.exe -ublox ubx  +obs + -tbin 1d ADMA *.ubx

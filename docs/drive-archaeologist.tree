@@ -1,0 +1,74 @@
+.
+├── CLAUDE.md
+├── docs
+│   ├── EXECUTIVE_SUMMARY.md
+│   ├── IMPLEMENTATION_RECOMMENDATIONS.md
+│   ├── PHASE_0_IMPLEMENTATION_SPEC.md
+│   ├── PHASE_0_KICKOFF.md
+│   ├── PHASE_ROADMAP.md
+│   ├── QUICK_DECISION_GUIDE.md
+│   ├── Smart USB data ingestion system.md
+│   ├── TAILORED_IMPLEMENTATION_PLAN.md
+│   └── TECH_STACK_QUESTIONS.md
+├── htmlcov
+│   ├── class_index.html
+│   ├── coverage_html_cb_6fb7b396.js
+│   ├── favicon_32_cb_58284776.png
+│   ├── function_index.html
+│   ├── index.html
+│   ├── keybd_closed_cb_ce680311.png
+│   ├── status.json
+│   ├── style_cb_6b508a39.css
+│   ├── z_471b2a033c88eda3_checkpoint_py.html
+│   ├── z_471b2a033c88eda3___init___py.html
+│   ├── z_471b2a033c88eda3_paths_py.html
+│   ├── z_5f4294004678018f_archive_handler_py.html
+│   ├── z_5f4294004678018f_classifier_py.html
+│   ├── z_5f4294004678018f_cli_py.html
+│   ├── z_5f4294004678018f___init___py.html
+│   ├── z_5f4294004678018f___main___py.html
+│   └── z_5f4294004678018f_scanner_py.html
+├── main.py
+├── pyproject.toml
+├── README.md
+├── scripts
+├── src
+│   └── drive_archaeologist
+│       ├── archive_handler.py
+│       ├── classifier.py
+│       ├── cli.py
+│       ├── __init__.py
+│       ├── __main__.py
+│       ├── profiles.py
+│       ├── __pycache__
+│       │   ├── archive_handler.cpython-311.pyc
+│       │   ├── classifier.cpython-311.pyc
+│       │   ├── cli.cpython-311.pyc
+│       │   ├── __init__.cpython-311.pyc
+│       │   ├── profiles.cpython-311.pyc
+│       │   └── scanner.cpython-311.pyc
+│       ├── scanner.py
+│       └── utils
+│           ├── checkpoint.py
+│           ├── __init__.py
+│           ├── paths.py
+│           └── __pycache__
+│               ├── checkpoint.cpython-311.pyc
+│               ├── __init__.cpython-311.pyc
+│               └── paths.cpython-311.pyc
+├── test_archives
+│   ├── claude-config-main.zip
+│   ├── file1.txt
+│   ├── file2.txt
+│   ├── my_test_archive.zip
+│   ├── nested_file.txt
+│   ├── Photos-1-001.zip
+│   └── pipetgo.zip
+├── tests
+│   ├── __init__.py
+│   ├── test_checkpoint.py
+│   ├── test_paths.py
+│   └── test_scanner.py
+└── venv
+
+12 directories, 60 files

@@ -1,0 +1,137 @@
+.
+├── config
+│   ├── logging.yml
+│   ├── stations.yml
+│   └── thresholds.yml
+├── docker-compose.yml
+├── Dockerfile
+├── docs
+│   ├── ARCHITECTURE.md
+│   ├── DEPLOYMENT.md
+│   ├── Geocon 2025 conference poster discussion points - Claude_files
+│   │   ├── 01d0dcccc64ec8f9523a.js
+│   │   ├── 0a276c2436473100.css
+│   │   ├── 10489-5fc9afc3f1ed76fb.js
+│   │   ├── 1333c2e55a764a2e75e2.js
+│   │   ├── 1550-18b94f9df1488575.js
+│   │   ├── 19228-07b1d80a9c7b6f69.js
+│   │   ├── 19664-fdb46da4074899d8.js
+│   │   ├── 1f006d11-eacfa2d0372cca4e.js
+│   │   ├── 20326-1266babc735abfc7.js
+│   │   ├── 22747d63-984b10fc26d575fe.js
+│   │   ├── 2574-ecefe9007cc4c300.js
+│   │   ├── 27539-8d68a27a1c0dcdcd.js
+│   │   ├── 29529-f1e719289645f2c4.js
+│   │   ├── 36016-6a44988247c252f4.js
+│   │   ├── 44145-5db7c50997dcee73.js
+│   │   ├── 45312-4ca7be4c078ba17f.js
+│   │   ├── 47415-adfd6bb64df98970.js
+│   │   ├── 53724-93ad65dee9bd9008.js
+│   │   ├── 56441-c3b99e7a4bf520af.js
+│   │   ├── 57581-34c8b9bc322bd0a6.js
+│   │   ├── 58033-5cfd7ab12bb72cb6.js
+│   │   ├── 59666-63cfa196a90bfb30.js
+│   │   ├── 608c281e38412b55.css
+│   │   ├── 61976-9c208da8e8a96d35.js
+│   │   ├── 620c25d9-e10b8228988bf43d.js
+│   │   ├── 6492ae367fc05efc.css
+│   │   ├── 64939-83f9f921174990c0.js
+│   │   ├── 68833-ca85154b79dae093.js
+│   │   ├── 73417-73d0bbb04c1686a1.js
+│   │   ├── 74663-7d450cbb45a4cdc3.js
+│   │   ├── 76779-32b9a12e1d7e5489.js
+│   │   ├── 77067-96474ccb720410a0.js
+│   │   ├── 79273-a4a0a249e0f10a6e.js
+│   │   ├── 7bf36345-53d6eab5e0cf9a8a.js
+│   │   ├── 7bf97b7f00340a78.css
+│   │   ├── 80559-2f6bab673377459f.js
+│   │   ├── 82768-ab37c32a5b273bec.js
+│   │   ├── 85948-08a3131d14c3ae74.js
+│   │   ├── 86674-3e184579cefed20d.js
+│   │   ├── 87836-353ca9f07a5e8c74.js
+│   │   ├── 87c73c54-c29c3ea92a45d1c3.js
+│   │   ├── 92351-48a0e72c8420edb5.js
+│   │   ├── 93949-42eeb72a8db23d74.js
+│   │   ├── 94882-3a93575f08f57fc3.js
+│   │   ├── 9af238c7-8ca88233f67b9298.js
+│   │   ├── acdaad1d23646914.css
+│   │   ├── analytics.min.js
+│   │   ├── c2fb8af2f7b87066.css
+│   │   ├── c91ff5f87fd3377b.css
+│   │   ├── d6bd087f08a7f52f.css
+│   │   ├── e79317965a25a2e9297f.js
+│   │   ├── f614b4fc9a5ddba6.css
+│   │   ├── isolated-segment.html
+│   │   ├── lupk8zyo
+│   │   ├── main-app-5eb3dc75f4de79d6.js
+│   │   ├── polyfills-42372ed130431b0a.js
+│   │   ├── saved_resource(1).html
+│   │   ├── saved_resource.html
+│   │   ├── s.js
+│   │   ├── thumbnail
+│   │   └── webpack-902bb8f3b93a3352.js
+│   ├── Geocon 2025 conference poster discussion points - Claude.html
+│   ├── NMEA_SPEC.md
+│   └── VALIDATION_GUIDE.md
+├── grafana
+│   ├── dashboards
+│   │   ├── data_quality.json
+│   │   ├── event_analysis.json
+│   │   └── real_time_monitoring.json
+│   └── provisioning
+│       ├── dashboards.yml
+│       └── datasources.yml
+├── notebooks
+│   ├── event_validation.ipynb
+│   └── poster_reproduction.ipynb
+├── pyproject.toml
+├── README.md
+├── scripts
+│   ├── init_database.sql
+│   ├── __pycache__
+│   │   └── run_ingestor.cpython-313.pyc
+│   ├── run_ingestor.py
+│   └── validate_parser.py
+├── src
+│   ├── config.py
+│   ├── database
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-313.pyc
+│   │   │   └── writer.cpython-313.pyc
+│   │   └── writer.py
+│   ├── detection
+│   │   └── __init__.py
+│   ├── __init__.py
+│   ├── parsers
+│   │   ├── __init__.py
+│   │   ├── nmea_parser.py
+│   │   └── __pycache__
+│   │       ├── __init__.cpython-313.pyc
+│   │       └── nmea_parser.cpython-313.pyc
+│   ├── __pycache__
+│   │   └── __init__.cpython-313.pyc
+│   ├── stream
+│   │   ├── handler.py
+│   │   ├── __init__.py
+│   │   └── __pycache__
+│   │       ├── handler.cpython-313.pyc
+│   │       └── __init__.cpython-313.pyc
+│   ├── utils
+│   │   ├── __init__.py
+│   │   ├── metrics.py
+│   │   └── __pycache__
+│   │       ├── __init__.cpython-313.pyc
+│   │       └── metrics.cpython-313.pyc
+│   └── vadase_rt_monitor
+│       ├── __init__.py
+│       └── py.typed
+├── tests
+│   ├── fixtures
+│   │   ├── sample_ldm.nmea
+│   │   └── sample_lvm.nmea
+│   └── __init__.py
+├── tree.md
+└── uv.lock
+
+24 directories, 111 files

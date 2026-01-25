@@ -1,0 +1,798 @@
+======================================================================
+
+AIUB's Anonymous FTP Server                     Last mod.: 11-Mar-2025
+
+======================================================================
+
+The anonymous ftp server of the AIUB contains daily updated files
+resulting from the GNSS data analysis performed for the IGS, in both
+international and Bernese formats. Additionally, product files from
+the reprocessing activities of CODE are available. The server may be
+accessed through
+
+  ftp://ftp.aiub.unibe.ch   or   http://www.aiub.unibe.ch/download
+
+
+Contents of this file
+*********************
+- General remarks
+
+- Files in Bernese format
+  . Data content in the directories in BSWUSER52
+  . Data content in the directories in BSWUSER54
+
+- CODE product files
+
+- Files from the CODE reprocessing
+
+- CODE-MGEX product files
+
+
+----------------------------------------------------------------------
+General remarks
+----------------------------------------------------------------------
+- All filenames are in uppercase.
+
+- Most of the files are UNIX compressed (indicated by the extension
+  .Z).
+
+- We use the following abbreviations for time in the filenames below
+  (menu time variables refer to the respective variables used in the
+  Bernese GNSS Software, since Version 5.0):
+
+    Used time        Menu time
+    abbreviation     variable         Description
+    ---------------  ---------------  --------------------------------
+    mm               $M               Month (two digits)
+    yy               $Y               Year (two digits)
+    ddd              $+0              Day of Year (DOY) (three digits)
+    dddh             $S+0             Hourly session
+                                      (DOY+character indicating
+                                      the hourly session A..X)
+    yyyy             $Y+0             Year (four digits)
+    wwww             $W+0             GPS Week
+    yymm             $M+0             Year, Month
+    wwwwd            $WD+0            GPS Week and Day of week
+    yyddd            $YD+0            Year and DOY
+    yyyyddd          $YYYD+0          4-digit Year and DOY (only versoin 5.4)
+
+
+
+----------------------------------------------------------------------
+Referencing the CODE products
+----------------------------------------------------------------------
+The usage of the operational products is expected to be acknowledged
+by the following references:
+
+- Final product series:
+  Dach, R., S. Schaer, D. Arnold, E. Brockmann,
+  M. Kalarus, M. Lasser, P. Stebler, A. Jaeggi (2024).
+  CODE final product series for the IGS. Published
+  by Astronomical Institute, University of Bern.
+  URL: http://www.aiub.unibe.ch/download/CODE/yyyy;
+  DOI: 10.48350/197025.
+
+- Rapid product series:
+  Dach, R., S. Schaer, D. Arnold, E. Brockmann,
+  M. Kalarus, M. Lasser, P. Stebler, A. Jaeggi (2024).
+  CODE rapid product series for the IGS. Published
+  by Astronomical Institute, University of Bern.
+  URL: http://www.aiub.unibe.ch/download/CODE;
+  DOI: 10.48350/197026.
+
+- Ultra-rapid product series:
+  Dach, R., S. Schaer, D. Arnold, E. Brockmann,
+  M. Kalarus, M. Lasser, P. Stebler, A. Jaeggi (2024).
+  CODE ultra-rapid product series for the IGS. Published
+  by Astronomical Institute, University of Bern.
+  URL: http://www.aiub.unibe.ch/download/CODE;
+  DOI: 10.48350/197027.
+
+- Final MGEX product series:
+  Dach, R., S. Schaer, D. Arnold, E. Brockmann,
+  M. Kalarus, M. Lasser, P. Stebler, A. Jaeggi (2024).
+  CODE final product series for the IGS. Published
+  by Astronomical Institute, University of Bern.
+  URL: http://www.aiub.unibe.ch/download/CODE_MGEX/yyyy;
+  DOI: 10.48350/197028.
+
+
+
+----------------------------------------------------------------------
+Files in Bernese format
+----------------------------------------------------------------------
+The main directory tree for the Bernese users area distinguishes
+between the versions of the Bernese GNSS Software. Currently we have
+BSWUSER52 and BSWUSER54.
+
+With the introduction of new formats during future developments at
+AIUB new top-directories like BSWUSER55 may appear. If there are sub-
+directories from different versions in place they contain the full set
+of files, but in the respective format. If a file is identical in
+two versions, the same file will appear in both subdirectories.
+
+    Directory           Short comment on content
+    ------------------  ------------------------------------------
+    BSWUSER52           Files in format for BSW Version 5.2
+      ATM               Bernese troposphere and ionosphere files
+      GEN               General BSW files
+      ORB               Bernese clock, ERP, and DCB files
+      STA               Bernese station coordinate files
+
+    BSWUSER54           Files in format for BSW Version 5.4
+      REF               Supporting files connected to ITRF
+      CONFIG            General BSW configuration file
+      MODEL             Model files supported by BSW
+
+Some of the products are stored in yearly subdirectories, e.g.,
+
+  http://www.aiub.unibe.ch/download/BSWUSER52/ATM/yyyy/ (till Nov-2022, only)
+
+
+
+Data content in the directories in BSWUSER52
+********************************************
+The following list of files refers to the content of the directory
+tree BSWUSER52. They can only be used with version 5.2 of the Bernese
+GNSS Software.
+
+Please note, that due to recent developments in the operational version
+of the Bernese GNSS Software not all file formats are downconverted to
+be usable with version 5.2. In such a case, theses file are just not
+submitted anymore.
+
+Furthermore, due to the filename change when switching from I14 to I20,
+no product files with short filenames are stored in yearly subdirectories. 
+
+ATM contains troposphere and ionosphere files in Bernese format in
+    yearly subdirectories:
+
+  yyyy/ (till Nov. 2022)
+
+    CODyyddd.TRP.Z      Troposphere path delays of final solution
+    COEyyddd.TRP.Z      Troposphere path delays of EUREF solution
+    COEyyddd.INX.Z      Ionosphere information in IONEX format from
+                        EUREF solution
+    COEyyddd.ION.Z      Ionosphere information in Bernese format from
+                        EUREF solution
+
+GEN contains general files such as DATUM., RECEIVER., SAT_yyyy.CRX .
+    The input files containing gravity field, nutation model, and
+    subdaily pole model are placed here for the recommended (default)
+    models. Input files for alternative models are located in the
+    subdirectory GEN/ALTERNATIVE_MODELS.
+    Furthermore, several sets of satellite information files (e.g.,
+    SATELLIT.I20), antenna phase center files (e.g., PCV_COD.I20),
+    and ANTEX files (I20.ATX) are located here.
+    For keeping track, also files from older realizations are stored
+    here (indicated with "out_of_service").
+
+ORB contains daily updated files containing the P1-P2 and P1-C1 DCB
+    values, respectively, and some ERP files in Bernese format
+
+  Yearly subdirectories contain the following files in Bernese format:
+
+  yyyy/
+
+    CODwwww7.ERP.Z      Weekly CODE final ERP files as from week 0978
+    CODwwww7.GCC.Z      Weekly CODE final GCC files as from week 1400
+    CODyyddd.ERP.Z      Daily CODE final ERP files as from week 1706
+    CODyyddd.GCC.Z      Daily CODE final GCC files as from week 1706
+    CODyyddd.CLK.Z      High rate (30 sec) satellite clock corrections
+                        from the CODE final IGS solution
+    CODyyddd.CLK_05S.Z  High rate ( 5 sec) satellite clock corrections
+                        from the CODE final IGS solution
+    CORyyddd.DCB.Z      Daily P1-P2 DCB estimates of rapid where
+                        final information is not yet available
+    CODyyddd.DCB.Z      Daily P1-P2 DCB estimates of final solution
+    BRDyyddd.CLK.Z      Broadcast clock information
+
+  The daily ERP files CODyyddd.ERP.Z are fully consistent with the
+  CODE final orbits available at URL
+
+    http://www.aiub.unibe.ch/download/CODE/yyyy/CODwwwwd.EPH.Z
+
+STA contains the following station related files
+
+  CODE.STA        Bernese station information file for all stations
+                  included in the CODE processing
+  FES2004.BLQ     FES2004 ocean tide loading corrections for all
+                  stations included in the CODE processing
+  IGS.STA         Translation of the igs.SNX station information
+                  (http://www.igs.org/igscb/station/general/igs.snx)
+  IGS_FULL.STA    As IGS.STA but keeping individual antenna calibration
+                  number
+  EUREF.STA       Translation of the euref.SNX station information
+                  (ftp://ftp.epncb.oma.be/pub/station/general/euref.snx)
+  EUREF_FULL.STA  As EUREF.STA but keeping individual antenna calibration
+                  number
+
+  For each ITRF and IGS realizations, we provide three files
+                  (REFNAM=IG[SB..]YY):
+  "REFNAM"_R.CRD: fiducial sites coordinate extraction in Bernese
+                  format from reference frame "REFNAM"
+  "REFNAM"_R.VEL: fiducial sites velocity extraction in Bernese
+                  format from reference frame "REFNAM"
+  "REFNAM".FIX:   list of fiducial sites of reference frame "REFNAM"
+  "REFNAM".PSD:   PSD (post-seismic deformation) corrections
+
+  Yearly subdirectories contain the following files in Bernese format:
+
+  yyyy/
+
+    CODyyddd.CRD.Z    Daily coordinate files of the CODE  final
+                      global solution as from week 1706
+    CODwwww7.CRD.Z    Weekly coordinate files of the CODE
+                      final global solution as from week 0978
+    COEwwww7.CRD.Z    Weekly coordinate files of the CODE EUREF
+                      solution as from week 0886 (just till week 2237)
+
+
+Data content in the directories in BSWUSER54
+********************************************
+The following list of files refers to the content of the directory
+tree BSWUSER54. They can only be used with version 5.4 of the Bernese
+GNSS Software.
+
+
+REF contains files connected to ITRF realizations
+  CODE.STA        Bernese station information file for all stations
+                  included in the CODE processing
+  FES2014b.BLQ    FES2014b ocean tide loading corrections for all
+                  stations included in the CODE processing
+  I20.ATX         IGS ANTEX file for IGS20, compatible with BSW satellite
+                  information file
+  ANTENNA_I20.PCV IGS14 ANTEX file in the BSW PCV format
+
+
+
+  For each ITRF and IGS realizations, we provide three files:
+                  (REFNAM=IG[SB..]YY):
+  "REFNAM"_R.CRD: fiducial sites coordinate extraction in Bernese
+                  format from reference frame "REFNAM"
+  "REFNAM"_R.VEL: fiducial sites velocity extraction in Bernese
+                  format from reference frame "REFNAM"
+  "REFNAM".FIX:   list of fiducial sites of reference frame "REFNAM"
+  "REFNAM".PSD:   PSD (post-seismic deformation) corrections
+
+  BULLET_A.ERP    Bulletin A pole series in Bernese ERP file format
+  C04_yyyy.ERP    C04 pole series (related to ITRF2020) in Bernese ERP file format
+                  The related file refering to ITRF2014 are located in the
+                  subdirectory C04_14
+
+Out-of-service (no longer updated and not recommended to use with current products):
+  R20.ATX         IGS ANTEX file for IGS14, compatible with BSW satellite
+                  information file
+  M20.ATX         IGS ANTEX file used for CODE MGEX products
+  ANTENNA_I14.PCV IGS14 ANTEX file in the BSW PCV format
+  ANTENNA_R20.PCV IGS ANTEX file for Repro3 in the BSW PCV format
+  ANTENNA_M20.PCV IGS MGEX ANTEX file in the BSW PCV format
+
+
+
+CONFIG contains regularly updated BSW configuration files
+       to be used with the operational CODE products
+
+MODEL contains model files used by the operational CODE products
+
+----------------------------------------------------------------------
+CODE product files
+----------------------------------------------------------------------
+CODE product files in international format, i.e., precise orbit files
+in SP3c, clock information in Clock RINEX format, solution files in
+SINEX format, Earth rotation files in IERS format, ionosphere infor-
+mation in IONEX and Navigation RINEX format, and troposphere informa-
+tion in Troposphere SINEX format, are available in the directory
+
+  http://www.aiub.unibe.ch/download/CODE
+
+This directory contains the following CODE rapid, ultra-rapid, and
+predicted GNSS based products:
+
+  CODE.ACN           Analysis strategy summary
+
+  Result files from CODE's ultra-rapid solution
+  ---------------------------------------------
+  (static filenames updated with the latest solution)
+  COD0OPSULT.SP3     CODE ultra-rapid GNSS orbits
+  COD0OPSULT.ERP     CODE ultra-rapid ERPs belonging to the
+                     ultra-rapid orbit product
+  COD0OPSULT.TRO     CODE ultra-rapid troposphere product in SINEX
+                     format
+  COD0OPSULT.SNX     SINEX file from the CODE ultra-rapid solution
+                     containing station coordinates, ERPs, and satellite
+                     antenna offsets
+  COD0OPSULT_TRO.SNX CODE ultra-rapid solution, as above but with
+                     troposphere parameters for selected sites, SINEX format
+  COD0OPSULT.SUM     Summary of stations used for the latest
+                     ultra-rapid orbit
+  COD0OPSULT.ION     Last update of CODE rapid ionosphere product
+                     (1 day) complemented with ionosphere
+                     predictions (2 days)
+  COD0OPSULT_05D.SP3 Last update of CODE 5-day orbit predictions, from
+                     rapid analysis, including all active GLONASS and
+                     Galileo satellites
+  COD0OPSULT_yyyyddd0000_01D_05M_ORB.SP3
+             CODE ultra-rapid GNSS orbits from the 24UT solution available
+             until the corresponding early rapid orbit is available
+             (to ensure a complete coverage of orbits even if the early
+             rapid solution is delayed after the first ultra-rapid solutions
+             of the day)
+  COD0OPSULT_yyyyddd0000_01D_01D_ERP.ERP
+             CODE ultra-rapid ERPs belonging to the ultra-rapid orbits
+  COD0OPSPRD_yyyyddd0000_05D_05M_ORB.SP3
+             CODE 5-day GNSS orbit predictions
+  COD0OPSPRD_yyyyddd0000_21D_06H_ERP.ERP
+             CODE predicted ERPs belonging to the predicted orbits
+
+  Result files from CODE's early rapid solution
+  ---------------------------------------------
+  (GPS+GLONASS+Galileo; third day of a 72-hour solution)
+  COD0OPSRAP_yyyyddd0000_01D_05M_ORB.SP3     orbits, SP3 format
+  COD0OPSRAP_yyyyddd0000_01D_01D_ERP.ERP     ERPs belonging to these orbits
+  COD0OPSRAP_yyyyddd0000_01D_30S_CLK.CLK     clock results, clock RINEX format
+  COD0OPSRAP_yyyyddd0000_01D_30S_CLK.CLK_V2           (versions 3.04 and 2.00)
+  COD0OPSRAP_yyyyddd0000_01D_01H_TRO.TRO     troposphere product, SINEX format
+  COD0OPSRAP_yyyyddd0000_01D_01D_SOL.SNX     SINEX file containing station
+             coordinates, ERPs, and satellite antenna offsets
+  COD0OPSRAP_yyyyddd0000_01D_02H_TRO.SNX     as above but with
+             troposphere parameters for selected sites, SINEX format
+  COD0OPSRAP_yyyyddd0000_01D_01D_OSB.BIA     code/phase biases, Bias-SINEX format
+             Note: Integer-cycle clocks in conjunction with accompanying
+             code/phase biases enable PPP-AR
+             (ftp://ftp.aiub.unibe.ch/CODE/IAR_README.TXT)
+  COD0OPSRAP_yyyyddd0000_01D_30S_ATT.OBX     Satellite attitude, ORBEX format
+
+  Result files from CODE's final rapid solution
+  ---------------------------------------------
+  (GPS+GLONASS+Galileo; middle day of a long-arc solution where the rapid
+  observations were completed by a subsequent ultra-rapid dataset)
+  CODMOPSRAP_yyyyddd0000_01D_05M_ORB.SP3     orbits, SP3 format
+  CODMOPSRAP_yyyyddd0000_01D_01D_ERP.ERP     ERPs belonging to these orbits
+  CODMOPSRAP_yyyyddd0000_01D_30S_CLK.CLK     clock results, clock RINEX format
+  CODMOPSRAP_yyyyddd0000_01D_30S_CLK.CLK_V2           (versions 3.04 and 2.00)
+  CODMOPSRAP_yyyyddd0000_01D_01D_OSB.BIA     code/phase biases, Bias-SINEX format
+             Note: Integer-cycle clocks in conjunction with accompanying
+             code/phase biases enable PPP-AR
+             (ftp://ftp.aiub.unibe.ch/CODE/IAR_README.TXT)
+
+  Result files for CODE 5-day GNSS orbit predictions
+  --------------------------------------------------
+  COD0OPSPRD_05D.SP3                         current orbit predictions, SP3 format
+  COD0OPSPRD_yyyyddd0000_05D_05M_ORB.SP3     orbits, SP3 format
+  COD0OPSPRD_yyyyddd0000_21D_06H_ERP.ERP     ERPs belonging to these orbits
+
+  Result files from CODE rapid ionosphere solution
+  ------------------------------------------------
+  COD0OPSRAP_yyyyddd0000_01D_01H_GIM.INX.gz  IONEX format
+  COD0OPSRAP_yyyyddd0000_01D_01H_GIM.ION     Bernese format
+  COD0OPSRAP_yyyyddd0000_01D_01D_GIM.RNX     Klobuchar-style coefficients,
+                                             RINEX format
+
+  Result files for CODE ionosphere predictions
+  --------------------------------------------
+  COD0OPSPRD_yyyyddd0000_01D_01H_GIM.INX.gz  IONEX format
+  COD0OPSPRD_yyyyddd0000_01D_01H_GIM.ION     Bernese format
+  COD0OPSPRD_yyyyddd0000_01D_01D_GIM.RNX     Klobuchar-style coefficients,
+                                             RINEX format
+
+
+  Result files for CODE bias product generation
+  ---------------------------------------------
+  P1C1.DCB          CODE sliding 30-day P1-C1 DCB solution, Bernese
+                    format, containing only the GPS satellites
+  P1P2.DCB          CODE sliding 30-day P1-P2 DCB solution, Bernese
+                    format, containing all GPS and GLONASS satellites
+  P1P2_ALL.DCB      CODE sliding 30-day P1-P2 DCB solution, Bernese
+                    format, containing all GPS and GLONASS satellites
+                    and all stations used
+  P1P2_GPS.DCB      CODE sliding 30-day P1-P2 DCB solution, Bernese
+                    format, containing only the GPS satellites
+  P1C1_RINEX.DCB    CODE sliding 30-day P1-C1 DCB values directly
+                    extracted from RINEX observation files, Bernese
+                    format, containing the GPS and GLONASS satellites
+                    and all stations used
+  P2C2_RINEX.DCB    CODE sliding 30-day P2-C2 DCB values directly
+                    extracted from RINEX observation files, Bernese
+                    format, containing the GPS and GLONASS satellites
+                    and all stations used
+  CODE.DCB          Combination of P1P2.DCB and P1C1.DCB
+  CODE_FULL.DCB     Combination of P1P2.DCB, P1C1.DCB (GPS satellites),
+                    P1C1_RINEX.DCB (GLONASS satellites), and P2C2_RINEX.DCB
+  CODE.BIA          Same content but stored as OSBs in the bias SINEX format
+  CODE_MONTHLY.BIA  Cumulative monthly OSB satellite solution in bias SINEX
+                    format
+
+Yearly subdirectories contain the CODE final products:
+
+  yyyy/
+
+    Result files from CODE's final solution (until GPS week 2237, Nov. 2022)
+    ---------------------------------------
+    (GPS+GLONASS; middle day of a long-arc solution)
+
+    CODwwwwd.EPH.Z  CODE final GNSS orbits
+    CODwwwwd.ERP.Z  CODE final ERPs belonging to the final orbits
+    CODwwwwd.CLK.Z  CODE final clock product(GPS+GLONASS since GPS
+                    week 1934, 29-Jan-2017), Clock RINEX format,
+                    with a sampling of 30 sec for the satellite and
+                    reference (station) clock corrections and
+                    5 minutes for all other station clock
+                    corrections
+    CODwwwwd_v3.CLK.Z same as above but in clock RINEX version 3.04
+    CODwwwwd.CLK_05S.Z
+                    CODE final clock product (GPS+GLONASS since GPS
+                    week 1934, 29-Jan-2017), Clock RINEX format,
+                    with a sampling of  5 sec for the satellite and
+                    reference (station) clock corrections and
+                    5 minutes for all other station clock
+                    corrections
+    CODwwwwd_v3.CLK_05.Z
+                    same as above but in clock RINEX version 3.04
+    CODwwwwd.BIA.Z  CODE final code/phase biases, Bias-SINEX format
+                    Note: Integer-cycle clocks in conjunction with
+                    accompanying code/phase biases enable PPP-AR
+                    (ftp://ftp.aiub.unibe.ch/CODE/IAR_README.TXT)
+    CODwwwwd.SNX.Z  CODE daily final solution, SINEX format
+    CODwwwwd.OBX.Z  Used GNSS satellite attitude information
+                    reported in ORBEX format
+    CODwwwwd.TRO.Z  CODE final troposphere product, SINEX format
+    CODGddd0.yyI.Z  CODE final ionosphere product, IONEX format
+    CODwwwwd.ION.Z  CODE final ionosphere product, Bernese format
+    CODwwww7.SNX.Z  CODE weekly final solution, SINEX format
+    CODwwww7.SUM.Z  CODE weekly summary file
+    CODwwww7.ERP.Z  collection of the 7 daily COD-ERP solutions
+                    of the week
+    COXwwwwd.EPH.Z  CODE final GLONASS orbits (for GPS weeks
+                    0990 to 1066)
+    COXwwww7.SUM.Z  CODE weekly summary files of GLONASS analysis
+    CGIMddd0.yyN.Z  Navigation messages containing improved
+                    Klobuchar-style ionosphere coefficients
+
+    Result files from CODE's final solution (after GPS week 2238, Nov. 2022)
+    ---------------------------------------
+    (GPS+GLONASS+Galileo; middle day of a long-arc solution)
+    COD0OPSFIN_yyyyddd0000_01D_05M_ORB.SP3.gz    orbits, SP3 format
+    COD0OPSFIN_yyyyddd0000_01D_01D_ERP.ERP.gz    ERPs belonging to these orbits
+    COD0OPSFIN_yyyyddd0000_01D_30S_CLK.CLK.gz    clock results with a sampling
+               of 30 sec for the satellite and reference (station) clock
+               corrections and 5 minutes for all other station clock
+               corrections, clock RINEX verion 3.04
+    COD0OPSFIN_yyyyddd0000_01D_30S_CLK.CLK_V2.gz same but in clock RINEX v2.00
+    COD0OPSFIN_yyyyddd0000_01D_05S_CLK.CLK.gz        clock results with a sampling
+               of 5 sec for the satellite and reference (station) clock
+               corrections and 5 minutes for all other station clock
+               corrections, clock RINEX verion 3.04
+    COD0OPSFIN_yyyyddd0000_01D_05S_CLK.CLK_V2.gz  same but in clock RINEX v2.00
+    COD0OPSFIN_yyyyddd0000_01D_01D_OSB.BIA.gz     code/phase biases, Bias-SINEX format
+             Note: Integer-cycle clocks in conjunction with accompanying
+             code/phase biases enable PPP-AR
+             (ftp://ftp.aiub.unibe.ch/CODE/IAR_README.TXT)
+    COD0OPSFIN_yyyyddd0000_01D_30S_ATT.OBX.gz    satellite attitude, ORBEX format
+    COD0OPSFIN_yyyyddd0000_01D_01D_SOL.SNX.gz    daily solution, SINEX format
+    COD0OPSFIN_yyyyddd0000_01D_01H_TRO.TRO.gz    troposphere product, SINEX format
+    COD0OPSFIN_yyyyddd0000_01D_01H_GIM.INX.gz    ionosphere product, IONEX format
+    COD0OPSFIN_yyyyddd0000_01D_01H_GIM.ION.gz    ionosphere product, Bernese format
+    COD0OPSFIN_yyyyddd0000_01D_01D_GIM.RNX.gz    Klobuchar-style ionosphere coefficients,
+                                                 navigation RINEX format
+    CGIMddd0.yyN.Z                               same but short file name
+    COD0OPSFIN_yyyyddd0000_07D_07D_SOL.SNX.gz    weekly SINEX file
+    COD0OPSFIN_yyyyddd0000_07D_01D_ERP.ERP.gz    weekly cumulated ERPs
+    COD0OPSFIN_yyyyddd0000_07D_01D_SUM.SUM.gz    weekly summary file
+
+    Result files for CODE bias product generation
+    ---------------------------------------------
+    P1C1yymm.DCB.Z  CODE monthly P1-C1 DCB solution, Bernese format,
+                    containing only the GPS satellites
+    P1P2yymm.DCB.Z  CODE monthly P1-P2 DCB solution, Bernese format,
+                    containing all GPS and GLONASS satellites
+    P1P2yymm_ALL.DCB.Z
+                    CODE monthly P1-P2 DCB solution, Bernese format,
+                    containing all GPS and GLONASS satellites and all
+                    stations used
+    P1C1yymm_RINEX.DCB.Z
+                    CODE monthly P1-C1 DCB values directly extracted
+                    from RINEX observation files, Bernese format,
+                    containing the GPS and GLONASS satellites and all
+                    stations used
+    P2C2yymm_RINEX.DCB.Z
+                    CODE monthly P2-C2 DCB values directly extracted
+                    from RINEX observation files, Bernese format,
+                    containing the GPS and GLONASS satellites and all
+                    stations used
+
+As soon as a final product is available the corresponding rapid,
+ultra-rapid, or predicted product is removed from the aftp server.
+
+Because the rapid clock product did contain satellite clock corrections
+for GPS, GLONASS, and Galileo for the period before GPS week 2237 the
+related products are copied into a specific directory:
+
+  yyyy_M/ (2015 till Nov. 2022)
+
+    CODwwwwd.EPH_M.Z  CODE final rapid GNSS orbits
+    CODwwwwd.ERP_M.Z  CODE final rapid ERPs belonging to the final rapid orbits
+    CODwwwwd.CLK_M.Z  CODE clock product
+                    related to the final rapid orbit, clock RINEX format
+                    with a sampling of 30 sec for the satellite and
+                    reference (station) clock corrections and
+                    5 minutes for all other station clock
+                    corrections
+    CODwwwwd.BIA_M.Z  CODE final code/phase biases, Bias-SINEX format
+                    Note: Integer-cycle clocks in conjunction with
+                    accompanying code/phase biases enable PPP-AR
+                    (ftp://ftp.aiub.unibe.ch/CODE/IAR_README.TXT)
+
+These products are stopped with the inclusion of Galileo in the CODE's final
+product line starting with GPS week 2238 (Nov. 2022).
+
+
+----------------------------------------------------------------------
+Files from the CODE reprocessing, release 2011
+----------------------------------------------------------------------
+CODE product files from the reprocessing activity 2011 are available
+in the directory
+
+  http://www.aiub.unibe.ch/download/REPRO_2011
+
+
+CODE_REPRO_2011.ACN  Analysis strategy summary
+
+GEN52               General files such as CONST., DATUM., GPSUTC.,
+                    gravity fields, nutation and subdaily pole models,
+                    as well as Earth and ocean tide models.
+
+  PCV_COD.I08       Antenna phase center file
+  SAT_1452.I08      Satellite information file
+  SAT_yyyy.CRX      Yearly satellite problem files
+
+REF52
+  CODE.STA          Station information file (Format version 1.01)
+  CODE.ABB          Station abbreviation table
+  CODE.CLU          Cluster definition file
+  ATM_VAPL.ATL      S1 and S2 atmospheric tidal coefficients
+  EOP08C04.ERP      Earth rotation parameters
+  FES2004.BLQ       Ocean loading displacements (as of 26-Apr-2011)
+  IGS08COD.SNX      SINEX file containing coordinates and velocities
+                    of the IGS08 fiducial sites
+
+BSWUSER52
+  yyyy/
+
+    CODyyddd.TRP.Z   Troposphere information files
+    CODwwww7.CRD.Z   Weekly coordinate files
+    CODwwww7.ERP.Z   Weekly final Earth rotation parameter files,
+                     Bernese format
+    CODwwww7.GCC.Z   Weekly geocenter coordinate files
+
+CODE
+  yyyy/
+
+    CODwwwwd.EPH.Z   Final GNSS orbits
+    CODwwww7.ERP.Z   Weekly final Earth rotation parameter files,
+                     IERS format
+    CODwwww7.SNX.Z   Weekly SINEX product
+
+
+----------------------------------------------------------------------
+Files from the CODE reprocessing, release 2013
+----------------------------------------------------------------------
+CODE product files from the reprocessing activity 2013 covering
+GPS (1994-2001) and a combined GPS+GLONASS (2002-2013) are available
+in the directory
+
+  http://www.aiub.unibe.ch/download/REPRO_2013
+
+
+CODE_REPRO_2013.ACN  Analysis strategy summary
+
+BSWUSER52
+  GEN               General files such as CONST., DATUM., GPSUTC.,
+                    gravity fields, nutation and subdaily pole models,
+                    as well as Earth and ocean tide models.
+
+    PCV_COD.I08     Antenna phase center file
+    SAT_NONE.I08    Satellite information file
+    SAT_yyyy.CRX    Yearly satellite problem files
+
+  REF52
+    CODE.STA        Station information file (Format version 1.01)
+    CODE.ABB        Station abbreviation table
+    CODE.CLU        Cluster definition file
+    FES2004.BLQ     Ocean loading displacements (as of 26-Apr-2011)
+    ATM_VAPL.ATL    S1 and S2 atmospheric tidal coefficients
+    EOP08C04.ERP    Earth rotation parameters
+    IGS08COD.SNX    SINEX file containing coordinates and velocities
+                    of the IGb08 fiducial sites
+
+  yyyy/
+    CODyyddd.TRP.Z   Troposphere information files
+    CODyyddd.CRD.Z   Daily coordinate files
+    CODyyddd.ERP.Z   Daily final Earth rotation parameter files,
+                     Bernese format
+    CODyyddd.GCC.Z   Daily geocenter coordinate files
+    CODwwww7.CRD.Z   Weekly coordinate files
+    CODwwww7.GCC.Z   Weekly geocenter coordinate files
+
+CODE
+
+  yyyy/
+    CODwwwwd.EPH.Z   Final GNSS orbits
+    CODwwwwd.TRO.Z   Daily troposphere SINEX file from final solution
+    CODwwwwd.ERP.Z   Daily final Earth rotation parameter files,
+                     IERS format
+    CODwwwwd.SNX.Z   Daily SINEX product
+    CODwwww7.ERP.Z   Weekly final Earth rotation parameter files,
+                     IERS format
+    CODwwww7.SNX.Z   Weekly SINEX product
+    CODwwww7.SUM.Z   Weekly processing summary
+
+
+The usage of the repro2 product series is expected to be acknowledged
+by the following reference:
+
+Steigenberger, P., S. Lutz, R. Dach, S. Schaer, A. Jaeggi (2014).
+CODE repro2 product series for the IGS.
+Published by Astronomical Institute, University of Bern.
+URL: http://www.aiub.unibe.ch/download/REPRO_2013; DOI: 10.7892/boris.75680.
+
+
+----------------------------------------------------------------------
+Files from the CODE reprocessing, release 2020
+----------------------------------------------------------------------
+CODE product files from the reprocessing activity 2020 covering:
+- GPS: orbits since 1994; satellite clock corrections with 30 s sampling
+  since the year 2000 and starting in the year 2003 even with a 5 s sampling.
+- GLONASS: orbits since 2002, satellite clock corrections since 2008 with
+  30 s and 2011 with 5 s sampling (since year 2012 nearly every day complete).
+- Galileo: orbits since 2013; satellite clock corrections since 2014 with
+  30 s sampling (due to the excellent stability of the satellite clocks no
+  further densification is necessary, linear interpolation between 30 s values
+  is sufficient).
+
+The product files are available in the directory
+
+  http://www.aiub.unibe.ch/download/REPRO_2020
+
+
+CODE_REPRO_2020.ACN  Analysis strategy summary
+
+BSWUSER54/
+  REF/
+    CODE.STA        Station information file (Format version 1.01)
+    CODE.ABB        Station abbreviation table
+    CODE.CLU        Cluster definition file
+    FES2014b.BLQ    Ocean loading displacements
+    ATM_VAPL.ATL    S1 and S2 atmospheric tidal coefficients
+    IGS14R3.SNX     SINEX file containing coordinates and velocities
+                    of the IGSR3 fiducial sites
+    ANT_COD_R20.PCV PCV file to be used with CODE repro 2020 products
+
+
+  CONFIG/ contains BSW configuration files used by CODE repro 2020
+                  products
+
+  MODEL/ contains model files used by the CODE reporo 2020 products
+
+CODE/
+  yyyy/
+    ORB/CODwwwwd.CLK.gz      Satellite clock corrections, 30 s sampling,
+                             Bernese format
+    ORB/CODwwwwd.CLK_05S.gz  Satellite clock corrections,  5 s sampling,
+                             Bernese format
+    ORB/CODwwwwd.OSB.gz      Daily bias solution
+    ORB/CODwwwwd.ERP.gz      Daily final Earth rotation parameter files,
+                             Bernese format
+    ORB/CODwwww7.ERP.gz      Weekly final Earth rotation parameter files,
+                             Bernese format
+    ORB/CODwwwwd.PRE.gz      Daily GNSS orbit files, precise orbit format
+    OUT/CODwwwwd.CLK.gz      Clock corrections in clock RINEX format
+                             (5min for stations, 30 s for satellites)
+    OUT/CODwwwwd.CLK_05S.gz  Clock corrections in clock RINEX format
+                             (5min for stations, 5 s for satellites)
+    STA/CODwwwwd.CRD.gz      Daily coordinate files
+
+CODE/
+  yyyy/
+    COD0R03FIN_yyyyddd0000_01D_01D_ERP.ERP.gz
+               Daily final Earth rotation parameter files, IERS format
+    COD0R03FIN_yyyyddd0000_01D_01D_OSB.BIA.gz
+               Daily bias product, in bias SINEX format
+    COD0R03FIN_yyyyddd0000_01D_01D_SOL.SNX.gz
+               Daily SINEX product
+    COD0R03FIN_yyyyddd0000_01D_01H_CNT.TRO.gz
+               Daily troposphere SINEX file from final solution
+    COD0R03FIN_yyyyddd0000_01D_05M_ORB.SP3.gz
+               Final GNSS orbits
+    COD0R03FIN_yyyyddd0000_01D_05S_CLK.CLK.gz
+               Clock corrections in clock RINEX format
+               (5min for stations, 5 s for satellites)
+    COD0R03FIN_yyyyddd0000_01D_15M_ATT.OBX.gz
+               Satellite attitude reporting, ORBEX format
+    COD0R03FIN_yyyyddd0000_01D_30S_CLK.CLK.gz
+               Clock corrections in clock RINEX format
+               (5min for stations, 30 s for satellites)
+    COD0R03FIN_yyyyddd0000_07D_01D_ORB.ERP.gz
+               Weekly final Earth rotation parameter files, IERS format
+    COD0R03FIN_yyyyddd0000_07D_07D_SUM.SUM.gz
+               Weekly processing summary
+
+
+The usage of the repro3 product series is expected to be acknowledged
+by the following reference:
+
+Selmke, I., R. Dach, D. Arnold, L. Prange, S. Schaer, D. Sidorov, P. Stebler,
+A. Villiger, A. Jaeggi, U. Hugentobler (2020).
+CODE repro3 product series for the IGS.
+Published by Astronomical Institute, University of Bern.
+URL: http://www.aiub.unibe.ch/download/REPRO_2020; DOI: 10.7892/boris.135946.
+
+
+
+----------------------------------------------------------------------
+Files from the CODE MGEX processing
+----------------------------------------------------------------------
+CODE contributes to the IGS MGEX a five system solution considering
+the active GPS, GLONASS, Galileo, BeiDou, and QZSS satellites.
+The model and configuration files for BSW version 5.4 are available at the
+normal location
+
+  http://www.aiub.unibe.ch/download/BSWUSER54
+
+The related products are available in the directory
+
+  http://www.aiub.unibe.ch/download/CODE_MGEX
+
+
+
+CODE.ACN            Analysis strategy summary
+
+BSWUSER52/
+  yyyy/
+    COMwwwwd.CLK.Z   Daily satellite clock files, Bernese format
+    COMwwwwd.ERP.Z   Daily Earth rotation parameter files,
+                     Bernese format
+
+  GEN
+    M20.ATX          ANTEX file for MGEX solutions
+
+  The daily ERP and CLK files COMyyddd.???.Z are fully consistent with the
+  CODE final orbits available at URL
+
+    http://www.aiub.unibe.ch/download/CODE_MGEX/CODE/yyyy/COMwwwwd.EPH.Z
+
+CODE/
+  yyyy/
+
+    Result files from CODE's MGEX solution (until GPS week 2237, Nov. 2022)
+    --------------------------------------
+    (GPS+GLONASS+Galileo+BeiDou+QZSS; middle day of a long-arc solution)
+    COMwwwwd.EPH.Z   GNSS orbits, SP3 format
+    COMwwwwd.ERP.Z   Daily Earth rotation parameter files,
+                     IERS format
+    COMwwwwd.CLK.Z   Daily clock files, clock RINEX format
+    COMwwwwd.DCB.Z   Daily code biases, Bernese format
+    COMwwwwd.BIA.Z   Daily code/phase biases, Bias-SINEX format
+                     Note: Integer-cycle clocks in conjunction with
+                     accompanying code/phase biases enable PPP-AR
+                     (ftp://ftp.aiub.unibe.ch/CODE/IAR_README.TXT)
+    COMwwwwd.OBX.Z   Used GNSS satellite attitude information
+                     reported in ORBEX format
+
+    Result files from CODE's MGEX solution (after GPS week 2238, Nov. 2022)
+    --------------------------------------
+    (GPS+GLONASS+Galileo+BeiDou+QZSS; middle day of a long-arc solution)
+    COD0MGXFIN_20230350000_01D_05M_ORB.SP3.gz    orbits, SP3 format
+    COD0MGXFIN_20230350000_01D_12H_ERP.ERP.gz    ERPs belonging to these orbits
+    COD0MGXFIN_20230350000_01D_30S_CLK.CLK.gz    clock results with a sampling
+               of 30 sec for the satellite and reference (station) clock
+               corrections and 5 minutes for all other station clock
+               corrections, clock RINEX verion 3.04
+    COD0MGXFIN_20230350000_01D_01D_OSB.BIA.gz     code/phase biases, Bias-SINEX format
+             Note: Integer-cycle clocks in conjunction with accompanying
+             code/phase biases enable PPP-AR
+             (ftp://ftp.aiub.unibe.ch/CODE/IAR_README.TXT)
+    COD0MGXFIN_20230350000_01D_30S_ATT.OBX.gz    satellite attitude, ORBEX format
+
+
+======================================================================

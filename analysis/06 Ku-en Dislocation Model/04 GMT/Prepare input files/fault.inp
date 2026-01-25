@@ -1,0 +1,24 @@
+% basic fault information file (input file)
+fault_info_1.dat
+% pm file (input file)
+pm_1.dat
+% patch_x file (input file)
+gmt_faultplane_x_1.gmt
+% patch_y file (input file)
+gmt_faultplane_y_1.gmt
+% patch_z file (input file)
+gmt_faultplane_z_1.gmt
+% patch_slip file (input file)
+gmt_faultslip_1.gmt
+% fault plane projected to xy plane (output file)
+gmt_faultslip_xy_1.gmt
+% fault slip projected to xy plane (output file)
+gmt_faultslip_vec_1.gmt
+% for 3D plot (output file)
+gmt_faultslip_xyz_1.gmt
+% fault plane for 2D map plot (output file)
+gmt_faultslip_plane_1.gmt
+% fault slip for 2D map plot (output file)
+gmt_faultvec_plane_1.gmt
+% moment calculation (output file)
+moment_calculation_1.dat

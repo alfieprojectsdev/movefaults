@@ -1,0 +1,57 @@
+# VADASE CORS Station Configuration
+# Format: station_id, name, coordinates, network connection
+
+stations:
+  - id: PBIS
+    name: Bislig City, Surigao del Sur
+    latitude: 8.1956
+    longitude: 126.3919
+    elevation: 15.0
+    host: 192.168.1.101
+    port: 5017
+    threshold_mm_s: 15.0
+    fault_segment: Philippine Fault - Surigao Segment
+    
+  - id: BOST
+    name: Boston, Davao Oriental
+    latitude: 7.8556
+    longitude: 126.3639
+    elevation: 22.0
+    host: 192.168.1.102
+    port: 5017
+    threshold_mm_s: 15.0
+    fault_segment: Philippine Fault - Eastern Mindanao
+    
+  - id: BTU2
+    name: Butuan City, Agusan del Norte
+    latitude: 8.9478
+    longitude: 125.5406
+    elevation: 8.0
+    host: 192.168.1.103
+    port: 5017
+    threshold_mm_s: 15.0
+    fault_segment: Philippine Fault - Eastern Mindanao
+    
+  - id: PAPI
+    name: Aparri, Cagayan
+    latitude: 18.3556
+    longitude: 121.6417
+    elevation: 5.0
+    host: 192.168.1.104
+    port: 5017
+    threshold_mm_s: 15.0
+    fault_segment: Philippine Fault - Northern Luzon
+    
+  # Add remaining 31 stations here...
+  
+# Network settings
+network:
+  reconnect_delay: 5          # seconds
+  read_timeout: 30            # seconds
+  buffer_size: 4096           # bytes
+  
+# Quality filters
+quality:
+  min_completeness: 0.5       # Minimum overall_completeness ratio
+  min_satellites: 8           # Minimum number of satellites
+  max_component_quality: 0.5  # Maximum CQ value (m or m/s)
