@@ -1,0 +1,16 @@
+********************************************************************************
+* PCF: {{ campaign_name }} - Basic Processing
+* Generated on: {{ generated_at }}
+********************************************************************************
+*
+*
+[MAIN]
+CAMPAIGN = {{ campaign_name }}
+SESSION  = {{ session_id }}
+*
+[STEPS]
+10  HELPRRINEX  "Convert and check RINEX"
+20  CODSP3      "Fetch orbits"
+30  BERNESE     "Main processing"
+*
+********************************************************************************

@@ -1,0 +1,5 @@
+site_name: POGF Project Documentation
+nav:
+  - Home: index.md
+theme:
+  name: material

@@ -60,3 +60,14 @@ Decoupled data sources from the processing logic to support pluggable inputs.
 *   `services/vadase-rt-monitor/scripts/replay_events.py` (New)
 *   `services/vadase-rt-monitor/scripts/run_ingestor.py` (Updated)
 *   `services/vadase-rt-monitor/pyproject.toml` (Added `aiofiles`, `typer`, `matplotlib`)
+
+## Hexagonal Architecture Refactor
+Moved system to a strict Ports & Adapters architecture.
+
+*   **Ports**: `src/ports/inputs.py`, `src/ports/outputs.py`
+*   **Adapters**:
+    *   `src/adapters/inputs/directory.py`: Replaces `FileSource`. Handles file rotation.
+    *   `src/adapters/inputs/tcp.py`: Replaces `TcpSource`.
+*   **Strategies**: `src/strategies/playback.py`.
+*   **Domain**: `src/domain/processor.py` (IngestionCore) now consumes from `asyncio.Queue`.
+*   **Wiring**: `replay_events.py` updated to assemble the graph.

@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  db:
+    image: timescale/timescaledb-ha:pg15-latest # Includes PostGIS and other extensions
+    restart: always
+    environment:
+      POSTGRES_DB: pogf_db
+      POSTGRES_USER: pogf_user
+      POSTGRES_PASSWORD: ${POGF_DB_PASSWORD:-pogf_password} # Use env var or default
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    command: postgres -c unix_socket_directories=''
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U pogf_user -d pogf_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:

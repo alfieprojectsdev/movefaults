@@ -27,10 +27,11 @@ class DeepScanner:
     Recursively scan a directory tree, including archives, and output file metadata to JSONL.
     """
 
-    def __init__(self, root_path: Path, output_file: Optional[Path] = None, resume: bool = False):
+    def __init__(self, root_path: Path, output_file: Optional[Path] = None, resume: bool = False, trigger_ingestion: bool = False):
         self.root = Path(root_path).resolve()
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.scan_id = self.root.name.replace("/", "_").replace("\\", "_")
+        self.trigger_ingestion = trigger_ingestion
 
         if output_file:
             self.output_file = Path(output_file)
@@ -111,6 +112,16 @@ class DeepScanner:
 
             if self.progress and self.task is not None:
                 self.progress.update(self.task, advance=1, description=f"[cyan]Scanning... ({self.file_count} files)")
+
+            if self.trigger_ingestion and metadata.get("category") == "GNSS Data":
+                try:
+                    from ingestion_pipeline.tasks import ingest_rinex
+                    ingest_rinex.delay(metadata["path"])
+                    self.log(f"Triggered ingestion for: {metadata['path']}")
+                except ImportError:
+                    self.log("Failed to trigger ingestion: ingestion_pipeline package not found", level="WARNING")
+                except Exception as e:
+                    self.log(f"Failed to trigger ingestion for {metadata['path']}: {e}", level="ERROR")
 
             if self.archive_handler.is_archive(filepath):
                 self.log(f"Found archive: {filepath}. Extracting...")

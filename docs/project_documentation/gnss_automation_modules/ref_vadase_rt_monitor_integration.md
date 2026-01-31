@@ -6,7 +6,7 @@
 
 ## Purpose
 
-The `vadase-rt-monitor` project provides a dedicated, open-source real-time GNSS displacement monitoring system. This system specifically addresses the ingestion and processing of NMEA-based VADASE data streams for real-time velocity and displacement monitoring, earthquake detection, and visualization.
+The `vadase-rt-monitor` project provides a dedicated, open-source real-time GNSS displacement monitoring system. This system specifically addresses the ingestion and processing of **NMEA-based VADASE data streams for rapid evaluation and display** of real-time velocity and displacement monitoring, earthquake detection, and visualization. This type of data is distinct from the proprietary raw GNSS data intended for precise Bernese post-processing.
 
 The presence of MATLAB scripts like `vel_line_v6_ldm.m` and `vel_line_v6_lvm.m` in `analysis/07 Sample time series from NMEA/` confirms that real-time or near real-time VADASE data analysis has been a part of past workflows. The `vadase-rt-monitor` project consolidates and modernizes this specific real-time domain.
 
@@ -14,7 +14,7 @@ The presence of MATLAB scripts like `vel_line_v6_ldm.m` and `vel_line_v6_lvm.m` 
 
 The `vadase-rt-monitor` project (located at `/home/finch/repos/movefaults/docs/vadase-rt-monitor/`) is designed for:
 
--   Ingesting NMEA-based LDM (Displacement) and LVM (Velocity) data streams.
+-   Ingesting **NMEA-based LDM (Displacement) and LVM (Velocity) data streams**, primarily for rapid evaluation and display.
 -   Real-time velocity and displacement monitoring.
 -   Automatic earthquake detection based on configurable thresholds.
 -   Time-series visualization via Grafana dashboards.

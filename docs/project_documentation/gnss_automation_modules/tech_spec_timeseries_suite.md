@@ -8,11 +8,11 @@
 
 ### 1.1. Purpose
 
-This document provides the technical specifications for the **Geodetic Post-Processing & Modeling Suite**. This project aims to create a comprehensive, open-source Python-based library and set of tools to unify and replace the various MATLAB, Python, and C scripts currently used for **post-processed, non-real-time** geodetic research. This includes scripts for RINEX conversion, time series analysis, deformation modeling, and bootstrapping, as found in the `/analysis/` directory. **Real-time VADASE processing and monitoring are handled by the separate `vadase-rt-monitor` project.**
+This document provides the technical specifications for the **Geodetic Post-Processing & Modeling Suite**. This project aims to create a comprehensive, open-source Python-based library and set of tools to unify and replace the various MATLAB, Python, and C scripts currently used for **post-processed, non-real-time** geodetic research. This includes scripts for RINEX conversion, time series analysis, deformation modeling, and bootstrapping, as found in the `/analysis/` directory. It is designed to analyze data originating from **both Campaign GPS (periodic observations) and Continuous GPS (permanent installations)**. **Real-time VADASE processing and monitoring are handled by the separate `vadase-rt-monitor` project.**
 
 ### 1.2. Scope
 
-This specification covers the suite's architecture as a unified Python library and a set of command-line tools. It details the required modules for data preparation, analysis, modeling, and visualization, with the goal of porting and integrating the logic from existing scripts (e.g., `vel_line*.m`, `geodetic2enu*.py`, `bootstrap*.py`, `disloc.c`). **It explicitly excludes real-time or near real-time NMEA/VADASE stream processing, which falls under the purview of `vadase-rt-monitor`.**
+This specification covers the suite's architecture as a unified Python library and a set of command-line tools. It details the required modules for data preparation, analysis, modeling, and visualization, with the goal of porting and integrating the logic from existing scripts (e.g., `vel_line*.m`, `geodetic2enu*.py`, `bootstrap*.py`, `disloc.c`). It will analyze data from diverse GNSS observation methods. **It explicitly excludes real-time or near real-time NMEA/VADASE stream processing, which falls under the purview of `vadase-rt-monitor`.**
 
 ## 2. System Architecture
 

@@ -8,11 +8,11 @@
 
 ### 1.1. Purpose
 
-This document describes the technical specifications for the Unified Data Ingestion Pipeline. The pipeline is responsible for automatically collecting, validating, standardizing, and loading geodetic data from various partner agencies into the Centralized Geodetic Database.
+This document describes the technical specifications for the Unified Data Ingestion Pipeline. The pipeline is responsible for automatically collecting, validating, standardizing, and loading geodetic data from various partner agencies into the Centralized Geodetic Database. This includes **proprietary raw observation data** originating from both **Campaign GPS (periodic site visits)** and **Continuous GPS (permanently installed receivers)** observation methods, which is then prepared for precise processing by software like Bernese. **This pipeline explicitly excludes the ingestion of VADASE real-time monitoring data (NMEA formats), which is handled by the `vadase-rt-monitor` project.**
 
 ### 1.2. Scope
 
-This specification covers the pipeline's architecture, its core stages, the technology stack, and its error handling and configuration mechanisms.
+This specification covers the pipeline's architecture, its core stages, the technology stack, and its error handling and configuration mechanisms. The pipeline is designed to accommodate the diverse characteristics and delivery mechanisms of **proprietary raw GNSS data** from both Campaign GPS and Continuous GPS observation methods, preparing them for RINEX conversion and subsequent precise processing. It does not encompass VADASE real-time NMEA stream ingestion.
 
 ## 2. System Architecture
 

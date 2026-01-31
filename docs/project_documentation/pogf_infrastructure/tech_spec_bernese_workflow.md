@@ -8,11 +8,11 @@
 
 ### 1.1. Purpose
 
-This document outlines the technical specifications for the Automated Bernese Processing Workflow. The system's primary goal is to orchestrate the execution of the Bernese GNSS Software (BPE), from input preparation to output loading, in a fully automated fashion, **guided by the official Bernese v5.2 documentation**.
+This document outlines the technical specifications for the Automated Bernese Processing Workflow. The system's primary goal is to orchestrate the execution of Bernese processing campaigns (sets of observation data processed together) in a fully automated fashion. This workflow handles **RINEX data derived from proprietary raw GNSS observations** (from both Campaign GPS and Continuous GPS observation methods) for precise scientific analysis, guided by the official Bernese v5.2 documentation. **It does not directly process VADASE real-time monitoring data (NMEA formats).**
 
 ### 1.2. Scope
 
-This specification details the system's architecture, the stages of the processing workflow, the technology stack, and strategies for configuration and error handling. It assumes the Bernese GNSS Software v5.2+ is installed and licensed on the execution machine, and its operation is informed by the comprehensive documentation found in `/home/finch/repos/movefaults/docs/bern52/`, particularly the "BERN52 Guide (detailed version).pdf".
+This specification details the system's architecture, the stages of the processing workflow, the technology stack, and strategies for configuration and error handling. It assumes the Bernese GNSS Software v5.2+ is installed and licensed on the execution machine, and its operation is informed by the comprehensive documentation found in `/home/finch/repos/movefaults/docs/bern52/`, particularly the "BERN52 Guide (detailed version).pdf". The system is designed to seamlessly process **RINEX data streams** from diverse GNSS observation methods, focusing on high-precision geodetic products.
 
 ## 2. System Architecture
 
