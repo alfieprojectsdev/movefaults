@@ -12,7 +12,7 @@ Current field operations for GNSS station maintenance rely on paper-based log sh
 - **Data Loss:** Paper is easily damaged by weather or lost in transit.
 - **Inefficiency:** Manual transcription is a waste of time and a source of error.
 
-We need a digital solution that is robust, easy for field engineers to use, and, most importantly, functions reliably in environments with intermittent or non-existent internet connectivity.
+We need a digital solution that is robust, easy for field staff to use, and, most importantly, functions reliably in environments with intermittent or non-existent internet connectivity.
 
 ## Decision
 

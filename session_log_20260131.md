@@ -71,3 +71,11 @@ Moved system to a strict Ports & Adapters architecture.
 *   **Strategies**: `src/strategies/playback.py`.
 *   **Domain**: `src/domain/processor.py` (IngestionCore) now consumes from `asyncio.Queue`.
 *   **Wiring**: `replay_events.py` updated to assemble the graph.
+
+## NTRIP Client Implementation
+Upgraded TCP Adapter (`src/adapters/inputs/tcp.py`) to a robust NTRIP v1.0 Client.
+
+*   **Handshake**: Sends `GET /<mountpoint>` with Basic Authentication headers.
+*   **Validation**: parses HTTP status codes (`ICY 200 OK`).
+*   **Resilience**: Implemented 10-second Watchdog timer to detect stalls and auto-reconnect.
+*   **Production Ready**: Updated `run_ingestor.py` to use new config fields (`mountpoint`, `user`, `password`).

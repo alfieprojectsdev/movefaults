@@ -8,7 +8,7 @@
 
 ### 1.1. Purpose
 
-This document outlines the technical specifications for the Digital Field Operations System. This system is designed to replace the current paper-based log sheets used by field engineers during the installation, maintenance, and data collection at GNSS stations. The goal is to improve data quality, timeliness, and operational efficiency.
+This document outlines the technical specifications for the Digital Field Operations System. This system is designed to replace the current paper-based log sheets used by field staff during the installation, maintenance, and data collection at GNSS stations. The goal is to improve data quality, timeliness, and operational efficiency.
 
 ### 1.2. Scope
 
@@ -28,7 +28,7 @@ The system follows a decoupled architecture, consisting of a frontend PWA that c
 
 ### 3.1. User Authentication
 
-- All users (field engineers) must log in with a username and password.
+- All users (field staff) must log in with a username and password.
 - The PWA will securely store an authentication token to keep the user logged in, even when offline.
 
 ### 3.2. Digital Log Sheet Form
