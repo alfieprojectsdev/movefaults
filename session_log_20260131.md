@@ -79,3 +79,13 @@ Upgraded TCP Adapter (`src/adapters/inputs/tcp.py`) to a robust NTRIP v1.0 Clien
 *   **Validation**: parses HTTP status codes (`ICY 200 OK`).
 *   **Resilience**: Implemented 10-second Watchdog timer to detect stalls and auto-reconnect.
 *   **Production Ready**: Updated `run_ingestor.py` to use new config fields (`mountpoint`, `user`, `password`).
+
+## Smart Integration (Data Repair)
+Implemented logic in `IngestionCore` to handle receivers misconfigured in "Velocity Only" mode (where `$GNLDM` duplicates `$GNLVM`).
+
+*   **Detection**: Automatically detects if `abs(Velocity - Displacement) < 1e-9` for 5 consecutive samples.
+*   **Correction**: Switches to **Manual Integration** mode, calculating cumulative displacement locally (`disp += vel * dt`).
+*   **Behavior**:
+    *   **Velocity**: Appears as White Noise (zero-centered).
+    *   **Displacement**: Appears as a Random Walk (Red Noise).
+    *   **Note**: Without a High-Pass Filter, the integrated displacement effectively drifts over time. This is **expected behavior** and not a bug.

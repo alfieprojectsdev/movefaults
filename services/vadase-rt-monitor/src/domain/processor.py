@@ -1,7 +1,7 @@
 import asyncio
 import structlog
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 from src.ports.outputs import OutputPort
 from src.parsers.nmea_parser import parse_lvm, parse_ldm, NMEAChecksumError
 from src.utils.metrics import compute_horizontal_magnitude, convert_m_to_mm
@@ -12,25 +12,38 @@ class IngestionCore:
     """
     Hexagonal Core: Consumes NMEA sentences from a queue and drives Output ports.
     Agnostic of where data comes from (File/TCP).
+    Includes "Smart Integration" to handle bad receivers (Velocity-as-Displacement).
     """
     def __init__(
         self,
         station_id: str,
         output_port: OutputPort,
         threshold_mm_s: float = 15.0,
-        min_completeness: float = 0.5
+        min_completeness: float = 0.5,
+        force_integration: bool = False
     ):
         self.station_id = station_id
         self.output_port = output_port
         self.threshold_mm_s = threshold_mm_s
         self.min_completeness = min_completeness
+        self.force_integration = force_integration
         self.logger = logger.bind(station=station_id, component="core")
         
-        # State
+        # Event Detection State
         self.event_active = False
         self.event_start_time: Optional[datetime] = None
         self.peak_velocity = 0.0
         self.peak_displacement = 0.0
+        
+        # Smart Integration State
+        self.manual_integration_active = force_integration
+        self.cumulative_E = 0.0
+        self.cumulative_N = 0.0
+        self.cumulative_U = 0.0
+        self.last_velocity_time: Optional[datetime] = None
+        self.last_velocity_data: Optional[Dict[str, Any]] = None
+        self.bad_data_streak = 0
+        self.STREAK_THRESHOLD = 5
 
     async def consume(self, queue: asyncio.Queue, stop_event: asyncio.Event):
         """
@@ -39,7 +52,6 @@ class IngestionCore:
         await self.output_port.connect()
         try:
             while not stop_event.is_set():
-                # Get item with timeout to check stop_event occasionally if queue is empty
                 try:
                     line = await asyncio.wait_for(queue.get(), timeout=1.0)
                 except asyncio.TimeoutError:
@@ -68,20 +80,60 @@ class IngestionCore:
         data = parse_lvm(sentence)
         if not data: return
         
+        # Store for displacement comparison/integration
+        self.last_velocity_data = data
+        
+        # Standard Processing
         vH = compute_horizontal_magnitude(data['vE'], data['vN'])
         data['vH_magnitude'] = vH
-        
         await self.output_port.write_velocity(self.station_id, data)
         
+        # Check Event
         vH_mm_s = convert_m_to_mm(vH)
         await self.check_event_threshold(data['timestamp'], vH_mm_s)
+        
+        # Update Integration State
+        current_time = data['timestamp']
+        if self.last_velocity_time is not None:
+             delta_t = (current_time - self.last_velocity_time).total_seconds()
+             # Only integrate if gap is reasonable (e.g. < 5s) to avoid jumps after outages
+             if 0 < delta_t < 5.0:
+                 self.cumulative_E += data['vE'] * delta_t
+                 self.cumulative_N += data['vN'] * delta_t
+                 self.cumulative_U += data['vU'] * delta_t
+        
+        self.last_velocity_time = current_time
 
     async def handle_displacement(self, sentence: str):
         data = parse_ldm(sentence)
         if not data: return
-        
         if data['overall_completeness'] < self.min_completeness: return
-        
+
+        # Smart Integration Detection
+        # If we have a recent velocity sample, compare it to this displacement
+        if self.last_velocity_data and not self.manual_integration_active:
+             # Check if Vel matches Disp (Bad Data signature)
+             ve, vn = self.last_velocity_data['vE'], self.last_velocity_data['vN']
+             de, dn = data['dE'], data['dN']
+             
+             is_identical = (abs(ve - de) < 1e-9) and (abs(vn - dn) < 1e-9)
+             
+             if is_identical:
+                 self.bad_data_streak += 1
+                 if self.bad_data_streak >= self.STREAK_THRESHOLD:
+                     self.manual_integration_active = True
+                     self.logger.warning("bad_data_detected_switching_to_manual_integration")
+             else:
+                 self.bad_data_streak = 0
+
+        # Output Selection: Original vs Calculated
+        if self.manual_integration_active:
+            # Use calculated cumulative values
+            data['dE'] = self.cumulative_E
+            data['dN'] = self.cumulative_N
+            data['dU'] = self.cumulative_U
+            # We preserve timestamp and quality flags from the actual LDM sentence
+            
         dH = compute_horizontal_magnitude(data['dE'], data['dN'])
         data['dH_magnitude'] = dH
         
