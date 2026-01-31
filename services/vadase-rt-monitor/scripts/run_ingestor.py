@@ -1,6 +1,7 @@
 import asyncio
 import yaml
-from src.stream.handler import VADASEStreamHandler
+from src.sources.tcp import TcpSource
+from src.stream.processor import IngestionProcessor
 from src.database.writer import DatabaseWriter
 
 async def main():
@@ -21,16 +22,23 @@ async def main():
     await db_writer.connect()
 
     # Create a task for each station handler
-    tasks = [
-        VADASEStreamHandler(
-            station_id=s['id'],
+    tasks = []
+    for s in stations:
+        source = TcpSource(
             host=s['host'],
             port=s['port'],
+            station_id=s['id']
+        )
+        
+        processor = IngestionProcessor(
+            source=source,
+            station_id=s['id'],
             db_writer=db_writer,
             threshold_mm_s=s.get('threshold_mm_s', 15.0)
-        ).connect()
-        for s in stations
-    ]
+        )
+        
+        # Processor.run() handles connection and infinite loop
+        tasks.append(processor.run())
 
     print(f"Starting ingestor for {len(stations)} stations...")
     await asyncio.gather(*tasks)

@@ -13,7 +13,14 @@ authors = [
 ]
 
 # This section should remain empty; dependencies are defined per-project below.
-dependencies = []
+dependencies = [
+    "numpy>=1.26.0",
+    "pandas>=2.1.0",
+    "matplotlib>=3.8.0",
+    "scipy>=1.11.0",
+    "pymap3d>=3.1.0",
+    "pygeodesy>=23.12.1",
+]
 
 [project.scripts]
 # Define command-line entry points for all tools in the monorepo
@@ -21,6 +28,8 @@ drive-archaeologist = "drive_archaeologist.cli:main"
 drive-arch = "drive_archaeologist.cli:main"
 vadase-ingestor = "scripts.run_ingestor:main"
 vadase-validate = "scripts.validate_parser:main"
+rinex-qc = "pogf_geodetic_suite.qc.rinex_qc:main"
+igs-downloader = "pogf_geodetic_suite.igs_downloader:main"
 
 [project.optional-dependencies]
 # Dependencies for the drive-archaeologist tool
@@ -54,6 +63,8 @@ vadase-rt-monitor = [
     "structlog>=24.1.0",
     "prometheus-client>=0.19.0",
     "httpx>=0.28.1",
+    "aiofiles>=25.1.0",
+    "typer>=0.21.1",
 ]
 
 # Shared development dependencies
@@ -70,6 +81,12 @@ dev = [
     "seaborn>=0.13.0",
     "ipython>=8.12.0",
     "uv",
+    "mkdocs>=1.5.3",
+    "mkdocs-material>=9.5.1",
+    "celery>=5.3.0",
+    "redis>=5.0.0",
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.9",
 ]
 
 [tool.ruff]
@@ -90,3 +107,17 @@ ignore_missing_imports = true
 [tool.black]
 line-length = 100
 target-version = ['py311']
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "packages",
+    "services",
+    "tools",
+]
+
+[tool.hatch.build.targets.wheel.sources]
+"packages/pogf-geodetic-suite/src" = ""
+"tools/drive-archaeologist/src" = ""
+"services/vadase-rt-monitor/src" = ""
+"services/ingestion-pipeline/src" = ""
+"services/bernese-workflow/src" = ""
