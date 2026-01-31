@@ -20,13 +20,15 @@ class IngestionCore:
         output_port: OutputPort,
         threshold_mm_s: float = 15.0,
         min_completeness: float = 0.5,
-        force_integration: bool = False
+        force_integration: bool = False,
+        decay_factor: float = 1.0
     ):
         self.station_id = station_id
         self.output_port = output_port
         self.threshold_mm_s = threshold_mm_s
         self.min_completeness = min_completeness
         self.force_integration = force_integration
+        self.decay_factor = decay_factor
         self.logger = logger.bind(station=station_id, component="core")
         
         # Event Detection State
@@ -37,9 +39,9 @@ class IngestionCore:
         
         # Smart Integration State
         self.manual_integration_active = force_integration
-        self.cumulative_E = 0.0
-        self.cumulative_N = 0.0
-        self.cumulative_U = 0.0
+        self.disp_east = 0.0
+        self.disp_north = 0.0
+        self.disp_up = 0.0
         self.last_velocity_time: Optional[datetime] = None
         self.last_velocity_data: Optional[Dict[str, Any]] = None
         self.bad_data_streak = 0
@@ -98,9 +100,13 @@ class IngestionCore:
              delta_t = (current_time - self.last_velocity_time).total_seconds()
              # Only integrate if gap is reasonable (e.g. < 5s) to avoid jumps after outages
              if 0 < delta_t < 5.0:
-                 self.cumulative_E += data['vE'] * delta_t
-                 self.cumulative_N += data['vN'] * delta_t
-                 self.cumulative_U += data['vU'] * delta_t
+                 # Leaky Integrator (High-pass filter)
+                 # disp = (disp * decay) + (vel * dt)
+                 self.disp_east = (self.disp_east * self.decay_factor) + (data['vE'] * delta_t)
+                 self.disp_north = (self.disp_north * self.decay_factor) + (data['vN'] * delta_t)
+                 self.disp_up = (self.disp_up * self.decay_factor) + (data['vU'] * delta_t)
+                 
+                 self.disp_up = (self.disp_up * self.decay_factor) + (data['vU'] * delta_t)
         
         self.last_velocity_time = current_time
 
@@ -129,9 +135,9 @@ class IngestionCore:
         # Output Selection: Original vs Calculated
         if self.manual_integration_active:
             # Use calculated cumulative values
-            data['dE'] = self.cumulative_E
-            data['dN'] = self.cumulative_N
-            data['dU'] = self.cumulative_U
+            data['dE'] = self.disp_east
+            data['dN'] = self.disp_north
+            data['dU'] = self.disp_up
             # We preserve timestamp and quality flags from the actual LDM sentence
             
         dH = compute_horizontal_magnitude(data['dE'], data['dN'])

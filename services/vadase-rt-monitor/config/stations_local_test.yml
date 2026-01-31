@@ -1,0 +1,11 @@
+stations:
+  - id: TEST_LOCAL
+    host: 127.0.0.1
+    port: 2101
+    mountpoint: TESTMOUNT
+    user: testuser
+    password: testpassword
+    threshold_mm_s: 15.0
+    filter:
+      enabled: true
+      decay: 0.99

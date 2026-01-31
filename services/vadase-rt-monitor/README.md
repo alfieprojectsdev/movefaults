@@ -92,6 +92,54 @@ Username: admin
 Password: admin
 ```
 
+## Testing & Verification
+### 1. Offline Event Replay
+Replay historical earthquake log files (`.rtl`, `.nmea`) to verify parser logic and visualization.
+```bash
+# Replay a specific earthquake file with live plotting and forced manual integration
+uv run python scripts/replay_events.py \
+  --file "data/NMEA_DGOS_10102025/NMEA_DGOS LDM_20251010_040000.rtl" \
+  --mode replay \
+  --base-date 2025-10-10 \
+  --plot \
+  --force-integration \
+  --dry-run
+```
+*   `--mode replay`: Simulates real-time 1Hz streaming.
+*   `--force-integration`: Overrides receiver's displacement data with locally calculated values (fixes "Velocity Only" issues).
+*   `--dry-run`: Skips writing to Postgres (outputs to stdout logs).
+
+### 2. Parallel Stress Test
+Simulate multi-station load by running concurrent ingestion pipelines.
+```bash
+# Run 6 simulated stations in parallel from the data directory
+uv run python scripts/stress_test_parallel.py \
+  --data-dir "data/NMEA_DGOS_10102025" \
+  --count 6 \
+  --mode replay \
+  --force-integration \
+  --plot
+```
+*   `--plot`: Enables live plotting for the **first** station (SIM_01) only.
+
+### 3. Mock NTRIP Integration
+Test the full TCP/NTRIP stack using a mock server.
+
+**Terminal 1 (Server):**
+```bash
+uv run python scripts/mock_ntrip_caster.py \
+  --file "data/NMEA_DGOS_10102025/NMEA_DGOS LDM_20251010_040000.rtl" \
+  --port 2101
+```
+
+**Terminal 2 (Client):**
+```bash
+# Create a local test config pointing to localhost
+uv run python scripts/run_ingestor.py \
+  --config config/stations_local_test.yml \
+  --dry-run
+```
+
 ## Architecture
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.

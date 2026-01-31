@@ -89,3 +89,16 @@ Implemented logic in `IngestionCore` to handle receivers misconfigured in "Veloc
     *   **Velocity**: Appears as White Noise (zero-centered).
     *   **Displacement**: Appears as a Random Walk (Red Noise).
     *   **Note**: Without a High-Pass Filter, the integrated displacement effectively drifts over time. This is **expected behavior** and not a bug.
+
+## Leaky Integrator (Drift Control)
+Implemented a High-Pass Filter (Leaky Integrator) to solve the "Random Walk" drift inherent in integrating noisy velocity data.
+
+*   **Problem**: Bias in velocity sensors accumulates infinitely when simply summing (Integral of Error = Drift).
+*   **Solution**: Applied a decay factor: `disp = (disp * decay) + (vel * dt)`.
+*   **Refactor**: Fixed a critical "Odometer Effect" bug where scalar speed was being integrated instead of signed vectors.
+    *   **New Logic**: `dE`, `dN`, `dU` are integrated separately, allowing positive and negative velocities to cancel out (oscillation).
+*   **Result**: Displacement now centers around zero, preserving transient earthquake events while rejecting long-term drift.
+
+### Configuration & Visualization
+*   **Config**: Added `filter: enabled: true, decay: 0.99` to `stations.yml`.
+*   **LivePlotter**: Updated to display 3 rows (East, North, Up) with linear Time Axis (HH:MM:SS), replacing the scalar magnitude plot which hid directional oscillation.

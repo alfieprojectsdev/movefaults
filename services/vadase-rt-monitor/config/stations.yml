@@ -11,6 +11,9 @@ stations:
     port: 5017
     threshold_mm_s: 15.0
     fault_segment: Philippine Fault - Surigao Segment
+    filter:
+      enabled: true
+      decay: 0.99
     
   - id: BOST
     name: Boston, Davao Oriental
@@ -21,6 +24,9 @@ stations:
     port: 5017
     threshold_mm_s: 15.0
     fault_segment: Philippine Fault - Eastern Mindanao
+    filter:
+      enabled: true
+      decay: 0.99
     
   - id: BTU2
     name: Butuan City, Agusan del Norte
@@ -31,6 +37,9 @@ stations:
     port: 5017
     threshold_mm_s: 15.0
     fault_segment: Philippine Fault - Eastern Mindanao
+    filter:
+      enabled: true
+      decay: 0.99
     
   - id: PAPI
     name: Aparri, Cagayan
@@ -41,6 +50,9 @@ stations:
     port: 5017
     threshold_mm_s: 15.0
     fault_segment: Philippine Fault - Northern Luzon
+    filter:
+      enabled: true
+      decay: 0.99
     
   # Add remaining 31 stations here...
   

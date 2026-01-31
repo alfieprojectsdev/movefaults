@@ -20,7 +20,10 @@ def main(
     threshold: float = typer.Option(15.0, "--threshold", help="Event detection threshold (mm/s)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Skip database writes"),
     plot: bool = typer.Option(False, "--plot", help="Enable live plotting"),
-    pattern: str = typer.Option("*.rtl", "--pattern", "-p", help="File pattern to match in directory (e.g. *.rtl)")
+    pattern: str = typer.Option("*.rtl", "--pattern", "-p", help="File pattern to match in directory (e.g. *.rtl)"),
+    force_integration: bool = typer.Option(False, "--force-integration", help="Force manual integration mode"),
+    decay: float = typer.Option(1.0, "--decay", help="Leaky integrator decay factor (e.g. 0.99)"),
+    window_size: int = typer.Option(600, "--window-size", "-w", help="Plot window size in seconds (samples at 1Hz)")
 ):
     if not file_path.exists():
         typer.echo(f"Error: {file_path} not found.")
@@ -37,7 +40,7 @@ def main(
             typer.echo("Error: Invalid date.")
             raise typer.Exit(code=1)
 
-    asyncio.run(run_async(file_path, mode, parsed_date, station_id, threshold, dry_run, plot, pattern))
+    asyncio.run(run_async(file_path, mode, parsed_date, station_id, threshold, dry_run, plot, pattern, force_integration, decay, window_size))
 
 # --- MOCK / COMPOSITE WRITER ---
 # (Keeping concise for this rewrite, but reusing logic)
@@ -61,7 +64,7 @@ class CompositeWriter:
     async def write_event_detection(self, *a, **k): 
         for w in self.writers: await w.write_event_detection(*a, **k)
 
-async def run_async(path: Path, mode: str, base_date: Optional[date], station_id: str, threshold: float, dry_run: bool, plot: bool, pattern: str):
+async def run_async(path: Path, mode: str, base_date: Optional[date], station_id: str, threshold: float, dry_run: bool, plot: bool, pattern: str, force_integration: bool, decay_factor: float, window_size: int):
     # 1. Select Strategy
     if mode == "replay":
         strategy = RealTimeStrategy(base_date=base_date)
@@ -84,7 +87,7 @@ async def run_async(path: Path, mode: str, base_date: Optional[date], station_id
     if plot:
         try:
             from src.visualization.live_plot import LivePlotter
-            writers.append(LivePlotter())
+            writers.append(LivePlotter(window_size=window_size))
         except ImportError:
             typer.echo("Matplotlib missing.")
 
@@ -97,7 +100,9 @@ async def run_async(path: Path, mode: str, base_date: Optional[date], station_id
     core = IngestionCore(
         station_id=station_id, 
         output_port=output_port, 
-        threshold_mm_s=threshold
+        threshold_mm_s=threshold,
+        force_integration=force_integration,
+        decay_factor=decay_factor
     )
 
     typer.echo(f"System Start: {mode.upper()} mode on {path}")

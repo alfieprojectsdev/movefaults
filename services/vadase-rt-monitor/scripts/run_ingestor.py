@@ -1,39 +1,60 @@
 import asyncio
 import yaml
 import structlog
+import typer
 from src.adapters.inputs.tcp import TCPAdapter
 from src.domain.processor import IngestionCore
 from src.database.writer import DatabaseWriter
 from src.ports.outputs import OutputPort
 
 logger = structlog.get_logger()
+app = typer.Typer()
 
-# We need a concrete OutputPort that wraps DatabaseWriter to satisfy the protocol
-# Or rely on DatabaseWriter duck-typing checking out (it generally does).
-# Let's assume duck-typing works or explicitly verify/wrap if needed.
-# Since DatabaseWriter matches OutputPort signature, we can use it directly.
+class MockDbWriter(OutputPort):
+    async def connect(self):
+        logger.info("MOCK DB: Connected.")
 
-async def main():
+    async def close(self):
+        logger.info("MOCK DB: Closed.")
+
+    async def write_velocity(self, station_id, data):
+        logger.info("MOCK: VEL", time=data['timestamp'], vH=data.get('vH_magnitude'))
+
+    async def write_displacement(self, station_id, data):
+        logger.info("MOCK: DSP", time=data['timestamp'], dH=data.get('dH_magnitude'))
+
+    async def write_event_detection(self, station, detection_time, peak_velocity, peak_displacement, duration):
+        logger.warning(f"MOCK: EVENT DETECTED: {detection_time} PeakV={peak_velocity}")
+
+async def run_service(config_path: str, dry_run: bool):
     """
     Main entry point for the VADASE RT-Monitor ingestor service.
     Refactored for Hexagonal Architecture (NTRIP -> Queue -> Core).
     """
     try:
-        with open('config/stations.yml', 'r') as f:
+        with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
             stations = config.get('stations', [])
     except FileNotFoundError:
-        print("Config file config/stations.yml not found.")
+        print(f"Config file {config_path} not found.")
         return
-
+    
     if not stations:
-        print("No stations defined in config/stations.yml")
+        print(f"No stations defined in {config_path}")
         return
 
-    # Initialize shared database writer (or one per station? Usually one shared pool)
-    # The existing writer seems designed to be shared or singleton-like connection-wise
-    db_writer = DatabaseWriter()
-    await db_writer.connect() # Ensure pool is up
+    # Initialize Output Port
+    if dry_run:
+        db_writer = MockDbWriter()
+    else:
+        db_writer = DatabaseWriter()
+    
+    await db_writer.connect()
+
+    tasks = []
+    stop_events = []
+
+    print(f"Starting ingestor for {len(stations)} stations (Dry Run: {dry_run})...")
 
     tasks = []
     stop_events = []
@@ -53,10 +74,15 @@ async def main():
             password=s.get('password')
         )
 
+        # Extract Filter Config
+        filter_cfg = s.get('filter', {})
+        decay = filter_cfg.get('decay', 0.99) if filter_cfg.get('enabled', False) else 1.0
+
         core = IngestionCore(
             station_id=station_id,
             output_port=db_writer,
-            threshold_mm_s=s.get('threshold_mm_s', 15.0)
+            threshold_mm_s=s.get('threshold_mm_s', 15.0),
+            decay_factor=decay
         )
 
         # 2. Wiring
@@ -84,8 +110,15 @@ async def main():
         await asyncio.sleep(1)
         await db_writer.close()
 
-if __name__ == '__main__':
+@app.command()
+def main(
+    config: str = typer.Option("config/stations.yml", "--config", "-c", help="Path to station config file"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Use Mock DB instead of Postgres")
+):
     try:
-        asyncio.run(main())
+        asyncio.run(run_service(config, dry_run))
     except KeyboardInterrupt:
         pass
+
+if __name__ == '__main__':
+    app()
