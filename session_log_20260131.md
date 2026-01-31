@@ -102,3 +102,8 @@ Implemented a High-Pass Filter (Leaky Integrator) to solve the "Random Walk" dri
 ### Configuration & Visualization
 *   **Config**: Added `filter: enabled: true, decay: 0.99` to `stations.yml`.
 *   **LivePlotter**: Updated to display 3 rows (East, North, Up) with linear Time Axis (HH:MM:SS), replacing the scalar magnitude plot which hid directional oscillation.
+
+### Documentation (Deliverable 3.2)
+Created technical documentation for the Physics Engine logic.
+*   **File**: `docs/technical_notes/vadase_physics_engine.md`
+*   **Content**: Detailed mathematical explanation of the Leaky Integrator (Drift Control) and Component-Based Integration (Vector Math) to prevent signal drift and odometer effects.
