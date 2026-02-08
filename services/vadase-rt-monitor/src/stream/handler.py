@@ -192,7 +192,6 @@ class VADASEStreamHandler:
                     velocity_mm_s=vH_mm_s
                 )
                 
-                # TODO: Send alert
                 await self.send_alert(timestamp, vH_mm_s)
             
             else:
@@ -236,4 +235,8 @@ class VADASEStreamHandler:
         
         TODO: Implement alert mechanisms (email, Telegram, webhook)
         """
-        pass
+        self.logger.warning(
+            "alert_triggered",
+            timestamp=timestamp.isoformat(),
+            velocity_mm_s=velocity
+        )
