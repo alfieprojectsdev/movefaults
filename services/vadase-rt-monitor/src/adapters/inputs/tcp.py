@@ -31,6 +31,9 @@ class TCPAdapter(InputPort):
         self.logger = logger.bind(station=station_id, source="ntrip_adapter")
 
     async def start(self, queue: asyncio.Queue, stop_event: asyncio.Event) -> None:
+        retry_delay = 1.0
+        max_retry_delay = 60.0
+
         while not stop_event.is_set():
             try:
                 self.logger.info("connecting", host=self.host, port=self.port, mountpoint=self.mountpoint)
@@ -41,6 +44,7 @@ class TCPAdapter(InputPort):
                     await self._perform_handshake()
                 
                 self.logger.info("connected")
+                retry_delay = 1.0  # Reset on success
 
                 buffer = ""
                 last_data_time = asyncio.get_event_loop().time()
@@ -73,8 +77,9 @@ class TCPAdapter(InputPort):
 
             # Retry delay
             if not stop_event.is_set():
-                self.logger.info("reconnecting_in", seconds=5)
-                await asyncio.sleep(5)
+                self.logger.info("reconnecting_in", seconds=retry_delay)
+                await asyncio.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, max_retry_delay)
 
     async def stop(self) -> None:
         await self.cleanup()

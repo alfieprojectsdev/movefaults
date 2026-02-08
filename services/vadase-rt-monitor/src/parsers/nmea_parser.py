@@ -224,7 +224,7 @@ def parse_vadase_velocity(sentence: str):
         'vN': float(vn),
         'vE': float(ve),
         'vU': float(vu),
-        'quality': int(quality)
+        'cq': int(quality)
     }
 
 def parse_vadase_displacement(sentence: str):
@@ -261,5 +261,5 @@ def parse_vadase_displacement(sentence: str):
         'dN': float(dn),
         'dE': float(de),
         'dU': float(du),
-        'quality': int(quality)
+        'cq': int(quality)
     }
