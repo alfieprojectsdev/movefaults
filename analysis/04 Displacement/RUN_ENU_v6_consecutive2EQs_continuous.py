@@ -1,7 +1,7 @@
 #Date created: May 2020
 #Date edited: December 2022
 #For series of earthquake events
-import numpy, os, glob, msvcrt, time
+import numpy, os, time
 from statistics import mean
 import matplotlib.pyplot as plt
 from matplotlib import style
@@ -126,12 +126,6 @@ def regressline():
 		regress2_e.append((me2*time2)+be2)
 		regress2_n.append((mn2*time2)+bn2)
 		regress2_u.append((mu2*time2)+bu2)
-#getting the predicted points at first event
-#	for event in seismic_t:
-#		t.append(event)
-#		regress_e.append((me*event)+be)
-#		regress_n.append((mn*event)+bn)
-#		regress_u.append((mu*event)+bu)
 #getting the predicted points at second event using the regression line from first event
 	for event2 in eq_t:        
 		i = -1

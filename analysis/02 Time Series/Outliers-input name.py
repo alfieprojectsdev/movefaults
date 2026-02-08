@@ -1,21 +1,11 @@
-import numpy, os, glob, msvcrt
+import numpy
 import matplotlib.ticker as tick
 import matplotlib.pyplot as plt
-
-#----Read 123.txt----
-#--------------------
-#_fnames = []
-#for files in open('123.txt'):
-#    _fnames.append(files[0:4])
-
-#----Open files in 123.txt----
-#-----------------------------
 
     
 def matplot():
     names = input('Input filename: ')
     names = names.upper()
-    #for names in _fnames:
     t = []
     n = []
     e = []
@@ -143,13 +133,5 @@ print('Starting matplot.Yon...')
 print('-----------------------')
 print('Welcome to VELPLOT for CHECKING!')
 print('Click the outliers you wish to remove and see the details at OUTLIERS.TXT\n')
-print('\nPress "ENTER" to contiue, "ESC" to skip')
-#for files in glob.glob('????'):
-#    print('Plot '+files+'?')
-#    if msvcrt.getch() == b'\r':
-#        print('  Plotting...')
-#        matplot(files)
-#    else:
-#        print('  Skipping...')
 while True:
     matplot()

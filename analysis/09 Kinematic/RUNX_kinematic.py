@@ -1,6 +1,6 @@
 #Date created: March 2020
 
-import glob, os, numpy, time
+import glob, os, time
 import pymap3d
 
 def start():
@@ -97,28 +97,6 @@ def start():
 						for lines in open(sites):
 								alldata.append(sites+' '+lines)
 				
-#				os.rename(os.getcwd()+'//123', os.getcwd()+'//PLOTS'+'//123')
-#				
-#				os.chdir(os.getcwd()+'//PLOTS')
-#				
-#				for files in alldata:
-#						allyear = str(files.split()[1])
-#						if 00 <= int(allyear[0:2]) <=80:
-#								year='20'+allyear[0:2]
-#						else:
-#								year='19'+allyear[0:2]
-#						day = int(allyear[2:5])/365.25
-#						date = int(year)+day
-#						sitenames = files.split()[0]
-#						coorde = str(files.split()[2])
-#						coordn = str(files.split()[3])
-#						coordu = str(files.split()[4])
-#						if os.path.isfile(os.getcwd()+'//'+sitenames) is True:
-#								sitefile = open(sitenames, 'a')
-#								sitefile.write('{:.4f}  {:>13}  {:>13}  {:>13}\n'.format(date, coorde, coordn, coordu))
-#						if os.path.isfile(os.getcwd()+'//'+sitenames) is False:
-#								sitefile = open(sitenames, 'w')
-#								sitefile.write('{:.4f}  {:>13}  {:>13}  {:>13}\n'.format(date, coorde, coordn, coordu))
 				
 				print('\n \t DONE! ')
 				time.sleep(3)
