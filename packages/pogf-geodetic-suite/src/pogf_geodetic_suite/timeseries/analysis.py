@@ -29,11 +29,12 @@ class VelocityEstimator:
         G[:, 1] = t
         
         # Least squares: m = (G'G)^-1 G'd
-        gT = G.T
-        gInv = np.linalg.inv(gT @ G)
-        gDotInv = gInv @ gT
+        # Using lstsq is more robust and avoids the large (2, N) gDotInv matrix
+        model, _, _, _ = np.linalg.lstsq(G, d_centered, rcond=None)
         
-        model = gDotInv @ d_centered
+        # Still need (G'G)^-1 for uncertainty estimation.
+        # Since G is (N, 2), G.T @ G is only 2x2, making this inversion efficient.
+        gInv = np.linalg.inv(G.T @ G)
         dhat = G @ model
         residual = d_centered - dhat
         
