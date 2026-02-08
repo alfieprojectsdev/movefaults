@@ -105,14 +105,21 @@ class IngestionCore:
                  self.disp_east = (self.disp_east * self.decay_factor) + (data['vE'] * delta_t)
                  self.disp_north = (self.disp_north * self.decay_factor) + (data['vN'] * delta_t)
                  self.disp_up = (self.disp_up * self.decay_factor) + (data['vU'] * delta_t)
-                 
-                 self.disp_up = (self.disp_up * self.decay_factor) + (data['vU'] * delta_t)
         
         self.last_velocity_time = current_time
 
     async def handle_displacement(self, sentence: str):
         data = parse_ldm(sentence)
         if not data: return
+
+        # Handle Reset Indicator
+        if data.get('reset_indicator') == 1:
+            self.disp_east = data['dE']
+            self.disp_north = data['dN']
+            self.disp_up = data['dU']
+            self.bad_data_streak = 0
+            self.logger.info("reset_indicator_received_resetting_state")
+
         if data['overall_completeness'] < self.min_completeness: return
 
         # Smart Integration Detection

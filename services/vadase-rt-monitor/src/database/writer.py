@@ -21,23 +21,26 @@ class DatabaseWriter:
         """Insert velocity measurement"""
         async with self.pool.acquire() as conn:
             await conn.execute('''
-                INSERT INTO vadase_velocity (time, station, vN, vE, vU, quality)
+                INSERT INTO vadase_velocity (time, station, vN, vE, vU, cq)
                 VALUES ($1, $2, $3, $4, $5, $6)
                 ON CONFLICT (time, station) DO NOTHING
             ''', data['timestamp'], station_id, 
-                data['vN'], data['vE'], data['vU'], data['quality'])
+                data['vN'], data['vE'], data['vU'], data['cq'])
     
     async def write_displacement(self, station_id, data):
         """Insert displacement measurement"""
         async with self.pool.acquire() as conn:
             await conn.execute('''
-                INSERT INTO vadase_displacement (time, station, dN, dE, dU, quality)
+                INSERT INTO vadase_displacement (time, station, dN, dE, dU, cq)
                 VALUES ($1, $2, $3, $4, $5, $6)
                 ON CONFLICT (time, station) DO NOTHING
             ''', data['timestamp'], station_id,
-                data['dN'], data['dE'], data['dU'], data['quality'])
+                data['dN'], data['dE'], data['dU'], data['cq'])
 
     async def write_event_detection(self, station, detection_time, peak_velocity, peak_displacement, duration):
         """Insert event detection record"""
-        # TODO: Implement actual table insert, for now just log or no-op if table doesn't exist
-        pass
+        async with self.pool.acquire() as conn:
+            await conn.execute('''
+                INSERT INTO event_detections (station, detection_time, peak_velocity_horizontal, peak_displacement_horizontal, duration_seconds)
+                VALUES ($1, $2, $3, $4, $5)
+            ''', station, detection_time, peak_velocity, peak_displacement, duration)
