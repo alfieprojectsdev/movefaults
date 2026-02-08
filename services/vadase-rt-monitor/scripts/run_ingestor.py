@@ -1,7 +1,10 @@
 import asyncio
+import os
+import re
 import yaml
 import structlog
 import typer
+from dotenv import load_dotenv
 from src.adapters.inputs.tcp import TCPAdapter
 from src.domain.processor import IngestionCore
 from src.database.writer import DatabaseWriter
@@ -26,6 +29,14 @@ class MockDbWriter(OutputPort):
     async def write_event_detection(self, station, detection_time, peak_velocity, peak_displacement, duration):
         logger.warning(f"MOCK: EVENT DETECTED: {detection_time} PeakV={peak_velocity}")
 
+def expand_env_vars(content: str) -> str:
+    """
+    Replaces ${VAR_NAME} with environment variable values.
+    If variable is not set, it keeps the placeholder.
+    """
+    pattern = re.compile(r'\$\{([^}]+)\}')
+    return pattern.sub(lambda m: os.getenv(m.group(1), m.group(0)), content)
+
 async def run_service(config_path: str, dry_run: bool):
     """
     Main entry point for the VADASE RT-Monitor ingestor service.
@@ -33,7 +44,9 @@ async def run_service(config_path: str, dry_run: bool):
     """
     try:
         with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
+            content = f.read()
+            expanded_content = expand_env_vars(content)
+            config = yaml.safe_load(expanded_content)
             stations = config.get('stations', [])
     except FileNotFoundError:
         print(f"Config file {config_path} not found.")
@@ -115,6 +128,7 @@ def main(
     config: str = typer.Option("config/stations.yml", "--config", "-c", help="Path to station config file"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Use Mock DB instead of Postgres")
 ):
+    load_dotenv()
     try:
         asyncio.run(run_service(config, dry_run))
     except KeyboardInterrupt:
