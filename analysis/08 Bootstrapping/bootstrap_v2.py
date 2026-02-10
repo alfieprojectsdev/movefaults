@@ -30,7 +30,6 @@ How to use:
 import pandas as pd  #pandas dataframe
 import numpy as np
 
-#import matlab
 import sys #use if having issues of not finding module
 sys.path.append("C:\\Python\\Python38\\Lib\\site-packages\\matlabengineforpython-9.9.0.2037887.dist-info") #use if having issues of not finding module, change according to your path
 import matlab.engine
