@@ -1,4 +1,4 @@
-import os, glob, math
+import os, glob, math, subprocess
 print('Running: campv6.exe')
 print('---------------------------------------------------------------------------')
 print('\nThis program runs runpkr00 and teqc on indicated files in a folder in the Documents folder')
@@ -42,7 +42,7 @@ def start():    #while defining, the program does not yet recognize it unless ca
                     at = 'TRM115000.00'
                 pe = input('    Average height: ')
                 pe1 = math.sqrt(float(pe)*float(pe)-0.16981*0.16981) - 0.04435
-                os.system('teqc -tr d -O.dec 30 -O.o MOVEFaultsProject -O.ag PHIVOLCS -O.mo "' + mo + '" -O.at ' + at + ' -O.pe ' + ("%.4f" %pe1) + ' 0 0 +C2 +obs + -tbin 1d ' + mo+' '+teqc) #added +C2 on 12.09.2020, added agency and observer on 10.03.2025
+                subprocess.run(['teqc', '-tr', 'd', '-O.dec', '30', '-O.o', 'MOVEFaultsProject', '-O.ag', 'PHIVOLCS', '-O.mo', mo, '-O.at', at, '-O.pe', ("%.4f" %pe1), '0', '0', '+C2', '+obs', '+', '-tbin', '1d', mo, teqc]) #added +C2 on 12.09.2020, added agency and observer on 10.03.2025
                 
                 
     flow = input('Start with runpkr00? \nY = start runpkr00, N = skip to teqc: ')
