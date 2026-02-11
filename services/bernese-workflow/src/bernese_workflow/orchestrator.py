@@ -15,13 +15,16 @@ class BerneseOrchestrator:
 
     def generate_pcf(self, template_name: str, context: Dict[str, Any], output_path: str):
         """Generates a Process Control File (PCF) from a template."""
-        template = self.template_env.get_backend(template_name) # Error here, use get_template
-        # Corrected below
-        
+        template = self.template_env.get_template(template_name)
+        content = template.render(context)
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        logger.info(f"Generated PCF file: {output_path}")
+
     def _generate_config(self, template_name: str, context: Dict[str, Any], output_path: str):
         template = self.template_env.get_template(template_name)
         content = template.render(context)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(content)
         logger.info(f"Generated configuration file: {output_path}")
 
