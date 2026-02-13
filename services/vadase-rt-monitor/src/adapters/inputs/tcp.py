@@ -31,6 +31,8 @@ class TCPAdapter(InputPort):
         self.logger = logger.bind(station=station_id, source="ntrip_adapter")
 
     async def start(self, queue: asyncio.Queue, stop_event: asyncio.Event) -> None:
+        MAX_BUFFER_SIZE = 64 * 1024  # 64KB
+
         while not stop_event.is_set():
             try:
                 self.logger.info("connecting", host=self.host, port=self.port, mountpoint=self.mountpoint)
@@ -59,6 +61,11 @@ class TCPAdapter(InputPort):
                         break
 
                     buffer += data.decode('ascii', errors='ignore')
+
+                    if len(buffer) > MAX_BUFFER_SIZE:
+                        self.logger.warning("buffer_overflow", size=len(buffer), limit=MAX_BUFFER_SIZE)
+                        break
+
                     while '\n' in buffer:
                         sentence, buffer = buffer.split('\n', 1)
                         sentence = sentence.strip()
