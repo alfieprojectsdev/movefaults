@@ -4,7 +4,7 @@ stations:
     port: 2101
     mountpoint: TESTMOUNT
     user: testuser
-    password: ${TEST_LOCAL_PASSWORD}
+    password: testpassword
     threshold_mm_s: 15.0
     filter:
       enabled: true
