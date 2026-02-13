@@ -1,13 +1,13 @@
+from datetime import datetime
 import asyncpg
+import os
+from dotenv import load_dotenv
 
-from src.config import DatabaseConfig
-
+load_dotenv()
 
 class DatabaseWriter:
-    def __init__(self, config: DatabaseConfig | None = None):
-        if config is None:
-            config = DatabaseConfig()
-        self.dsn = config.dsn
+    def __init__(self):
+        self.dsn = f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
         self.pool = None
     
     async def connect(self):

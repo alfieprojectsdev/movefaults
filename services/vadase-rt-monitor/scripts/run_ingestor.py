@@ -1,12 +1,10 @@
 import asyncio
-
+import yaml
 import structlog
 import typer
-import yaml
 from src.adapters.inputs.tcp import TCPAdapter
-from src.config import DatabaseConfig
-from src.database.writer import DatabaseWriter
 from src.domain.processor import IngestionCore
+from src.database.writer import DatabaseWriter
 from src.ports.outputs import OutputPort
 
 logger = structlog.get_logger()
@@ -34,7 +32,7 @@ async def run_service(config_path: str, dry_run: bool):
     Refactored for Hexagonal Architecture (NTRIP -> Queue -> Core).
     """
     try:
-        with open(config_path) as f:
+        with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
             stations = config.get('stations', [])
     except FileNotFoundError:
@@ -49,8 +47,7 @@ async def run_service(config_path: str, dry_run: bool):
     if dry_run:
         db_writer = MockDbWriter()
     else:
-        db_config = DatabaseConfig()
-        db_writer = DatabaseWriter(config=db_config)
+        db_writer = DatabaseWriter()
     
     await db_writer.connect()
 

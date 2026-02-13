@@ -8,7 +8,6 @@ from src.strategies.playback import RealTimeStrategy, FastImportStrategy
 from src.adapters.inputs.directory import DirectoryAdapter
 from src.domain.processor import IngestionCore
 from src.database.writer import DatabaseWriter
-from src.config import DatabaseConfig
 
 app = typer.Typer()
 
@@ -83,9 +82,7 @@ async def run_async(path: Path, mode: str, base_date: Optional[date], station_id
     # 3. Configure Output Adapter
     writers = []
     if dry_run: writers.append(MockDbWriter())
-    else:
-        db_config = DatabaseConfig()
-        writers.append(DatabaseWriter(config=db_config))
+    else: writers.append(DatabaseWriter())
     
     if plot:
         try:
