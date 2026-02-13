@@ -45,8 +45,8 @@ def start_ingestion(file_path: str):
     # 3. Chain
     # validate -> standardize -> load
     chain(
-        validate_task.s(file_path, file_hash) |
-        standardize_task.s(file_hash) |
+        validate_task.s(file_path, file_hash),
+        standardize_task.s(file_hash),
         load_task.s(file_hash)
     ).apply_async()
 

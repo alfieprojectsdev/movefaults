@@ -17,14 +17,23 @@ DB_NAME = os.getenv("DB_NAME", "pogf_db")
 
 DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-try:
-    engine = create_engine(DB_URL)
-    Session = sessionmaker(bind=engine)
-    # Ensure tables exist (simple migration for now)
-    Base.metadata.create_all(engine)
-except Exception as e:
-    logger.warning(f"Could not connect to database or create tables: {e}")
-    # Fallback or allow failure later when tasks run
+_Session = None
+_engine = None
+
+def get_db_session():
+    """Lazily initialize database connection and return a session."""
+    global _Session, _engine
+    if _Session is None:
+        try:
+            _engine = create_engine(DB_URL)
+            _Session = sessionmaker(bind=_engine)
+            # Ensure tables exist (simple migration for now)
+            # In production, this should be handled by Alembic
+            Base.metadata.create_all(_engine)
+        except Exception as e:
+            logger.error(f"Could not connect to database or create tables: {e}")
+            raise e
+    return _Session()
 
 def calculate_file_hash(file_path: str) -> str:
     """Calculate SHA-256 hash of a file."""
@@ -40,21 +49,25 @@ def calculate_file_hash(file_path: str) -> str:
 
 def get_job_status(file_hash: str) -> Optional[IngestionStatus]:
     """Check if file has been processed."""
-    session = Session()
     try:
-        job = session.query(IngestionJob).filter_by(file_hash=file_hash).first()
-        if job:
-            return job.status
+        session = get_db_session()
+        try:
+            job = session.query(IngestionJob).filter_by(file_hash=file_hash).first()
+            if job:
+                return job.status
+            return None
+        finally:
+            session.close()
+    except Exception:
+        # DB connection might fail
         return None
-    finally:
-        session.close()
 
 def create_or_update_job(file_hash: str, filename: str) -> str:
     """
     Create a new ingestion job or update existing one if retryable.
     Returns the file_hash (which acts as the job key).
     """
-    session = Session()
+    session = get_db_session()
     try:
         job = session.query(IngestionJob).filter_by(file_hash=file_hash).first()
         if not job:
@@ -79,7 +92,7 @@ def create_or_update_job(file_hash: str, filename: str) -> str:
         session.close()
 
 def update_job_status(file_hash: str, status: IngestionStatus, error_message: Optional[str] = None):
-    session = Session()
+    session = get_db_session()
     try:
         job = session.query(IngestionJob).filter_by(file_hash=file_hash).first()
         if job:
