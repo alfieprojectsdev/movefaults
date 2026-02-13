@@ -56,3 +56,4 @@ analysis/08 Bootstrapping/boostrap.mp4
 # You can uncomment and specify paths to PDFs that MUST be in the repo.
 # !docs/bern52/BERN52_Guide.pdf
 
+*.env
