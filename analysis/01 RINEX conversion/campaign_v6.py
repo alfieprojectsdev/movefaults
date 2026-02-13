@@ -17,7 +17,7 @@ def start():    #while defining, the program does not yet recognize it unless ca
     def runpk():
         print("\nStarting runpkr00.exe...")
         for rnx in glob.glob('*.t0*'):
-                os.system('runpkr00 -g -d ' + rnx) #.t0 files are now converted to .dat (added '-g' on 06.13.2019)
+                subprocess.run(['runpkr00', '-g', '-d', rnx]) #.t0 files are now converted to .dat (added '-g' on 06.13.2019)
                 print("        Converting " + rnx + " to .DAT/.TGD...")
 
     def rinex():
