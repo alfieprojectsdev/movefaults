@@ -153,17 +153,4 @@ class IngestionProcessor:
                 self.event_start_time = None
     
     async def send_alert(self, timestamp: datetime, velocity: float):
-        """
-        Send real-time alert via configured channels
-
-        Args:
-            timestamp: Detection timestamp
-            velocity: Peak velocity triggering alert (mm/s)
-
-        TODO: Implement alert mechanisms (email, Telegram, webhook)
-        """
-        self.logger.warning(
-            "alert_triggered",
-            timestamp=timestamp.isoformat(),
-            velocity_mm_s=velocity
-        )
+        pass
