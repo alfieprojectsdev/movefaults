@@ -1,4 +1,4 @@
-import os, glob, math
+import os, glob, math, subprocess
 print('Running: campv6.exe')
 print('---------------------------------------------------------------------------')
 print('\nThis program runs runpkr00 and teqc on indicated files in a folder in the Documents folder')
@@ -17,7 +17,7 @@ def start():    #while defining, the program does not yet recognize it unless ca
     def runpk():
         print("\nStarting runpkr00.exe...")
         for rnx in glob.glob('*.t0*'):
-                os.system('runpkr00 -g -d ' + rnx) #.t0 files are now converted to .dat (added '-g' on 06.13.2019)
+                subprocess.run(['runpkr00', '-g', '-d', rnx]) #.t0 files are now converted to .dat (added '-g' on 06.13.2019)
                 print("        Converting " + rnx + " to .DAT/.TGD...")
 
     def rinex():
@@ -42,7 +42,11 @@ def start():    #while defining, the program does not yet recognize it unless ca
                     at = 'TRM115000.00'
                 pe = input('    Average height: ')
                 pe1 = math.sqrt(float(pe)*float(pe)-0.16981*0.16981) - 0.04435
-                os.system('teqc -tr d -O.dec 30 -O.o MOVEFaultsProject -O.ag PHIVOLCS -O.mo "' + mo + '" -O.at ' + at + ' -O.pe ' + ("%.4f" %pe1) + ' 0 0 +C2 +obs + -tbin 1d ' + mo+' '+teqc) #added +C2 on 12.09.2020, added agency and observer on 10.03.2025
+                subprocess.run([
+                    'teqc', '-tr', 'd', '-O.dec', '30', '-O.o', 'MOVEFaultsProject',
+                    '-O.ag', 'PHIVOLCS', '-O.mo', mo, '-O.at', at,
+                    '-O.pe', "%.4f" % pe1, '0', '0', '+C2', '+obs', '+', '-tbin', '1d', mo, teqc
+                ]) #added +C2 on 12.09.2020, added agency and observer on 10.03.2025
                 
                 
     flow = input('Start with runpkr00? \nY = start runpkr00, N = skip to teqc: ')
@@ -55,4 +59,6 @@ def start():    #while defining, the program does not yet recognize it unless ca
     
     rinex()
     runpk()    
-start()        #this is the start of the program because it called start()
+
+if __name__ == "__main__":
+    start()        #this is the start of the program because it called start()
