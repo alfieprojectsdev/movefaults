@@ -20,7 +20,7 @@ def compute_horizontal_magnitude(east: float, north: float) -> float:
         >>> compute_horizontal_magnitude(3.0, 4.0)
         5.0
     """
-    return math.sqrt(east**2 + north**2)
+    return math.hypot(east, north)
 
 
 def convert_m_to_mm(value_m: float) -> float:
@@ -61,4 +61,4 @@ def compute_3d_magnitude(east: float, north: float, up: float) -> float:
     Returns:
         3D magnitude (same unit as inputs)
     """
-    return math.sqrt(east**2 + north**2 + up**2)
+    return math.hypot(east, north, up)
