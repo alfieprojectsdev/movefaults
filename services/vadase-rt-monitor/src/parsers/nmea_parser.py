@@ -4,9 +4,16 @@ Implements full parsing with checksum validation
 """
 
 import re
-from datetime import datetime, timezone
-from typing import Optional, Dict, Any
-import math
+from datetime import UTC, datetime
+from typing import Any
+
+# Pre-compiled regex for VADASE NMEA sentences
+VELOCITY_REGEX = re.compile(
+    r'\$PTNL,VEL,(\d{6}\.\d{2}),([-\d.]+),([-\d.]+),([-\d.]+),(\d)\*([0-9A-F]{2})'
+)
+DISPLACEMENT_REGEX = re.compile(
+    r'\$PTNL,POS,(\d{6}\.\d{2}),([-\d.]+),([-\d.]+),([-\d.]+),(\d)\*([0-9A-F]{2})'
+)
 
 
 class NMEAChecksumError(Exception):
@@ -72,11 +79,11 @@ def parse_time_date(time_str: str, date_str: str) -> datetime:
     
     return datetime(
         year, month, day, hh, mm, int(ss), microsecond,
-        tzinfo=timezone.utc
+        tzinfo=UTC
     )
 
 
-def parse_lvm(sentence: str) -> Optional[Dict[str, Any]]:
+def parse_lvm(sentence: str) -> dict[str, Any] | None:
     """
     Parse $GNLVM (Leica Velocity Measurement) sentence
     
@@ -131,7 +138,7 @@ def parse_lvm(sentence: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def parse_ldm(sentence: str) -> Optional[Dict[str, Any]]:
+def parse_ldm(sentence: str) -> dict[str, Any] | None:
     """
     Parse $GNLDM (Leica Displacement Measurement) sentence
     
@@ -199,10 +206,7 @@ def parse_vadase_velocity(sentence: str):
         raise NMEAChecksumError(f"Invalid checksum: {sentence}")
         
     # Example: $PTNL,VEL,123045.50,2.34,-1.56,0.12,1*3F
-    match = re.match(
-        r'\$PTNL,VEL,(\d{6}\.\d{2}),([-\d.]+),([-\d.]+),([-\d.]+),(\d)\*([0-9A-F]{2})',
-        sentence
-    )
+    match = VELOCITY_REGEX.match(sentence)
     
     if not match:
         return None
@@ -215,7 +219,7 @@ def parse_vadase_velocity(sentence: str):
     ss = float(time_str[4:])
     
     # Note: NMEA doesn't include date, you'll need to track day rollovers
-    timestamp = datetime.now(timezone.utc).replace(
+    timestamp = datetime.now(UTC).replace(
         hour=hh, minute=mm, second=int(ss), microsecond=int((ss % 1) * 1e6)
     )
     
@@ -236,10 +240,7 @@ def parse_vadase_displacement(sentence: str):
         raise NMEAChecksumError(f"Invalid checksum: {sentence}")
         
     # Example: $PTNL,POS,123045.50,0.12,-0.08,0.01,1*AB
-    match = re.match(
-        r'\$PTNL,POS,(\d{6}\.\d{2}),([-\d.]+),([-\d.]+),([-\d.]+),(\d)\*([0-9A-F]{2})',
-        sentence
-    )
+    match = DISPLACEMENT_REGEX.match(sentence)
     
     if not match:
         return None
@@ -252,7 +253,7 @@ def parse_vadase_displacement(sentence: str):
     ss = float(time_str[4:])
     
     # Note: NMEA doesn't include date, you'll need to track day rollovers
-    timestamp = datetime.now(timezone.utc).replace(
+    timestamp = datetime.now(UTC).replace(
         hour=hh, minute=mm, second=int(ss), microsecond=int((ss % 1) * 1e6)
     )
     

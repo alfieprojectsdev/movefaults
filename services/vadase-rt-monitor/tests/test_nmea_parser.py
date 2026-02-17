@@ -1,6 +1,15 @@
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
-from src.parsers.nmea_parser import parse_ldm, parse_lvm, validate_nmea_checksum
+from src.parsers.nmea_parser import (
+    NMEAChecksumError,
+    parse_ldm,
+    parse_lvm,
+    parse_vadase_displacement,
+    parse_vadase_velocity,
+    validate_nmea_checksum,
+)
+
 
 def test_validate_nmea_checksum():
     # Test with valid checksum (using LVM example from spec)
@@ -36,9 +45,51 @@ def test_parse_ldm_spec_example():
     assert result['overall_completeness'] == 1.0
     
     # Date/Time Verification: 030215 -> March 2nd, 2015 (mmddyy)
-    expected_ts = datetime(2015, 3, 2, 11, 38, 5, 500000, tzinfo=timezone.utc)
+    expected_ts = datetime(2015, 3, 2, 11, 38, 5, 500000, tzinfo=UTC)
     assert result['timestamp'] == expected_ts
     assert result['start_time'] == expected_ts
+
+def test_parse_vadase_velocity():
+    sentence = "$PTNL,VEL,123045.50,2.34,-1.56,0.12,1*75"
+    result = parse_vadase_velocity(sentence)
+
+    assert result is not None
+    assert result['vN'] == 2.34
+    assert result['vE'] == -1.56
+    assert result['vU'] == 0.12
+    assert result['quality'] == 1
+    assert result['timestamp'].hour == 12
+    assert result['timestamp'].minute == 30
+    assert result['timestamp'].second == 45
+    assert result['timestamp'].microsecond == 500000
+
+    # Test invalid checksum
+    with pytest.raises(NMEAChecksumError):
+        parse_vadase_velocity("$PTNL,VEL,123045.50,2.34,-1.56,0.12,1*00")
+
+    # Test no match
+    assert parse_vadase_velocity("$PTNL,VEL,INVALID*08") is None
+
+def test_parse_vadase_displacement():
+    sentence = "$PTNL,POS,123045.50,0.12,-0.08,0.01,1*68"
+    result = parse_vadase_displacement(sentence)
+
+    assert result is not None
+    assert result['dN'] == 0.12
+    assert result['dE'] == -0.08
+    assert result['dU'] == 0.01
+    assert result['quality'] == 1
+    assert result['timestamp'].hour == 12
+    assert result['timestamp'].minute == 30
+    assert result['timestamp'].second == 45
+    assert result['timestamp'].microsecond == 500000
+
+    # Test invalid checksum
+    with pytest.raises(NMEAChecksumError):
+        parse_vadase_displacement("$PTNL,POS,123045.50,0.12,-0.08,0.01,1*00")
+
+    # Test no match
+    assert parse_vadase_displacement("$PTNL,POS,INVALID*1B") is None
 
 def test_parse_lvm_spec_example():
     """
@@ -58,5 +109,5 @@ def test_parse_lvm_spec_example():
     assert result['cq'] == 0.043561
     assert result['n_sats'] == 19
     
-    expected_ts = datetime(2015, 3, 2, 11, 38, 5, 500000, tzinfo=timezone.utc)
+    expected_ts = datetime(2015, 3, 2, 11, 38, 5, 500000, tzinfo=UTC)
     assert result['timestamp'] == expected_ts
