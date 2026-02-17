@@ -1,7 +1,15 @@
 #Date created: March 2020
 
-import glob, os, numpy, time
+import glob, os, time
 import pymap3d
+
+# Filename constants
+XYZ_FILENAME = 'XYZ'
+ENU_FILENAME = 'ENU'
+TEMP_FILENAME = '123'
+PLOTS_DIRNAME = 'PLOTS'
+KIN_GLOB = '*.KIN'
+SITE_GLOB = '????'
 
 def start():
 
@@ -14,21 +22,18 @@ def start():
 				print('\t ======================================================================== \n')
 				input('\t Press Enter to continue \n')
 				print('\t ========================= Getting XYZ coordinates ====================== \n')
-				for files in glob.glob('*.KIN'):
-						with open(files) as lines:
-								for i in range(5):
-										next(lines)
-								for line in lines:
-										x = line.split()
-										if len(line.split()) == 8:
-												f = open('XYZ', 'a+')
-												f.write('{:4s}  {:5s}  {:.6}  {:>13}  {:>13}  {:>13}\n'.format(x[0], files[4:9], x[3], x[4], x[5], x[6]))
-												f.close()
-												print('\t ' +x[0]+' '+files[4:9])	
-										else:
-												f = open('XYZ', 'a+')
-												f.write('----------------------------------------------------------\n')
-												f.close()
+				with open(XYZ_FILENAME, 'a+', encoding='utf-8') as f:
+						for files in glob.glob(KIN_GLOB):
+								with open(files, encoding='utf-8') as lines:
+										for i in range(5):
+												next(lines)
+										for line in lines:
+												x = line.split()
+												if len(x) == 8:
+														f.write('{:4s}  {:5s}  {:.6}  {:>13}  {:>13}  {:>13}\n'.format(x[0], files[4:9], x[3], x[4], x[5], x[6]))
+														print('\t ' +x[0]+' '+files[4:9])
+												else:
+														f.write('----------------------------------------------------------\n')
 		
 		def transform():
 				print('\n \t ============== Transforming XYZ coordinates to local ENU =============== \n')
@@ -37,38 +42,29 @@ def start():
 				lon = input('\t Input longitude (DD): ')
 				alt = input('\t Input altitude (m): ')
 				
-				for file in open('XYZ'):
-						r = file.split()
-						if len(r) == 6:
-								X = float(r[3])
-								Y = float(r[4])
-								Z = float(r[5])
-								east, north, up = pymap3d.ecef2enu(X, Y, Z, float(lat), float(lon), float(alt), deg=True)
-								f = open('ENU', 'a+')
-								f.write('{:4s}  {:5s}  {:6s}  {:.4f}  {:.4f}  {:.4f}\n'.format(r[0], r[1], r[2], east, north, up))
-								f.close()
-						else:
-								f = open('ENU', 'a+')
-								f.write('----------------------------------------------------------\n')
-								f.close()
+				with open(XYZ_FILENAME, 'r', encoding='utf-8') as input_f, open(ENU_FILENAME, 'a+', encoding='utf-8') as output_f:
+						for line in input_f:
+								r = line.split()
+								if len(r) == 6:
+										X = float(r[3])
+										Y = float(r[4])
+										Z = float(r[5])
+										east, north, up = pymap3d.ecef2enu(X, Y, Z, float(lat), float(lon), float(alt), deg=True)
+										output_f.write('{:4s}  {:5s}  {:6s}  {:.4f}  {:.4f}  {:.4f}\n'.format(r[0], r[1], r[2], east, north, up))
+								else:
+										output_f.write('----------------------------------------------------------\n')
 						
 		def getenu():
 				print('\n \t ==================== Getting local ENU coordinates ===================== \n')
 				
-				sname = []
-				
-				for lines in open('ENU'):
-						x = lines.split()
-						if len(x[0]) == 4:
-								if len(sname) == 0:
-										sname.append(x[0])
-								elif len(sname) == 1:
-										del sname[0]
-										sname.append(x[0])
-								open(sname[0], 'a+').write(x[1]+'  '+x[2]+','+x[3]+','+x[4]+','+x[5])
-								open(sname[0], 'a+').write('\n')
-						else:
-								pass
+				with open(ENU_FILENAME, 'r', encoding='utf-8') as f:
+						for lines in f:
+								x = lines.split()
+								if x and len(x[0]) == 4:
+										with open(x[0], 'a+', encoding='utf-8') as site_f:
+												site_f.write(x[1]+'  '+x[2]+','+x[3]+','+x[4]+','+x[5] + '\n')
+								else:
+										pass
 						
 		def plotfiles():
 				input('\t To create PLOT files, press Enter')
@@ -77,25 +73,24 @@ def start():
 				
 				alldata = []
 				
-				dirName = 'PLOTS'
-				if not os.path.exists(dirName):
-						os.mkdir(dirName)
-						print('\t Directory', dirName, 'created')
+				if not os.path.exists(PLOTS_DIRNAME):
+						os.mkdir(PLOTS_DIRNAME)
+						print('\t Directory', PLOTS_DIRNAME, 'created')
 				else:
-						print('\t Directory', dirName, 'already exists')
+						print('\t Directory', PLOTS_DIRNAME, 'already exists')
 						pass
 				
 				print('\n \t ======================= Creating PLOT files ============================')
                 
 				print('\n \t List of sites: ')
 				
-				for sites in glob.glob('????'):
-						print('\t '+ sites)
-						f = open('123', 'a+')
-						f.write(sites + '\n')
-						f.close()
-						for lines in open(sites):
-								alldata.append(sites+' '+lines)
+				with open(TEMP_FILENAME, 'a+', encoding='utf-8') as f:
+						for sites in glob.glob(SITE_GLOB):
+								print('\t '+ sites)
+								f.write(sites + '\n')
+								with open(sites, 'r', encoding='utf-8') as site_f:
+										for lines in site_f:
+												alldata.append(sites+' '+lines)
 				
 #				os.rename(os.getcwd()+'//123', os.getcwd()+'//PLOTS'+'//123')
 #				
@@ -127,4 +122,6 @@ def start():
 		transform()
 		getenu()
 		plotfiles()
-start()
+
+if __name__ == "__main__":
+		start()
