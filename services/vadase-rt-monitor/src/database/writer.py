@@ -39,5 +39,12 @@ class DatabaseWriter:
 
     async def write_event_detection(self, station, detection_time, peak_velocity, peak_displacement, duration):
         """Insert event detection record"""
-        # TODO: Implement actual table insert, for now just log or no-op if table doesn't exist
-        pass
+        async with self.pool.acquire() as conn:
+            await conn.execute('''
+                INSERT INTO event_detections (
+                    station, detection_time, peak_velocity_horizontal,
+                    peak_displacement_horizontal, duration_seconds
+                )
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (detection_id, detection_time) DO NOTHING
+            ''', station, detection_time, peak_velocity, peak_displacement, duration)
