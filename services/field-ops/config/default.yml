@@ -1,0 +1,15 @@
+# Field Ops API — default configuration
+# Override any value via environment variables (POGF_DB_HOST, FIELD_OPS_JWT_SECRET, etc.)
+
+database:
+  host: localhost
+  port: 5433
+  name: pogf_db
+  user: pogf_user
+  # password: set via POGF_DB_PASSWORD env var
+
+auth:
+  jwt_expire_hours: 8  # full field shift
+
+storage:
+  upload_dir: /tmp/field-ops-uploads
