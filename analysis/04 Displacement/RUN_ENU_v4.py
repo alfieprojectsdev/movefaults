@@ -1,7 +1,7 @@
 #Date created: May 2020
 #Date edited: November 2021
 #Change y axis
-import numpy, os, glob, msvcrt, time
+import numpy, os, glob, time
 from statistics import mean
 import matplotlib.pyplot as plt
 from matplotlib import style
@@ -281,6 +281,7 @@ def entersite():
 	global names
 	names = input('\t Input filename: ')
 	names = names.upper()
+	names = os.path.basename(names)
 
 print('\t ======================================================================== \n')
 print('\t \t \t \t WELCOME GPS TEAM! :) \n')
