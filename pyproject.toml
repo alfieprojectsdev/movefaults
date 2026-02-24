@@ -87,6 +87,7 @@ dev = [
     "redis>=5.0.0",
     "sqlalchemy>=2.0.0",
     "psycopg2-binary>=2.9.9",
+    "alembic>=1.13.0",
 ]
 
 [tool.ruff]
@@ -121,3 +122,8 @@ packages = [
 "services/vadase-rt-monitor/src" = ""
 "services/ingestion-pipeline/src" = ""
 "services/bernese-workflow/src" = ""
+
+[dependency-groups]
+dev = [
+    "geoalchemy2>=0.18.1",
+]
