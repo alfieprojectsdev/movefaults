@@ -1,13 +1,29 @@
 from datetime import UTC, datetime
 from unittest.mock import patch
 
+import pytest
 from src.parsers.nmea_parser import (
+    NMEAChecksumError,
     parse_ldm,
     parse_lvm,
     parse_vadase_displacement,
     parse_vadase_velocity,
     validate_nmea_checksum,
 )
+
+
+def _calculate_checksum(sentence: str) -> str:
+    """Helper to calculate NMEA checksum"""
+    body = sentence.lstrip("$").split("*")[0]
+    checksum = 0
+    for char in body:
+        checksum ^= ord(char)
+    return f"{checksum:02X}"
+
+def _create_sentence(body: str) -> str:
+    """Helper to create a full NMEA sentence with valid checksum"""
+    checksum = _calculate_checksum(body)
+    return f"${body}*{checksum}"
 
 
 def test_validate_nmea_checksum():
@@ -110,3 +126,68 @@ def test_parse_lvm_spec_example():
 
     expected_ts = datetime(2015, 3, 2, 11, 38, 5, 500000, tzinfo=UTC)
     assert result["timestamp"] == expected_ts
+
+
+@pytest.mark.parametrize("vn, ve, vu, qual", [
+    ("2.34", "-1.56", "0.12", "1"),
+    ("0.00", "0.00", "0.00", "2"),
+    ("-10.5", "5.5", "1.1", "0"),
+])
+def test_parse_vadase_velocity_values(vn, ve, vu, qual):
+    """Test parse_vadase_velocity with different valid values"""
+    body = f"PTNL,VEL,123045.50,{vn},{ve},{vu},{qual}"
+    sentence = _create_sentence(body)
+
+    fixed_now = datetime(2023, 10, 27, 10, 0, 0, tzinfo=UTC)
+
+    with patch("src.parsers.nmea_parser.datetime") as mock_datetime:
+        mock_datetime.now.return_value = fixed_now
+        result = parse_vadase_velocity(sentence)
+
+    assert result is not None
+    assert result["vN"] == float(vn)
+    assert result["vE"] == float(ve)
+    assert result["vU"] == float(vu)
+    assert result["quality"] == int(qual)
+
+
+def test_parse_vadase_velocity_invalid_checksum():
+    """Test parse_vadase_velocity with invalid checksum"""
+    # Valid checksum is 75 for this string, using 99 to force error
+    sentence = "$PTNL,VEL,123045.50,2.34,-1.56,0.12,1*99"
+    with pytest.raises(NMEAChecksumError):
+        parse_vadase_velocity(sentence)
+
+
+def test_parse_vadase_velocity_malformed():
+    """Test parse_vadase_velocity with malformed sentences"""
+    # Missing field
+    sentence = _create_sentence("PTNL,VEL,123045.50,2.34,-1.56,0.12")
+    assert parse_vadase_velocity(sentence) is None
+
+    # Wrong prefix
+    sentence = _create_sentence("OTHER,VEL,123045.50,2.34,-1.56,0.12,1")
+    assert parse_vadase_velocity(sentence) is None
+
+
+def test_parse_vadase_velocity_invalid_float():
+    r"""
+    Test parse_vadase_velocity with values that pass regex but fail float conversion.
+    The regex `[-\d.]+` allows strings like `.` or `-.` which are not valid floats.
+    """
+    # "." matches `[-\d.]+` but float('.') raises ValueError
+    body = "PTNL,VEL,123045.50,.,-1.56,0.12,1"
+    sentence = _create_sentence(body)
+
+    fixed_now = datetime(2023, 10, 27, 10, 0, 0, tzinfo=UTC)
+
+    with patch("src.parsers.nmea_parser.datetime") as mock_datetime:
+        mock_datetime.now.return_value = fixed_now
+
+        # Currently the code raises ValueError, but good practice is to return None or specific error.
+        # We'll assert that it raises ValueError for now, or change the code to handle it.
+        # Given the task is "Testing Improvement", we should document current behavior or improve it.
+        # We'll assume we want to fix this fragility, so we expect None (handled gracefully).
+        # This test will likely fail initially if we don't fix the code.
+        result = parse_vadase_velocity(sentence)
+        assert result is None

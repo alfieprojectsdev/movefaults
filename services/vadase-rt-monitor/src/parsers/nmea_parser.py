@@ -222,13 +222,16 @@ def parse_vadase_velocity(sentence: str):
     # Note: NMEA doesn't include date, you'll need to track day rollovers
     timestamp = datetime.now(UTC).replace(hour=hh, minute=mm, second=ss, microsecond=microsecond)
 
-    return {
-        "timestamp": timestamp,
-        "vN": float(vn),
-        "vE": float(ve),
-        "vU": float(vu),
-        "quality": int(quality),
-    }
+    try:
+        return {
+            "timestamp": timestamp,
+            "vN": float(vn),
+            "vE": float(ve),
+            "vU": float(vu),
+            "quality": int(quality),
+        }
+    except ValueError:
+        return None
 
 
 def parse_vadase_displacement(sentence: str):
