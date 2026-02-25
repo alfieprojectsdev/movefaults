@@ -18,8 +18,10 @@ Key design choices:
 import uuid
 
 from sqlalchemy import (
+    Boolean,
     Column,
     Date,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -129,3 +131,67 @@ class LogSheetPhoto(FieldOpsBase):
     uploaded_at = Column(TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
     logsheet = relationship("LogSheet", back_populates="photos")
+
+
+class EquipmentHistory(FieldOpsBase):
+    """
+    Temporal (SCD Type 2) record of hardware installed at each station.
+
+    Each row represents one equipment item for the duration it was installed
+    (date_installed → date_removed). date_removed IS NULL means currently active.
+
+    Use case: answer "what receiver was at PBIS during the Cotabato earthquake
+    on 2019-10-29?" via:
+        WHERE station_code = 'PBIS'
+          AND date_installed <= '2019-10-29'
+          AND (date_removed IS NULL OR date_removed > '2019-10-29')
+
+    arp_height_m and elevation_cutoff_deg feed Bernese .STA file generation —
+    this table is the authoritative source for those values.
+    """
+
+    __tablename__ = "equipment_history"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    station_code = Column(String(10), nullable=False)   # loose ref to public.stations
+
+    # Hardware classification
+    equipment_type = Column(String(100))    # GNSS Receiver | Antenna | Cable | etc.
+    serial_number = Column(String(100))
+
+    # Receiver details
+    manufacturer = Column(String(100))
+    model = Column(String(100))
+    firmware_version = Column(String(50))
+    num_channels = Column(Integer)
+
+    # Antenna details
+    antenna_manufacturer = Column(String(100))
+    antenna_model = Column(String(100))     # e.g. TRM41249.00
+    radome_type = Column(String(50))
+
+    # Installation specs (Bernese .STA inputs)
+    antenna_location = Column(String(100))  # Rooftop | Ground | Pillar
+    cable_length_m = Column(Float)
+    elevation_cutoff_deg = Column(Float)
+    arp_height_m = Column(Float)            # Antenna Reference Point height above monument
+
+    # Infrastructure
+    power_source = Column(String(100))      # Solar | AC-DC | Battery | Solar+Battery
+    has_internet = Column(Boolean)
+    has_lightning_rod = Column(Boolean)
+
+    # Constellation support
+    satellite_systems = Column(Text)        # GPS | GNSS | GPS+GLONASS
+
+    # Valid-time interval
+    date_installed = Column(Date)           # NULL = unknown start
+    date_removed = Column(Date)             # NULL = currently installed
+
+    notes = Column(Text)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+    def __repr__(self) -> str:
+        removed = self.date_removed or "present"
+        return f"<EquipmentHistory {self.station_code} {self.model} [{self.date_installed}–{removed}]>"
