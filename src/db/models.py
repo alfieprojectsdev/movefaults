@@ -33,7 +33,8 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import INT4RANGE
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -69,6 +70,14 @@ class Station(Base):
     # VADASE TCP connection fields
     host = Column(Text)
     port = Column(Integer)
+    # Administrative location (separate columns for indexed regional reporting)
+    municipality = Column(Text)
+    province = Column(Text)
+    region = Column(Text)
+    # Operational metadata
+    monitoring_method = Column(String(20), server_default="continuous")  # continuous | campaign
+    land_owner = Column(Text)
+    maintenance_interval_days = Column(Integer)
     # Queryable JSON for receiver type, antenna type, etc.
     metadata_json = Column(JSONB)
     date_added = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
@@ -106,3 +115,39 @@ class RinexFile(Base):
 
     def __repr__(self) -> str:
         return f"<RinexFile {self.filepath}>"
+
+
+class ProcessingStatus(Base):
+    """
+    Year-by-year Bernese data processing status per station.
+
+    Mirrors the BERN52 Inventory spreadsheet. The Bernese orchestrator
+    (Phase 1B-iii) uses this as its job queue — querying pending rows
+    before launching a BPE run, then upserting status as work progresses.
+
+    available_days stores non-contiguous Julian day ranges as a PostgreSQL
+    int4range array. Example: '{[1,37],[141,365]}' means days 1–37 and
+    141–365 have RINEX data present.
+
+    Containment query (is day 200 available?):
+        WHERE '[200,200]'::int4range <@ ANY(available_days)
+    """
+
+    __tablename__ = "processing_status"
+    __table_args__ = (UniqueConstraint("station_code", "processing_year",
+                                       name="uq_processing_status"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    station_code = Column(String(10), nullable=False)   # loose ref to public.stations
+    processing_year = Column(Integer, nullable=False)
+
+    status = Column(String(50), nullable=False, server_default="pending")
+    # valid values: pending | retrieving | processing | data_complete
+
+    available_days = Column(ARRAY(INT4RANGE))   # e.g. {[1,37],[141,365]}
+    staff_assigned = Column(Text)
+    notes = Column(Text)
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
+
+    def __repr__(self) -> str:
+        return f"<ProcessingStatus {self.station_code} {self.processing_year} [{self.status}]>"
