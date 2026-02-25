@@ -51,18 +51,18 @@ CREATE TABLE vadase_displacement (
 
 SELECT create_hypertable('vadase_displacement', 'time');
 
--- Station metadata
-CREATE TABLE stations (
-    station_id TEXT PRIMARY KEY,
-    name TEXT,
-    latitude DOUBLE PRECISION,
-    longitude DOUBLE PRECISION,
-    elevation DOUBLE PRECISION,
-    host TEXT,                    -- TCP host for NMEA stream
-    port INTEGER,                 -- TCP port
-    install_date DATE,
-    status TEXT DEFAULT 'active'  -- 'active', 'maintenance', 'offline'
-);
+-- Station metadata is managed by Alembic migrations.
+-- Run from the repo root: uv run alembic upgrade head
+-- Then seed: uv run python scripts/seed_stations.py
+--
+-- The canonical stations table (with station_code, lat/lon, host, port, etc.)
+-- is defined in migrations/versions/001_create_stations.py and
+-- modelled in src/db/models.py.
+--
+-- VADASE tables (vadase_velocity, vadase_displacement) store station_code
+-- as a denormalized TEXT field for write performance — no FK to stations.id.
+-- This is intentional: 35+ stations at 1 Hz would pay a FK lookup on every
+-- insert at the hot path.
 
 -- Event catalog (earthquake/seismic events)
 CREATE TABLE events (
