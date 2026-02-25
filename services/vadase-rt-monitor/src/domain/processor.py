@@ -105,8 +105,6 @@ class IngestionCore:
                  self.disp_east = (self.disp_east * self.decay_factor) + (data['vE'] * delta_t)
                  self.disp_north = (self.disp_north * self.decay_factor) + (data['vN'] * delta_t)
                  self.disp_up = (self.disp_up * self.decay_factor) + (data['vU'] * delta_t)
-                 
-                 self.disp_up = (self.disp_up * self.decay_factor) + (data['vU'] * delta_t)
         
         self.last_velocity_time = current_time
 
