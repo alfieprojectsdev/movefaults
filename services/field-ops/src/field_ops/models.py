@@ -1,0 +1,131 @@
+"""
+SQLAlchemy ORM models for the field_ops PostgreSQL schema.
+
+All tables live in the 'field_ops' schema namespace within the central POGF
+database — logically isolated from the public schema (stations, rinex_files, etc.)
+without requiring a separate database container.
+
+Key design choices:
+  - client_uuid on logsheets: UUID generated on the PWA before going offline.
+    Enables idempotent sync — if the client retries after a network failure,
+    ON CONFLICT (client_uuid) DO NOTHING prevents duplicate rows.
+  - station_code on logsheets is a loose reference (TEXT, no FK) to public.stations.
+    This avoids cross-schema FK complexity and matches VADASE's denorm pattern.
+  - synced_at is NULL while the record is in the client's IndexedDB queue;
+    it is set server-side when the POST /logsheets request succeeds.
+"""
+
+import uuid
+
+from sqlalchemy import (
+    Column,
+    Date,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    TIMESTAMP,
+    text,
+)
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import DeclarativeBase, relationship
+
+
+class FieldOpsBase(DeclarativeBase):
+    """Separate Base from the central POGF schema so metadata stays isolated."""
+    pass
+
+
+SCHEMA = "field_ops"
+
+
+class User(FieldOpsBase):
+    """Field personnel accounts. Role controls admin-only endpoints."""
+
+    __tablename__ = "users"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(50), unique=True, nullable=False)
+    hashed_password = Column(Text, nullable=False)
+    role = Column(String(20), server_default="field_staff")  # field_staff | admin
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+    logsheets = relationship("LogSheet", back_populates="submitter")
+
+    def __repr__(self) -> str:
+        return f"<User {self.username} ({self.role})>"
+
+
+class LogSheet(FieldOpsBase):
+    """
+    One station visit record.
+
+    The client generates client_uuid before submitting — this makes the sync
+    endpoint naturally idempotent. Multiple offline records can be flushed in
+    a single POST /logsheets batch call.
+    """
+
+    __tablename__ = "logsheets"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    client_uuid = Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
+    station_code = Column(String(10), nullable=False)   # loose ref to public.stations
+    submitted_by = Column(Integer, ForeignKey(f"{SCHEMA}.users.id"))
+    visit_date = Column(Date, nullable=False)
+    arrival_time = Column(TIMESTAMP(timezone=True))
+    departure_time = Column(TIMESTAMP(timezone=True))
+    weather_conditions = Column(Text)
+    maintenance_performed = Column(Text)
+    equipment_status = Column(String(50))  # ok | issue_found | repaired
+    notes = Column(Text)
+    synced_at = Column(TIMESTAMP(timezone=True))       # NULL = still in offline queue
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+    submitter = relationship("User", back_populates="logsheets")
+    photos = relationship("LogSheetPhoto", back_populates="logsheet")
+
+    def __repr__(self) -> str:
+        return f"<LogSheet {self.station_code} {self.visit_date} [{self.client_uuid}]>"
+
+
+class EquipmentInventory(FieldOpsBase):
+    """
+    GNSS equipment tracked by QR code.
+
+    Each physical item (receiver, antenna, cable) gets a QR sticker.
+    The PWA's QR scanner resolves qr_code → equipment record to pre-fill
+    logsheet equipment fields.
+    """
+
+    __tablename__ = "equipment_inventory"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    qr_code = Column(Text, unique=True, nullable=False)
+    equipment_type = Column(String(100))   # GNSS Receiver | Antenna | Cable | etc.
+    serial_number = Column(String(100))
+    station_code = Column(String(10))      # current assigned station (loose ref)
+    status = Column(String(50), server_default="active")  # active | retired | lost
+    last_seen = Column(TIMESTAMP(timezone=True))
+    notes = Column(Text)
+
+    def __repr__(self) -> str:
+        return f"<Equipment {self.qr_code} ({self.equipment_type})>"
+
+
+class LogSheetPhoto(FieldOpsBase):
+    """Photo attachment for a logsheet (antenna, equipment, site conditions)."""
+
+    __tablename__ = "logsheet_photos"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    logsheet_id = Column(Integer, ForeignKey(f"{SCHEMA}.logsheets.id"), nullable=False)
+    filename = Column(Text, nullable=False)
+    storage_path = Column(Text)             # local path or future S3 key
+    taken_at = Column(TIMESTAMP(timezone=True))
+    uploaded_at = Column(TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+    logsheet = relationship("LogSheet", back_populates="photos")
