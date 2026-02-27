@@ -31,6 +31,7 @@ vadase-validate = "scripts.validate_parser:main"
 rinex-qc = "pogf_geodetic_suite.qc.rinex_qc:main"
 igs-downloader = "pogf_geodetic_suite.igs_downloader:main"
 field-ops-api = "field_ops.main:start"
+velocity-reviewer = "velocity_reviewer.cli:main"
 
 [project.optional-dependencies]
 # Dependencies for the drive-archaeologist tool
@@ -84,6 +85,12 @@ field-ops = [
     "pyyaml>=6.0.1",
     "typer>=0.21.1",
     "qrcode[pil]>=7.4.2",
+]
+
+# Dependencies for the velocity-reviewer tool
+velocity-reviewer = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
 ]
 
 # Shared development dependencies
@@ -142,6 +149,7 @@ packages = [
 "services/ingestion-pipeline/src" = ""
 "services/bernese-workflow/src" = ""
 "services/field-ops/src" = ""
+"tools/velocity-reviewer/src" = ""
 
 [dependency-groups]
 dev = [

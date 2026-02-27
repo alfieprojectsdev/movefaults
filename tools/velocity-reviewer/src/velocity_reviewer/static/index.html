@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Velocity Reviewer</title>
+  <script src="https://cdn.plot.ly/plotly-2.29.1.min.js" charset="utf-8"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Top bar ─────────────────────────────────────────────────── */
+    #topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: #1a1f2e;
+      border-bottom: 1px solid #2d3748;
+      flex-shrink: 0;
+    }
+
+    #site-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #63b3ed;
+      letter-spacing: 0.1em;
+    }
+
+    #progress-info {
+      font-size: 0.85rem;
+      color: #718096;
+    }
+
+    /* Progress bar */
+    #progress-bar-wrap {
+      width: 200px;
+      height: 6px;
+      background: #2d3748;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    #progress-bar {
+      height: 100%;
+      background: #48bb78;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    /* ── Legend ─────────────────────────────────────────────────── */
+    #legend {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      padding: 6px 20px;
+      background: #141824;
+      border-bottom: 1px solid #2d3748;
+      font-size: 0.78rem;
+      flex-shrink: 0;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-normal  { background: transparent; border: 2px solid #4299e1; }
+    .dot-auto    { background: #ed8936; }
+    .dot-manual  { background: #e53e3e; }
+    .dot-fit     { background: #68d391; width: 24px; height: 3px; border-radius: 2px; }
+
+    /* ── Chart ───────────────────────────────────────────────────── */
+    #chart-wrap {
+      flex: 1;
+      min-height: 0;
+      padding: 4px 8px;
+    }
+    #chart { width: 100%; height: 100%; }
+
+    /* ── Bottom toolbar ──────────────────────────────────────────── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: #1a1f2e;
+      border-top: 1px solid #2d3748;
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .toolbar-left, .toolbar-right {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #outlier-count {
+      font-size: 0.82rem;
+      color: #a0aec0;
+    }
+
+    button {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      transition: background 0.15s, transform 0.1s;
+    }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #btn-prev    { background: #2d3748; color: #e2e8f0; }
+    #btn-prev:hover:not(:disabled) { background: #4a5568; }
+
+    #btn-clear   { background: #2d3748; color: #fc8181; }
+    #btn-clear:hover:not(:disabled) { background: #4a5568; }
+
+    #btn-next    { background: #3182ce; color: #fff; }
+    #btn-next:hover:not(:disabled) { background: #2b6cb0; }
+
+    #btn-export  { background: #276749; color: #9ae6b4; }
+    #btn-export:hover:not(:disabled) { background: #22543d; }
+
+    /* ── Toast notification ─────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 100;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ── Loading overlay ────────────────────────────────────────── */
+    #loading {
+      position: fixed; inset: 0;
+      background: rgba(15,17,23,0.85);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; color: #63b3ed;
+      z-index: 200;
+    }
+    #loading.hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading">Loading site data…</div>
+
+<!-- Top bar -->
+<div id="topbar">
+  <span id="site-name">—</span>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+    <span id="progress-info">0 / 0 done</span>
+  </div>
+</div>
+
+<!-- Legend -->
+<div id="legend">
+  <span style="color:#718096;font-weight:600;">CLICK POINT TO TOGGLE:</span>
+  <div class="legend-item"><div class="legend-dot dot-normal"></div>Normal</div>
+  <div class="legend-item"><div class="legend-dot dot-auto"></div>Auto-detected outlier (IQR)</div>
+  <div class="legend-item"><div class="legend-dot dot-manual"></div>Selected for removal</div>
+  <div class="legend-item"><div class="legend-dot dot-fit"></div>Regression fit</div>
+</div>
+
+<!-- Chart -->
+<div id="chart-wrap">
+  <div id="chart"></div>
+</div>
+
+<!-- Bottom toolbar -->
+<div id="toolbar">
+  <div class="toolbar-left">
+    <button id="btn-prev" disabled>← Prev</button>
+    <button id="btn-clear">Clear selection</button>
+  </div>
+  <span id="outlier-count">0 outliers selected</span>
+  <div class="toolbar-right">
+    <button id="btn-next">Accept &amp; Next →</button>
+    <button id="btn-export">Export OUTLIERS.txt</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let sites       = [];     // ordered list from /api/sites
+let doneSites   = new Set();
+let siteIdx     = 0;      // index into sites[] for current site
+
+let tArr        = [];     // decimal year timestamps for current site
+let autoSet     = new Set(); // timestamps of IQR auto-detected outliers
+let selected    = new Set(); // timestamps currently chosen for output
+
+// ── Colour helpers ──────────────────────────────────────────────────────────
+const C_NORMAL = 'rgba(66,153,225,0.0)';   // transparent fill (open circle effect)
+const C_AUTO   = 'rgba(237,137,54,0.90)';  // orange filled — IQR auto
+const C_MANUAL = 'rgba(229,62,62,0.95)';   // red filled — manually selected
+const C_LINE_NORMAL = 'rgba(66,153,225,0.75)';
+const C_LINE_AUTO   = 'rgba(237,137,54,1)';
+const C_LINE_MANUAL = 'rgba(229,62,62,1)';
+const C_FIT    = '#68d391';
+
+function fillColor(ts) {
+  if (selected.has(ts)) return C_MANUAL;
+  if (autoSet.has(ts))  return C_AUTO;
+  return C_NORMAL;
+}
+function lineColor(ts) {
+  if (selected.has(ts)) return C_LINE_MANUAL;
+  if (autoSet.has(ts))  return C_LINE_AUTO;
+  return C_LINE_NORMAL;
+}
+function markerSize(ts) {
+  return (selected.has(ts) || autoSet.has(ts)) ? 8 : 6;
+}
+
+function buildColorArrays() {
+  const fill = tArr.map(fillColor);
+  const line = tArr.map(lineColor);
+  const size = tArr.map(markerSize);
+  return { fill, line, size };
+}
+
+// ── Plot ────────────────────────────────────────────────────────────────────
+function buildFigure(data) {
+  const { fill, line, size } = buildColorArrays();
+
+  // Marker definition shared by all 3 component data traces.
+  // Traces 0, 2, 4 are data; 1, 3, 5 are regression lines.
+  const mk = (label) => ({
+    color: [...fill],
+    size: [...size],
+    line: { color: [...line], width: 1.5 },
+    symbol: 'circle',
+  });
+
+  const traces = [
+    // East data
+    {
+      x: tArr, y: data.e, name: `East  ${data.ve > 0 ? '+' : ''}${data.ve} mm/yr`,
+      mode: 'markers', type: 'scatter',
+      marker: mk('e'), xaxis: 'x', yaxis: 'y',
+      hovertemplate: '%{x:.4f}<br>%{y:.4f} cm<extra></extra>',
+    },
+    // East fit
+    {
+      x: tArr, y: data.e_fit, mode: 'lines', type: 'scatter',
+      line: { color: C_FIT, width: 1.5 },
+      showlegend: false, hoverinfo: 'skip',
+      xaxis: 'x', yaxis: 'y',
+    },
+    // North data
+    {
+      x: tArr, y: data.n, name: `North  ${data.vn > 0 ? '+' : ''}${data.vn} mm/yr`,
+      mode: 'markers', type: 'scatter',
+      marker: mk('n'), xaxis: 'x', yaxis: 'y2',
+      hovertemplate: '%{x:.4f}<br>%{y:.4f} cm<extra></extra>',
+    },
+    // North fit
+    {
+      x: tArr, y: data.n_fit, mode: 'lines', type: 'scatter',
+      line: { color: C_FIT, width: 1.5 },
+      showlegend: false, hoverinfo: 'skip',
+      xaxis: 'x', yaxis: 'y2',
+    },
+    // Up data
+    {
+      x: tArr, y: data.u, name: `Up  ${data.vu > 0 ? '+' : ''}${data.vu} mm/yr`,
+      mode: 'markers', type: 'scatter',
+      marker: mk('u'), xaxis: 'x', yaxis: 'y3',
+      hovertemplate: '%{x:.4f}<br>%{y:.4f} cm<extra></extra>',
+    },
+    // Up fit
+    {
+      x: tArr, y: data.u_fit, mode: 'lines', type: 'scatter',
+      line: { color: C_FIT, width: 1.5 },
+      showlegend: false, hoverinfo: 'skip',
+      xaxis: 'x', yaxis: 'y3',
+    },
+  ];
+
+  // Offset vertical lines spanning the full figure height (yref: 'paper')
+  const offsetColors = { EQ: '#fc8181', CE: '#fbd38d', VE: '#f6ad55', UK: '#a0aec0' };
+  const shapes = (data.offsets || []).map(o => ({
+    type: 'line',
+    x0: o.year, x1: o.year, y0: 0, y1: 1, yref: 'paper', xref: 'x',
+    line: { color: offsetColors[o.type] || '#a0aec0', width: 1.5, dash: 'dash' },
+  }));
+
+  const annotations = (data.offsets || []).map(o => ({
+    x: o.year, y: 1.01, xref: 'x', yref: 'paper',
+    text: o.type, showarrow: false,
+    font: { size: 9, color: offsetColors[o.type] || '#a0aec0' },
+    xanchor: 'center',
+  }));
+
+  const layout = {
+    paper_bgcolor: '#0f1117',
+    plot_bgcolor:  '#141824',
+    font: { color: '#a0aec0', size: 11 },
+    margin: { t: 10, b: 50, l: 70, r: 20 },
+    hovermode: 'closest',
+    legend: {
+      orientation: 'h', x: 0, y: 1.04,
+      font: { size: 11 }, bgcolor: 'rgba(0,0,0,0)',
+    },
+    yaxis:  { domain: [0.68, 1.00], title: 'East (cm)', gridcolor: '#2d3748', zerolinecolor: '#4a5568' },
+    yaxis2: { domain: [0.34, 0.66], title: 'North (cm)', gridcolor: '#2d3748', zerolinecolor: '#4a5568' },
+    yaxis3: { domain: [0.00, 0.32], title: 'Up (cm)', gridcolor: '#2d3748', zerolinecolor: '#4a5568' },
+    xaxis:  { title: 'Decimal Year', gridcolor: '#2d3748', zerolinecolor: '#4a5568' },
+    shapes,
+    annotations,
+  };
+
+  Plotly.newPlot('chart', traces, layout, { responsive: true, displaylogo: false });
+
+  // ── Click handler ──────────────────────────────────────────────────────
+  document.getElementById('chart').on('plotly_click', (ev) => {
+    const pt = ev.points[0];
+    // Only respond to clicks on data traces (even curveNumbers: 0, 2, 4)
+    if (pt.curveNumber % 2 !== 0) return;
+
+    const ts = tArr[pt.pointIndex];
+    if (selected.has(ts)) {
+      selected.delete(ts);
+    } else {
+      selected.add(ts);
+    }
+
+    refreshColors();
+    updateOutlierCount();
+    saveSelectionToServer();
+  });
+}
+
+function refreshColors() {
+  const { fill, line, size } = buildColorArrays();
+  Plotly.restyle('chart', {
+    'marker.color':      [fill, fill, fill],
+    'marker.line.color': [line, line, line],
+    'marker.size':       [size, size, size],
+  }, [0, 2, 4]);
+}
+
+// ── API helpers ─────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+async function fetchSites() {
+  const data = await api('/api/sites');
+  sites = data.sites;
+  doneSites = new Set(data.done);
+}
+
+async function loadSite(idx) {
+  showLoading(true);
+  try {
+    const site = sites[idx];
+    const data = await api(`/api/sites/${site}/data`);
+
+    tArr    = data.t;
+    autoSet = new Set(data.iqr_outliers);
+
+    // Restore previous selection if navigating back;
+    // otherwise pre-fill with IQR auto-outliers.
+    const prev = data.current_selection || [];
+    selected = prev.length > 0
+      ? new Set(prev.map(Number))
+      : new Set(data.iqr_outliers.map(Number));
+
+    buildFigure(data);
+    updateTopBar();
+    updateOutlierCount();
+    document.getElementById('btn-prev').disabled = (idx === 0);
+  } catch (err) {
+    showToast(`Failed to load ${sites[idx]}: ${err.message}`, 4000);
+  } finally {
+    showLoading(false);
+  }
+}
+
+function updateTopBar() {
+  document.getElementById('site-name').textContent = sites[siteIdx];
+  const done = doneSites.size;
+  const total = sites.length;
+  document.getElementById('progress-info').textContent = `${done} / ${total} done`;
+  document.getElementById('progress-bar').style.width = `${total ? (done / total) * 100 : 0}%`;
+}
+
+function updateOutlierCount() {
+  const n = selected.size;
+  document.getElementById('outlier-count').textContent =
+    `${n} outlier${n !== 1 ? 's' : ''} selected`;
+}
+
+async function saveSelectionToServer() {
+  const site = sites[siteIdx];
+  await api(`/api/sites/${site}/outliers`, {
+    method: 'POST',
+    body: JSON.stringify({ timestamps: [...selected] }),
+  });
+}
+
+// ── Button handlers ──────────────────────────────────────────────────────────
+document.getElementById('btn-prev').addEventListener('click', async () => {
+  if (siteIdx > 0) {
+    await saveSelectionToServer();
+    siteIdx--;
+    await loadSite(siteIdx);
+  }
+});
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  selected.clear();
+  refreshColors();
+  updateOutlierCount();
+  saveSelectionToServer();
+});
+
+document.getElementById('btn-next').addEventListener('click', async () => {
+  const site = sites[siteIdx];
+  showLoading(true);
+  try {
+    await api(`/api/sites/${site}/accept`, {
+      method: 'POST',
+      body: JSON.stringify({ timestamps: [...selected] }),
+    });
+    doneSites.add(site);
+
+    // Find next non-done site
+    let next = siteIdx + 1;
+    while (next < sites.length && doneSites.has(sites[next])) next++;
+
+    if (next < sites.length) {
+      siteIdx = next;
+      await loadSite(siteIdx);
+    } else {
+      updateTopBar();
+      showToast('All sites reviewed! Click "Export OUTLIERS.txt" to save.', 5000);
+      showLoading(false);
+    }
+  } catch (err) {
+    showLoading(false);
+    showToast(`Error: ${err.message}`, 4000);
+  }
+});
+
+document.getElementById('btn-export').addEventListener('click', async () => {
+  try {
+    const data = await api('/api/export', { method: 'POST', body: '{}' });
+    showToast(`✓ Saved ${data.total_outliers} outlier epochs → ${data.path}`, 5000);
+  } catch (err) {
+    showToast(`Export failed: ${err.message}`, 4000);
+  }
+});
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function showLoading(on) {
+  document.getElementById('loading').classList.toggle('hidden', !on);
+}
+
+let _toastTimer = null;
+function showToast(msg, ms = 3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ── Keyboard shortcuts ───────────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowRight' || e.key === 'Enter') {
+    document.getElementById('btn-next').click();
+  } else if (e.key === 'ArrowLeft') {
+    document.getElementById('btn-prev').click();
+  } else if (e.key === 'Escape') {
+    document.getElementById('btn-clear').click();
+  }
+});
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    await fetchSites();
+    if (sites.length === 0) {
+      showToast('No sites found in 123 file.', 10000);
+      showLoading(false);
+      return;
+    }
+    // Start at first non-done site
+    siteIdx = sites.findIndex(s => !doneSites.has(s));
+    if (siteIdx < 0) siteIdx = 0;
+    await loadSite(siteIdx);
+  } catch (err) {
+    showToast(`Startup error: ${err.message}`, 10000);
+    showLoading(false);
+  }
+})();
+</script>
+</body>
+</html>
