@@ -1,6 +1,4 @@
-# From Manual BPE Runs to Reproducible Science: A Proposal for GNSS Pipeline Orchestration
-
-*Prepared for PHIVOLCS GNSS Data Processing Staff*
+# GNSS Pipeline Orchestration: What We're Building for Our Processing Workflow
 
 ---
 
@@ -70,15 +68,21 @@ This is the difference between a result you can publish and a result you can onl
 
 ### 2. The Knowledge Concentration Problem
 
-Right now, the full processing procedure exists primarily in the heads of the people who do it regularly. The steps for handling a problematic station, the correct mirror to use when CDDIS is down, the `.STA` column format — none of this is written down in a form that survives staff turnover.
+The processing procedure is documented — the work instruction covers it thoroughly. But a document that describes what to do is different from a system that does it. Every manual step is an opportunity for the document and reality to quietly diverge: a mirror URL changes, a `.STA` column format gets adjusted, a new instrument introduces a filename pattern the document hasn't caught up to yet.
 
-An orchestrator is a **runnable specification** of the processing procedure. It is the procedure, written in code. When a new staff member joins, they do not need to be taught the steps — they read (and run) the orchestrator. When a processing expert goes on leave, processing does not stop.
+An orchestrator is a **runnable specification** of the processing procedure. It is the procedure, written in code — and the code either works or it fails visibly, which is a much shorter feedback loop than a document drifting out of sync with practice. The work instruction does not disappear; it becomes the authoritative reference for what to do **when the orchestration flags an exception** — exactly the cases where human judgment is needed. For new staff, the orchestrator handles the routine; the work instruction teaches the reasoning behind it.
 
 ### 3. The Scale Problem
 
-PHIVOLCS currently operates 35+ CORS stations producing continuous data, plus periodic campaign GPS deployments. Processing each station's daily data manually is feasible for a small number of stations. It is not feasible at 35, and will not be feasible at 50 or 100.
+PHIVOLCS operates approximately 270 active stations nationwide as of December 2024 — continuous CORS sites and campaign deployments combined — with over 300 GPS sites contributing data since 1995. Processing each station's daily data manually was feasible when the network was small. It is not feasible at 270 active stations across the archipelago, and the network is not getting smaller.
 
 An orchestrated pipeline processes all stations in parallel, overnight, every night, without anyone sitting at a terminal. The processing staff review the exception report in the morning — they spend their time on the results that need judgment, not on the steps that don't.
+
+### 4. The Workstation Problem
+
+A BPE run occupies whatever machine it runs on. Right now, that means a desktop is tied up for 35 minutes — longer for multi-session batches — while you wait, watch, or find something else to do on a different machine.
+
+The orchestrated pipeline runs on the dedicated Dell server (R740). You submit a processing job from your desk, and your workstation is immediately free. The server handles the computation; you receive the results. Your desktop is no longer a processing node.
 
 ---
 
