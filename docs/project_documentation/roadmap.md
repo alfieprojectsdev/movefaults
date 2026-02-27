@@ -1,139 +1,202 @@
 # Project Roadmap: Phased Implementation Based on Dependency Hierarchies
 
-**Date:** 2026-01-26
+**Last updated:** 2026-02-27
+**Original date:** 2026-01-26
+
+> For per-deliverable status and projected dates, see [`deliverables_tracker.md`](deliverables_tracker.md).
+
+---
 
 ## 1. Introduction
 
-This document outlines the proposed roadmap for the Philippine Open Geodesy Framework (POGF) monorepo project, structured around a phased implementation based on technical dependencies. This approach ensures that foundational components are in place before dependent systems are developed, minimizing rework and maximizing efficiency.
+This document outlines the roadmap for the Philippine Open Geodesy Framework (POGF) monorepo,
+structured around a phased implementation based on technical dependencies. Foundational components
+are built before dependent systems to minimise rework.
+
+---
 
 ## 2. Domain Terminology: The Nuance of "Campaign"
 
-A key term requiring clarification is "campaign," which has distinct meanings within the project domain. Understanding these distinctions is crucial for the architectural design:
+A key term requiring clarification is "campaign," which has distinct meanings within the project:
 
-*   **Campaign GPS (Observation Method):** Refers to the periodic, temporary deployment of portable GNSS receivers at specific monitoring points for a limited duration (e.g., hours to days). Primarily used for measuring **interseismic motion** (slow, long-term deformation).
-*   **Continuous GPS (cGPS) (Observation Method):** Refers to permanently installed GNSS receivers collecting data continuously.
-    *   *Proprietary Raw Data:* High-rate observations for precise post-processing (Bernese).
-    *   *VADASE Real-Time Data:* NMEA streams for rapid velocity/displacement evaluation (handled by `vadase-rt-monitor`).
-*   **Bernese Processing Campaign (Software Context):** A technical term specific to the Bernese GNSS Software. It defines a software execution run on a set of observation data (from either Campaign GPS or cGPS methods) over a defined time window.
+- **Campaign GPS (Observation Method):** Periodic, temporary GNSS deployments for measuring
+  slow interseismic motion (hours to days in the field).
+- **Continuous GPS (cGPS) (Observation Method):** Permanently installed GNSS receivers.
+  - *Proprietary raw data:* High-rate observations for Bernese post-processing.
+  - *VADASE real-time data:* NMEA streams for rapid displacement detection (`vadase-rt-monitor`).
+- **Bernese Processing Campaign (Software Context):** A Bernese GNSS Software execution run
+  on a defined set of observation data over a time window. Distinct from field "campaign GPS."
 
-**Goal:** The project automates the workflow for *both* observation methods, organizing them into efficient *Bernese processing campaigns*.
+**Goal:** Automate the workflow for *both* observation methods, organising them into efficient
+Bernese processing campaigns.
+
+---
 
 ## 3. Overall Project Goal
 
-The primary objective of this project is to establish the POGF by consolidating multiple disparate codebases and workflows into a single, unified, and maintainable monorepo. The end goal is a cohesive system for ingesting, processing, analyzing, and distributing geodetic data.
+Establish the POGF by consolidating disparate codebases and manual workflows into a single,
+unified, maintainable monorepo — a cohesive system for ingesting, processing, analysing, and
+distributing geodetic data from PHIVOLCS' GNSS network.
 
-## 4. Final Project & Repository Structure
+---
 
-The project operates as a monorepo located at `/home/finch/repos/movefaults_clean/` (or its eventual `main` branch root). The structure is:
+## 4. Current Repository Structure
+
 ```
-/movefaults_clean/
-├── docs/                # Unified documentation portal source
-├── packages/            # For shared Python libraries (e.g., geodetic suite)
-│   └── CORS-dashboard/  # Legacy project (forensically analyzed)
-├── services/            # For deployable, long-running services
-│   └── vadase-rt-monitor/
-└── tools/               # For command-line developer/operator tools
-    └── drive-archaeologist/
+movefaults_clean/
+├── packages/
+│   ├── pogf-geodetic-suite/     # Shared: coordinate transforms, RINEX QC, IGS downloader
+│   └── CORS-dashboard/          # Legacy React/GraphQL dashboard (forensic reference only)
+├── services/
+│   ├── vadase-rt-monitor/       # Real-time NMEA earthquake detection (~80% complete)
+│   ├── ingestion-pipeline/      # Celery-based RINEX ingestion (~30% complete)
+│   ├── bernese-workflow/        # Bernese BPE orchestrator (~15% complete)
+│   └── field-ops/               # Digital field logsheet PWA (Phase 1A — complete)
+├── tools/
+│   ├── drive-archaeologist/     # CLI: excavate legacy GNSS data from old drives (~60%)
+│   └── velocity-reviewer/       # Web UI: interactive GNSS time series outlier review (new)
+├── src/ingestion/               # Simplified local ingestion module (consolidation pending)
+├── analysis/                    # Numbered research scripts 01–10 (legacy, not yet ported)
+└── docs/
+    ├── project_documentation/   # Roadmap, tracker, tech specs, ADRs
+    └── bernese_orchestration_explainer.md
 ```
+
+---
 
 ## 5. Phased Implementation Roadmap
 
-The project deliverables are organized into four sequential tiers, representing a logical flow from foundational setup to advanced analysis and presentation.
+### Legend
+- ✅ **COMPLETE** — implemented, tested, committed
+- 🔄 **IN PROGRESS** — partially implemented
+- ⏳ **PENDING** — not yet started; blocked on earlier deliverable
+- 🔬 **RESEARCH** — design/investigation work done; implementation not started
 
 ---
 
-### **Tier 1: Foundational Infrastructure (High Priority - Start First)**
+### Tier 1: Foundational Infrastructure
 
-This tier focuses on establishing the absolute core components that all other systems will rely upon. Development in this tier should be initiated first.
+> Foundational components all other systems depend on.
 
-*   **Deliverable 1.1: Centralized Geodetic Database**
-    *   **Description:** Design and implement a PostgreSQL database with PostGIS and TimescaleDB as the single source of truth for all geodetic data.
-    *   **Dependencies:** None (foundational).
-    *   *Documentation: `docs/project_documentation/pogf_infrastructure/tech_spec_database.md`, `docs/project_documentation/pogf_infrastructure/adr_database_choice.md`*
+**Deliverable 1.1: Centralized Geodetic Database** ✅ **COMPLETE**
+- PostgreSQL + TimescaleDB + PostGIS via docker-compose
+- Alembic migrations 001–006; 4 CORS stations seeded
+- Schema: `stations`, `timeseries_data`, `velocity_products`, `ingestion_logs`
+- Committed: `bafa06b` (branch `feat/phase0-database-foundation`)
+- *Spec: `docs/project_documentation/pogf_infrastructure/tech_spec_database.md`*
 
-*   **Deliverable 3.1: Centralized Documentation Portal**
-    *   **Description:** Implement a "Docs as Code" portal using MkDocs, GitHub Actions, and GitHub Pages. This will house all project documentation, including this roadmap.
-    *   **Dependencies:** None (foundational for knowledge management).
-    *   *Documentation: `docs/project_documentation/documentation_portal/tech_spec_docs_portal.md`, `docs/project_documentation/documentation_portal/adr_docs_portal_choice.md`*
-
----
-
-### **Tier 2: Data Acquisition & Ingestion (Parallel Development - Build on Tier 1)**
-
-Once the database foundation is laid, the next priority is to build robust pipelines to get data into it. Components within this tier can often be developed in parallel once Tier 1 is underway.
-
-*   **Deliverable 2.5: RINEX Quality Control (QC) Module**
-    *   **Description:** A Python wrapper around the `gfzrnx` binary to perform automated quality checks on RINEX files.
-    *   **Dependencies:** Basic Python environment.
-    *   **Feeds into:** Unified Data Ingestion Pipeline (1.2).
-    *   *Documentation: `docs/project_documentation/gnss_automation_modules/tech_spec_rinex_qc.md`, `docs/project_documentation/gnss_automation_modules/adr_rinex_qc_choice.md`*
-
-*   **Deliverable 2.2: Automated IGS Product Downloader**
-    *   **Description:** A resilient Python CLI tool for automatically downloading IGS products (orbits, clocks, etc.).
-    *   **Dependencies:** Basic Python environment.
-    *   **Feeds into:** Automated Bernese Processing Workflow (1.3).
-    *   *Documentation: `docs/project_documentation/gnss_automation_modules/tech_spec_igs_downloader.md`, `docs/project_documentation/gnss_automation_modules/adr_igs_downloader_choice.md`*
-
-*   **Deliverable 1.2: Unified Data Ingestion Pipeline**
-    *   **Description:** A scalable Python/Celery service to automatically retrieve, validate, and standardize RINEX data from various sources into the Centralized Geodetic Database.
-    *   **Dependencies:** Centralized Geodetic Database (1.1), RINEX QC Module (2.5).
-    *   *Documentation: `docs/project_documentation/pogf_infrastructure/tech_spec_ingestion_pipeline.md`, `docs/project_documentation/pogf_infrastructure/adr_ingestion_pipeline_choice.md`*
-
-*   **Deliverable 2.1: Integration of `drive-archaeologist`**
-    *   **Description:** Configure and potentially specialize the existing `drive-archaeologist` tool to scan USB drives for GNSS data and "site condition" files, feeding its structured metadata output into the Unified Data Ingestion Pipeline.
-    *   **Dependencies:** Unified Data Ingestion Pipeline (1.2), Centralized Geodetic Database (1.1).
-    *   *Documentation: `docs/project_documentation/gnss_automation_modules/ref_drive_archaeologist.md`*
-
-*   **Deliverable 2.3: Digital Field Operations System**
-    *   **Description:** A PWA (Progressive Web App) to replace paper-based field log sheets, providing offline data entry and synchronization.
-    *   **Legacy Insight:** Will directly leverage the `LogSheetForm` component and logic discovered in the legacy `CORS-dashboard` project (`packages/CORS-dashboard/`).
-    *   **Dependencies:** Centralized Geodetic Database (1.1 - for station metadata sync). Can largely be developed in parallel.
-    *   **Informs:** Public Data Portal (1.4 - for log sheet viewing).
-    *   *Documentation: `docs/project_documentation/gnss_automation_modules/tech_spec_digital_logsheet.md`, `docs/project_documentation/gnss_automation_modules/adr_digital_logsheet_choice.md`*
+**Deliverable 3.1: Centralized Documentation Portal** ⏳ **PENDING**
+- MkDocs + GitHub Actions + GitHub Pages
+- *Spec: `docs/project_documentation/documentation_portal/tech_spec_docs_portal.md`*
 
 ---
 
-### **Tier 3: Core Data Processing (Build on Tier 2)**
+### Tier 2: Data Acquisition & Ingestion
 
-This tier implements the primary scientific processing engine, relying on the robust data ingestion established in Tier 2.
+> Build on Tier 1. Components can be developed in parallel once 1.1 is complete.
 
-*   **Deliverable 1.3: Automated Bernese Processing Workflow**
-    *   **Description:** A Python/Celery orchestrator to automate the Bernese GNSS Software (BPE) execution, from input preparation to results loading.
-    *   **Dependencies:** Centralized Geodetic Database (1.1), Unified Data Ingestion Pipeline (1.2), Automated IGS Product Downloader (2.2).
-    *   **Feeds into:** Geodetic Post-Processing & Modeling Suite (2.4), Public Data Portal (1.4).
-    *   *Documentation: `docs/project_documentation/pogf_infrastructure/tech_spec_bernese_workflow.md`, `docs/project_documentation/pogf_infrastructure/adr_bernese_workflow_choice.md`*
+**Deliverable 2.3: Digital Field Operations System** ✅ **COMPLETE**
+- FastAPI backend + React/Vite PWA; offline-first with IndexedDB queue + Service Worker sync
+- Own `field_ops` schema namespace; station picker syncs from central `stations` table
+- Location: `services/field-ops/`
+- *Spec: `docs/project_documentation/gnss_automation_modules/tech_spec_digital_logsheet.md`*
+
+**Deliverable 2.5: RINEX Quality Control Module** 🔄 **IN PROGRESS**
+- `teqc` as primary QC backend (gfzrnx not yet acquired)
+- Wrapper exists in `packages/pogf-geodetic-suite/`; Trimble conversion step documented
+- Trimble NetR9 filename pattern identified; `drive-archaeologist` profiles need updating
+- *Spec: `docs/project_documentation/gnss_automation_modules/tech_spec_rinex_qc.md`*
+
+**Deliverable 2.2: Automated IGS Product Downloader** 🔄 **IN PROGRESS**
+- Partial implementation in `packages/pogf-geodetic-suite/`
+- Needs: correct IGS20 naming, CDDIS/IGN/BKG fallback chain
+- *Spec: `docs/project_documentation/gnss_automation_modules/tech_spec_igs_downloader.md`*
+
+**Deliverable 1.2: Unified Data Ingestion Pipeline** 🔄 **IN PROGRESS (~30%)**
+- Architecture defined; Celery tasks are stubs
+- Phase 1B-i: consolidation of `src/ingestion/` → `services/ingestion-pipeline/` complete (PR #32)
+- Pending: teqc integration, Trimble→RINEX conversion step, scanner→pipeline handoff
+- *Spec: `docs/project_documentation/pogf_infrastructure/tech_spec_ingestion_pipeline.md`*
+
+**Deliverable 2.1: drive-archaeologist Integration** 🔄 **IN PROGRESS (~60%)**
+- Phase 1 scanner works; archive support partial
+- Pending: Trimble raw file classification (`.T01`, `.T02`, `.T04`, `.DAT`, `.TGD`),
+  ingestion-pipeline handoff
+- Location: `tools/drive-archaeologist/`
+- *Ref: `docs/project_documentation/gnss_automation_modules/ref_drive_archaeologist.md`*
 
 ---
 
-### **Tier 4: Analysis, Presentation & Automation (Build on Tier 3)**
+### Tier 3: Core Data Processing
 
-This final tier focuses on consuming, analyzing, and presenting the processed data, and ensuring continuous documentation updates.
+> Primary scientific processing engine. Depends on robust data ingestion from Tier 2.
 
-*   **Deliverable 2.4: Geodetic Post-Processing & Modeling Suite**
-    *   **Description:** A unified Python library to port, wrap, and replace legacy MATLAB/C/Python scripts from the `analysis/` directory. Covers time series analysis, dislocation modeling, bootstrapping, and visualization for *non-real-time* data.
-    *   **Dependencies:** Automated Bernese Processing Workflow (1.3 - for processed time series), Centralized Geodetic Database (1.1).
-    *   **Feeds into:** Public Data Portal (1.4).
-    *   *Documentation: `docs/project_documentation/gnss_automation_modules/tech_spec_timeseries_suite.md`, `docs/project_documentation/gnss_automation_modules/adr_timeseries_suite_choice.md`*
+**Deliverable 1.3: Automated Bernese Processing Workflow** 🔬 **RESEARCH COMPLETE — IMPLEMENTATION STARTING**
 
-*   **Deliverable 1.4: Public Data Portal and API**
-    *   **Description:** A React/FastAPI web application providing intuitive, open access to **processed, historical** geodetic data from the Centralized Geodetic Database, linking to `vadase-rt-monitor` for real-time views.
-    *   **Legacy Insight:** Will adopt UI/UX patterns for mapping and data visualization from the legacy `CORS-dashboard` project.
-    *   **Dependencies:** Centralized Geodetic Database (1.1), Automated Bernese Processing Workflow (1.3), Geodetic Post-Processing & Modeling Suite (2.4), `vadase-rt-monitor` (for cross-linking).
-    *   *Documentation: `docs/project_documentation/pogf_infrastructure/tech_spec_portal_api.md`, `docs/project_documentation/pogf_infrastructure/adr_portal_api_choice.md`*
+Research milestones completed (2026-02-26/27):
+- Bernese 5.4 **installed and verified** on T420 — EXAMPLE campaign BPE ran 47 steps, solutions
+  match reference at ≤0.09 mm
+- Non-interactive BPE API confirmed: `startBPE.pm` Perl module (`$BPE/startBPE.pm`)
+- Full BPE phase map documented (47 steps, quality gates, output files)
+- PHIVOLCS-specific INP settings extracted from work instruction via RAG (GPSEST ×3,
+  HELMR1, MAUPRP, ADDNEQ2, CODSPP)
+- Post-BPE velocity pipeline fully mapped (`filter-fncrd.bat` → `plot_v2.py` →
+  `vel_line_v8.m` → outlier review → final velocity)
+- Bernese orchestration explainer written for data processing staff
+- **velocity-reviewer tool** built: web-based replacement for the Windows-only
+  `outlier_input-site.py` GUI (location: `tools/velocity-reviewer/`)
+- Pending: INP files from data processing staff → Jinja2 templates → `LinuxBPEBackend`
+- Pending: R740 Bernese installation (same procedure as T420, no ISA mismatch)
+- Pending: `offset_events` DB table (Migration 007)
+- Pending: `plot_v2.py` parameterisation (interactive reference station prompt → CLI arg)
 
-*   **Deliverable 3.2: Automated Processing Documentation**
-    *   **Description:** Scripts to automatically generate reference documentation (CLI help, config references) from source code and configuration files, integrated into the documentation portal's build process.
-    *   **Dependencies:** Centralized Documentation Portal (3.1), existence of tools to document (e.g., 2.2, 2.4, 2.5).
-    *   *Documentation: `docs/project_documentation/documentation_portal/tech_spec_autodocs.md`, `docs/project_documentation/documentation_portal/adr_autodocs_choice.md`*
+Architecture decisions:
+- `BPEBackend` protocol: `LinuxBPEBackend` (R740) + `WindowsBPEBackend` (future)
+- Two pipeline variants: Campaign GPS (single-pass BPE) vs. Continuous GPS (two-pass BPE)
+- Pre-download IGS products via our downloader (skip/bypass BPE step 000 FTP_DWLD)
+- Human-in-the-loop gate at outlier review; all other steps automated
+
+- *Spec: `docs/project_documentation/pogf_infrastructure/tech_spec_bernese_workflow.md`*
 
 ---
 
-## 6. Key Considerations and Principles
+### Tier 4: Analysis, Presentation & Automation
 
-*   **Iterative Development:** While dependencies suggest a sequence, internal modules within a tier can often be developed iteratively.
-*   **Test-Driven Development:** Crucial for porting legacy scientific code and ensuring correctness.
-*   **Open Source First:** Prioritize open-source tools and libraries to avoid vendor lock-in and foster collaboration.
-*   **Documentation:** Continuous update of the Centralized Documentation Portal (3.1) is paramount throughout all phases.
-*   **Legacy Insight:** Leverage the forensic analysis of `CORS-dashboard` and other legacy materials for UI/UX inspiration and technical patterns.
+> Consume, analyse, and present processed data.
 
-This roadmap provides a high-level plan for implementing the MOVE Faults monorepo project. Regular review and adaptation will be essential as development progresses.
+**Deliverable 2.4: Geodetic Post-Processing & Modeling Suite** ⏳ **PENDING**
+- Port legacy MATLAB/Python scripts from `analysis/` into `packages/pogf-geodetic-suite/`
+- Covers: time series analysis, dislocation modeling, bootstrapping, visualization
+- velocity-reviewer (`tools/velocity-reviewer/`) is the first component in this space
+- *Spec: `docs/project_documentation/gnss_automation_modules/tech_spec_timeseries_suite.md`*
+
+**Deliverable 1.4: Public Data Portal and API** ⏳ **PENDING**
+- React/FastAPI web application; open access to processed historical geodetic data
+- Cross-links to `vadase-rt-monitor` for real-time views
+- *Spec: `docs/project_documentation/pogf_infrastructure/tech_spec_portal_api.md`*
+
+**Deliverable 3.2: Automated Processing Documentation** ⏳ **PENDING**
+- Auto-generate CLI help, config references from source; integrate into MkDocs build
+- *Spec: `docs/project_documentation/documentation_portal/tech_spec_autodocs.md`*
+
+---
+
+## 6. VADASE Real-Time Monitor
+
+`services/vadase-rt-monitor/` (~80% complete) is developed on a parallel track independent
+of the Bernese pipeline. Key remaining work:
+
+- Fix one-way latch bug in `domain/processor.py:130` (`manual_integration_active` never resets)
+- `TCPAdapter`: implement NTRIP client handshake for Leica GR50
+- Add Trimble sentence parser stubs (currently dead code — GR50 is Leica, not Trimble)
+- PR #1 remediation (paused, lower priority than Phase 1B)
+
+---
+
+## 7. Key Principles
+
+- **Iterative development:** Modules within a tier can be developed in parallel once their dependencies are met.
+- **Test-driven:** Critical for porting legacy scientific code — correctness must be verified.
+- **Open source first:** Avoid vendor lock-in; foster future collaboration.
+- **Human-in-the-loop:** Orchestration automates mechanics; scientific judgment stays with staff.
+- **Documentation-as-code:** Every architectural decision recorded in ADRs; every session logged.
