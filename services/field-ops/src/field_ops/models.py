@@ -18,6 +18,7 @@ Key design choices:
 import uuid
 
 from sqlalchemy import (
+    TIMESTAMP,
     Boolean,
     Column,
     Date,
@@ -26,7 +27,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    TIMESTAMP,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -85,11 +85,89 @@ class LogSheet(FieldOpsBase):
     synced_at = Column(TIMESTAMP(timezone=True))       # NULL = still in offline queue
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
+    # --- Mode discriminator ---
+    monitoring_method = Column(String(20))   # campaign | continuous
+
+    # --- Continuous-only ---
+    power_notes = Column(Text)
+    battery_voltage_v = Column(Float)
+    battery_voltage_source = Column(String(10))   # manual | sensor
+    temperature_c = Column(Float)
+    temperature_source = Column(String(10))        # manual | sensor
+
+    # --- Campaign-only ---
+    antenna_model = Column(String(20))
+    slant_n_m = Column(Float)
+    slant_s_m = Column(Float)
+    slant_e_m = Column(Float)
+    slant_w_m = Column(Float)
+    avg_slant_m = Column(Float)
+    rinex_height_m = Column(Float)   # RH = SQRT(avg_slant² - C²) - VO; stored for audit trail
+    session_id = Column(String(20))  # e.g. BUCA342 or BUCA342-02
+    utc_start = Column(TIMESTAMP(timezone=True))
+    utc_end = Column(TIMESTAMP(timezone=True))
+    bubble_centred = Column(Boolean)
+    plumbing_offset_mm = Column(Float)
+
     submitter = relationship("User", back_populates="logsheets")
     photos = relationship("LogSheetPhoto", back_populates="logsheet")
+    observers = relationship("LogSheetObserver", back_populates="logsheet")
 
     def __repr__(self) -> str:
         return f"<LogSheet {self.station_code} {self.visit_date} [{self.client_uuid}]>"
+
+
+class Staff(FieldOpsBase):
+    """
+    PHIVOLCS staff who can be recorded as observers on a logsheet.
+
+    Decoupled from the User table deliberately: a Staff row represents a real
+    person (field technician, data processor) even if they have no login
+    account. The many-to-many link to LogSheet is through LogSheetObserver.
+    """
+
+    __tablename__ = "staff"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    full_name = Column(String(200), nullable=False)
+    initials = Column(String(10))
+    role = Column(String(50), server_default="field_staff")  # field_staff | data_processor | admin
+    is_active = Column(Boolean, server_default=text("TRUE"))
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+    observer_links = relationship("LogSheetObserver", back_populates="staff_member")
+
+    def __repr__(self) -> str:
+        return f"<Staff {self.full_name} ({self.role})>"
+
+
+class LogSheetObserver(FieldOpsBase):
+    """
+    Junction table: which staff members were present for a given logsheet visit.
+
+    A single logsheet can have multiple observers (e.g. lead technician +
+    assistant). Deleting a logsheet cascades to remove observer rows; deleting
+    a staff record is RESTRICTED if they appear on any logsheet (preserves
+    audit trail).
+    """
+
+    __tablename__ = "logsheet_observers"
+    __table_args__ = {"schema": SCHEMA}
+
+    logsheet_id = Column(
+        Integer,
+        ForeignKey(f"{SCHEMA}.logsheets.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    staff_id = Column(
+        Integer,
+        ForeignKey(f"{SCHEMA}.staff.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+
+    logsheet = relationship("LogSheet", back_populates="observers")
+    staff_member = relationship("Staff", back_populates="observer_links")
 
 
 class EquipmentInventory(FieldOpsBase):
