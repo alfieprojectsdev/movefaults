@@ -7,6 +7,7 @@ database (Deliverable 1.1). Alembic reads this metadata to validate migrations.
 Tables managed here:
   - stations       : CORS station inventory (shared by VADASE, Bernese, ingestion)
   - rinex_files    : Catalogue of ingested RINEX observation files
+  - offset_events  : Co-seismic and equipment-change epochs for the velocity pipeline
 
 Tables managed in raw SQL migrations (003_create_timeseries.py):
   - timeseries_data   : TimescaleDB hypertable (processed coordinates from Bernese)
@@ -151,3 +152,41 @@ class ProcessingStatus(Base):
 
     def __repr__(self) -> str:
         return f"<ProcessingStatus {self.station_code} {self.processing_year} [{self.status}]>"
+
+
+class OffsetEvent(Base):
+    """
+    Co-seismic and equipment-change offset epochs for the velocity pipeline.
+
+    Replaces the manual flat `offsets` text file maintained in PLOTS/.
+    The Bernese orchestrator materializes this table to an `offsets` file
+    before invoking vel_line_v8.m. MATLAB reads the file; this table is
+    the source of truth.
+
+    event_type vocabulary matches the PHIVOLCS offsets file convention:
+      EQ — co-seismic step (earthquake)
+      VE — volcanic event
+      CE — calibration or equipment change (antenna swap, monument reset)
+      UK — unknown / unclassified
+
+    event_date is stored as DATE. The decimal year written to the offsets
+    file is computed at materialisation time:
+        decimal_year = year + (day_of_year - 1) / days_in_year
+    """
+
+    __tablename__ = "offset_events"
+    __table_args__ = (
+        UniqueConstraint("station_code", "event_date", "event_type",
+                         name="uq_offset_events"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    station_code = Column(String(10), nullable=False)   # loose ref to public.stations
+    event_date = Column(Date, nullable=False)
+    event_type = Column(String(10), nullable=False, server_default="UK")
+    # valid values: EQ | VE | CE | UK
+    description = Column(Text)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
+
+    def __repr__(self) -> str:
+        return f"<OffsetEvent {self.station_code} {self.event_date} [{self.event_type}]>"
