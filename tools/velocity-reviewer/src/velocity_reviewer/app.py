@@ -12,7 +12,13 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
-from velocity_reviewer.reader import read_123, read_offsets, read_plot, write_outliers_txt
+from velocity_reviewer.reader import (
+    read_123,
+    read_offsets,
+    read_plot,
+    write_cleaned_plots,
+    write_outliers_txt,
+)
 from velocity_reviewer.regression import process_site
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -105,8 +111,22 @@ async def accept_site(site: str, body: dict):
 
 @app.post("/api/export")
 async def export_outliers():
-    """Write OUTLIERS.txt to the plots directory."""
+    """
+    Write OUTLIERS.txt and apply the selection to the PLOT files in-place.
+
+    MATLAB's vel_line_v8.m does not read OUTLIERS.txt — it has its own internal
+    rmoutliers(). The operator's selection must be stripped from the PLOT files
+    directly so that the final MATLAB run uses the cleaned data.
+
+    Original PLOT files are backed up as SITE.bak on first export; re-export
+    always restores from the backup before stripping (idempotent).
+    """
     plots_dir = _get_plots_dir()
     out_path = write_outliers_txt(plots_dir, _selections)
-    total = sum(len(v) for v in _selections.values())
-    return {"path": str(out_path), "total_outliers": total}
+    total_epochs = sum(len(v) for v in _selections.values())
+    rows_removed = write_cleaned_plots(plots_dir, _selections)
+    return {
+        "path": str(out_path),
+        "total_outliers": total_epochs,
+        "rows_removed": rows_removed,
+    }

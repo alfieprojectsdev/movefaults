@@ -480,7 +480,11 @@ document.getElementById('btn-next').addEventListener('click', async () => {
 document.getElementById('btn-export').addEventListener('click', async () => {
   try {
     const data = await api('/api/export', { method: 'POST', body: '{}' });
-    showToast(`✓ Saved ${data.total_outliers} outlier epochs → ${data.path}`, 5000);
+    showToast(
+      `✓ ${data.rows_removed} rows stripped from PLOT files · ` +
+      `${data.total_outliers} epochs in OUTLIERS.txt → ${data.path}`,
+      6000
+    );
   } catch (err) {
     showToast(`Export failed: ${err.message}`, 4000);
   }

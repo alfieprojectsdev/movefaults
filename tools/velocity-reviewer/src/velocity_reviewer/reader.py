@@ -81,3 +81,50 @@ def write_outliers_txt(plots_dir: Path, selections: dict[str, list[float]]) -> P
             lines.append(f"{site:<4s} {ts:.4f}\n")
     out_path.write_text("".join(lines))
     return out_path
+
+
+def write_cleaned_plots(plots_dir: Path, selections: dict[str, list[float]]) -> int:
+    """
+    Strip selected outlier epochs from PLOT files in-place.
+
+    IMPORTANT: vel_line_v8.m does NOT read OUTLIERS.txt — it has its own internal
+    rmoutliers() call. The outlier selection from the reviewer must be applied directly
+    to the PLOT files before MATLAB runs.
+
+    For each site with a non-empty selection:
+      - Backs up the original PLOT file as SITE.bak on the first call.
+      - On re-export, always restores from SITE.bak before stripping (idempotent).
+      - Removes rows whose decimal year matches (to 4 d.p.) a selected timestamp.
+      - Writes the cleaned data back to the PLOT file.
+
+    Returns the total number of rows removed across all sites.
+    """
+    total_removed = 0
+    for site, timestamps in selections.items():
+        if not timestamps:
+            continue
+        plot_path = plots_dir / site
+        if not plot_path.exists():
+            continue
+
+        # Back up the original on first export; restore from backup on re-export
+        # so that the PLOT file always reflects exactly the current selection.
+        bak_path = plot_path.with_suffix(".bak")
+        if not bak_path.exists():
+            bak_path.write_text(plot_path.read_text())
+
+        ts_set = {round(ts, 4) for ts in timestamps}
+        lines = bak_path.read_text().splitlines()
+        kept: list[str] = []
+        for line in lines:
+            parts = line.split()
+            if not parts:
+                continue
+            if round(float(parts[0]), 4) in ts_set:
+                total_removed += 1
+            else:
+                kept.append(line)
+
+        plot_path.write_text("\n".join(kept) + ("\n" if kept else ""))
+
+    return total_removed
