@@ -14,7 +14,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from field_ops.routers import auth, equipment, logsheets, stations
+from field_ops.routers import auth, equipment, logsheets, staff, stations
 
 app = FastAPI(
     title="Field Ops API",
@@ -36,6 +36,7 @@ app.include_router(auth.router)
 app.include_router(stations.router)
 app.include_router(logsheets.router)
 app.include_router(equipment.router)
+app.include_router(staff.router)
 
 
 @app.get("/health")

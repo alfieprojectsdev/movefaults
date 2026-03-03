@@ -15,16 +15,41 @@ export interface Station {
   status: string | null;
 }
 
+export interface Staff {
+  id: number;
+  full_name: string;
+  initials: string;
+  role: string;
+}
+
 export interface LogSheetIn {
   client_uuid: string;
   station_code: string;
+  monitoring_method?: string;  // "campaign" | "continuous"
   visit_date: string;          // ISO date "YYYY-MM-DD"
-  arrival_time?: string;       // ISO datetime
+  arrival_time?: string;
   departure_time?: string;
   weather_conditions?: string;
   maintenance_performed?: string;
   equipment_status?: string;   // ok | issue_found | repaired
   notes?: string;
+  observer_ids?: number[];
+  // Continuous-only
+  power_notes?: string;
+  battery_voltage_v?: number;
+  // Campaign-only
+  antenna_model?: string;
+  slant_n_m?: number;
+  slant_e_m?: number;
+  slant_s_m?: number;
+  slant_w_m?: number;
+  avg_slant_m?: number;
+  rinex_height_m?: number;
+  session_id?: string;
+  utc_start?: string;
+  utc_end?: string;
+  bubble_centred?: boolean;
+  plumbing_offset_mm?: number;
 }
 
 export interface LogSheetOut extends LogSheetIn {
@@ -104,13 +129,46 @@ export async function fetchStations(): Promise<Station[]> {
   return apiFetch<Station[]>("/stations");
 }
 
+// ── Staff ────────────────────────────────────────────────────────────────────
+
+export async function fetchStaff(): Promise<Staff[]> {
+  return apiFetch<Staff[]>("/staff");
+}
+
 // ── Logsheets ───────────────────────────────────────────────────────────────
+
+export async function submitLogSheet(record: LogSheetIn): Promise<LogSheetOut> {
+  return apiFetch<LogSheetOut>("/logsheets", {
+    method: "POST",
+    body: JSON.stringify(record),
+  });
+}
 
 export async function submitLogSheets(records: LogSheetIn[]): Promise<LogSheetOut[]> {
   return apiFetch<LogSheetOut[]>("/logsheets", {
     method: "POST",
     body: JSON.stringify(records),
   });
+}
+
+export async function uploadLogSheetPhoto(logsheetId: number, photo: File): Promise<void> {
+  const token = getToken();
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  const form = new FormData();
+  form.append("file", photo);
+  const resp = await fetch(`/api/v1/logsheets/${logsheetId}/photos`, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+  if (resp.status === 401) {
+    clearToken();
+    throw new Error("Session expired — please log in again");
+  }
+  if (!resp.ok) {
+    const detail = await resp.json().catch(() => ({})) as { detail?: string };
+    throw new Error(detail.detail ?? `Photo upload failed: ${resp.status}`);
+  }
 }
 
 // ── Equipment ───────────────────────────────────────────────────────────────
