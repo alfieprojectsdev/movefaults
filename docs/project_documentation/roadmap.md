@@ -1,6 +1,6 @@
 # Project Roadmap: Phased Implementation Based on Dependency Hierarchies
 
-**Last updated:** 2026-02-27
+**Last updated:** 2026-03-03
 **Original date:** 2026-01-26
 
 > For per-deliverable status and projected dates, see [`deliverables_tracker.md`](deliverables_tracker.md).
@@ -143,12 +143,27 @@ Research milestones completed (2026-02-26/27):
 - Post-BPE velocity pipeline fully mapped (`filter-fncrd.bat` → `plot_v2.py` →
   `vel_line_v8.m` → outlier review → final velocity)
 - Bernese orchestration explainer written for data processing staff
-- **velocity-reviewer tool** built: web-based replacement for the Windows-only
-  `outlier_input-site.py` GUI (location: `tools/velocity-reviewer/`)
-- Pending: INP files from data processing staff → Jinja2 templates → `LinuxBPEBackend`
-- Pending: R740 Bernese installation (same procedure as T420, no ISA mismatch)
-- Pending: `offset_events` DB table (Migration 007)
-- Pending: `plot_v2.py` parameterisation (interactive reference station prompt → CLI arg)
+- **velocity-reviewer tool** built and complete: web-based replacement for the Windows-only
+  `outlier_input-site.py` GUI; PLOT file stripping on export via `write_cleaned_plots()`
+  (location: `tools/velocity-reviewer/`, commit `bd743bb`)
+
+Research milestones completed (2026-03-03):
+- **INP file diff complete** (PHIVOLCS 5.2 vs EXAMPLE 5.4): ADDNEQ2, MAUPRP, RNXGRA,
+  RXOBV3, CODSPP — only 3 parameters need Jinja2 overrides (RNXGRA MINOBS/MAXBAD,
+  ADDNEQ2 MAXPAR); all path variables injected by PCF at runtime
+- **Primary source code verification**: PLOT file format confirmed from `RUNX_v2.py:137`;
+  offsets format confirmed from production `analysis/offsets` file; `vel_line_v8.m`
+  confirmed does NOT read `OUTLIERS.txt` (has internal `rmoutliers(ThresholdFactor=3)`);
+  `00_CRD_*.bat` three-variant exclusion logic mapped; teqc commands confirmed from §4.2.3
+- **`offset_events` DB table** complete (Migration 007) — materialises to offsets flat file
+  before MATLAB run; decimal year computed at materialisation time
+- **8 campaign file generation order** confirmed: STA → CRD+ABB → ATL → PLD → VEL → CLU → BLQ;
+  BLQ from Chalmers web service (FES2004 model, no tabs, 24-char fixed-column)
+
+Pending:
+- R740 Bernese installation (same procedure as T420, no ISA mismatch)
+- Jinja2 INP templates from completed diff → `LinuxBPEBackend` skeleton
+- `plot_v2.py` parameterisation (interactive reference station prompt → CLI arg)
 
 Architecture decisions:
 - `BPEBackend` protocol: `LinuxBPEBackend` (R740) + `WindowsBPEBackend` (future)
@@ -164,10 +179,13 @@ Architecture decisions:
 
 > Consume, analyse, and present processed data.
 
-**Deliverable 2.4: Geodetic Post-Processing & Modeling Suite** ⏳ **PENDING**
+**Deliverable 2.4: Geodetic Post-Processing & Modeling Suite** 🔄 **IN PROGRESS**
 - Port legacy MATLAB/Python scripts from `analysis/` into `packages/pogf-geodetic-suite/`
 - Covers: time series analysis, dislocation modeling, bootstrapping, visualization
-- velocity-reviewer (`tools/velocity-reviewer/`) is the first component in this space
+- **`velocity-reviewer` tool complete** (`tools/velocity-reviewer/`, commit `bd743bb`):
+  browser-based ENU time series review, IQR auto-outlier detection, PLOT file stripping
+  on export with backup/restore for idempotency — replaces Windows-only GUI
+- Remaining: port `RUNX_v2.py` → Python library; port `vel_line_v8.m` → Python; dislocation models
 - *Spec: `docs/project_documentation/gnss_automation_modules/tech_spec_timeseries_suite.md`*
 
 **Deliverable 1.4: Public Data Portal and API** ⏳ **PENDING**
