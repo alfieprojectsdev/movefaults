@@ -96,7 +96,8 @@ class RinexFile(Base):
     Catalogue of RINEX observation files ingested into the system.
 
     Each row represents one RINEX file (typically 24 h, 30 s sampling).
-    hash_md5 prevents re-ingestion of duplicate files from different source paths.
+    hash_sha256 prevents re-ingestion of duplicate files from different source paths.
+    Matches the SHA-256 key used by IngestionLog (ingestion_logs.file_hash).
     """
 
     __tablename__ = "rinex_files"
@@ -109,7 +110,7 @@ class RinexFile(Base):
     sampling_interval = Column(Float)       # seconds
     receiver_type = Column(String(100))
     antenna_type = Column(String(100))
-    hash_md5 = Column(String(32))
+    hash_sha256 = Column(String(64))
     date_added = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
 
     station = relationship("Station", back_populates="rinex_files")

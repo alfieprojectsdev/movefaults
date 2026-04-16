@@ -265,16 +265,10 @@ def _load_to_postgres(file_path: str, file_hash: str) -> str:
                 "Register the station first or correct the MARKER NAME field."
             )
 
-        # ── Compute MD5 for dedup (reuse SHA256 from scanner as proxy) ────
-        import hashlib
-        h = hashlib.md5()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(65536), b""):
-                h.update(chunk)
-        md5 = h.hexdigest()
-
         # ── Insert RinexFile (skip if already catalogued) ─────────────────
-        existing_rnx = session.query(RinexFile).filter_by(hash_md5=md5).first()
+        # file_hash is the SHA-256 computed by the scanner — same key used in
+        # ingestion_logs. No separate hash computation needed.
+        existing_rnx = session.query(RinexFile).filter_by(hash_sha256=file_hash).first()
         if existing_rnx is None:
             rnx = RinexFile(
                 station_id=station.id,
@@ -284,7 +278,7 @@ def _load_to_postgres(file_path: str, file_hash: str) -> str:
                 sampling_interval=meta.get("sampling_interval"),
                 receiver_type=meta.get("receiver_type"),
                 antenna_type=meta.get("antenna_type"),
-                hash_md5=md5,
+                hash_sha256=file_hash,
             )
             session.add(rnx)
 
