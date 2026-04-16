@@ -45,7 +45,9 @@ class IngestionCore:
         self.last_velocity_time: Optional[datetime] = None
         self.last_velocity_data: Optional[Dict[str, Any]] = None
         self.bad_data_streak = 0
+        self.good_data_streak = 0
         self.STREAK_THRESHOLD = 5
+        self.GOOD_STREAK_THRESHOLD = 10
 
     async def consume(self, queue: asyncio.Queue, stop_event: asyncio.Event):
         """
@@ -114,21 +116,29 @@ class IngestionCore:
         if data['overall_completeness'] < self.min_completeness: return
 
         # Smart Integration Detection
-        # If we have a recent velocity sample, compare it to this displacement
-        if self.last_velocity_data and not self.manual_integration_active:
-             # Check if Vel matches Disp (Bad Data signature)
+        # Always compare received displacement against most recent velocity,
+        # regardless of whether manual integration is currently active.
+        # This allows the latch to reset when the receiver returns to sending
+        # real displacement (vel != disp after a sustained good-data streak).
+        if self.last_velocity_data:
              ve, vn = self.last_velocity_data['vE'], self.last_velocity_data['vN']
              de, dn = data['dE'], data['dN']
-             
+
              is_identical = (abs(ve - de) < 1e-9) and (abs(vn - dn) < 1e-9)
-             
+
              if is_identical:
                  self.bad_data_streak += 1
-                 if self.bad_data_streak >= self.STREAK_THRESHOLD:
+                 self.good_data_streak = 0
+                 if self.bad_data_streak >= self.STREAK_THRESHOLD and not self.manual_integration_active:
                      self.manual_integration_active = True
                      self.logger.warning("bad_data_detected_switching_to_manual_integration")
              else:
                  self.bad_data_streak = 0
+                 self.good_data_streak += 1
+                 if self.manual_integration_active and self.good_data_streak >= self.GOOD_STREAK_THRESHOLD:
+                     self.manual_integration_active = False
+                     self.good_data_streak = 0
+                     self.logger.info("good_data_restored_switching_to_receiver_displacement")
 
         # Output Selection: Original vs Calculated
         if self.manual_integration_active:

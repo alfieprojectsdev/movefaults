@@ -115,9 +115,39 @@ class DeepScanner:
 
             if self.trigger_ingestion and metadata.get("category") == "GNSS Data":
                 try:
-                    from ingestion_pipeline.tasks import ingest_rinex
-                    ingest_rinex.delay(metadata["path"])
-                    self.log(f"Triggered ingestion for: {metadata['path']}")
+                    from datetime import timezone
+                    from ingestion_pipeline.scanner import _sha256
+                    from ingestion_pipeline.database import SessionLocal
+                    from ingestion_pipeline.models import IngestionLog
+                    from ingestion_pipeline.pipeline import trigger_ingest
+
+                    filepath = metadata["path"]
+                    file_hash = _sha256(filepath)
+                    if file_hash is None:
+                        self.log(f"Could not hash file, skipping ingestion: {filepath}", level="WARNING")
+                    else:
+                        session = SessionLocal()
+                        try:
+                            existing = session.get(IngestionLog, file_hash)
+                            if existing and existing.status == "success":
+                                self.log(f"Already ingested, skipping: {filepath}")
+                            else:
+                                if existing:
+                                    existing.status = "pending"
+                                    existing.queued_at = datetime.now(timezone.utc)
+                                    existing.error_message = None
+                                else:
+                                    session.add(IngestionLog(
+                                        file_hash=file_hash,
+                                        filename=Path(filepath).name,
+                                        filepath=filepath,
+                                        status="pending",
+                                    ))
+                                session.commit()
+                                trigger_ingest(filepath, file_hash)
+                                self.log(f"Triggered ingestion for: {filepath}")
+                        finally:
+                            session.close()
                 except ImportError:
                     self.log("Failed to trigger ingestion: ingestion_pipeline package not found", level="WARNING")
                 except Exception as e:
