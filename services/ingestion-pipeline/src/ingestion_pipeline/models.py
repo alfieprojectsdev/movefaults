@@ -1,22 +1,19 @@
 """
 SQLAlchemy ORM model for ingestion_logs — the file-level idempotency table.
 
-This model is separate from the central src/db/models.py because it is only
-used by the ingestion-pipeline Celery workers (synchronous context).
-The table itself lives in the public schema, created by migration 006.
+Uses the central Base from src.db.models so that ingestion_logs participates
+in the same SQLAlchemy metadata as the rest of the public schema. The table
+is created by migration 006 in the root Alembic history.
 """
 
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, String, Text
-from sqlalchemy.orm import DeclarativeBase
+
+from src.db.models import Base
 
 
-class IngestionBase(DeclarativeBase):
-    pass
-
-
-class IngestionLog(IngestionBase):
+class IngestionLog(Base):
     """
     One row per unique RINEX file, keyed by SHA-256 hash.
 
