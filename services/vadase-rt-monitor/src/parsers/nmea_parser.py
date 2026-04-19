@@ -4,8 +4,8 @@ Implements full parsing with checksum validation
 """
 
 import re
-from datetime import UTC, datetime
-from typing import Any
+from datetime import UTC, date, datetime
+from typing import Any, Optional
 
 
 class NMEAChecksumError(Exception):
@@ -199,10 +199,15 @@ def parse_ldm(sentence: str) -> dict[str, Any] | None:
         return None
 
 
-def parse_vadase_velocity(sentence: str):
+def parse_vadase_velocity(sentence: str, base_date: Optional[date] = None):
     """
     Parse $PTNL,VEL NMEA sentence
     Returns dict with timestamp and velocity components
+
+    Args:
+        sentence: Complete NMEA sentence
+        base_date: Date to use for timestamp. Defaults to today's UTC date for live streams;
+                   pass explicitly when replaying historical data.
     """
     if not validate_nmea_checksum(sentence):
         raise NMEAChecksumError(f"Invalid checksum: {sentence}")
@@ -219,8 +224,12 @@ def parse_vadase_velocity(sentence: str):
 
     hh, mm, ss, microsecond = _parse_nmea_time(time_str)
 
-    # Note: NMEA doesn't include date, you'll need to track day rollovers
-    timestamp = datetime.now(UTC).replace(hour=hh, minute=mm, second=ss, microsecond=microsecond)
+    if base_date is None:
+        base_date = datetime.now(UTC).date()
+
+    timestamp = datetime.combine(base_date, datetime.min.time(), tzinfo=UTC).replace(
+        hour=hh, minute=mm, second=ss, microsecond=microsecond
+    )
 
     try:
         return {
@@ -228,16 +237,21 @@ def parse_vadase_velocity(sentence: str):
             "vN": float(vn),
             "vE": float(ve),
             "vU": float(vu),
-            "quality": int(quality),
+            "cq": int(quality),
         }
     except ValueError:
         return None
 
 
-def parse_vadase_displacement(sentence: str):
+def parse_vadase_displacement(sentence: str, base_date: Optional[date] = None):
     """
     Parse $PTNL,POS NMEA sentence
     Returns dict with timestamp and displacement components
+
+    Args:
+        sentence: Complete NMEA sentence
+        base_date: Date to use for timestamp. Defaults to today's UTC date for live streams;
+                   pass explicitly when replaying historical data.
     """
     if not validate_nmea_checksum(sentence):
         raise NMEAChecksumError(f"Invalid checksum: {sentence}")
@@ -254,13 +268,17 @@ def parse_vadase_displacement(sentence: str):
 
     hh, mm, ss, microsecond = _parse_nmea_time(time_str)
 
-    # Note: NMEA doesn't include date, you'll need to track day rollovers
-    timestamp = datetime.now(UTC).replace(hour=hh, minute=mm, second=ss, microsecond=microsecond)
+    if base_date is None:
+        base_date = datetime.now(UTC).date()
+
+    timestamp = datetime.combine(base_date, datetime.min.time(), tzinfo=UTC).replace(
+        hour=hh, minute=mm, second=ss, microsecond=microsecond
+    )
 
     return {
         "timestamp": timestamp,
         "dN": float(dn),
         "dE": float(de),
         "dU": float(du),
-        "quality": int(quality),
+        "cq": int(quality),
     }

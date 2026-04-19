@@ -328,7 +328,7 @@ async def test_pool_acquire_timeout_logs_metrics():
     # Simulate acquire raising TooManyConnectionsError (closest to PoolTimeout in asyncpg).
     conn_ctx = MagicMock()
     conn_ctx.__aenter__ = AsyncMock(
-        side_effect=asyncpg.exceptions.TooManyConnectionsError()
+        side_effect=asyncpg.exceptions.TooManyConnectionsError("too many connections")
     )
     conn_ctx.__aexit__ = AsyncMock(return_value=False)
     mock_pool.acquire = MagicMock(return_value=conn_ctx)
