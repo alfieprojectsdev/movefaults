@@ -4,6 +4,8 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
+import structlog
+
 from src.strategies.playback import RealTimeStrategy, FastImportStrategy
 from src.adapters.inputs.directory import DirectoryAdapter
 from src.adapters.outputs.null import NullOutputPort
@@ -179,7 +181,13 @@ def main(
     force_integration: bool = typer.Option(False, "--force-integration", help="Force MANUAL mode"),
     decay: float = typer.Option(1.0, "--decay", help="Leaky integrator decay factor"),
     window_size: int = typer.Option(600, "--window-size", "-w", help="Plot window size (samples)"),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress structlog; show banners only"),
 ):
+    if quiet:
+        structlog.configure(
+            wrapper_class=structlog.make_filtering_bound_logger(40)  # ERROR+ only
+        )
+
     if not file_path.exists():
         typer.echo(f"Error: {file_path} not found.")
         raise typer.Exit(code=1)

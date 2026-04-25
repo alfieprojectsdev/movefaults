@@ -50,15 +50,18 @@ fi
 
 # ── 3. Run ────────────────────────────────────────────────────────────────────
 echo ""
-echo "Starting BOST replay (1 Hz, Ctrl-C to stop)..."
+echo "Replaying BOST station — Dec 2, 2023 Mw 7.6 Mindanao earthquake"
+echo "Threshold: 15 mm/s horizontal velocity  |  Event onset: ~14:37:26 UTC"
+echo "(Fast-import mode: 1 hour of data processed instantly)"
 echo ""
 
 cd "$SERVICE_DIR"
 PYTHONPATH=. uv run --extra vadase-rt-monitor python scripts/replay_events.py \
     --file "$BOST_DATA" \
-    --mode replay \
+    --mode import \
     --station BOST \
     --base-date 2023-12-02 \
     --dry-run \
+    --quiet \
     --pattern "*.rtl" \
     $PLOT_FLAG
