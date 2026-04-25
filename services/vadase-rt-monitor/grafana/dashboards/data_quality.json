@@ -1,0 +1,18 @@
+{
+  "title": "VADASE Data Quality",
+  "uid": "vadase-data-quality",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "utc",
+  "tags": ["vadase", "quality"],
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "links": [],
+  "weekStart": "",
+  "annotations": { "list": [] },
+  "timepicker": {},
+  "templating": { "list": [] },
+  "panels": []
+}

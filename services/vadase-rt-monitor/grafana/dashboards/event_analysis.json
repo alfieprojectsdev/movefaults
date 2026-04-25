@@ -1,0 +1,18 @@
+{
+  "title": "VADASE Event Analysis",
+  "uid": "vadase-event-analysis",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-7d", "to": "now" },
+  "timezone": "utc",
+  "tags": ["vadase", "events"],
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "links": [],
+  "weekStart": "",
+  "annotations": { "list": [] },
+  "timepicker": {},
+  "templating": { "list": [] },
+  "panels": []
+}

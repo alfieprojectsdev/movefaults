@@ -33,5 +33,22 @@ services:
       timeout: 5s
       retries: 5
 
+  grafana:
+    image: grafana/grafana:11.5.0
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./services/vadase-rt-monitor/grafana/provisioning:/etc/grafana/provisioning
+      - ./services/vadase-rt-monitor/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   db_data:
+  grafana_data:

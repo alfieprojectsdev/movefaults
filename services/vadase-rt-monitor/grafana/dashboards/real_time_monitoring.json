@@ -1,0 +1,149 @@
+{
+  "title": "VADASE Real-Time Monitor",
+  "uid": "vadase-rt-monitor",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-2h", "to": "now" },
+  "timezone": "utc",
+  "graphTooltip": 1,
+  "tags": ["vadase", "seismic"],
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "links": [],
+  "weekStart": "",
+  "annotations": { "list": [] },
+  "timepicker": {},
+  "templating": {
+    "list": [
+      {
+        "name": "station",
+        "label": "Station",
+        "type": "query",
+        "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+        "query": "SELECT DISTINCT station_code FROM vadase_velocities ORDER BY 1",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": false,
+        "sort": 1,
+        "current": {},
+        "hide": 0,
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Horizontal Velocity — ${station}",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  time AS \"time\",\n  v_horizontal * 1000 AS \"vH (mm/s)\"\nFROM vadase_velocities\nWHERE\n  station_code = '${station}'\n  AND $__timeFilter(time)\nORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocityms",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red",   "value": 15 }
+            ]
+          },
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 2,
+      "title": "ENU Displacement — ${station}",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  time AS \"time\",\n  d_east  * 1000 AS \"East (mm)\",\n  d_north * 1000 AS \"North (mm)\",\n  d_up    * 1000 AS \"Up (mm)\"\nFROM vadase_displacements\nWHERE\n  station_code = '${station}'\n  AND $__timeFilter(time)\nORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "lengthm",
+          "custom": { "lineWidth": 1, "fillOpacity": 0 },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "East (mm)"  }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue"  } }] },
+          { "matcher": { "id": "byName", "options": "North (mm)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+          { "matcher": { "id": "byName", "options": "Up (mm)"    }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red"   } }] }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Event Detections",
+      "type": "table",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 7 },
+      "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  detection_time                                  AS \"Time\",\n  station_code                                   AS \"Station\",\n  ROUND(peak_velocity_horizontal::numeric, 1)    AS \"Peak Vel (mm/s)\",\n  ROUND(peak_displacement_horizontal::numeric, 1) AS \"Peak Disp (mm)\",\n  ROUND(duration_seconds::numeric, 0)            AS \"Duration (s)\"\nFROM vadase_events\nWHERE $__timeFilter(detection_time)\nORDER BY detection_time DESC\nLIMIT 50",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "left", "cellOptions": { "type": "auto" } }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Peak Vel (mm/s)" },
+            "properties": [
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 15 }] } },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "sortBy": [{ "desc": true, "displayName": "Time" }],
+        "cellHeight": "sm",
+        "footer": { "show": false }
+      },
+      "transformations": [
+        { "id": "convertFieldType", "options": { "conversions": [{ "targetField": "Time", "destinationType": "time" }] } }
+      ]
+    }
+  ]
+}

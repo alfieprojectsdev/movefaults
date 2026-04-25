@@ -1,0 +1,19 @@
+apiVersion: 1
+
+datasources:
+  - name: TimescaleDB
+    uid: timescaledb-main
+    type: postgres
+    url: db:5432
+    database: pogf_db
+    user: pogf_user
+    secureJsonData:
+      password: pogf_password
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 10
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+      postgresVersion: 1500
+      timescaledb: true
+    isDefault: true
