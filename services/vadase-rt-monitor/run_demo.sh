@@ -10,6 +10,25 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SERVICE_DIR="$(cd "$(dirname "$0")" && pwd)"
 BOST_DATA="data/NMEA_BOST LDM_20231202_140000"
 
+# ── 0. Python 3.11+ check ─────────────────────────────────────────────────────
+PYTHON="$(command -v python3 || command -v python || true)"
+if [[ -z "$PYTHON" ]]; then
+    echo "ERROR: Python not found. Install Python 3.11+ from https://python.org and re-run."
+    exit 1
+fi
+
+PY_VERSION="$("$PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+PY_MAJOR="${PY_VERSION%%.*}"
+PY_MINOR="${PY_VERSION#*.}"
+
+if [[ "$PY_MAJOR" -lt 3 || ( "$PY_MAJOR" -eq 3 && "$PY_MINOR" -lt 11 ) ]]; then
+    echo "ERROR: Python 3.11+ required (found $PY_VERSION)."
+    echo "  Download: https://python.org/downloads"
+    exit 1
+fi
+
+echo "Python $PY_VERSION  ✓"
+
 # ── 1. Ensure uv is available ─────────────────────────────────────────────────
 if ! command -v uv &>/dev/null; then
     echo "uv not found — installing..."
