@@ -1,6 +1,6 @@
 # Deliverables Tracker
 
-**Last updated:** 2026-03-03
+**Last updated:** 2026-04-25
 
 > Quick-reference status and date targets for all project deliverables.
 > For architectural context and dependency rationale, see [`roadmap.md`](roadmap.md).
@@ -37,16 +37,22 @@
 
 ---
 
-## Near-Term Work Items (next 4–6 weeks)
+## Near-Term Work Items
 
-Priority order based on current unblocked state:
+> Full ticket list with priorities, sizes, and dependency graph: [`ticket_backlog.md`](ticket_backlog.md)
 
-1. **Logsheet API + frontend rebuild** — `LogSheetIn` `@model_validator` + `LogSheetForm.tsx` Option B (confirm/update equipment pattern)
-2. **Build Jinja2 INP templates** from completed 5.2→5.4 diff → `LinuxBPEBackend` skeleton (1.3 implementation start)
-3. **Install Bernese on R740** — same procedure as T420, no ISA mismatch (Haswell = x86-64-v3)
-4. **Parameterise `plot_v2.py`** — replace interactive reference station prompt with `--reference-station` CLI arg (unblocks headless velocity pipeline)
-5. **drive-archaeologist: Trimble profiles** — add `.T01`, `.T02`, `.T04`, `.DAT`, `.TGD` file classification
-6. **VADASE latch bug fix** — `domain/processor.py:130` one-way latch never resets
+**Critical path (P0 — blocks Bernese end-to-end):**
+1. **IGS-001** — IGS downloader rewrite: correct IGS20 naming + CDDIS/IGN/BKG fallback chain
+2. **BRN-001** — Install Bernese 5.4 on R740 (same procedure as T420; no ISA mismatch)
+3. **BRN-002** — `BPEBackend` protocol + `LinuxBPEBackend` implementation (Perl `startBPE.pm` invocation)
+4. **BRN-003** — Jinja2 INP templates from completed 5.2→5.4 diff (3 parameters to override)
+5. **BRN-004** — Campaign file generation pipeline (8-step: STA→CRD→ATL→PLD→VEL→CLU→BLQ)
+
+**Production deployment (P1 — needed before R740 go-live):**
+6. **VAD-001** — TimescaleDB compression + retention policies (DL-012 gap; drives will fill without this)
+7. **VAD-002** — TCPAdapter NTRIP client handshake for Leica GR50
+8. **ING-001** — drive-archaeologist → ingestion-pipeline Celery handoff
+9. **BRN-005** — `plot_v2.py` headless parameterization
 
 ---
 
@@ -54,6 +60,10 @@ Priority order based on current unblocked state:
 
 | Date | Item | Detail |
 |------|------|--------|
+| 2026-04-25 | VADASE director demo — full stack | `run_demo.sh` launcher; BOST Mw 7.6 fast-import replay; ANSI event banner; `--quiet` flag; Python 3.11+ check |
+| 2026-04-25 | Grafana dashboard provisioned | `real_time_monitoring.json`: velocity + ENU + event table; 5 s refresh; docker-compose wired |
+| 2026-04-25 | TimescaleDBAdapter wired as OutputPort | Migration 011 (`displacement_source`); lazy asyncpg import on dry-run; legacy `DatabaseWriter` deleted |
+| 2026-04-25 | `ReceiverMode` state machine | Replaces one-way `manual_integration_active` bool; velocity-gated hysteresis; `GOOD_THRESHOLD=30` for Philippine scintillation — commit `a74c109` |
 | 2026-03-03 | `velocity-reviewer` — PLOT file stripping | `write_cleaned_plots()` in `reader.py`; `POST /api/export` strips PLOT files with `.bak` backup/restore for idempotency; commit `bd743bb` |
 | 2026-03-03 | Velocity pipeline primary source verification | PLOT format confirmed from `RUNX_v2.py:137`; offsets format from production file; `vel_line_v8.m` confirmed does NOT read `OUTLIERS.txt`; `00_CRD_*.bat` exclusion logic mapped; teqc commands confirmed from §4.2.3/§4.2.4 |
 | 2026-03-03 | INP file diff (5.2 PHIVOLCS vs 5.4 EXAMPLE) | ADDNEQ2, MAUPRP, RNXGRA, RXOBV3, CODSPP compared; minimal Jinja2 strategy confirmed (3 parameters differ: RNXGRA MINOBS/MAXBAD, ADDNEQ2 MAXPAR) |
