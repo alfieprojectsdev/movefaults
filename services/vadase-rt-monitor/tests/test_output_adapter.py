@@ -58,6 +58,7 @@ def _sample_disp_data(ts=None):
         "dH_magnitude": 0.0036,
         "overall_completeness": 0.98,
         "cq": 0.92,
+        "displacement_source": "RECEIVER",
     }
 
 
@@ -435,16 +436,18 @@ async def test_write_displacement_positional_mapping():
         "dH_magnitude": 0.040,
         "overall_completeness": 0.99,
         "cq": 0.77,
+        "displacement_source": "RECEIVER",
     }
     await adapter.write_displacement("BOST", data)
 
     row = adapter._displacement_buffer[0]
-    # Positional: (time, station_code, d_east, d_north, d_up, d_horizontal, overall_completeness, quality)
-    assert row[0] == ts           # $1 time
-    assert row[1] == "BOST"       # $2 station_code
-    assert row[2] == 0.010        # $3 d_east <- dE
-    assert row[3] == 0.020        # $4 d_north <- dN
-    assert row[4] == 0.030        # $5 d_up <- dU
-    assert row[5] == 0.040        # $6 d_horizontal <- dH_magnitude
-    assert row[6] == 0.99         # $7 overall_completeness
-    assert row[7] == 0.77         # $8 quality <- cq
+    # Positional: (time, station_code, d_east, d_north, d_up, d_horizontal, overall_completeness, quality, displacement_source)
+    assert row[0] == ts              # $1 time
+    assert row[1] == "BOST"         # $2 station_code
+    assert row[2] == 0.010          # $3 d_east <- dE
+    assert row[3] == 0.020          # $4 d_north <- dN
+    assert row[4] == 0.030          # $5 d_up <- dU
+    assert row[5] == 0.040          # $6 d_horizontal <- dH_magnitude
+    assert row[6] == 0.99           # $7 overall_completeness
+    assert row[7] == 0.77           # $8 quality <- cq
+    assert row[8] == "RECEIVER"     # $9 displacement_source

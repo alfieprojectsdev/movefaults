@@ -40,11 +40,11 @@ _INSERT_VELOCITY = """
     ON CONFLICT (time, station_code) DO NOTHING
 """
 
-# Displacement INSERT includes quality column mapped from parser field 'cq'.
+# Displacement INSERT includes quality and displacement_source (migration 011).
 _INSERT_DISPLACEMENT = """
     INSERT INTO vadase_displacements
-        (time, station_code, d_east, d_north, d_up, d_horizontal, overall_completeness, quality)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        (time, station_code, d_east, d_north, d_up, d_horizontal, overall_completeness, quality, displacement_source)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     ON CONFLICT (time, station_code) DO NOTHING
 """
 
@@ -183,6 +183,7 @@ class TimescaleDBAdapter:
             data["dH_magnitude"],
             data.get("overall_completeness"),
             data["cq"],
+            data.get("displacement_source"),  # $9 -- RECEIVER | RECEIVER_SUSPECT | INTEGRATOR
         )
         async with self._displacement_lock:
             self._maybe_drop_oldest(self._displacement_buffer, "displacement")
