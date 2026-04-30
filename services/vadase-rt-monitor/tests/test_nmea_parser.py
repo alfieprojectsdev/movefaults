@@ -1,13 +1,9 @@
-from datetime import UTC, date, datetime
-from unittest.mock import patch
+from datetime import UTC, datetime
 
-import pytest
 from src.parsers.nmea_parser import (
     NMEAChecksumError,
     parse_ldm,
     parse_lvm,
-    parse_vadase_displacement,
-    parse_vadase_velocity,
     validate_nmea_checksum,
 )
 
@@ -65,34 +61,6 @@ def test_parse_ldm_spec_example():
     assert result["timestamp"] == expected_ts
 
 
-def test_parse_vadase_velocity():
-    """Test $PTNL,VEL sentence parsing"""
-    sentence = "$PTNL,VEL,123045.50,2.34,-1.56,0.12,1*75"
-    result = parse_vadase_velocity(sentence, base_date=date(2023, 10, 27))
-
-    assert result is not None
-    # 123045.50 -> 12:30:45.500000
-    expected_ts = datetime(2023, 10, 27, 12, 30, 45, 500000, tzinfo=UTC)
-    assert result["timestamp"] == expected_ts
-    assert result["vN"] == 2.34
-    assert result["vE"] == -1.56
-    assert result["vU"] == 0.12
-    assert result["cq"] == 1
-
-
-def test_parse_vadase_displacement():
-    """Test $PTNL,POS sentence parsing"""
-    sentence = "$PTNL,POS,123045.50,0.12,-0.08,0.01,1*68"
-    result = parse_vadase_displacement(sentence, base_date=date(2023, 10, 27))
-
-    assert result is not None
-    expected_ts = datetime(2023, 10, 27, 12, 30, 45, 500000, tzinfo=UTC)
-    assert result["timestamp"] == expected_ts
-    assert result["dN"] == 0.12
-    assert result["dE"] == -0.08
-    assert result["dU"] == 0.01
-    assert result["cq"] == 1
-
 
 def test_parse_lvm_spec_example():
     """
@@ -116,52 +84,3 @@ def test_parse_lvm_spec_example():
     assert result["timestamp"] == expected_ts
 
 
-@pytest.mark.parametrize("vn, ve, vu, qual", [
-    ("2.34", "-1.56", "0.12", "1"),
-    ("0.00", "0.00", "0.00", "2"),
-    ("-10.5", "5.5", "1.1", "0"),
-])
-def test_parse_vadase_velocity_values(vn, ve, vu, qual):
-    """Test parse_vadase_velocity with different valid values"""
-    body = f"PTNL,VEL,123045.50,{vn},{ve},{vu},{qual}"
-    sentence = _create_sentence(body)
-
-    result = parse_vadase_velocity(sentence, base_date=date(2023, 10, 27))
-
-    assert result is not None
-    assert result["vN"] == float(vn)
-    assert result["vE"] == float(ve)
-    assert result["vU"] == float(vu)
-    assert result["cq"] == int(qual)
-
-
-def test_parse_vadase_velocity_invalid_checksum():
-    """Test parse_vadase_velocity with invalid checksum"""
-    # Valid checksum is 75 for this string, using 99 to force error
-    sentence = "$PTNL,VEL,123045.50,2.34,-1.56,0.12,1*99"
-    with pytest.raises(NMEAChecksumError):
-        parse_vadase_velocity(sentence)
-
-
-def test_parse_vadase_velocity_malformed():
-    """Test parse_vadase_velocity with malformed sentences"""
-    # Missing field
-    sentence = _create_sentence("PTNL,VEL,123045.50,2.34,-1.56,0.12")
-    assert parse_vadase_velocity(sentence) is None
-
-    # Wrong prefix
-    sentence = _create_sentence("OTHER,VEL,123045.50,2.34,-1.56,0.12,1")
-    assert parse_vadase_velocity(sentence) is None
-
-
-def test_parse_vadase_velocity_invalid_float():
-    r"""
-    Test parse_vadase_velocity with values that pass regex but fail float conversion.
-    The regex `[-\d.]+` allows strings like `.` or `-.` which are not valid floats.
-    """
-    # "." matches `[-\d.]+` but float('.') raises ValueError
-    body = "PTNL,VEL,123045.50,.,-1.56,0.12,1"
-    sentence = _create_sentence(body)
-
-    result = parse_vadase_velocity(sentence, base_date=date(2023, 10, 27))
-    assert result is None

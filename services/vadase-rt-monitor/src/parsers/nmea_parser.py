@@ -3,9 +3,8 @@ NMEA Parser for Leica VADASE LDM and LVM sentences
 Implements full parsing with checksum validation
 """
 
-import re
 from datetime import UTC, date, datetime
-from typing import Any, Optional
+from typing import Any
 
 
 class NMEAChecksumError(Exception):
@@ -199,86 +198,3 @@ def parse_ldm(sentence: str) -> dict[str, Any] | None:
         return None
 
 
-def parse_vadase_velocity(sentence: str, base_date: Optional[date] = None):
-    """
-    Parse $PTNL,VEL NMEA sentence
-    Returns dict with timestamp and velocity components
-
-    Args:
-        sentence: Complete NMEA sentence
-        base_date: Date to use for timestamp. Defaults to today's UTC date for live streams;
-                   pass explicitly when replaying historical data.
-    """
-    if not validate_nmea_checksum(sentence):
-        raise NMEAChecksumError(f"Invalid checksum: {sentence}")
-
-    # Example: $PTNL,VEL,123045.50,2.34,-1.56,0.12,1*3F
-    match = re.match(
-        r"\$PTNL,VEL,(\d{6}\.\d{2}),([-\d.]+),([-\d.]+),([-\d.]+),(\d)\*([0-9A-F]{2})", sentence
-    )
-
-    if not match:
-        return None
-
-    time_str, vn, ve, vu, quality, checksum = match.groups()
-
-    hh, mm, ss, microsecond = _parse_nmea_time(time_str)
-
-    if base_date is None:
-        base_date = datetime.now(UTC).date()
-
-    timestamp = datetime.combine(base_date, datetime.min.time(), tzinfo=UTC).replace(
-        hour=hh, minute=mm, second=ss, microsecond=microsecond
-    )
-
-    try:
-        return {
-            "timestamp": timestamp,
-            "vN": float(vn),
-            "vE": float(ve),
-            "vU": float(vu),
-            "cq": int(quality),
-        }
-    except ValueError:
-        return None
-
-
-def parse_vadase_displacement(sentence: str, base_date: Optional[date] = None):
-    """
-    Parse $PTNL,POS NMEA sentence
-    Returns dict with timestamp and displacement components
-
-    Args:
-        sentence: Complete NMEA sentence
-        base_date: Date to use for timestamp. Defaults to today's UTC date for live streams;
-                   pass explicitly when replaying historical data.
-    """
-    if not validate_nmea_checksum(sentence):
-        raise NMEAChecksumError(f"Invalid checksum: {sentence}")
-
-    # Example: $PTNL,POS,123045.50,0.12,-0.08,0.01,1*AB
-    match = re.match(
-        r"\$PTNL,POS,(\d{6}\.\d{2}),([-\d.]+),([-\d.]+),([-\d.]+),(\d)\*([0-9A-F]{2})", sentence
-    )
-
-    if not match:
-        return None
-
-    time_str, dn, de, du, quality, checksum = match.groups()
-
-    hh, mm, ss, microsecond = _parse_nmea_time(time_str)
-
-    if base_date is None:
-        base_date = datetime.now(UTC).date()
-
-    timestamp = datetime.combine(base_date, datetime.min.time(), tzinfo=UTC).replace(
-        hour=hh, minute=mm, second=ss, microsecond=microsecond
-    )
-
-    return {
-        "timestamp": timestamp,
-        "dN": float(dn),
-        "dE": float(de),
-        "dU": float(du),
-        "cq": int(quality),
-    }

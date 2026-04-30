@@ -204,9 +204,13 @@ Architecture decisions:
 `services/vadase-rt-monitor/` (~80% complete) is developed on a parallel track independent
 of the Bernese pipeline. Key remaining work:
 
-- Fix one-way latch bug in `domain/processor.py:130` (`manual_integration_active` never resets)
-- `TCPAdapter`: implement NTRIP client handshake for Leica GR50
-- Add Trimble sentence parser stubs (currently dead code — GR50 is Leica, not Trimble)
+- ~~Fix one-way latch bug in `domain/processor.py:130`~~ — resolved in `a74c109` (2026-04-25);
+  `ReceiverMode` enum state machine replaces the one-way bool
+- ~~Trimble sentence parser dead code~~ — removed (VAD-003); GR50 is Leica, `$PTNL` sentences
+  were never called
+- `TCPAdapter`: complete NTRIP handshake (header drain + SOURCETABLE handling + exponential
+  backoff) — VAD-002
+- TimescaleDB compression + retention policies — VAD-001 (migration 012)
 - PR #1 remediation (paused, lower priority than Phase 1B)
 
 ---
