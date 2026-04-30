@@ -30,7 +30,11 @@ async def test_tcp_adapter_dos_protection():
         return b""
 
     mock_reader.read.side_effect = side_effect
-    mock_reader.readline.return_value = b"ICY 200 OK\r\n" # For handshake
+    mock_reader.readline.side_effect = [
+        b"ICY 200 OK\r\n",
+        b"Content-Type: text/plain\r\n",
+        b"\r\n",  # blank line terminates _drain_http_headers
+    ]
 
     # Mock StreamWriter correctly
     mock_writer = MagicMock()

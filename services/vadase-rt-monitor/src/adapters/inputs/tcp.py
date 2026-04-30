@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import random
 import structlog
 from typing import Optional
 from src.ports.inputs import InputPort
@@ -32,30 +33,31 @@ class TCPAdapter(InputPort):
 
     async def start(self, queue: asyncio.Queue, stop_event: asyncio.Event) -> None:
         MAX_BUFFER_SIZE = 64 * 1024  # 64KB
+        _BACKOFF_BASE = 5.0
+        _BACKOFF_MAX = 60.0
+        backoff = _BACKOFF_BASE
 
         while not stop_event.is_set():
             try:
                 self.logger.info("connecting", host=self.host, port=self.port, mountpoint=self.mountpoint)
                 self.reader, self.writer = await asyncio.open_connection(self.host, self.port)
-                
-                # NTRIP Handshake if mountpoint is provided
+
                 if self.mountpoint:
                     await self._perform_handshake()
-                
+
                 self.logger.info("connected")
+                backoff = _BACKOFF_BASE  # reset on successful connection
 
                 buffer = ""
-                last_data_time = asyncio.get_event_loop().time()
-                
+
                 while not stop_event.is_set():
                     try:
                         # Watchdog: 10s timeout
                         data = await asyncio.wait_for(self.reader.read(4096), timeout=10.0)
-                        last_data_time = asyncio.get_event_loop().time()
                     except asyncio.TimeoutError:
                         self.logger.warning("watchdog_timeout", seconds=10)
-                        break # Break inner loop to trigger reconnect
-                    
+                        break
+
                     if not data:
                         self.logger.warning("connection_closed_by_remote")
                         break
@@ -78,10 +80,12 @@ class TCPAdapter(InputPort):
                 self.logger.error("connection_error", error=str(e))
                 await self.cleanup()
 
-            # Retry delay
             if not stop_event.is_set():
-                self.logger.info("reconnecting_in", seconds=5)
-                await asyncio.sleep(5)
+                jitter = random.uniform(0.0, 1.0)
+                delay = backoff + jitter
+                self.logger.info("reconnecting_in", seconds=round(delay, 1))
+                await asyncio.sleep(delay)
+                backoff = min(backoff * 2, _BACKOFF_MAX)
 
     async def stop(self) -> None:
         await self.cleanup()
@@ -96,40 +100,43 @@ class TCPAdapter(InputPort):
             self.writer = None
 
     async def _perform_handshake(self):
-        """
-        Sends NTRIP GET request and validates response.
-        """
-        # 1. Construct Headers
+        """Sends NTRIP GET request, validates ICY 200 OK, drains remaining headers."""
         headers = [
             f"GET /{self.mountpoint} HTTP/1.0",
             "User-Agent: NTRIP Python/1.0",
             "Accept: */*",
-            "Connection: close"
+            "Connection: close",
         ]
-        
         if self.user and self.password:
             auth_str = f"{self.user}:{self.password}"
             b64_auth = base64.b64encode(auth_str.encode()).decode()
             headers.append(f"Authorization: Basic {b64_auth}")
-        
-        request = "\r\n".join(headers) + "\r\n\r\n"
-        
-        # 2. Send Request
-        self.writer.write(request.encode())
+
+        self.writer.write(("\r\n".join(headers) + "\r\n\r\n").encode())
         await self.writer.drain()
-        
-        # 3. Read Response Headers
+
         response_line = await self.reader.readline()
         response_str = response_line.decode().strip()
-        
+
+        if "SOURCETABLE" in response_str:
+            raise ConnectionError(
+                f"NTRIP mountpoint '{self.mountpoint}' is not an active stream "
+                f"(caster returned SOURCETABLE); verify mountpoint name"
+            )
         if "200 OK" in response_str:
+            await self._drain_http_headers()
             self.logger.info("handshake_success", response=response_str)
             return
-            
-        elif "401" in response_str:
-            raise ConnectionError(f"NTRIP Unauthorized: {response_str}")
-        elif "404" in response_str:
-             raise ConnectionError(f"NTRIP Mountpoint Not Found: {response_str}")
-        else:
-             raise ConnectionError(f"NTRIP Handshake Failed: {response_str}")
+        if "401" in response_str:
+            raise ConnectionError("NTRIP unauthorized: check credentials")
+        if "404" in response_str:
+            raise ConnectionError(f"NTRIP mountpoint not found: {self.mountpoint}")
+        raise ConnectionError(f"NTRIP handshake failed: {response_str}")
+
+    async def _drain_http_headers(self) -> None:
+        """Consume remaining HTTP response headers until the blank separator line."""
+        for _ in range(32):  # guard against malformed/infinite responses
+            line = await self.reader.readline()
+            if not line.strip():
+                break
 
