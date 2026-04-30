@@ -1,6 +1,6 @@
 # Implementation Ticket Backlog
 
-**Last updated:** 2026-04-25
+**Last updated:** 2026-04-30
 **Source:** Codebase survey [`codebase_status_20260425.md`](codebase_status_20260425.md) cross-referenced with [`roadmap.md`](roadmap.md)
 
 > **Priority:** P0 = critical path blocker · P1 = production deployment · P2 = feature complete · P3 = deferred
@@ -28,7 +28,7 @@ BRN-001 (R740 install) has the longest elapsed wall-clock time and should start 
 
 ## VADASE RT Monitor
 
-### VAD-001 · P1 · M
+### ~~VAD-001~~ · P1 · M · **DONE** `08fd153`
 **TimescaleDB compression + retention policies**
 
 At 35 stations × 1 Hz, uncompressed rows accumulate ~3 M rows/day. Without policies the R740 drives fill silently. Explicitly deferred as DL-012 in the TimescaleDB adapter.
@@ -43,7 +43,7 @@ At 35 stations × 1 Hz, uncompressed rows accumulate ~3 M rows/day. Without poli
 
 ---
 
-### VAD-002 · P1 · M
+### ~~VAD-002~~ · P1 · M · **DONE** `0c9768d`
 **TCPAdapter: complete NTRIP client handshake for Leica GR50**
 
 `TCPAdapter` opens a TCP socket but does not implement the NTRIP HTTP/1.0 handshake required by the GR50 NTRIP caster. Without this, live ingestion silently reads nothing.
@@ -57,7 +57,7 @@ At 35 stations × 1 Hz, uncompressed rows accumulate ~3 M rows/day. Without poli
 
 ---
 
-### VAD-003 · P2 · S
+### ~~VAD-003~~ · P2 · S · **DONE** `9cd8795`
 **Remove Trimble parser dead code; update roadmap stale entries**
 
 - Delete or clearly tombstone Trimble sentence stubs in `nmea_parser.py` (GR50 is Leica, not Trimble)
@@ -182,15 +182,10 @@ The scanner classifies GNSS files; the Celery pipeline validates and loads them.
 
 ## pogf-geodetic-suite
 
-### IGS-001 · P0 · M
+### ~~IGS-001~~ · P0 · M · **DONE** `f742571`
 **IGS downloader rewrite — correct IGS20 naming + CDDIS/IGN/BKG fallback**
 
-Current downloader uses simplified CODE naming (`codwwwwd.sp3.Z`) that does not match current IGS server directory structures. Bernese step 000 (FTP_DWLD) is being bypassed in favour of this downloader — so correctness is critical.
-
-- Implement IGS20 product naming: `COD0OPSFIN_YYYYDDD0000_01D_01D_ORB.SP3.gz` (CODE final), `IGS0OPSFIN_...` (IGS combined)
-- CDDIS primary → IGN fallback → BKG fallback chain
-- GPS week + DOY + session calculation already present; fix directory path construction
-- Verify against a known historical product download before wiring into BRN-004
+IGS20 long filenames, `.gz` decompression in-memory, IGN→BKG→CDDIS mirror order (anonymous first), legacy fallback for pre-week-2238 dates. 21 unit tests.
 
 *Unblocks: BRN-004.*
 
