@@ -41,6 +41,12 @@ services:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: smtp.gmail.com:587
+      GF_SMTP_USER: ${GRAFANA_SMTP_USER:-alfieprojects.dev@gmail.com}
+      GF_SMTP_PASSWORD: ${GRAFANA_SMTP_PASSWORD}
+      GF_SMTP_FROM_ADDRESS: ${GRAFANA_SMTP_USER:-alfieprojects.dev@gmail.com}
+      GF_SMTP_FROM_NAME: "VADASE Alerts"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./services/vadase-rt-monitor/grafana/provisioning:/etc/grafana/provisioning

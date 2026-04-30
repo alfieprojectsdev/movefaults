@@ -1,0 +1,92 @@
+apiVersion: 1
+
+# ---------------------------------------------------------------------------
+# Contact points
+# ---------------------------------------------------------------------------
+contactPoints:
+  - orgId: 1
+    name: vadase-alerts
+    receivers:
+      - uid: vadase-email
+        type: email
+        settings:
+          addresses: alfieprojects.dev@gmail.com
+          singleEmail: false
+
+# ---------------------------------------------------------------------------
+# Notification policy
+# ---------------------------------------------------------------------------
+policies:
+  - orgId: 1
+    receiver: vadase-alerts
+    group_by: [alertname, station_code]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+
+# ---------------------------------------------------------------------------
+# Alert rules
+# ---------------------------------------------------------------------------
+groups:
+  - orgId: 1
+    name: vadase-velocity-alerts
+    folder: VADASE
+    interval: 10s
+    rules:
+      - uid: vadase-vel-threshold-001
+        title: VelocityThresholdBreach
+        condition: C
+        for: 10s
+        annotations:
+          summary: "Velocity threshold breach at {{ $labels.station_code }}"
+          description: >-
+            {{ $labels.station_code }}: average horizontal velocity
+            {{ $values.C.Value | printf "%.4f" }} m/s exceeds the 15 mm/s seismic threshold.
+        labels:
+          severity: warning
+        data:
+          # A — SQL: avg horizontal speed per station over last 10 s
+          - refId: A
+            relativeTimeRange:
+              from: 10
+              to: 0
+            datasourceUid: timescaledb-main
+            model:
+              rawSql: |
+                SELECT
+                  NOW() AS time,
+                  station_code,
+                  AVG(SQRT(v_east * v_east + v_north * v_north)) AS v_horizontal
+                FROM vadase_velocities
+                WHERE time >= NOW() - INTERVAL '10 seconds'
+                  AND v_east IS NOT NULL
+                  AND v_north IS NOT NULL
+                GROUP BY station_code
+              format: table
+
+          # B — Reduce: collapse each station's single-row result to a scalar
+          - refId: B
+            relativeTimeRange:
+              from: 10
+              to: 0
+            datasourceUid: "-100"
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: "-100"
+
+          # C — Math: threshold check (fires when v_horizontal > 15 mm/s)
+          - refId: C
+            relativeTimeRange:
+              from: 10
+              to: 0
+            datasourceUid: "-100"
+            model:
+              type: math
+              expression: "$B > 0.015"
+              datasource:
+                type: __expr__
+                uid: "-100"
