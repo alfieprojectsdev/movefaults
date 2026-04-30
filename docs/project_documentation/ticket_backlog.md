@@ -1,6 +1,6 @@
 # Implementation Ticket Backlog
 
-**Last updated:** 2026-04-30
+**Last updated:** 2026-04-30 (session 2)
 **Source:** Codebase survey [`codebase_status_20260425.md`](codebase_status_20260425.md) cross-referenced with [`roadmap.md`](roadmap.md)
 
 > **Priority:** P0 = critical path blocker · P1 = production deployment · P2 = feature complete · P3 = deferred
@@ -193,7 +193,7 @@ IGS20 long filenames, `.gz` decompression in-memory, IGN→BKG→CDDIS mirror or
 
 ## Infrastructure & Ops
 
-### OPS-001 · P1 · S
+### ~~OPS-001~~ · P1 · S · **DONE** `c52a138`
 **Grafana alerting rule — velocity threshold breach**
 
 The Grafana dashboard is provisioned. An alerting rule turns it from visualisation into an operational tool.
