@@ -48,7 +48,7 @@ CLASSIFICATION_PROFILES = {
         ".xls", ".xlsx", ".ods", ".ppt", ".pptx", ".odp",
     ],
     "Text": [
-        ".txt", ".md", ".markdown", ".html", ".htm", ".rtf", ".tex",
+        ".txt", ".md", ".markdown", ".html", ".htm", ".tex",
     ],
     "Ebook": [
         ".epub", ".mobi", ".azw3",
@@ -61,8 +61,8 @@ CLASSIFICATION_PROFILES = {
         ".ps1",
     ],
     "Web Frontend": [
-        ".html", ".htm", ".css", ".scss", ".sass", ".less", ".js", ".jsx",
-        ".ts", ".tsx", ".vue",
+        ".css", ".scss", ".sass", ".less", ".jsx",
+        ".tsx", ".vue",
     ],
     "Configuration": [
         ".yaml", ".yml", ".ini", ".cfg", ".conf", ".toml",
@@ -79,7 +79,7 @@ CLASSIFICATION_PROFILES = {
 
     # --- System & Executable Files ---
     "Executable": [
-        ".exe", ".msi", ".bat", ".com", ".sh",
+        ".exe", ".msi", ".bat", ".com",
     ],
     "Application Library": [
         ".dll", ".so", ".dylib",
