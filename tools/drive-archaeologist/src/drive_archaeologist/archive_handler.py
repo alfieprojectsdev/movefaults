@@ -4,9 +4,13 @@ Uses a combination of standard library and third-party modules.
 """
 
 import tarfile
-import tempfile
 import zipfile
+import tempfile
 from pathlib import Path
+from typing import List, Optional
+
+import py7zr
+import rarfile
 
 # Supported archive extensions
 SUPPORTED_ARCHIVES = [
@@ -19,7 +23,7 @@ class ArchiveHandler:
     Detects and extracts various archive formats to a temporary directory.
     """
 
-    def __init__(self, temp_base_dir: Path | None = None):
+    def __init__(self, temp_base_dir: Optional[Path] = None):
         """
         Initializes the handler.
 
@@ -39,7 +43,7 @@ class ArchiveHandler:
                 return True
         return False
 
-    def extract(self, filepath: Path) -> Path | None:
+    def extract(self, filepath: Path) -> Optional[Path]:
         """
         Extracts an archive to a new temporary directory.
 
@@ -65,23 +69,11 @@ class ArchiveHandler:
                 with zipfile.ZipFile(filepath, 'r') as zf:
                     zf.extractall(temp_path)
             elif lower_path.endswith(".rar"):
-                try:
-                    import rarfile
-                except ImportError:
-                    import logging
-                    logging.warning("rarfile not installed; skipping RAR file: %s", filepath)
-                    self._cleanup(temp_path)
-                    return None
+                # rarfile requires the 'unrar' command-line utility.
+                # It will raise an exception if it's not found.
                 with rarfile.RarFile(filepath, 'r') as rf:
                     rf.extractall(temp_path)
             elif lower_path.endswith(".7z"):
-                try:
-                    import py7zr
-                except ImportError:
-                    import logging
-                    logging.warning("py7zr not installed; skipping 7z file: %s", filepath)
-                    self._cleanup(temp_path)
-                    return None
                 with py7zr.SevenZipFile(filepath, 'r') as szf:
                     szf.extractall(temp_path)
             elif ".tar" in lower_path or lower_path.endswith(("tgz", "tbz2", "txz")):

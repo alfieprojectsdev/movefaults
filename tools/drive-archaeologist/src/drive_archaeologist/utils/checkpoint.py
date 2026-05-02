@@ -5,6 +5,7 @@ Tracks which files have been scanned to enable resuming interrupted scans.
 
 import json
 from pathlib import Path
+from typing import Set
 
 
 class CheckpointManager:
@@ -14,26 +15,25 @@ class CheckpointManager:
     Saves progress periodically so scans can be resumed if interrupted.
     """
 
-    def __init__(self, scan_id: str, checkpoint_dir: Path | None = None):
+    def __init__(self, scan_id: str):
         """
         Initialize checkpoint manager.
 
         Args:
             scan_id: Unique identifier for this scan
-            checkpoint_dir: Directory to store the checkpoint file. Defaults to CWD.
         """
         self.scan_id = scan_id
-        base = Path(checkpoint_dir) if checkpoint_dir else Path(".")
-        self.checkpoint_file = base / f"checkpoint_{scan_id}.json"
-        self.scanned_paths: set[str] = set()
+        self.checkpoint_file = Path(f"checkpoint_{scan_id}.json")
+        self.scanned_paths: Set[str] = set()
 
+        # Load existing checkpoint if available
         if self.checkpoint_file.exists():
             self._load_checkpoint()
 
     def _load_checkpoint(self):
         """Load checkpoint from disk"""
         try:
-            with open(self.checkpoint_file, encoding="utf-8") as f:
+            with open(self.checkpoint_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 self.scanned_paths = set(data.get("scanned_paths", []))
         except Exception:
