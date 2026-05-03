@@ -35,7 +35,7 @@ def _parse_teqc_output(text: str) -> RINEXQCResult:
     def _first_int(pattern: str) -> int | None:
         m = re.search(pattern, text, re.IGNORECASE)
         if m:
-            # grab the first run of digits in the captured group
+            # first contiguous digit run handles multi-column rows like "85321  84000  ..."
             digits = re.search(r'\d+', m.group(1))
             return int(digits.group()) if digits else None
         return None

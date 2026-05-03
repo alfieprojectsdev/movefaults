@@ -156,6 +156,8 @@ def test_validate_rinex_captures_qc_metrics(rinex_file):
     assert result["file_path"] == rinex_file
     assert result["qc_obs_count"] == 85321
     assert result["qc_cycle_slips"] == 10
+    assert abs(result["qc_mp1_rms"] - 0.30) < 1e-6
+    assert abs(result["qc_mp2_rms"] - 0.41) < 1e-6
 
 
 # ---------------------------------------------------------------------------

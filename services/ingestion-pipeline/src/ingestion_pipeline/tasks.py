@@ -225,12 +225,10 @@ def _validate_rinex(file_path: str) -> dict:
         logger.info("teqc QC passed: %s", file_path)
     except RuntimeError as e:
         msg = str(e)
-        if "not found" in msg:
-            logger.warning("teqc not in PATH — skipping QC for %s", file_path)
-        elif "timed out" in msg:
-            logger.warning("teqc timed out for %s — skipping QC", file_path)
+        if "not found" in msg or "timed out" in msg:
+            logger.warning("teqc skipped for %s: %s", file_path, msg[:200])
         else:
-            logger.warning("teqc QC warnings for %s: %s", file_path, msg[:500])
+            raise
 
     return {
         "file_path": file_path,
