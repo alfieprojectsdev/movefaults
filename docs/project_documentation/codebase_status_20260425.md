@@ -11,10 +11,10 @@
 |---|---|---|---|
 | vadase-rt-monitor | 80% | Active | NTRIP handshake; DB compression policies |
 | field-ops | 100% | Complete | — |
-| ingestion-pipeline | 30% | Task logic done; wiring missing | Scanner→Celery handoff; Trimble formats |
+| ingestion-pipeline | 35% | teqc QC wired; handoff missing | Scanner→Celery handoff (ING-001); Trimble formats |
 | bernese-workflow | 10% | Stub + placeholder | Full `LinuxBPEBackend`; INP templates |
-| pogf-geodetic-suite | 70% | Mixed | IGS20 naming; gfzrnx/teqc QC backend |
-| drive-archaeologist | 60% | Phase 1 scanner works | Trimble raw classification; pipeline handoff |
+| pogf-geodetic-suite | 75% | IGS20 + teqc QC done | Timeseries analysis complete; Bernese wiring pending |
+| drive-archaeologist | 65% | Scanner hardened (PR #33) | Trimble raw classification; pipeline handoff (ING-001) |
 
 ---
 
@@ -88,21 +88,22 @@
 - `timeseries/analysis.py` — `VelocityEstimator` (least-squares regression) + IQR outlier detection. Complete.
 
 **Partial / stubs:**
-- `qc/rinex_qc.py` — shells out to `gfzrnx`; binary not yet acquired. `teqc` is the confirmed available alternative (commands documented in deliverables tracker 2026-03-03).
-- `igs_downloader.py` — GPS week/DOY calculation present; download logic uses simplified CODE naming (`codwwwwd.sp3.Z`) and does not implement IGS20 directory structure or the CDDIS/IGN/BKG fallback chain. Will silently fail on current IGS servers.
+- `qc/rinex_qc.py` — **complete** (ING-003, PR #34): `teqc +qc` backend with structured `RINEXQCResult`, configurable timeout, QC metrics propagated to `IngestionLog` through the Celery chain. 12 unit tests.
+- `igs_downloader.py` — **complete** (IGS-001, `f742571`): IGS20 long filenames, `.gz` decompression, IGN→BKG→CDDIS mirror fallback.
 
 ---
 
 ## drive-archaeologist (`tools/drive-archaeologist/`)
 
 **What works (Phase 1):**
-- `scanner.py` — recursive filesystem walk, SHA-256, checkpoint/resume. 220 lines, functional.
-- `strategies/gnss.py` — RINEX filename pattern (`ssssdddh.yyt`) + `.o` fallback.
-- `classifier.py`, `profiles.py`, `archive_handler.py`, `core/` — classification and storage pipeline.
+- `scanner.py` — **hardened** (PR #33): `on_classified` callback seam, per-file checkpoint, path traversal protection on all archive formats (ZIP/TAR/RAR/7z), error-count accuracy. 31 unit tests.
+- `strategies/gnss.py` — RINEX filename pattern (`ssssdddh.yyt`) with tightened `.DDo` fallback.
+- `classifier.py`, `profiles.py`, `archive_handler.py` — classification pipeline; extension conflicts resolved.
 
 **Known gaps:**
 - Trimble proprietary formats (`.T01`, `.T02`, `.T04`, `.DAT`, `.TGD`) not in `profiles.py`. PHIVOLCS has Trimble NetR9 receivers in the field; this is a real coverage gap.
-- No `dispatch_to_pipeline()` call after classification — scanner and ingestion pipeline are disconnected.
+- No `dispatch_to_pipeline()` call after classification — scanner and ingestion pipeline are disconnected (ING-001).
+- Archive checkpoint uses ephemeral temp paths for extracted members; resume rescans archive contents (ING-004, deferred).
 
 ---
 

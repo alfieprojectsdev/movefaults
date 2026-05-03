@@ -1,6 +1,6 @@
 # Implementation Ticket Backlog
 
-**Last updated:** 2026-04-30 (session 2)
+**Last updated:** 2026-05-03
 **Source:** Codebase survey [`codebase_status_20260425.md`](codebase_status_20260425.md) cross-referenced with [`roadmap.md`](roadmap.md)
 
 > **Priority:** P0 = critical path blocker · P1 = production deployment · P2 = feature complete · P3 = deferred
@@ -11,14 +11,14 @@
 ## Dependency Graph (Critical Path)
 
 ```
-IGS-001 ──┐
-           ├──▶ BRN-001 ──▶ BRN-002 ──▶ BRN-003 ──▶ BRN-004 ──▶ BRN-005
-ING-003 ──┘
+~~IGS-001~~ ──┐
+               ├──▶ BRN-001 ──▶ BRN-002 ──▶ BRN-003 ──▶ BRN-004 ──▶ BRN-005
+~~ING-003~~ ──┘
 
-ING-001 ──▶ ING-002           (parallel to Bernese track)
+PR#33 (scanner) ──▶ ING-001 ──▶ ING-002    (parallel to Bernese track)
 
-VAD-001
-VAD-002                        (parallel; needed before R740 go-live)
+~~VAD-001~~
+~~VAD-002~~                                 (parallel; needed before R740 go-live)
 ```
 
 Shortest path to first end-to-end Bernese run: **IGS-001 → BRN-001 → BRN-002 → BRN-003 → BRN-004**.
@@ -153,6 +153,8 @@ The scanner classifies GNSS files; the Celery pipeline validates and loads them.
 - Wire to `ingest_rinex.delay()` Celery task with file path + station metadata
 - Integration test: scan a small fixture directory, verify task fires and `IngestionLog` row is created in DB
 
+*Prerequisite: PR #33 (`refactor/drive-arch-harden`) — scanner hardening + `on_classified` callback seam — must merge first.*
+
 ---
 
 ### ING-002 · P1 · M
@@ -169,14 +171,22 @@ The scanner classifies GNSS files; the Celery pipeline validates and loads them.
 
 ---
 
-### ING-003 · P2 · S
+### ~~ING-003~~ · P2 · S · **PR #34 ready to merge** `c40b341`
 **teqc as RINEX QC backend**
 
-`rinex_qc.py` shells out to `gfzrnx` (binary not yet acquired). `teqc` is confirmed available and commands are documented (deliverables tracker 2026-03-03).
+`rinex_qc.py` now shells to `teqc +qc` (replacing placeholder `gfzrnx` stub). Structured `RINEXQCResult` dataclass; QC metrics propagated to `IngestionLog` through the Celery chain. Two CodeRabbit review cycles addressed (timeout, QC persistence, error propagation, test coverage). 12 unit tests.
 
-- Replace `gfzrnx` subprocess call with `teqc +qc` invocation
-- Parse teqc summary output: extract multipath RMS, cycle slip count, observation count
-- Return structured `RINEXQCResult` dataclass; propagate fields to `IngestionLog`
+---
+
+### ING-004 · P3 · S
+**Stable checkpoint key for archive-extracted files**
+
+During archive recursion, `mark_scanned(filepath)` records the ephemeral temp-extraction path. Across interrupted/resumed scans the temp dir changes, so previously processed archive members are rescanned rather than skipped. Correctness impact is low (rescanning is safe; just slow).
+
+- Key should be `str(archive_path) + "::" + member_relative_path` rather than the temp path
+- Requires threading `extraction_root` through `_scan_directory` and `_process_file`
+
+*Deferred — Heavy Lift; correctness impact is bounded to extra work on resume, not data loss.*
 
 ---
 
