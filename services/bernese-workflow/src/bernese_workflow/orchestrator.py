@@ -1,48 +1,49 @@
-import subprocess
-import os
-import jinja2
+from __future__ import annotations
+
 import logging
-from typing import Dict, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import jinja2
+
+if TYPE_CHECKING:
+    from .backends import BPEBackend, BPEResult
 
 logger = logging.getLogger(__name__)
 
+
 class BerneseOrchestrator:
-    def __init__(self, bernese_path: str, template_dir: str):
+    def __init__(
+        self,
+        bernese_path: str,
+        template_dir: str,
+        backend: BPEBackend | None = None,
+    ) -> None:
         self.bernese_path = bernese_path
         self.template_env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(template_dir)
+            loader=jinja2.FileSystemLoader(template_dir),
+            keep_trailing_newline=True,
         )
+        if backend is None:
+            from .backends import LinuxBPEBackend
 
-    def generate_pcf(self, template_name: str, context: Dict[str, Any], output_path: str):
-        """Generates a Process Control File (PCF) from a template."""
+            self._backend: BPEBackend = LinuxBPEBackend(
+                bernese_root=bernese_path,
+                user_dir=Path(bernese_path) / "GPSUSER",
+                campaign_dir=Path(bernese_path) / "GPSDATA",
+            )
+        else:
+            self._backend = backend
+
+    def generate_pcf(self, template_name: str, context: dict[str, Any], output_path: str) -> None:
+        """Render a Jinja2 PCF template and write to output_path."""
         template = self.template_env.get_template(template_name)
         content = template.render(context)
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(content)
-        logger.info(f"Generated PCF file: {output_path}")
+        logger.info("Generated PCF file: %s", output_path)
 
-    def _generate_config(self, template_name: str, context: Dict[str, Any], output_path: str):
-        template = self.template_env.get_template(template_name)
-        content = template.render(context)
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(content)
-        logger.info(f"Generated configuration file: {output_path}")
-
-    def run_bpe(self, campaign_name: str, pcf_file: str):
-        """Executes the Bernese Processing Engine (BPE)."""
-        # This is a highly simplified representation of a BPE call
-        cmd = [
-            os.path.join(self.bernese_path, "exe", "bpe.exe"),
-            campaign_name,
-            pcf_file
-        ]
-        
-        logger.info(f"Executing BPE: {' '.join(cmd)}")
-        try:
-            # result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            # return result.stdout
-            logger.info("STUB: BPE execution successful (placeholder)")
-            return "BPE Success"
-        except subprocess.CalledProcessError as e:
-            logger.error(f"BPE execution failed: {e.stderr}")
-            raise
+    def run_bpe(self, campaign_name: str, year: int, session: str) -> BPEResult:
+        """Execute a Bernese BPE run via the configured backend."""
+        logger.info("Starting BPE run: campaign=%s year=%s session=%s", campaign_name, year, session)
+        return self._backend.run(campaign_name, year, session)
