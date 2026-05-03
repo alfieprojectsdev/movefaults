@@ -63,7 +63,7 @@ class ArchiveHandler:
             lower_path = str(filepath).lower()
             if lower_path.endswith(".zip"):
                 with zipfile.ZipFile(filepath, 'r') as zf:
-                    zf.extractall(temp_path)
+                    self._safe_extract_zip(zf, temp_path)
             elif lower_path.endswith(".rar"):
                 try:
                     import rarfile
@@ -87,11 +87,12 @@ class ArchiveHandler:
             elif ".tar" in lower_path or lower_path.endswith(("tgz", "tbz2", "txz")):
                 # The tarfile module can handle most common tar compressions
                 with tarfile.open(filepath, 'r:*') as tf:
-                    tf.extractall(temp_path)
+                    self._safe_extract_tar(tf, temp_path)
             else:
                 # Simple compression formats like .gz that aren't tarballs.
                 # This logic is more complex as they usually wrap a single file.
                 # For now, we are focusing on multi-file archives.
+                self._cleanup(temp_path)
                 return None
 
             return temp_path
@@ -102,6 +103,22 @@ class ArchiveHandler:
             # We will log this in the scanner, for now, just clean up and return None.
             self._cleanup(temp_path)
             return None
+
+    def _safe_extract_zip(self, zf: zipfile.ZipFile, dest: Path) -> None:
+        dest = dest.resolve()
+        for member in zf.infolist():
+            member_path = (dest / member.filename).resolve()
+            if not str(member_path).startswith(str(dest) + "/") and member_path != dest:
+                raise ValueError(f"Path traversal in zip: {member.filename}")
+        zf.extractall(dest)
+
+    def _safe_extract_tar(self, tf: tarfile.TarFile, dest: Path) -> None:
+        dest = dest.resolve()
+        for member in tf.getmembers():
+            member_path = (dest / member.name).resolve()
+            if not str(member_path).startswith(str(dest) + "/") and member_path != dest:
+                raise ValueError(f"Path traversal in tar: {member.name}")
+        tf.extractall(dest)  # noqa: S202
 
     def _cleanup(self, temp_path: Path):
         """

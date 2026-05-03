@@ -58,7 +58,7 @@ class DeepScanner:
 
     def log(self, message: str, level: str = "INFO"):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        log_line = f"[{timestamp}] {message}"
+        log_line = f"[{timestamp}] [{level}] {message}"
         try:
             with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(log_line + "\n")
