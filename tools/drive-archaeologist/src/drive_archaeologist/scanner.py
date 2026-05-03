@@ -5,11 +5,11 @@ Includes support for scanning inside archives.
 """
 
 import json
-import time
 import shutil
+import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
@@ -27,11 +27,17 @@ class DeepScanner:
     Recursively scan a directory tree, including archives, and output file metadata to JSONL.
     """
 
-    def __init__(self, root_path: Path, output_file: Optional[Path] = None, resume: bool = False, trigger_ingestion: bool = False):
+    def __init__(
+        self,
+        root_path: Path,
+        output_file: Path | None = None,
+        resume: bool = False,
+        on_classified: Callable[[dict], None] | None = None,
+    ):
         self.root = Path(root_path).resolve()
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.scan_id = self.root.name.replace("/", "_").replace("\\", "_")
-        self.trigger_ingestion = trigger_ingestion
+        self.on_classified = on_classified
 
         if output_file:
             self.output_file = Path(output_file)
@@ -39,7 +45,7 @@ class DeepScanner:
             self.output_file = Path(f"scan_{self.scan_id}_{self.timestamp}.jsonl")
 
         self.log_file = self.output_file.with_suffix(".log")
-        self.checkpoint = CheckpointManager(self.scan_id) if resume else None
+        self.checkpoint = CheckpointManager(self.scan_id, checkpoint_dir=self.output_file.parent) if resume else None
         self.classifier = Classifier()
         self.archive_handler = ArchiveHandler()
 
@@ -47,12 +53,12 @@ class DeepScanner:
         self.error_count = 0
         self.skipped_count = 0
         self.start_time = time.time()
-        self.progress: Optional[Progress] = None
+        self.progress: Progress | None = None
         self.task = None
 
     def log(self, message: str, level: str = "INFO"):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        log_line = f"[{timestamp}] {message}"
+        log_line = f"[{timestamp}] [{level}] {message}"
         try:
             with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(log_line + "\n")
@@ -81,9 +87,13 @@ class DeepScanner:
                 self.task = self.progress.add_task("[cyan]Scanning...", total=None)
                 self._scan_directory(self.root, outfile)
 
+        if self.checkpoint:
+            self.checkpoint.save_checkpoint()
+            self.log("Final checkpoint saved")
+
         self._print_summary()
 
-    def _scan_directory(self, dir_path: Path, outfile, archive_path: Optional[Path] = None):
+    def _scan_directory(self, dir_path: Path, outfile, archive_path: Path | None = None):
         """Recursively scan a directory."""
         for filepath in dir_path.iterdir():
             if self.checkpoint and self.checkpoint.is_scanned(filepath):
@@ -102,7 +112,7 @@ class DeepScanner:
                 self.error_count += 1
                 self.log(f"Error accessing {filepath}: {e}")
 
-    def _process_file(self, filepath: Path, outfile, archive_path: Optional[Path] = None):
+    def _process_file(self, filepath: Path, outfile, archive_path: Path | None = None):
         """Process a single file, handling archives recursively."""
         try:
             metadata = self._extract_metadata(filepath, archive_path)
@@ -113,45 +123,12 @@ class DeepScanner:
             if self.progress and self.task is not None:
                 self.progress.update(self.task, advance=1, description=f"[cyan]Scanning... ({self.file_count} files)")
 
-            if self.trigger_ingestion and metadata.get("category") == "GNSS Data":
+            if self.on_classified is not None:
                 try:
-                    from datetime import timezone
-                    from ingestion_pipeline.scanner import _sha256
-                    from ingestion_pipeline.database import SessionLocal
-                    from ingestion_pipeline.models import IngestionLog
-                    from ingestion_pipeline.pipeline import trigger_ingest
-
-                    filepath = metadata["path"]
-                    file_hash = _sha256(filepath)
-                    if file_hash is None:
-                        self.log(f"Could not hash file, skipping ingestion: {filepath}", level="WARNING")
-                    else:
-                        session = SessionLocal()
-                        try:
-                            existing = session.get(IngestionLog, file_hash)
-                            if existing and existing.status == "success":
-                                self.log(f"Already ingested, skipping: {filepath}")
-                            else:
-                                if existing:
-                                    existing.status = "pending"
-                                    existing.queued_at = datetime.now(timezone.utc)
-                                    existing.error_message = None
-                                else:
-                                    session.add(IngestionLog(
-                                        file_hash=file_hash,
-                                        filename=Path(filepath).name,
-                                        filepath=filepath,
-                                        status="pending",
-                                    ))
-                                session.commit()
-                                trigger_ingest(filepath, file_hash)
-                                self.log(f"Triggered ingestion for: {filepath}")
-                        finally:
-                            session.close()
-                except ImportError:
-                    self.log("Failed to trigger ingestion: ingestion_pipeline package not found", level="WARNING")
+                    self.on_classified(metadata)
                 except Exception as e:
-                    self.log(f"Failed to trigger ingestion for {metadata['path']}: {e}", level="ERROR")
+                    self.error_count += 1
+                    self.log(f"on_classified callback error for {filepath}: {e}", level="ERROR")
 
             if self.archive_handler.is_archive(filepath):
                 self.log(f"Found archive: {filepath}. Extracting...")
@@ -164,16 +141,17 @@ class DeepScanner:
                 else:
                     self.log(f"Failed to extract archive: {filepath}", level="WARNING")
 
-            if self.checkpoint and self.file_count % 1000 == 0:
+            if self.checkpoint:
                 self.checkpoint.mark_scanned(filepath)
-                self.checkpoint.save_checkpoint()
-                self.log(f"Checkpoint saved ({self.file_count} files)")
+                if self.file_count % 1000 == 0:
+                    self.checkpoint.save_checkpoint()
+                    self.log(f"Checkpoint saved ({self.file_count} files)")
 
         except Exception as e:
             self.error_count += 1
             self.log(f"Unexpected error processing {filepath}: {e}")
 
-    def _extract_metadata(self, filepath: Path, archive_path: Optional[Path] = None) -> dict:
+    def _extract_metadata(self, filepath: Path, archive_path: Path | None = None) -> dict:
         """Extract file metadata."""
         stat = filepath.stat()
         category = self.classifier.classify(filepath)

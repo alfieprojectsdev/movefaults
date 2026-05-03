@@ -29,19 +29,18 @@ def main():
     help="Output file path (default: scan_<name>_<timestamp>.jsonl)",
 )
 @click.option("--resume", "-r", is_flag=True, help="Resume a previous interrupted scan")
-@click.option("--trigger-ingestion", "-t", is_flag=True, help="Trigger RINEX ingestion for GNSS data files found")
-def scan(path: Path, output: Path, resume: bool, trigger_ingestion: bool):
+def scan(path: Path, output: Path, resume: bool):
     """Scan a drive or directory and produce a JSONL file with metadata"""
     try:
-        scanner = DeepScanner(path, output_file=output, resume=resume, trigger_ingestion=trigger_ingestion)
+        scanner = DeepScanner(path, output_file=output, resume=resume)
         scanner.scan()
     except KeyboardInterrupt:
         console.print("\n[yellow]Warning: Scan interrupted by user[/yellow]")
         console.print("[yellow]Progress saved. Use --resume to continue[/yellow]")
-        raise click.Abort()
+        raise click.Abort() from None
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
-        raise click.Abort()
+        raise click.Abort() from None
 
 
 if __name__ == "__main__":

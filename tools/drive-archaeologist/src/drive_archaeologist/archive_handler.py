@@ -4,13 +4,9 @@ Uses a combination of standard library and third-party modules.
 """
 
 import tarfile
-import zipfile
 import tempfile
+import zipfile
 from pathlib import Path
-from typing import List, Optional
-
-import py7zr
-import rarfile
 
 # Supported archive extensions
 SUPPORTED_ARCHIVES = [
@@ -23,7 +19,7 @@ class ArchiveHandler:
     Detects and extracts various archive formats to a temporary directory.
     """
 
-    def __init__(self, temp_base_dir: Optional[Path] = None):
+    def __init__(self, temp_base_dir: Path | None = None):
         """
         Initializes the handler.
 
@@ -43,7 +39,7 @@ class ArchiveHandler:
                 return True
         return False
 
-    def extract(self, filepath: Path) -> Optional[Path]:
+    def extract(self, filepath: Path) -> Path | None:
         """
         Extracts an archive to a new temporary directory.
 
@@ -67,23 +63,36 @@ class ArchiveHandler:
             lower_path = str(filepath).lower()
             if lower_path.endswith(".zip"):
                 with zipfile.ZipFile(filepath, 'r') as zf:
-                    zf.extractall(temp_path)
+                    self._safe_extract_zip(zf, temp_path)
             elif lower_path.endswith(".rar"):
-                # rarfile requires the 'unrar' command-line utility.
-                # It will raise an exception if it's not found.
+                try:
+                    import rarfile
+                except ImportError:
+                    import logging
+                    logging.warning("rarfile not installed; skipping RAR file: %s", filepath)
+                    self._cleanup(temp_path)
+                    return None
                 with rarfile.RarFile(filepath, 'r') as rf:
-                    rf.extractall(temp_path)
+                    self._safe_extract_rar(rf, temp_path)
             elif lower_path.endswith(".7z"):
+                try:
+                    import py7zr
+                except ImportError:
+                    import logging
+                    logging.warning("py7zr not installed; skipping 7z file: %s", filepath)
+                    self._cleanup(temp_path)
+                    return None
                 with py7zr.SevenZipFile(filepath, 'r') as szf:
-                    szf.extractall(temp_path)
+                    self._safe_extract_7z(szf, temp_path)
             elif ".tar" in lower_path or lower_path.endswith(("tgz", "tbz2", "txz")):
                 # The tarfile module can handle most common tar compressions
                 with tarfile.open(filepath, 'r:*') as tf:
-                    tf.extractall(temp_path)
+                    self._safe_extract_tar(tf, temp_path)
             else:
                 # Simple compression formats like .gz that aren't tarballs.
                 # This logic is more complex as they usually wrap a single file.
                 # For now, we are focusing on multi-file archives.
+                self._cleanup(temp_path)
                 return None
 
             return temp_path
@@ -94,6 +103,46 @@ class ArchiveHandler:
             # We will log this in the scanner, for now, just clean up and return None.
             self._cleanup(temp_path)
             return None
+
+    def _safe_extract_zip(self, zf: zipfile.ZipFile, dest: Path) -> None:
+        dest = dest.resolve()
+        for member in zf.infolist():
+            member_path = (dest / member.filename).resolve()
+            try:
+                member_path.relative_to(dest)
+            except ValueError as exc:
+                raise ValueError(f"Path traversal in zip: {member.filename}") from exc
+        zf.extractall(dest)
+
+    def _safe_extract_tar(self, tf: tarfile.TarFile, dest: Path) -> None:
+        dest = dest.resolve()
+        for member in tf.getmembers():
+            member_path = (dest / member.name).resolve()
+            try:
+                member_path.relative_to(dest)
+            except ValueError as exc:
+                raise ValueError(f"Path traversal in tar: {member.name}") from exc
+        tf.extractall(dest)  # noqa: S202
+
+    def _safe_extract_rar(self, rf, dest: Path) -> None:
+        dest = dest.resolve()
+        for member in rf.infolist():
+            member_path = (dest / member.filename).resolve()
+            try:
+                member_path.relative_to(dest)
+            except ValueError as exc:
+                raise ValueError(f"Path traversal in rar: {member.filename}") from exc
+        rf.extractall(dest)
+
+    def _safe_extract_7z(self, szf, dest: Path) -> None:
+        dest = dest.resolve()
+        for member in szf.list():
+            member_path = (dest / member.filename).resolve()
+            try:
+                member_path.relative_to(dest)
+            except ValueError as exc:
+                raise ValueError(f"Path traversal in 7z: {member.filename}") from exc
+        szf.extractall(dest)
 
     def _cleanup(self, temp_path: Path):
         """
