@@ -29,8 +29,8 @@ class GNSSStrategy(Strategy):
                 "file_type": data['type']
             }
         
-        if filename.lower().endswith('o'):
-             return {
+        if re.search(r'\.\d{2}[oO]$', filename):
+            return {
                 "type": "gnss_rinex_possible",
                 "filename": filename
             }

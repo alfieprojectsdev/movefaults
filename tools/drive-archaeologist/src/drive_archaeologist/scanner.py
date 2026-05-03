@@ -87,6 +87,10 @@ class DeepScanner:
                 self.task = self.progress.add_task("[cyan]Scanning...", total=None)
                 self._scan_directory(self.root, outfile)
 
+        if self.checkpoint:
+            self.checkpoint.save_checkpoint()
+            self.log("Final checkpoint saved")
+
         self._print_summary()
 
     def _scan_directory(self, dir_path: Path, outfile, archive_path: Path | None = None):
@@ -136,10 +140,11 @@ class DeepScanner:
                 else:
                     self.log(f"Failed to extract archive: {filepath}", level="WARNING")
 
-            if self.checkpoint and self.file_count % 1000 == 0:
+            if self.checkpoint:
                 self.checkpoint.mark_scanned(filepath)
-                self.checkpoint.save_checkpoint()
-                self.log(f"Checkpoint saved ({self.file_count} files)")
+                if self.file_count % 1000 == 0:
+                    self.checkpoint.save_checkpoint()
+                    self.log(f"Checkpoint saved ({self.file_count} files)")
 
         except Exception as e:
             self.error_count += 1

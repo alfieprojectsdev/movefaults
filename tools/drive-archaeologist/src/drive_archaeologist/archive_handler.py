@@ -108,16 +108,20 @@ class ArchiveHandler:
         dest = dest.resolve()
         for member in zf.infolist():
             member_path = (dest / member.filename).resolve()
-            if not str(member_path).startswith(str(dest) + "/") and member_path != dest:
-                raise ValueError(f"Path traversal in zip: {member.filename}")
+            try:
+                member_path.relative_to(dest)
+            except ValueError as exc:
+                raise ValueError(f"Path traversal in zip: {member.filename}") from exc
         zf.extractall(dest)
 
     def _safe_extract_tar(self, tf: tarfile.TarFile, dest: Path) -> None:
         dest = dest.resolve()
         for member in tf.getmembers():
             member_path = (dest / member.name).resolve()
-            if not str(member_path).startswith(str(dest) + "/") and member_path != dest:
-                raise ValueError(f"Path traversal in tar: {member.name}")
+            try:
+                member_path.relative_to(dest)
+            except ValueError as exc:
+                raise ValueError(f"Path traversal in tar: {member.name}") from exc
         tf.extractall(dest)  # noqa: S202
 
     def _cleanup(self, temp_path: Path):

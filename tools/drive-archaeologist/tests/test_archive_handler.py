@@ -23,8 +23,8 @@ def test_rar_missing_dep_returns_none_not_raises(tmp_path):
     original = sys.modules.get("rarfile", "NOT_SET")
     sys.modules["rarfile"] = None  # simulate missing package
     try:
-        handler.extract(fake_rar)
-        # Must not raise; result is None (missing dep) or None (bad file) — either OK
+        result = handler.extract(fake_rar)
+        assert result is None, "extract() must return None when rarfile dep is missing"
     except ImportError as exc:
         raise AssertionError("extract() must not propagate ImportError for missing rarfile") from exc
     finally:
@@ -42,7 +42,8 @@ def test_7z_missing_dep_returns_none_not_raises(tmp_path):
     original = sys.modules.get("py7zr", "NOT_SET")
     sys.modules["py7zr"] = None
     try:
-        handler.extract(fake_7z)
+        result = handler.extract(fake_7z)
+        assert result is None, "extract() must return None when py7zr dep is missing"
     except ImportError as exc:
         raise AssertionError("extract() must not propagate ImportError for missing py7zr") from exc
     finally:

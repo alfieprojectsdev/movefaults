@@ -15,6 +15,9 @@ class MediaStrategy(Strategy):
         return ext.lower() in self.EXTENSIONS
 
     def extract(self, path: str) -> dict | None:
+        _, ext = os.path.splitext(path)
+        if ext.lower() not in self.EXTENSIONS:
+            return None
         filename = os.path.basename(path)
         match = self.PATTERN.search(filename)
         if match:
