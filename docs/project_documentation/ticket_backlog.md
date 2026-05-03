@@ -153,7 +153,7 @@ The scanner classifies GNSS files; the Celery pipeline validates and loads them.
 - Wire to `ingest_rinex.delay()` Celery task with file path + station metadata
 - Integration test: scan a small fixture directory, verify task fires and `IngestionLog` row is created in DB
 
-*Prerequisite: PR #33 (`refactor/drive-arch-harden`) — scanner hardening + `on_classified` callback seam — must merge first.*
+*Prerequisite: PR #33 merged `c138806` — scanner hardening + `on_classified` callback seam.*
 
 ---
 
@@ -171,7 +171,7 @@ The scanner classifies GNSS files; the Celery pipeline validates and loads them.
 
 ---
 
-### ~~ING-003~~ · P2 · S · **PR #34 ready to merge** `c40b341`
+### ~~ING-003~~ · P2 · S · **DONE** `6a697eb`
 **teqc as RINEX QC backend**
 
 `rinex_qc.py` now shells to `teqc +qc` (replacing placeholder `gfzrnx` stub). Structured `RINEXQCResult` dataclass; QC metrics propagated to `IngestionLog` through the Celery chain. Two CodeRabbit review cycles addressed (timeout, QC persistence, error propagation, test coverage). 12 unit tests.
