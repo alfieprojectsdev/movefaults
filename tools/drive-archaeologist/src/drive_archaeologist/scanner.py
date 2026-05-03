@@ -127,6 +127,7 @@ class DeepScanner:
                 try:
                     self.on_classified(metadata)
                 except Exception as e:
+                    self.error_count += 1
                     self.log(f"on_classified callback error for {filepath}: {e}", level="ERROR")
 
             if self.archive_handler.is_archive(filepath):

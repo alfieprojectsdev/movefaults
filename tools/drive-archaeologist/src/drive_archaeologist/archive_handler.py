@@ -73,7 +73,7 @@ class ArchiveHandler:
                     self._cleanup(temp_path)
                     return None
                 with rarfile.RarFile(filepath, 'r') as rf:
-                    rf.extractall(temp_path)
+                    self._safe_extract_rar(rf, temp_path)
             elif lower_path.endswith(".7z"):
                 try:
                     import py7zr
@@ -83,7 +83,7 @@ class ArchiveHandler:
                     self._cleanup(temp_path)
                     return None
                 with py7zr.SevenZipFile(filepath, 'r') as szf:
-                    szf.extractall(temp_path)
+                    self._safe_extract_7z(szf, temp_path)
             elif ".tar" in lower_path or lower_path.endswith(("tgz", "tbz2", "txz")):
                 # The tarfile module can handle most common tar compressions
                 with tarfile.open(filepath, 'r:*') as tf:
@@ -123,6 +123,26 @@ class ArchiveHandler:
             except ValueError as exc:
                 raise ValueError(f"Path traversal in tar: {member.name}") from exc
         tf.extractall(dest)  # noqa: S202
+
+    def _safe_extract_rar(self, rf, dest: Path) -> None:
+        dest = dest.resolve()
+        for member in rf.infolist():
+            member_path = (dest / member.filename).resolve()
+            try:
+                member_path.relative_to(dest)
+            except ValueError as exc:
+                raise ValueError(f"Path traversal in rar: {member.filename}") from exc
+        rf.extractall(dest)
+
+    def _safe_extract_7z(self, szf, dest: Path) -> None:
+        dest = dest.resolve()
+        for member in szf.list():
+            member_path = (dest / member.filename).resolve()
+            try:
+                member_path.relative_to(dest)
+            except ValueError as exc:
+                raise ValueError(f"Path traversal in 7z: {member.filename}") from exc
+        szf.extractall(dest)
 
     def _cleanup(self, temp_path: Path):
         """
