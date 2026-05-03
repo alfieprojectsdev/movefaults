@@ -29,10 +29,22 @@ def main():
     help="Output file path (default: scan_<name>_<timestamp>.jsonl)",
 )
 @click.option("--resume", "-r", is_flag=True, help="Resume a previous interrupted scan")
-def scan(path: Path, output: Path, resume: bool):
+@click.option(
+    "--ingest", is_flag=True, help="Dispatch classified GNSS files to the ingestion pipeline"
+)
+@click.option(
+    "--dry-run", is_flag=True, help="Log what would be dispatched without sending to Celery"
+)
+def scan(path: Path, output: Path, resume: bool, ingest: bool, dry_run: bool):
     """Scan a drive or directory and produce a JSONL file with metadata"""
+    on_classified = None
+    if ingest or dry_run:
+        from .ingestion_dispatch import make_dispatch_callback
+
+        on_classified = make_dispatch_callback(dry_run=dry_run)
+
     try:
-        scanner = DeepScanner(path, output_file=output, resume=resume)
+        scanner = DeepScanner(path, output_file=output, resume=resume, on_classified=on_classified)
         scanner.scan()
     except KeyboardInterrupt:
         console.print("\n[yellow]Warning: Scan interrupted by user[/yellow]")
