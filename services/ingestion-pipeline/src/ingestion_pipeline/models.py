@@ -8,7 +8,7 @@ is created by migration 006 in the root Alembic history.
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, String, Text
+from sqlalchemy import Column, DateTime, Float, Integer, String, Text
 
 from src.db.models import Base
 
@@ -34,6 +34,10 @@ class IngestionLog(Base):
     queued_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     ingested_at = Column(DateTime(timezone=True))
     error_message = Column(Text)
+    qc_obs_count    = Column(Integer)
+    qc_cycle_slips  = Column(Integer)
+    qc_mp1_rms      = Column(Float)
+    qc_mp2_rms      = Column(Float)
 
     def __repr__(self) -> str:
         return f"<IngestionLog {self.filename} [{self.status}]>"
