@@ -67,14 +67,15 @@ def _parse_teqc_output(text: str) -> RINEXQCResult:
 
 
 class RinexQC:
-    def __init__(self, teqc_path: str = "teqc"):
+    def __init__(self, teqc_path: str = "teqc", timeout_sec: int = 120):
         self.teqc_path = teqc_path
+        self.timeout_sec = timeout_sec
 
     def run_qc(self, rinex_file: str) -> RINEXQCResult:
         """Run teqc +qc on a RINEX file and return structured results.
 
         Raises FileNotFoundError if the RINEX file does not exist.
-        Raises RuntimeError if teqc exits with a non-zero status.
+        Raises RuntimeError if teqc exits with a non-zero status or times out.
         Returns a RINEXQCResult with None fields when teqc output does not
         contain recognisable values (e.g. very old teqc version).
         """
@@ -94,11 +95,16 @@ class RinexQC:
                     capture_output=True,
                     text=True,
                     cwd=tmp,
+                    timeout=self.timeout_sec,
                 )
             except FileNotFoundError as exc:
                 raise RuntimeError(
                     f"teqc not found at '{self.teqc_path}'. "
                     "Install from https://www.unavco.org/software/data-processing/teqc/teqc.html"
+                ) from exc
+            except subprocess.TimeoutExpired as exc:
+                raise RuntimeError(
+                    f"teqc timed out after {self.timeout_sec}s for '{rinex_file}'"
                 ) from exc
 
             if proc.returncode not in (0, 1):  # teqc exits 1 on non-fatal warnings

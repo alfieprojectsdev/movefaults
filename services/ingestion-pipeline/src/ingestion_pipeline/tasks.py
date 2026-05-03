@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .celery import app
@@ -100,7 +100,7 @@ def _parse_rinex_time(raw: str) -> datetime | None:
         sec_f = float(parts[5])
         second = int(sec_f)
         microsecond = int((sec_f - second) * 1_000_000)
-        return datetime(year, month, day, hour, minute, second, microsecond, tzinfo=timezone.utc)
+        return datetime(year, month, day, hour, minute, second, microsecond, tzinfo=UTC)
     except (ValueError, IndexError):
         return None
 
@@ -179,17 +179,17 @@ def _standardize_format(file_path: str) -> str:
     return str(out_path)
 
 
-def _validate_rinex(file_path: str) -> str:
+def _validate_rinex(file_path: str) -> dict:
     """
     Validate that file_path is a well-formed RINEX observation file.
 
     Two-stage validation:
       1. Header scan — reads first 10 lines looking for 'RINEX VERSION' or
          'CRINEX VERS'. Fast, no external dependencies.
-      2. teqc QC — runs 'teqc +qc <file>' for deeper quality check.
-         If teqc is not in PATH, logs a warning and skips (non-fatal).
+      2. teqc QC — runs 'teqc +qc <file>' via RinexQC for deeper quality check.
+         If teqc is not in PATH or times out, logs a warning and skips (non-fatal).
 
-    Returns file_path unchanged so the Celery chain can pass it onward.
+    Returns a dict with file_path and QC metrics for _load_to_postgres.
     Raises ValueError on invalid header (marks Celery task as FAILED).
     """
     logger.info("validate_rinex: %s", file_path)
@@ -214,27 +214,38 @@ def _validate_rinex(file_path: str) -> str:
         raise ValueError(f"No RINEX VERSION marker found in first 10 lines of {file_path}")
 
     # ── Stage 2: teqc QC (optional) ───────────────────────────────────────
+    qc_obs_count = qc_cycle_slips = qc_mp1_rms = qc_mp2_rms = None
     try:
-        result = subprocess.run(
-            ["teqc", "+qc", str(path)],
-            capture_output=True, text=True, timeout=120,
-        )
-        if result.returncode != 0:
-            logger.warning("teqc QC warnings for %s:\n%s", file_path, result.stderr[:500])
+        from pogf_geodetic_suite.qc.rinex_qc import RinexQC
+        qc_result = RinexQC().run_qc(file_path)
+        qc_obs_count = qc_result.obs_count
+        qc_cycle_slips = qc_result.cycle_slips
+        qc_mp1_rms = qc_result.mp1_rms
+        qc_mp2_rms = qc_result.mp2_rms
+        logger.info("teqc QC passed: %s", file_path)
+    except RuntimeError as e:
+        msg = str(e)
+        if "not found" in msg:
+            logger.warning("teqc not in PATH — skipping QC for %s", file_path)
+        elif "timed out" in msg:
+            logger.warning("teqc timed out for %s — skipping QC", file_path)
         else:
-            logger.info("teqc QC passed: %s", file_path)
-    except FileNotFoundError:
-        logger.warning("teqc not in PATH — skipping QC for %s", file_path)
-    except subprocess.TimeoutExpired:
-        logger.warning("teqc timed out for %s — skipping QC", file_path)
+            logger.warning("teqc QC warnings for %s: %s", file_path, msg[:500])
 
-    return file_path
+    return {
+        "file_path": file_path,
+        "qc_obs_count": qc_obs_count,
+        "qc_cycle_slips": qc_cycle_slips,
+        "qc_mp1_rms": qc_mp1_rms,
+        "qc_mp2_rms": qc_mp2_rms,
+    }
 
 
-def _load_to_postgres(file_path: str, file_hash: str) -> str:
+def _load_to_postgres(validated: dict, file_hash: str) -> str:
     """
     Write a RinexFile row to public.rinex_files and mark IngestionLog success.
 
+    Accepts the dict returned by _validate_rinex (file_path + QC metrics).
     Parses the RINEX header to extract:
       station_code, sampling_interval, start_time, end_time,
       receiver_type, antenna_type.
@@ -244,6 +255,12 @@ def _load_to_postgres(file_path: str, file_hash: str) -> str:
     IngestionLog row is updated to status='failed').
     """
     from src.db.models import RinexFile, Station  # central ORM (public schema)
+
+    file_path = validated["file_path"]
+    qc_obs_count = validated.get("qc_obs_count")
+    qc_cycle_slips = validated.get("qc_cycle_slips")
+    qc_mp1_rms = validated.get("qc_mp1_rms")
+    qc_mp2_rms = validated.get("qc_mp2_rms")
 
     logger.info("load_to_postgres: %s", file_path)
     meta = _parse_rinex_header(file_path)
@@ -273,8 +290,8 @@ def _load_to_postgres(file_path: str, file_hash: str) -> str:
             rnx = RinexFile(
                 station_id=station.id,
                 filepath=file_path,
-                start_time=start_time or datetime.now(timezone.utc),
-                end_time=end_time or datetime.now(timezone.utc),
+                start_time=start_time or datetime.now(UTC),
+                end_time=end_time or datetime.now(UTC),
                 sampling_interval=meta.get("sampling_interval"),
                 receiver_type=meta.get("receiver_type"),
                 antenna_type=meta.get("antenna_type"),
@@ -287,7 +304,11 @@ def _load_to_postgres(file_path: str, file_hash: str) -> str:
         if log:
             log.status = "success"
             log.station_code = station_code
-            log.ingested_at = datetime.now(timezone.utc)
+            log.ingested_at = datetime.now(UTC)
+            log.qc_obs_count = qc_obs_count
+            log.qc_cycle_slips = qc_cycle_slips
+            log.qc_mp1_rms = qc_mp1_rms
+            log.qc_mp2_rms = qc_mp2_rms
 
         session.commit()
         logger.info("Ingested %s → station %s", file_path, station_code)
@@ -318,10 +339,10 @@ def standardize_format(file_path: str) -> str:
 
 
 @app.task(name="ingestion_pipeline.tasks.validate_rinex")
-def validate_rinex(file_path: str) -> str:
+def validate_rinex(file_path: str) -> dict:
     return _validate_rinex(file_path)
 
 
 @app.task(name="ingestion_pipeline.tasks.load_to_postgres")
-def load_to_postgres(file_path: str, file_hash: str) -> str:
-    return _load_to_postgres(file_path, file_hash)
+def load_to_postgres(validated: dict, file_hash: str) -> str:
+    return _load_to_postgres(validated, file_hash)

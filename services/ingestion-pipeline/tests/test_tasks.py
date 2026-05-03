@@ -13,14 +13,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from ingestion_pipeline.tasks import (
     _parse_rinex_header,
     _parse_rinex_time,
     _standardize_format,
     _validate_rinex,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -120,7 +118,7 @@ def test_parse_rinex_time_invalid():
 
 def test_validate_rinex_valid_header(rinex_file):
     result = _validate_rinex(rinex_file)
-    assert result == rinex_file
+    assert result["file_path"] == rinex_file
 
 
 def test_validate_rinex_missing_file(tmp_dir):
@@ -136,11 +134,28 @@ def test_validate_rinex_invalid_header(tmp_dir):
 
 
 def test_validate_rinex_skips_teqc_if_missing(rinex_file):
-    """If teqc is not in PATH, _validate_rinex should still succeed."""
-    with patch("ingestion_pipeline.tasks.subprocess.run") as mock_run:
-        mock_run.side_effect = FileNotFoundError("teqc not found")
+    """If teqc is not in PATH, _validate_rinex should still succeed with None QC fields."""
+    with patch(
+        "pogf_geodetic_suite.qc.rinex_qc.subprocess.run",
+        side_effect=FileNotFoundError("teqc not found"),
+    ):
         result = _validate_rinex(rinex_file)
-    assert result == rinex_file
+    assert result["file_path"] == rinex_file
+    assert result["qc_obs_count"] is None
+    assert result["qc_cycle_slips"] is None
+
+
+def test_validate_rinex_captures_qc_metrics(rinex_file):
+    """When teqc succeeds, QC metrics are returned in the dict."""
+    mock_proc = MagicMock()
+    mock_proc.returncode = 0
+    mock_proc.stdout = ""
+    mock_proc.stderr = "# obs       :  85321\n# slips  (all)    :    10\nMP1 : 0.30\nMP2 : 0.41\n"
+    with patch("pogf_geodetic_suite.qc.rinex_qc.subprocess.run", return_value=mock_proc):
+        result = _validate_rinex(rinex_file)
+    assert result["file_path"] == rinex_file
+    assert result["qc_obs_count"] == 85321
+    assert result["qc_cycle_slips"] == 10
 
 
 # ---------------------------------------------------------------------------

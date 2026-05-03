@@ -1,4 +1,5 @@
 """Tests for RinexQC / teqc +qc wrapper."""
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -82,9 +83,9 @@ def test_run_qc_reads_s_file(tmp_path):
     rinex = tmp_path / "ALGO0010.22O"
     rinex.write_text("dummy rinex content")
 
-    def fake_run(cmd, capture_output, text, cwd):
+    def fake_run(cmd, **kwargs):
         # Simulate teqc writing a .S file
-        s_file = Path(cwd) / "ALGO0010.S"
+        s_file = Path(kwargs["cwd"]) / "ALGO0010.S"
         s_file.write_text(SAMPLE_TEQC_OUTPUT)
         result = MagicMock()
         result.returncode = 0
@@ -144,6 +145,24 @@ def test_run_qc_raises_on_fatal_exit_code(tmp_path):
         qc = RinexQC()
         with pytest.raises(RuntimeError):
             qc.run_qc(str(rinex))
+
+
+def test_run_qc_raises_on_timeout(tmp_path):
+    rinex = tmp_path / "ALGO0010.22O"
+    rinex.write_text("dummy rinex content")
+
+    with patch(
+        "pogf_geodetic_suite.qc.rinex_qc.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="teqc", timeout=30),
+    ):
+        qc = RinexQC(timeout_sec=30)
+        with pytest.raises(RuntimeError, match="timed out after 30s"):
+            qc.run_qc(str(rinex))
+
+
+def test_rinex_qc_custom_timeout():
+    qc = RinexQC(timeout_sec=30)
+    assert qc.timeout_sec == 30
 
 
 def test_rinex_qc_result_dataclass_fields():
