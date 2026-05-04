@@ -73,3 +73,18 @@ def test_generate_pcf_phivol_template(tmp_path):
     assert "443 AMBXTR" in content
     assert "514 HELMCHK" in content
     assert "IGS" in content   # v_b default
+
+
+def test_generate_pcf_strict_undefined_raises(tmp_path):
+    """StrictUndefined: rendering with a missing required var raises UndefinedError."""
+    import jinja2
+
+    template_dir = str(tmp_path / "templates")
+    Path(template_dir).mkdir()
+    (Path(template_dir) / "strict.j2").write_text("{{ v_required }}")
+
+    mock_backend = MagicMock()
+    orch = BerneseOrchestrator(str(tmp_path / "b"), template_dir, backend=mock_backend)
+
+    with pytest.raises(jinja2.UndefinedError):
+        orch.generate_pcf("strict.j2", {}, str(tmp_path / "out.pcf"))

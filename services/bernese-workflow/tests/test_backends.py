@@ -79,6 +79,54 @@ def test_linux_backend_prepare_creates_subdirs(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# LinuxBPEBackend.collect_outputs
+# ---------------------------------------------------------------------------
+
+def test_collect_outputs_single_match(tmp_path):
+    backend = LinuxBPEBackend(
+        bernese_root=tmp_path / "BERN54",
+        user_dir=tmp_path / "GPSUSER",
+        campaign_dir=tmp_path / "GPSDATA",
+    )
+    out_dir = tmp_path / "GPSDATA" / "TESTCAMP" / "OUT"
+    out_dir.mkdir(parents=True)
+    (out_dir / "F1_0100.SNX").write_text("")
+    (out_dir / "R1_0100.NQ0").write_text("")
+
+    result = backend.collect_outputs("TESTCAMP", 2023, "0100")
+    assert "sinex" in result
+    assert "nq0" in result
+
+
+def test_collect_outputs_raises_on_ambiguous(tmp_path):
+    backend = LinuxBPEBackend(
+        bernese_root=tmp_path / "BERN54",
+        user_dir=tmp_path / "GPSUSER",
+        campaign_dir=tmp_path / "GPSDATA",
+    )
+    out_dir = tmp_path / "GPSDATA" / "TESTCAMP" / "OUT"
+    out_dir.mkdir(parents=True)
+    (out_dir / "F1_0100.SNX").write_text("")
+    (out_dir / "F1_0101.SNX").write_text("")
+
+    with pytest.raises(RuntimeError, match="Ambiguous"):
+        backend.collect_outputs("TESTCAMP", 2023, "0100")
+
+
+def test_collect_outputs_empty(tmp_path):
+    backend = LinuxBPEBackend(
+        bernese_root=tmp_path / "BERN54",
+        user_dir=tmp_path / "GPSUSER",
+        campaign_dir=tmp_path / "GPSDATA",
+    )
+    out_dir = tmp_path / "GPSDATA" / "TESTCAMP" / "OUT"
+    out_dir.mkdir(parents=True)
+
+    result = backend.collect_outputs("TESTCAMP", 2023, "0100")
+    assert result == {}
+
+
+# ---------------------------------------------------------------------------
 # WindowsBPEBackend
 # ---------------------------------------------------------------------------
 

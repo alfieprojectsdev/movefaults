@@ -103,6 +103,11 @@ class LinuxBPEBackend:
     def run(self, campaign_name: str, year: int, session: str) -> BPEResult:
         script = self.user_dir / "SCRIPT" / "rnx2snx_pcs.pl"
         env_overrides = {
+            # Bernese path variables required by Perl scripts
+            "X": str(self.bernese_root),
+            "U": str(self.user_dir),
+            "P": str(self.campaign_dir),
+            # BPE session parameters
             "PCF_FILE": "RNX2SNX",
             "CPU_FILE": "PCF",
             "BPE_CAMPAIGN": campaign_name,
@@ -144,12 +149,18 @@ class LinuxBPEBackend:
     def collect_outputs(self, campaign_name: str, year: int, session: str) -> dict[str, Path]:
         out_dir = self.campaign_dir / campaign_name / "OUT"
         result: dict[str, Path] = {}
-        snx = next(out_dir.glob("*.SNX"), None)
-        nq0 = next(out_dir.glob("*.NQ0"), None)
-        if snx:
-            result["sinex"] = snx
-        if nq0:
-            result["nq0"] = nq0
+
+        for key, suffix in (("sinex", "*.SNX"), ("nq0", "*.NQ0")):
+            matches = sorted(out_dir.glob(suffix))
+            if len(matches) == 1:
+                result[key] = matches[0]
+            elif len(matches) > 1:
+                raise RuntimeError(
+                    f"Ambiguous {suffix} outputs for campaign {campaign_name!r} "
+                    f"(year={year}, session={session}): found {[str(m) for m in matches]}. "
+                    "Clean the OUT/ directory before collecting outputs."
+                )
+
         return result
 
 

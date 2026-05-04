@@ -25,6 +25,7 @@ class BerneseOrchestrator:
         self.template_env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(template_dir),
             keep_trailing_newline=True,
+            undefined=jinja2.StrictUndefined,
         )
         if backend is None:
             from .backends import LinuxBPEBackend
