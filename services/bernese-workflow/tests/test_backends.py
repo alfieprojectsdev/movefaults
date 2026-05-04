@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pytest
 from bernese_workflow.backends import (
+    _SUBDIRS,
     LinuxBPEBackend,
     WindowsBPEBackend,
     _parse_bpe_output,
@@ -73,7 +74,7 @@ def test_linux_backend_prepare_creates_subdirs(tmp_path):
     backend.prepare_campaign("TESTCAMP", 2023, "0100")
 
     campaign_path = tmp_path / "GPSDATA" / "TESTCAMP"
-    for subdir in ("ATM", "BPE", "GRD", "OBS", "ORB", "ORX", "OUT", "RAW", "SOL", "STA"):
+    for subdir in _SUBDIRS:
         assert (campaign_path / subdir).is_dir(), f"Missing subdir: {subdir}"
 
 

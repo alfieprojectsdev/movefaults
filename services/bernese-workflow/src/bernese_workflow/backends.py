@@ -7,6 +7,7 @@ interface is accepted without inheritance.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import subprocess
 from dataclasses import dataclass, field
@@ -22,7 +23,7 @@ _SUBDIRS = ("ATM", "BPE", "GRD", "OBS", "ORB", "ORX", "OUT", "RAW", "SOL", "STA"
 class BPEResult:
     success: bool
     stations_survived: int | None          # count after PID 221/222 RXOBV3
-    ambiguity_fixing_rate: float | None    # from PID 443 AMBXTR, 0.0–1.0
+    ambiguity_fixing_rate: float | None    # from PID 443 AMBXTR, 0.0-1.0
     helmchk_failed: bool                   # PID 513 reference station motion
     comparf_failed: bool                   # PID 514 daily repeatability
     output_files: dict[str, Path] = field(default_factory=dict)
@@ -109,7 +110,6 @@ class LinuxBPEBackend:
             "SESSION": session,
         }
 
-        import os
         env = {**os.environ, **env_overrides}
 
         logger.info("Starting BPE: perl %s %s %s", script, year, session)

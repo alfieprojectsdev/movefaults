@@ -18,6 +18,8 @@ class BerneseOrchestrator:
         bernese_path: str,
         template_dir: str,
         backend: BPEBackend | None = None,
+        user_dir: str | Path | None = None,
+        campaign_dir: str | Path | None = None,
     ) -> None:
         self.bernese_path = bernese_path
         self.template_env = jinja2.Environment(
@@ -29,8 +31,8 @@ class BerneseOrchestrator:
 
             self._backend: BPEBackend = LinuxBPEBackend(
                 bernese_root=bernese_path,
-                user_dir=Path(bernese_path) / "GPSUSER",
-                campaign_dir=Path(bernese_path) / "GPSDATA",
+                user_dir=user_dir if user_dir is not None else Path(bernese_path) / "GPSUSER",
+                campaign_dir=campaign_dir if campaign_dir is not None else Path(bernese_path) / "GPSDATA",
             )
         else:
             self._backend = backend

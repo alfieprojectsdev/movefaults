@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 
 @dataclass
@@ -16,12 +16,4 @@ class PCFContext:
     v_hoifil: str = "HOI$YSS+0"
 
     def to_dict(self) -> dict[str, str]:
-        return {
-            "v_crdinf": self.v_crdinf,
-            "v_rnxdir": self.v_rnxdir,
-            "v_b": self.v_b,
-            "v_refinf": self.v_refinf,
-            "v_sampl": self.v_sampl,
-            "v_satsys": self.v_satsys,
-            "v_hoifil": self.v_hoifil,
-        }
+        return {k: str(v) for k, v in asdict(self).items()}
