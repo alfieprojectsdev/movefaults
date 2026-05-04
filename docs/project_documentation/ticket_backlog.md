@@ -1,6 +1,6 @@
 # Implementation Ticket Backlog
 
-**Last updated:** 2026-05-03
+**Last updated:** 2026-05-04
 **Source:** Codebase survey [`codebase_status_20260425.md`](codebase_status_20260425.md) cross-referenced with [`roadmap.md`](roadmap.md)
 
 > **Priority:** P0 = critical path blocker · P1 = production deployment · P2 = feature complete · P3 = deferred
@@ -12,16 +12,16 @@
 
 ```
 ~~IGS-001~~ ──┐
-               ├──▶ BRN-001 ──▶ BRN-002 ──▶ BRN-003 ──▶ BRN-004 ──▶ BRN-005
+               ├──▶ BRN-001 ──▶ ~~BRN-002~~ ──▶ ~~BRN-003~~ ──▶ BRN-004 ──▶ BRN-005
 ~~ING-003~~ ──┘
 
-PR#33 (scanner) ──▶ ING-001 ──▶ ING-002    (parallel to Bernese track)
+PR#33 (scanner) ──▶ ~~ING-001~~ ──▶ ING-002    (parallel to Bernese track)
 
 ~~VAD-001~~
 ~~VAD-002~~                                 (parallel; needed before R740 go-live)
 ```
 
-Shortest path to first end-to-end Bernese run: **IGS-001 → BRN-001 → BRN-002 → BRN-003 → BRN-004**.
+Shortest path to first end-to-end Bernese run: **BRN-001 → BRN-004** (BRN-002+003 merged `bead683`).
 BRN-001 (R740 install) has the longest elapsed wall-clock time and should start first.
 
 ---
@@ -83,7 +83,7 @@ T420 install is verified (EXAMPLE BPE ran 47 steps, solutions ≤ 0.09 mm). R740
 
 ---
 
-### BRN-002 · P0 · L
+### ~~BRN-002~~ · P0 · L · **DONE** `bead683`
 **`BPEBackend` protocol + `LinuxBPEBackend` implementation**
 
 `run_bpe()` in `orchestrator.py` is a logged placeholder. The Perl `startBPE.pm` API is fully documented in `memory/bernese_install.md` and `memory/bernese_bpe_phases.md`.
@@ -97,7 +97,7 @@ T420 install is verified (EXAMPLE BPE ran 47 steps, solutions ≤ 0.09 mm). R740
 
 ---
 
-### BRN-003 · P0 · M
+### ~~BRN-003~~ · P0 · M · **DONE** `bead683`
 **Jinja2 INP templates from completed 5.2 → 5.4 diff**
 
 INP file diff is complete (2026-03-03). Exactly 3 parameters need Jinja2 overrides. Current PCF template is a 16-line placeholder; `PHIVOL_REL.PCF` (127 lines, 7 stages) is the real target.
@@ -144,7 +144,7 @@ Before any BPE run the campaign directory must be populated in dependency order.
 
 ## Ingestion Pipeline
 
-### ING-001 · P1 · M
+### ~~ING-001~~ · P1 · M · **DONE** `2aeac1b`
 **drive-archaeologist → ingestion-pipeline Celery handoff**
 
 The scanner classifies GNSS files; the Celery pipeline validates and loads them. The handoff between the two does not exist.
