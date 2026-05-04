@@ -89,7 +89,10 @@ def make_dispatch_callback(dry_run: bool = False) -> Callable[[dict], None]:
                 # 7. Upsert IngestionLog row with status="pending".
                 if existing:
                     existing.status = "pending"
+                    existing.filename = artifact.get("name", existing.filename)
                     existing.filepath = file_path
+                    existing.error_message = None
+                    existing.ingested_at = None
                 else:
                     session.add(
                         IngestionLog(
@@ -108,7 +111,7 @@ def make_dispatch_callback(dry_run: bool = False) -> Callable[[dict], None]:
                 session.close()
 
         except Exception as exc:
-            # 8. Never crash the scan — log and continue.
             logger.error("Dispatch failed for %s: %s", file_path, exc)
+            raise
 
     return _dispatch

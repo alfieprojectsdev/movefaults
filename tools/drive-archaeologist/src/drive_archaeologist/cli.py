@@ -35,7 +35,7 @@ def main():
 @click.option(
     "--dry-run", is_flag=True, help="Log what would be dispatched without sending to Celery"
 )
-def scan(path: Path, output: Path, resume: bool, ingest: bool, dry_run: bool):
+def scan(path: Path, output: Path | None, resume: bool, ingest: bool, dry_run: bool):
     """Scan a drive or directory and produce a JSONL file with metadata"""
     on_classified = None
     if ingest or dry_run:

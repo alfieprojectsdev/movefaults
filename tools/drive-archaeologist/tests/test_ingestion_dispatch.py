@@ -180,6 +180,41 @@ class TestDispatchSkipsAlreadyIngested:
 
         mock_trigger.assert_not_called()
 
+    def test_dispatch_replays_failed_row(self, tmp_path):
+        """IngestionLog row with status='failed' → status reset to 'pending', trigger called."""
+        gnss_file = tmp_path / "SITE0010.24O"
+        gnss_file.write_bytes(b"RINEX" * 20)
+
+        artifact = {**GNSS_ARTIFACT, "path": str(gnss_file), "name": gnss_file.name}
+        callback = make_dispatch_callback(dry_run=False)
+
+        existing_log = MagicMock()
+        existing_log.status = "failed"
+        existing_log.filename = "old_name.24o"
+
+        mock_session_local, mock_log_cls, mock_trigger, mock_session = _make_pipeline_mocks(
+            existing_log=existing_log
+        )
+
+        with (
+            patch.dict(
+                sys.modules,
+                {
+                    "ingestion_pipeline": MagicMock(),
+                    "ingestion_pipeline.database": MagicMock(SessionLocal=mock_session_local),
+                    "ingestion_pipeline.models": MagicMock(IngestionLog=mock_log_cls),
+                    "ingestion_pipeline.pipeline": MagicMock(trigger_ingest=mock_trigger),
+                },
+            )
+        ):
+            callback(artifact)
+
+        assert existing_log.status == "pending"
+        assert existing_log.filename == gnss_file.name
+        assert existing_log.error_message is None
+        assert existing_log.ingested_at is None
+        mock_trigger.assert_called_once()
+
 
 class TestDispatchDryRunDoesNotCallTriggerIngest:
     def test_dispatch_dry_run_does_not_call_trigger_ingest(self, tmp_path):
