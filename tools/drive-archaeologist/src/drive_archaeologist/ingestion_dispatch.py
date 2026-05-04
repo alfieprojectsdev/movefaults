@@ -80,13 +80,16 @@ def make_dispatch_callback(dry_run: bool = False) -> Callable[[dict], None]:
         try:
             session = SessionLocal()
             try:
-                # 6. Idempotency check: skip files already successfully ingested.
+                # 6. Idempotency: skip terminal-success and in-flight rows.
                 existing = session.get(IngestionLog, file_hash)
-                if existing and existing.status == "success":
-                    logger.debug("Already ingested (hash=%s): %s", file_hash, file_path)
+                if existing and existing.status in ("success", "pending", "processing"):
+                    logger.debug(
+                        "Skipping dispatch (status=%r, hash=%s): %s",
+                        existing.status, file_hash, file_path,
+                    )
                     return
 
-                # 7. Upsert IngestionLog row with status="pending".
+                # 7. Upsert IngestionLog row — only reached for new or restartable rows.
                 if existing:
                     existing.status = "pending"
                     existing.filename = artifact.get("name", existing.filename)
