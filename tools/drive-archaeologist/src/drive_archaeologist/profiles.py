@@ -16,6 +16,10 @@ CLASSIFICATION_PROFILES = {
         ".22g", ".21g", ".20g", ".19g", ".18g", ".17g", ".16g", ".15g",
         ".sp3", ".clk", ".ion", ".bia", ".erp", ".snx",
     ],
+    "GNSS Raw (Trimble)": [
+        ".t01", ".t02", ".t04", ".tgd",
+        ".T01", ".T02", ".T04", ".TGD",
+    ],
     "GIS Data": [
         ".shp", ".shx", ".dbf", ".prj", ".sbn", ".sbx", ".gpx", ".kml", ".kmz",
         ".geojson", ".topojson", ".gml", ".gpkg", ".mbtiles", ".fgb", ".pmtiles"

@@ -3,6 +3,31 @@ import re
 
 from . import Strategy
 
+# Trimble proprietary raw extensions (case-insensitive on scan)
+_TRIMBLE_EXTS = frozenset([".t01", ".t02", ".t04", ".tgd"])
+
+
+class TrimbleStrategy(Strategy):
+    """Matches Trimble proprietary raw GNSS files (NetR9, 5700, etc.).
+
+    Tagged with requires_conversion=True because these cannot be ingested
+    directly; teqc or runpkr00 must convert them to RINEX first.
+    """
+
+    def match(self, path: str) -> bool:
+        ext = os.path.splitext(path)[1].lower()
+        return ext in _TRIMBLE_EXTS
+
+    def extract(self, path: str) -> dict | None:
+        filename = os.path.basename(path)
+        ext = os.path.splitext(filename)[1].lower()
+        return {
+            "type": "gnss_trimble_raw",
+            "filename": filename,
+            "extension": ext,
+            "requires_conversion": True,
+        }
+
 
 class GNSSStrategy(Strategy):
     # Matches standard RINEX short filenames: ssssdddh.yyt

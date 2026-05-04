@@ -94,11 +94,74 @@ class LinuxBPEBackend:
         self.campaign_dir = Path(campaign_dir).expanduser()
         self.timeout_sec = timeout_sec
 
-    def prepare_campaign(self, campaign_name: str, year: int, session: str, **kwargs: object) -> None:
+    def prepare_campaign(
+        self,
+        campaign_name: str,
+        year: int,
+        session: str,
+        config: "CampaignConfig | None" = None,
+        **kwargs: object,
+    ) -> None:
+        """Create campaign subdirectories and, if *config* is provided,
+        generate Bernese input files (STA, CRD, ABB, VEL, CLU, BLQ).
+
+        File generation order: subdirs → STA → CRD → ABB → VEL → CLU → BLQ.
+        BLQ download is skipped when config.download_blq is False.
+        """
+        from .campaign_builder import (
+            generate_abb,
+            generate_clu,
+            generate_crd,
+            generate_sta,
+            generate_vel,
+            stage_atx,
+        )
+        from .campaign_models import CampaignConfig
+
         campaign_path = self.campaign_dir / campaign_name
         for subdir in _SUBDIRS:
             (campaign_path / subdir).mkdir(parents=True, exist_ok=True)
-        logger.info("Campaign directory prepared: %s", campaign_path)
+        logger.info("Campaign subdirs created: %s", campaign_path)
+
+        if config is None:
+            return
+
+        sta_dir = campaign_path / "STA"
+
+        # 1. STA
+        (sta_dir / f"{campaign_name}.STA").write_text(
+            generate_sta(config.stations), encoding="ascii"
+        )
+        # 2+3. CRD + ABB
+        (sta_dir / f"{campaign_name}.CRD").write_text(
+            generate_crd(config.stations, ref_frame=config.ref_frame, epoch=config.epoch),
+            encoding="ascii",
+        )
+        (sta_dir / f"{campaign_name}.ABB").write_text(
+            generate_abb(config.stations), encoding="ascii"
+        )
+        # 4. ATX staging (ATM/)
+        if config.atx_source is not None:
+            stage_atx(Path(config.atx_source), campaign_path / "ATM")
+        # 5. VEL
+        (sta_dir / f"{campaign_name}.VEL").write_text(
+            generate_vel(config.stations, ref_frame=config.ref_frame),
+            encoding="ascii",
+        )
+        # 6. CLU
+        (sta_dir / f"{campaign_name}.CLU").write_text(
+            generate_clu(config.stations), encoding="ascii"
+        )
+        # 7. BLQ
+        if config.download_blq:
+            from .campaign_builder import download_blq
+            download_blq(
+                config.stations,
+                sta_dir / f"{campaign_name}.BLQ",
+                model=config.blq_model,
+            )
+
+        logger.info("Campaign files generated in %s", sta_dir)
 
     def run(self, campaign_name: str, year: int, session: str) -> BPEResult:
         script = self.user_dir / "SCRIPT" / "rnx2snx_pcs.pl"
@@ -145,6 +208,50 @@ class LinuxBPEBackend:
                 result.helmchk_failed,
             )
         return result
+
+    def run_continuous(self, campaign_name: str, year: int, session: str) -> tuple[BPEResult, BPEResult]:
+        """Two-pass BPE for continuous GPS campaigns.
+
+        Pass 1: standard BPE run (float + fixed solution).
+        Pass 2: BPE run using the output CRD from pass 1 as the a priori
+                coordinate file, replacing the campaign CRD before re-running.
+
+        Returns a tuple of (pass1_result, pass2_result).  Raises if pass 1
+        does not succeed (no point running pass 2 with bad a priori coords).
+        """
+        logger.info("Continuous GPS: starting pass 1 for %s", campaign_name)
+        result1 = self.run(campaign_name, year, session)
+
+        if not result1.success:
+            raise RuntimeError(
+                f"Continuous GPS pass 1 failed for {campaign_name}; "
+                "aborting pass 2.  Check raw_log on the returned BPEResult."
+            )
+
+        # Promote the pass-1 output CRD → input CRD for pass 2
+        sta_dir = self.campaign_dir / campaign_name / "STA"
+        snx_path = result1.output_files.get("sinex")
+        if snx_path is None:
+            raise RuntimeError(
+                f"Continuous GPS pass 1 produced no SINEX for {campaign_name}; "
+                "cannot seed pass 2."
+            )
+
+        # Bernese writes the final coordinates to OUT/*.CRD as well (FIN_*.CRD).
+        # Look for it and overwrite the STA CRD so pass 2 uses updated coords.
+        out_dir = self.campaign_dir / campaign_name / "OUT"
+        crd_candidates = sorted(out_dir.glob("FIN_*.CRD"))
+        if crd_candidates:
+            import shutil
+            dest_crd = sta_dir / f"{campaign_name}.CRD"
+            shutil.copy2(crd_candidates[-1], dest_crd)
+            logger.info("Pass-2 seed CRD: %s → %s", crd_candidates[-1], dest_crd)
+        else:
+            logger.warning("No FIN_*.CRD found in OUT/; pass 2 will reuse the original CRD")
+
+        logger.info("Continuous GPS: starting pass 2 for %s", campaign_name)
+        result2 = self.run(campaign_name, year, session)
+        return result1, result2
 
     def collect_outputs(self, campaign_name: str, year: int, session: str) -> dict[str, Path]:
         out_dir = self.campaign_dir / campaign_name / "OUT"

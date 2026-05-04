@@ -112,7 +112,7 @@ INP file diff is complete (2026-03-03). Exactly 3 parameters need Jinja2 overrid
 
 ---
 
-### BRN-004 · P0 · M
+### ~~BRN-004~~ · P0 · M · **DONE** (pending commit)
 **Campaign file generation pipeline (8-step)**
 
 Before any BPE run the campaign directory must be populated in dependency order. Architecture decisions are finalised (see `memory/bernese_inp_settings.md`).
@@ -157,7 +157,7 @@ The scanner classifies GNSS files; the Celery pipeline validates and loads them.
 
 ---
 
-### ING-002 · P1 · M
+### ~~ING-002~~ · P1 · M · **DONE** (pending commit)
 **Trimble raw file classification in drive-archaeologist**
 
 `.T01`, `.T02`, `.T04`, `.DAT`, `.TGD` (Trimble proprietary formats) are absent from `profiles.py`. PHIVOLCS has Trimble NetR9 receivers in the field; these files exist in the archive.
