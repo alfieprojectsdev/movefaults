@@ -114,8 +114,12 @@ async def run_async(
     force_integration: bool,
     decay_factor: float,
     window_size: int,
+    speed: float,
 ):
-    strategy = RealTimeStrategy(base_date=base_date) if mode == "replay" else FastImportStrategy()
+    if mode == "replay":
+        strategy = RealTimeStrategy(base_date=base_date, speed=speed)
+    else:
+        strategy = FastImportStrategy()
 
     if path.is_file():
         adapter = DirectoryAdapter(directory=path.parent, strategy=strategy, pattern=path.name)
@@ -182,6 +186,7 @@ def main(
     decay: float = typer.Option(1.0, "--decay", help="Leaky integrator decay factor"),
     window_size: int = typer.Option(600, "--window-size", "-w", help="Plot window size (samples)"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress structlog; show banners only"),
+    speed: float = typer.Option(1.0, "--speed", help="Playback speed multiplier for --mode replay (e.g. 8 = 8× faster than realtime)"),
 ):
     if quiet:
         structlog.configure(
@@ -204,6 +209,7 @@ def main(
         run_async(
             file_path, mode, parsed_date, station_id, threshold,
             dry_run, plot, pattern, force_integration, decay, window_size,
+            speed,
         )
     )
 

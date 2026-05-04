@@ -1,6 +1,7 @@
+import asyncio
 from abc import ABC, abstractmethod
+from datetime import date, datetime, timedelta
 from typing import Optional
-from datetime import datetime, timedelta, date
 
 class PlaybackStrategy(ABC):
     """
@@ -24,22 +25,24 @@ class RealTimeStrategy(PlaybackStrategy):
     """
     Simulates real-time delays based on difference between timestamps
     in consecutive NMEA lines.
+
+    speed: playback multiplier (1.0 = real-time, 10.0 = 10× faster).
     """
-    def __init__(self, base_date: Optional[date] = None):
+    def __init__(self, base_date: Optional[date] = None, speed: float = 1.0):
         self.current_date = base_date or datetime.now().date()
         self.last_timestamp: Optional[datetime] = None
+        self.speed = max(speed, 0.1)
 
     async def wait(self, line: str) -> None:
         try:
             current_dt = self._extract_datetime(line)
-            
+
             if self.last_timestamp is not None:
                 delta = (current_dt - self.last_timestamp).total_seconds()
                 # Sanity check: valid positive delay, not too huge
                 if 0 < delta < 60:
-                    import asyncio
-                    await asyncio.sleep(delta)
-            
+                    await asyncio.sleep(delta / self.speed)
+
             self.last_timestamp = current_dt
         except ValueError:
             pass
