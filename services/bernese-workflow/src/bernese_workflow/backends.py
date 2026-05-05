@@ -12,7 +12,10 @@ import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from .campaign_models import CampaignConfig
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +102,7 @@ class LinuxBPEBackend:
         campaign_name: str,
         year: int,
         session: str,
-        config: "CampaignConfig | None" = None,
+        config: CampaignConfig | None = None,
         **kwargs: object,
     ) -> None:
         """Create campaign subdirectories and, if *config* is provided,
@@ -116,7 +119,6 @@ class LinuxBPEBackend:
             generate_vel,
             stage_atx,
         )
-        from .campaign_models import CampaignConfig
 
         campaign_path = self.campaign_dir / campaign_name
         for subdir in _SUBDIRS:
@@ -164,6 +166,25 @@ class LinuxBPEBackend:
         logger.info("Campaign files generated in %s", sta_dir)
 
     def run(self, campaign_name: str, year: int, session: str) -> BPEResult:
+        from .rinex_header_validator import ValidationError, validate_rinex_headers
+
+        campaign_path = self.campaign_dir / campaign_name
+        raw_dir = campaign_path / "RAW"
+        sta_path = campaign_path / "STA" / f"{campaign_name}.STA"
+
+        if raw_dir.exists() and sta_path.exists():
+            atm_dir = campaign_path / "ATM"
+            atx_candidates = sorted(atm_dir.glob("*.atx")) + sorted(atm_dir.glob("*.ATX")) if atm_dir.exists() else []
+            atx_path = atx_candidates[0] if len(atx_candidates) == 1 else None
+            report = validate_rinex_headers(raw_dir, sta_path, atx_path=atx_path)
+            if not report.ok:
+                raise ValidationError(report)
+        else:
+            logger.warning(
+                "Pre-flight RINEX header check skipped for %s (RAW/ or STA not present)",
+                campaign_name,
+            )
+
         script = self.user_dir / "SCRIPT" / "rnx2snx_pcs.pl"
         env_overrides = {
             # Bernese path variables required by Perl scripts
