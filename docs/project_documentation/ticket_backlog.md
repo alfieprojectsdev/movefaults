@@ -145,7 +145,7 @@ Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops st
 
 ---
 
-### BRN-005 · P1 · M
+### ~~BRN-005~~ · P1 · M · **DONE** `c0b23ca`
 **`plot_v2.py` parameterization — headless reference station**
 
 `plot_v2.py` blocks headless execution with `input("Input the reference station: ")`. This is the sole automatable human gate in the post-BPE velocity pipeline.
