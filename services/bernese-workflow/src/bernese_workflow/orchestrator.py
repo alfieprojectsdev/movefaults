@@ -70,10 +70,14 @@ class BerneseOrchestrator:
                                (analysis/02 Time Series/RUNX_v2.py in the monorepo).
 
         Raises:
+            FileNotFoundError: if runx_script does not exist.
             RuntimeError: if the script exits with a non-zero return code.
         """
         crd_dir = Path(crd_dir)
         runx_script = Path(runx_script)
+
+        if not runx_script.is_file():
+            raise FileNotFoundError(f"RUNX_v2 script not found: {runx_script}")
 
         logger.info(
             "Running velocity pipeline: ref=%s crd_dir=%s", reference_station, crd_dir

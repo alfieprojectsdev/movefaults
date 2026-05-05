@@ -174,8 +174,29 @@ class LinuxBPEBackend:
 
         if raw_dir.exists() and sta_path.exists():
             atm_dir = campaign_path / "ATM"
-            atx_candidates = sorted(atm_dir.glob("*.atx")) + sorted(atm_dir.glob("*.ATX")) if atm_dir.exists() else []
-            atx_path = atx_candidates[0] if len(atx_candidates) == 1 else None
+            if atm_dir.exists():
+                # resolve() deduplicates on case-insensitive filesystems (e.g. macOS)
+                # where *.atx and *.ATX would otherwise match the same file twice.
+                seen: dict[Path, Path] = {}
+                for p in list(atm_dir.glob("*.atx")) + list(atm_dir.glob("*.ATX")):
+                    seen.setdefault(p.resolve(), p)
+                atx_candidates = sorted(seen.values())
+            else:
+                atx_candidates = []
+
+            if len(atx_candidates) == 1:
+                atx_path: Path | None = atx_candidates[0]
+            elif len(atx_candidates) > 1:
+                logger.warning(
+                    "Multiple ATX files found in %s — skipping ATX coverage check. "
+                    "Remove stale files to enable ATX validation: %s",
+                    atm_dir,
+                    [p.name for p in atx_candidates],
+                )
+                atx_path = None
+            else:
+                atx_path = None
+
             report = validate_rinex_headers(raw_dir, sta_path, atx_path=atx_path)
             if not report.ok:
                 raise ValidationError(report)
