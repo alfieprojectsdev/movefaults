@@ -235,7 +235,7 @@ The Grafana dashboard is provisioned. An alerting rule turns it from visualisati
 | Ticket | Title | Blocked on |
 |---|---|---|
 | DOC-001 | MkDocs documentation portal (Deliverable 3.1) | Most P0/P1 tickets |
-| ANA-001 | Port `RUNX_v2.py` + `vel_line_v8.m` to Python library | BRN-004 stable |
+| ~~ANA-001~~ | Port `RUNX_v2.py` + `vel_line_v8.m` to Python library — **DONE** `7f79174` | BRN-004 stable |
 | ANA-002 | Port dislocation models from `analysis/06` to pogf-geodetic-suite | ANA-001 |
 | POR-001 | Public data portal + API (Deliverable 1.4) | Bernese pipeline live, NAMRIA partnership |
 | DOC-002 | Automated processing documentation (Deliverable 3.2) | DOC-001, ANA-001 |
