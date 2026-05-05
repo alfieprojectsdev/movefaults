@@ -386,7 +386,7 @@ def test_linux_bpe_run_skips_check_when_raw_missing(tmp_path):
 
     # No RAW/ or STA set up — should not raise ValidationError
     # It will fail on the perl subprocess, so we mock that
-    with patch("subprocess.run") as mock_run:
+    with patch("bernese_workflow.backends.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(stdout="BPE finished", stderr="", returncode=0)
         result = backend.run("NORAW", 2023, "0100")
 
