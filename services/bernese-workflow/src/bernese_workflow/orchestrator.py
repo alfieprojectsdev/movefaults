@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import subprocess
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -50,3 +52,41 @@ class BerneseOrchestrator:
         """Execute a Bernese BPE run via the configured backend."""
         logger.info("Starting BPE run: campaign=%s year=%s session=%s", campaign_name, year, session)
         return self._backend.run(campaign_name, year, session)
+
+    def run_velocity_pipeline(
+        self,
+        reference_station: str,
+        *,
+        crd_dir: str | Path,
+        runx_script: str | Path,
+    ) -> None:
+        """Run the post-BPE velocity pipeline (RUNX_v2.py) headlessly.
+
+        Args:
+            reference_station: 4-char station code used as the ENU coordinate origin.
+            crd_dir:           Directory containing the daily *.CRD files to process.
+                               RUNX_v2.py globs '*.CRD' from its working directory.
+            runx_script:       Absolute path to RUNX_v2.py
+                               (analysis/02 Time Series/RUNX_v2.py in the monorepo).
+
+        Raises:
+            RuntimeError: if the script exits with a non-zero return code.
+        """
+        crd_dir = Path(crd_dir)
+        runx_script = Path(runx_script)
+
+        logger.info(
+            "Running velocity pipeline: ref=%s crd_dir=%s", reference_station, crd_dir
+        )
+        proc = subprocess.run(
+            [sys.executable, str(runx_script), "--reference-station", reference_station],
+            cwd=crd_dir,
+            capture_output=True,
+            text=True,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"RUNX_v2 velocity pipeline failed (exit {proc.returncode}):\n"
+                f"{proc.stderr or proc.stdout}"
+            )
+        logger.info("Velocity pipeline complete. stdout:\n%s", proc.stdout)
