@@ -129,6 +129,22 @@ Before any BPE run the campaign directory must be populated in dependency order.
 
 ---
 
+### BRN-006 · P1 · S
+**Pre-BPE RINEX header validator — receiver/antenna code cross-check**
+
+Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops stations whose RINEX `REC TYPE` / `ANT TYPE` headers don't match the STA file or the staged ATX file. Stations disappear from the solution with no upfront warning.
+
+- Implement `rinex_header_validator.py` in `bernese_workflow/`: reads RINEX OBS headers from the campaign RAW/ directory, extracts `REC # / TYPE / VERS` and `ANT # / TYPE` per station
+- Cross-check against the campaign `.STA` TYPE 002 entries (receiver and antenna fields)
+- Cross-check antenna type against the staged ATX file (IGS antenna calibration coverage)
+- Return a structured `ValidationReport`: list of `Mismatch(station, field, header_value, sta_value)` — never silently pass
+- Wire into `LinuxBPEBackend.run()` as a pre-flight check; raise `ValidationError` with the full mismatch list if any station would be silently dropped
+- Reference source for expected equipment codes: `gpsdb_rev.receiver_models` + `gpsdb_rev.antenna_models` (legacy CORS dashboard MySQL DB) — import optional, fall back to STA-only check if DB unreachable
+
+*Depends on: BRN-004. The legacy CORS dashboard already catalogued receiver/antenna inventory — this ticket makes that data load-bearing.*
+
+---
+
 ### BRN-005 · P1 · M
 **`plot_v2.py` parameterization — headless reference station**
 
