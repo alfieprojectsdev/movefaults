@@ -129,7 +129,7 @@ Before any BPE run the campaign directory must be populated in dependency order.
 
 ---
 
-### BRN-006 · P1 · S
+### ~~BRN-006~~ · P1 · S · **DONE** `e1f2de2`
 **Pre-BPE RINEX header validator — receiver/antenna code cross-check**
 
 Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops stations whose RINEX `REC TYPE` / `ANT TYPE` headers don't match the STA file or the staged ATX file. Stations disappear from the solution with no upfront warning.
