@@ -78,9 +78,10 @@ class ValidationError(Exception):
 
 
 def _is_rinex_obs(path: Path) -> bool:
-    """Return True for RINEX 2 (.YYo) and RINEX 3 (.rnx / .obs) obs files."""
+    """Return True for RINEX 2 (.YYo), RINEX 3 (.rnx / .obs), and the Bernese
+    RINEX Observation copy (.RXO) found in campaign RAW/ directories."""
     s = path.suffix.lower()
-    if s in (".rnx", ".obs"):
+    if s in (".rnx", ".obs", ".rxo"):
         return True
     # RINEX 2: extension is .<2-digit-year>o, e.g. .23o
     return len(s) == 4 and s[1:3].isdigit() and s[3] == "o"
@@ -291,10 +292,14 @@ def validate_rinex_headers(
                 Mismatch(station=station, field="antenna", header_value=hdr_ant, sta_value=sta_ant)
             )
 
-        # ATX coverage: check that the antenna type appears in the calibration file
+        # ATX coverage: check that the antenna type appears in the calibration file.
+        # Compare on the model token (first whitespace-delimited field), matching
+        # the semantics of _ant_types_match — a substring test would let
+        # "LEIAR10" spuriously match an ATX entry "LEIAR10R   NONE".
         if atx_types is not None and hdr_ant:
             hdr_ant_base = hdr_ant.split()[0]
-            if not any(hdr_ant_base in atx_entry for atx_entry in atx_types):
+            atx_bases = {entry.split()[0] for entry in atx_types if entry.split()}
+            if hdr_ant_base not in atx_bases:
                 report.atx_missing.append(f"{station}: {hdr_ant!r}")
                 logger.warning(
                     "Station %s antenna %r not found in ATX — Bernese will use generic model",

@@ -55,6 +55,28 @@ def test_run_bpe_calls_backend(orchestrator):
     assert result.stations_survived == 10
 
 
+def test_run_velocity_pipeline_raises_on_missing_crd_dir(orchestrator, tmp_path):
+    """A non-existent crd_dir is rejected up front, not deferred to subprocess cwd."""
+    runx = tmp_path / "RUNX_v2.py"
+    runx.write_text("# stub", encoding="utf-8")
+
+    with pytest.raises(FileNotFoundError, match="CRD directory not found"):
+        orchestrator.run_velocity_pipeline(
+            "BOST", crd_dir=tmp_path / "does_not_exist", runx_script=runx
+        )
+
+
+def test_run_velocity_pipeline_raises_on_missing_script(orchestrator, tmp_path):
+    """A missing RUNX_v2 script is rejected with an explicit error."""
+    crd_dir = tmp_path / "CRD"
+    crd_dir.mkdir()
+
+    with pytest.raises(FileNotFoundError, match="RUNX_v2 script not found"):
+        orchestrator.run_velocity_pipeline(
+            "BOST", crd_dir=crd_dir, runx_script=tmp_path / "missing.py"
+        )
+
+
 def test_generate_pcf_phivol_template(tmp_path):
     """Render the real PHIVOL_REL-derived template and verify structure."""
     template_dir = Path(__file__).parent.parent / "templates"

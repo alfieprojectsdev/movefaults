@@ -128,6 +128,22 @@ def test_parse_rinex_headers_multiple_stations(tmp_path):
     assert result["PBIS"]["receiver"] == "TRIMBLE NETR9"
 
 
+def test_parse_rinex_headers_detects_bernese_rxo(tmp_path):
+    """Bernese campaign RAW/ holds .RXO RINEX Observation files — must be detected.
+
+    Regression: .RXO was previously unrecognized, so a real campaign yielded an
+    empty header set and the validator passed vacuously (defeating BRN-006).
+    """
+    _write_rinex(
+        tmp_path,
+        "BRST00FRA_20230100.RXO",
+        _rinex2_obs("BRST", "SEPT POLARX5", "LEIAR25.R4   NONE"),
+    )
+    result = _parse_rinex_headers(tmp_path)
+    assert "BRST" in result
+    assert result["BRST"]["receiver"] == "SEPT POLARX5"
+
+
 # ---------------------------------------------------------------------------
 # STA TYPE 002 parsing
 # ---------------------------------------------------------------------------
@@ -316,6 +332,35 @@ def test_validate_atx_missing(tmp_path):
     atx.write_text(
         "                                                            START OF ANTENNA    \n"
         "TRM57971.00  NONE                        I14                TYPE / SERIAL NO    \n"
+        "                                                            END OF ANTENNA      \n",
+        encoding="ascii",
+    )
+
+    report = validate_rinex_headers(raw_dir, sta, atx_path=atx)
+    assert not report.ok
+    assert any("BOST" in entry for entry in report.atx_missing)
+
+
+def test_validate_atx_no_substring_false_positive(tmp_path):
+    """An ATX model that merely contains the header model as a substring is NOT a match.
+
+    Regression: substring matching let header "LEIAR10" pass against an ATX that
+    only had "LEIAR10R", masking a genuinely uncalibrated antenna.
+    """
+    raw_dir = tmp_path / "RAW"
+    raw_dir.mkdir()
+    _write_rinex(raw_dir, "BOST001a.23o", _rinex2_obs("BOST", "LEICA GR50", "LEIAR10      NONE"))
+
+    sta = tmp_path / "TEST.STA"
+    sta.write_text(
+        _make_sta_content([{"name": "BOST", "receiver": "LEICA GR50", "antenna": "LEIAR10"}]),
+        encoding="ascii",
+    )
+
+    atx = tmp_path / "igs20.atx"
+    atx.write_text(
+        "                                                            START OF ANTENNA    \n"
+        "LEIAR10R     NONE                        I20                TYPE / SERIAL NO    \n"
         "                                                            END OF ANTENNA      \n",
         encoding="ascii",
     )

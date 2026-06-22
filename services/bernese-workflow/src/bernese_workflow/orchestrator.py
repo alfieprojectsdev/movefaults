@@ -76,6 +76,9 @@ class BerneseOrchestrator:
         crd_dir = Path(crd_dir)
         runx_script = Path(runx_script)
 
+        if not crd_dir.is_dir():
+            raise FileNotFoundError(f"CRD directory not found: {crd_dir}")
+
         if not runx_script.is_file():
             raise FileNotFoundError(f"RUNX_v2 script not found: {runx_script}")
 
