@@ -21,7 +21,7 @@ set -u
 
 # ---- config -----------------------------------------------------------------
 LOADGPS="$HOME/BERN54/LOADGPS.setvar"
-PCF="PAGENET_DLY"
+PCFNAME="PAGENET_DLY"   # NB: not 'PCF' — LOADGPS exports $PCF (the PCF dir) and would clobber it
 YEAR="2026"
 DEFAULT_DAYS="084 085 086 087 088 089 090"
 LOG="$HOME/run_pagenet_week.log"
@@ -55,7 +55,7 @@ source "$LOADGPS" >/dev/null 2>&1 || { echo "FATAL: cannot source $LOADGPS"; exi
 DRIVER="$U/SCRIPT/pagenet_pcs.pl"
 SOL="$P/PAGENET/SOL"
 [ -f "$DRIVER" ] || { echo "FATAL: driver not found: $DRIVER"; exit 1; }
-[ -f "$U/PCF/${PCF}.PCF" ] || { echo "FATAL: PCF not found: $U/PCF/${PCF}.PCF"; exit 1; }
+[ -f "$U/PCF/${PCFNAME}.PCF" ] || { echo "FATAL: PCF not found: $U/PCF/${PCFNAME}.PCF"; exit 1; }
 
 log() { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
 
@@ -90,13 +90,13 @@ for doy in $DAYS; do
   fi
   log "--- START $sess ---"
   start=$(date +%s)
-  perl "$DRIVER" "$YEAR" "$sess" "$PCF" >> "$LOG" 2>&1
+  perl "$DRIVER" "$YEAR" "$sess" "$PCFNAME" >> "$LOG" 2>&1
   rc=$?
   el=$(( $(date +%s) - start ))
   if [ "$rc" -ne 0 ] || [ ! -f "$nq" ]; then
     log "FAIL $sess (rc=$rc) after $((el/60))m$((el%60))s — FIN NQ $([ -f "$nq" ] && echo OK || echo MISSING)"
     # diagnostic: which PID/program errored + likely station
-    errline=$(grep -iE "Script finished  ERROR" "$P/PAGENET/BPE/${PCF}.OUT" 2>/dev/null | tail -1)
+    errline=$(grep -iE "Script finished  ERROR" "$P/PAGENET/BPE/${PCFNAME}.OUT" 2>/dev/null | tail -1)
     [ -n "$errline" ] && log "  errored step: $errline"
     logglob="$P/PAGENET/BPE/RS${YEAR}${sess}"
     badsta=$(grep -hiE "RINEX station name not listed|Station name +:" "${logglob}"_*.LOG 2>/dev/null | tail -3)
