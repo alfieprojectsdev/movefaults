@@ -249,7 +249,7 @@ New vars: `V_FLT=FLT`, `V_SAMPL=180`, `V_CLUEDT=5`. New OPT dir **`PGN_EDT`** mu
 `PARAM2=V_FLT` passes the file-cluster prefix; `NEXTJOB=301` loops back to INIT_BSL if RES_SUM/RESCHK finds a bad station.
 
 ### 11.2 Key GPSEST settings (12 panels; verify, mostly defaults)
-- 1.1: phase `????$S+0`, coords `$(FLT)_$YYYSS+0`, orbits/ERP `$(ORB)_$YYYSS+0`, iono `$(HOIFIL)`
+- 1.1: phase `????$S+0`, **input** coords `$(APR)_$YYYSS+0` (a priori — float *outputs* `$(FLT)`, so input must be APR), orbits/ERP `$(ORB)_$YYYSS+0`, iono `$(HOIFIL)`
 - 2.1: NEQ output `$(FLT)_$(CLUSTER)`; 2.2: residuals `ED$(FL)_$(CLUSTER)`
 - 3.1: **L3**, sampling `$(SAMPL)`, elev cutoff **3°**, sigma 0.001 m, residuals NORMALIZED, corr BASELINE
 - 3.2: tropo **DRY_GPT3**, ambiguity resolution **NONE** (float only)
