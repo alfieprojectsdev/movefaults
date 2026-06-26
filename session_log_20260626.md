@@ -83,7 +83,27 @@ automated server pipeline** = "recurring process chain" → needs commercial cam
 a public agency. Drafted GFZ inquiry (`~/Downloads/gfzrnx_license_inquiry_GFZ.md`) + internal cover
 note for Project Lead Dr. Bacolcol + GGRDD section head (`~/Downloads/gfzrnx_internal_cover_note.md`).
 
+## 10. R740 deployment-readiness evaluation (`docs/project_documentation/bernese_orchestrator_r740_readiness.md`)
+Consolidated the week's empirical findings into a prioritized orchestrator-hardening plan for
+BRN-001. **Verdict: engine proven (full RNX2SNX ran headless on real data), robustness layer is the
+gap.** Every failure fixed BY HAND this week = a thing the orchestrator must do AUTOMATICALLY before
+unattended R740 trust. P0 (per-session station validator, MAXPAR sizing, GEN/SESSIONS, PCF
+parameterization), P1 (CODSPP-QC + tropo-retry + sanitizer + resumable scheduler), P2 (clustering perf
++ Module 15/16 scope). Sharpest insight: the **R740 multi-core win is inverted** — untuned, R740 runs
+the same single-core 502 GPSCLU_P solve on a bigger network = worse than T420; the 24-core payoff is
+entirely clustering + USER.CPU tuning (a config task, not free hardware). Memory gaps #12-14 added.
+
+## Commits (branch docs/bernese-training-notes, pushed to origin)
+- `f65da8d` — session logs (06-25, 06-26), Linux setup primer, resume scripts (run_pagenet_week.sh,
+  pagenet_pcs.pl, RESUME note), runbook typo fix.
+- `cf1cf2a` — R740 orchestrator deployment-readiness evaluation.
+- Excluded deliberately: untracked presentation/legacy pile; gitignored `deploy_r740.secrets` (verified).
+
 ## State at end of session
-- **Done:** Modules 11-14 (084); daily FIN solutions for 084, 085, 086.
-- **Next (at home):** `~/run_pagenet_week.sh --detach` → 087-090, then Phase B + C (weekly combine).
+- **Done:** Modules 11-14 (084); daily FIN solutions for 084, 085, 086; full training-week consolidation
+  + R740 readiness plan committed.
+- **Next (at home):** `~/run_pagenet_week.sh --detach` → 087-090, then Phase B (fix PGN_WK panel) +
+  Phase C (ADD_WK weekly combine).
 - PLG2 stashed (088 immune); PTAG handled reactively; campaign intact.
+- **Pending (user, async):** send GFZ license inquiry + internal cover note (fill brackets); rotate the
+  OAuth token in `deploy_r740.secrets`.
