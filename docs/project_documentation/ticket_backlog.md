@@ -1,7 +1,7 @@
 # Implementation Ticket Backlog
 
-**Last updated:** 2026-05-04
-**Source:** Codebase survey [`codebase_status_20260425.md`](codebase_status_20260425.md) cross-referenced with [`roadmap.md`](roadmap.md)
+**Last updated:** 2026-07-01
+**Source:** Codebase survey [`codebase_status_20260425.md`](codebase_status_20260425.md) cross-referenced with [`roadmap.md`](roadmap.md) and [`bernese_orchestrator_r740_readiness.md`](bernese_orchestrator_r740_readiness.md) (14 gaps from NAMRIA training week, 2026-06)
 
 > **Priority:** P0 = critical path blocker · P1 = production deployment · P2 = feature complete · P3 = deferred
 > **Size:** S ≤ 1 day · M 2–3 days · L 1 week · XL > 1 week
@@ -12,17 +12,22 @@
 
 ```
 ~~IGS-001~~ ──┐
-               ├──▶ BRN-001 ──▶ ~~BRN-002~~ ──▶ ~~BRN-003~~ ──▶ BRN-004 ──▶ BRN-005
-~~ING-003~~ ──┘
+               ├──▶ ~~BRN-002~~ ─▶ ~~BRN-003~~ ─▶ ~~BRN-004~~ ─▶ ~~BRN-005~~ ─▶ ~~BRN-006~~
+~~ING-003~~ ──┘                                                          │
+                                                                          ▼
+   R740 orchestrator hardening (P0):  RH-001 ─ RH-002 ─ RH-003 ─ RH-004 ──▶ BRN-001 (R740 install)
+                                       └── acceptance: re-run PAGENET week on R740, gaps auto-cleared
 
-PR#33 (scanner) ──▶ ~~ING-001~~ ──▶ ING-002    (parallel to Bernese track)
+~~PR#33~~ ──▶ ~~ING-001~~ ──▶ ~~ING-002~~     (Bernese-parallel track)
+                                └──▶ DA-001 (validate GNSS classification on a real legacy drive)
 
-~~VAD-001~~
-~~VAD-002~~                                 (parallel; needed before R740 go-live)
+~~VAD-001~~  ~~VAD-002~~                       (done; were needed before R740 go-live)
 ```
 
-Shortest path to first end-to-end Bernese run: **BRN-001 → BRN-004** (BRN-002+003 merged `bead683`).
-BRN-001 (R740 install) has the longest elapsed wall-clock time and should start first.
+**Status shift (2026-06/07):** the core Bernese orchestrator is BUILT (BRN-002..006) and the real
+PAGENET pipeline ran headless end-to-end on live data (NAMRIA training week). The critical path is no
+longer "start Bernese" — it is **R740 orchestrator hardening** (RH-00x below, from the 14-gap readiness
+eval) plus the BRN-001 install. RH-001 (per-session validator) already shipped (`1e3c952`).
 
 ---
 
@@ -112,7 +117,7 @@ INP file diff is complete (2026-03-03). Exactly 3 parameters need Jinja2 overrid
 
 ---
 
-### ~~BRN-004~~ · P0 · M · **DONE** (pending commit)
+### ~~BRN-004~~ · P0 · M · **DONE** `e11a135`
 **Campaign file generation pipeline (8-step)**
 
 Before any BPE run the campaign directory must be populated in dependency order. Architecture decisions are finalised (see `memory/bernese_inp_settings.md`).
@@ -143,6 +148,10 @@ Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops st
 
 *Depends on: BRN-004. The legacy CORS dashboard already catalogued receiver/antenna inventory — this ticket makes that data load-bearing.*
 
+> **Follow-up shipped (RH-001, `1e3c952`):** training exposed that the validator ran on the campaign
+> `RAW/`, which is empty until RNX_COP stages data inside the BPE → 0 stations → vacuous pass. Now
+> reads the DATAPOOL source per-session with a `no_rinex_found` guard. See RH-001.
+
 ---
 
 ### ~~BRN-005~~ · P1 · M · **DONE** `c0b23ca`
@@ -155,6 +164,68 @@ Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops st
 - **Do not** automate `outlier_input-site.py` — the `velocity-reviewer` web UI is its intentional replacement; outlier review remains a human gate
 
 *Depends on: BRN-004.*
+
+---
+
+## R740 Orchestrator Hardening (from readiness eval — the 14 training-week gaps)
+
+> Source: [`bernese_orchestrator_r740_readiness.md`](bernese_orchestrator_r740_readiness.md) +
+> `memory/bernese_orchestrator_r740_gaps.md`. The core orchestrator is built; these close the
+> un-happy paths so it can run unattended on R740. Acceptance test: re-run the PAGENET week on R740
+> and have it clear the PLG2/PTAG/MAXPAR failures AUTOMATICALLY (this week they were fixed by hand).
+
+### ~~RH-001~~ · P0 · S · **DONE** `1e3c952`
+**Per-session RINEX validation against the DATAPOOL source (gaps #1, #12)**
+
+- Validator read the empty pre-BPE `RAW/` → 0 stations → vacuous pass. Now reads `$D/$V_RNXDIR`
+  per-session with a `no_rinex_found` guard (`require_stations`) so empty/wrong source fails loudly.
+- Per-session DOY filter (RINEX2/3/RXO names) so intermittent stations (PLG2) are checked on the day
+  they appear. Catches the RXOBV3 hard-abort pre-BPE. Backward compatible; 65 tests, ruff+mypy clean.
+
+### RH-002 · P0 · S
+**Parameterize `backends.run()` — PCF_FILE / campaign / CPU_FILE + MAXPAR sizing (gaps #3, #10)**
+
+- `run()` hardcodes `PCF_FILE="RNX2SNX"`, `CPU_FILE="PCF"` → cannot run PAGENET (the real workflow).
+  Parameterize PCF name + campaign; real CPU file is `USER.CPU`. (This is exactly what `pagenet_pcs.pl`
+  proved manually this week.)
+- Size `ADDNEQ2 MAXPAR` from station count when rendering panels (≈ N_sta×4 + margin). The stock 1000
+  blocks any full-network run — room-wide `neqckdim DIMENSION TOO SMALL` at ADDNEQ2. ~270 R740 stations
+  need well above 1000.
+
+*Highest-value next ticket; small and self-contained.*
+
+### RH-003 · P0 · S
+**`prepare_campaign()` adds GEN/ + SESSIONS.SES (gap #2)**
+
+- `_SUBDIRS` omits `GEN`; no session table generated → BPE dies (this exact gap blocked the manual
+  run in training). Add `GEN` to `_SUBDIRS`; generate/copy a daily `SESSIONS.SES` (`???0` template).
+
+### RH-004 · P1 · M
+**Panel/script sanitizer + gold-standard config provisioning (gaps #8, #14)**
+
+- Instructor `OPT/*.INP` panels + `SCRIPT/` files carry Windows `\` separators (literal chars on
+  Linux), dangling `WAIT` PIDs (hang BPE), and hardcoded foreign sessions. Sanitize `\`→`/`, strip
+  dangling WAITs, reject hardcoded session/campaign literals.
+- Patched panels/scripts (BSW_DWLD, ADD_MON smartmatch, PGN_WK) belong version-controlled in
+  `services/bernese-workflow/script/` as gold-standard, synced to `$U`, NOT hand-edited per box —
+  the case for the config-versioning layer (survives MIS resets of the R740).
+
+### RH-005 · P1 · M
+**CODSPP-QC + tropo auto-recovery gates (gaps #9, #11)**
+
+- Parse CODSPP `RMS OF UNIT WEIGHT` + `NEW − A PRIORI` delta per station: bad-a-priori (high RMS +
+  large delta) → re-seed `.CRD` from CODSPP output and retry (free auto-fix); bad-obs (high RMS, small
+  delta) → alert human. Cheapest auto-recovery in the pipeline.
+- Tropo/GPSEST stage: on PID 322 zenith-delay overflow, quarantine the malformed/short-baseline
+  NON-IGS partner for that session and retry; NEVER drop an IGS fiducial.
+
+### RH-006 · P2 · S
+**Final-solution clustering tuning (gap #13)**
+
+- `V_CLUFIN=A` auto-clustering made ONE giant cluster → the final GPSEST (PID 502) is a ~40-min
+  single-core solve. Tune `V_CLUFIN`/`V_CLU` + `USER.CPU` maxjobs so GPSCLU splits the final solve
+  across R740 cores. **The multi-core R740 payoff is a CONFIG task, not free hardware** — untuned,
+  R740 runs the same single-core solve on a bigger network = worse than T420.
 
 ---
 
@@ -173,7 +244,7 @@ The scanner classifies GNSS files; the Celery pipeline validates and loads them.
 
 ---
 
-### ~~ING-002~~ · P1 · M · **DONE** (pending commit)
+### ~~ING-002~~ · P1 · M · **DONE** `e11a135`
 **Trimble raw file classification in drive-archaeologist**
 
 `.T01`, `.T02`, `.T04`, `.DAT`, `.TGD` (Trimble proprietary formats) are absent from `profiles.py`. PHIVOLCS has Trimble NetR9 receivers in the field; these files exist in the archive.
@@ -203,6 +274,25 @@ During archive recursion, `mark_scanned(filepath)` records the ephemeral temp-ex
 - Requires threading `extraction_root` through `_scan_directory` and `_process_file`
 
 *Deferred — Heavy Lift; correctness impact is bounded to extra work on resume, not data loss.*
+
+---
+
+### DA-001 · P1 · S
+**Validate drive-archaeologist GNSS classification on a REAL legacy GNSS drive**
+
+Found 2026-07-01: `artifacts.db` shows the scanner ran on a real mounted drive — but a **DOST
+media/movies drive** (`/run/media/finch/DOSTB20150918`), NOT GNSS data. So scanner *mechanics*
+(walk/dedup/checkpoint) have real-FS exercise, but the **GNSS-classification path** (RINEX / Trimble
+`.T0x` / Hatanaka / legacy profiles in `profiles.py` + `classifier.py`) has only synthetic/mock
+coverage (`mock_drive/`, `test_data/`, `tmp_path`). A movies drive tests everything EXCEPT the tool's
+actual purpose — the classifier could mis-tag or miss real RINEX/Trimble files and no test would catch it.
+
+- Mount a real legacy GNSS drive (DOST/PHIVOLCS archive — same drive class as the DOSTB one)
+- Run the scanner; verify RINEX/Trimble/Hatanaka files classify correctly (spot-check against known content)
+- Capture any mis-classifications as profile fixes; add a real-data regression fixture if feasible
+
+*Do before trusting excavation output for the ingestion pipeline (ING-001 handoff). See
+`memory/drive_archaeologist_test_gap.md`.*
 
 ---
 
