@@ -46,11 +46,34 @@ Third doc in the trio (roadmap/tracker updated ~6h earlier, backlog was still 20
 BRN-004/ING-002 done; added the **R740 Orchestrator Hardening** section (RH-001..006 from the 14-gap
 readiness eval — RH-001 done, RH-002 = next); added DA-001; refreshed the dependency graph.
 
+## 6. RH-007 added to backlog (`47d4e9a`) — FTP_DWLD vs igs_downloader reconciliation
+Found the Option-B pipe half-built: template `basic_processing.pcf.j2` still ships `000 FTP_DWLD`,
+`campaign_builder.download_igs_products` is defined but never called, yet the production PAGENET PCF
+already has no download step. RH-007 = strip FTP_DWLD from template, wire the pre-download into
+`prepare_campaign()`, add pre-flight product-existence check. Option B (pre-download via igs_downloader)
+is architecturally better for orchestration: separation of concerns, pre-flight-validatable,
+reproducible vintage, CDDIS/IGN/BKG mirror fallback, endpoint-change resilience.
+
+## 7. gfzrnx vs teqc — RINEX 3 evidence (migration trigger MET, not pending)
+Cass (MOVE Faults COS staff, DOST-PHIVOLCS — NOT NAMRIA; corrected earlier mis-slot) provided gfzrnx
+2.2.0 binaries + manual (`~/Downloads/gfzrnx/`); has run it as a teqc substitute with manual BPE for
+years. Ran a head-to-head on an on-disk PAGENET fiducial (CUSV 2026/087, RINEX 3.04, GPS+GLO+GAL+QZS+
+BeiDou-3):
+- **teqc `2019Feb25` HARD-REFUSES it**: `must be RINEX Version <= 2.11 ... exiting` — 0 observations read.
+- **gfzrnx 2.2.0** QC'd all constellations in 14 s (48 MB file).
+Every IGS fiducial is RINEX 3.04 → teqc only "works" today because the PAGENET CORS subset still emits
+RINEX 2. The migration trigger ("first RINEX 3/4 teqc can't process") is **met NOW**, not months away.
+Evidence doc `docs/project_documentation/gfzrnx_vs_teqc_rinex3_evidence.md` (reproducible). Memory
+`gfzrnx_teqc_decision` + tracker 2.5 updated. Licensing corrected: intra-PHIVOLCS (not third-party);
+free scientific covers current manual use; automated pipeline still needs commercial campus license.
+
 ## State at end of session
 - **Committed + pushed** (branch `docs/bernese-training-notes`): `d24b1ff` roadmap/tracker,
-  `1e3c952` validator, `cff603d` backlog. All in sync with origin.
+  `1e3c952` validator, `cff603d` backlog, `47d4e9a` RH-007, `3b73e1f` session log, + this session-log
+  update + gfzrnx evidence doc. All in sync with origin.
 - **Machine idle** — BPE stopped, nothing running.
 - **Next code:** RH-002 (parameterize `backends.run()` PCF/campaign/CPU + MAXPAR sizing) — small,
   highest-value P0.
-- **Async (user):** send GFZ license inquiry + internal cover note; rotate `deploy_r740.secrets`
-  OAuth token; run `~/run_pagenet_week.sh --detach` to finish 087-090.
+- **Async (user):** send GFZ license inquiry + internal cover note (now stronger — cite existing
+  manual gfzrnx use + the RINEX-3 evidence); rotate `deploy_r740.secrets` OAuth token; run
+  `~/run_pagenet_week.sh --detach` to finish 087-090.
