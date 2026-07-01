@@ -99,12 +99,41 @@ held no stuck job state, relaunched `--detach` **quietly**. New runner PID 38873
 produced FIN — 0870 has a history of not finishing; failure points differ, consistent with transient
 hangs, not deterministic data.)
 
+## 10. RH-004 remainder — panel provisioning + MAXPAR (`425735b`, PR #40)
+Completed the RH-004 code mechanisms on the same branch/PR:
+- `set_addneq2_maxpar(text, value)` — rewrites the ADDNEQ2 `MAXPAR` value line (leaves `MSG_MAXPAR`),
+  wiring readiness **task B** to RH-002's `compute_maxpar()`.
+- `provision_opt_dir(src, dest, *, n_stations, strict)` — the sanitizer's applied layer: sanitizes
+  every `*.INP` on the way to `$U/OPT`, sizes MAXPAR on `ADDNEQ2.INP`, copies non-INP (`*.pl`) VERBATIM,
+  and with `strict` (default) **refuses to write** any panel still carrying an unresolved hazard — a
+  dirty panel can't reach `$U`. `test_panel_sanitizer.py` +6 (92 pass). Only the gold-standard panel
+  *content* (hand-remap `C:\Bernese\`→`${vars}`) remains — a data/ops task the strict provisioner enforces.
+- **Hash-backfill bug found + fixed** (`90bd92a`): my `sed`-hash-then-`--amend` pattern recorded the
+  *pre-amend* hash (backlog said `d725ab0`, real core `6c0d8a2`) — also affected RH-002/RH-003 backlog
+  hashes on their branches. New rule (saved to memory): commit code first, reference the final hash in a
+  separate commit; never amend a commit whose hash a tracked file already cites.
+
+## 11. RH-005 core — CODSPP-QC parse + triage (`26cc914`, PR #41)
+Worktree `.trees/rh-005-codspp-tropo`. `codspp_qc.py`: `parse_codspp_output()` (station, `RMS OF UNIT
+WEIGHT`, BAD/USED obs, X/Y/Z `NEW- A PRIORI` → `coord_shift_m`); `classify_codspp()` → `ok`/`bad_apriori`
+(high RMS + large shift → re-seed .CRD)/`bad_obs` (high RMS + small shift → alert human)/`unknown`,
+tunable thresholds; `parse_codxtr_summary()` for the combined worst-station line. Verified against the
+real CUSV 0840 SPP block. `test_codspp_qc.py` +9, ruff + mypy clean. **Ran tests via the rh-004 venv +
+`PYTHONPATH` (no `uv sync`)** to avoid disturbing the BPE final solve. Remainder: the re-seed ACTION
+(gap #9) + PID-322 tropo quarantine (gap #11, needs a failed-322 sample).
+
+## 12. BPE hang lesson applied — no re-hang
+After §9's recovery, kept the T420 quiet: verified RH-004/RH-005 tests via the already-synced rh-004
+worktree venv instead of syncing new worktrees. 0870 sailed through to the final GPSEST solve
+(job 502, observed at 99.9% CPU / 16 min — the expected ~40-min FPU-bound solve, not a hang).
+
 ## State at end of session
-- **Committed/pushed** — `docs/bernese-training-notes`: RH-002 (`e544492`), session log + gitignore
-  (`b0f2fc3`), `open_pr.sh` (`9f608d4`), session log update (`9c70c1d`). `feat/rh-003-gen-sessions`:
-  RH-003 (`b84c4a6`). `feat/rh-004-panel-sanitizer`: RH-004 core (`6c0d8a2`).
-- **PRs open:** #38 (docs→main), #39 (RH-003, stacked), #40 (RH-004 core, stacked).
-- **Background:** PAGENET 0870 relaunched detached after a hang recovery (runner 38873, PPID→1);
-  3 of 7 dailies banked (084/085/086).
-- **Next:** RH-004 remainder (render-path wiring + provisioning + MAXPAR-into-panel), or RH-005
-  (CODSPP-QC + tropo auto-recovery, gaps #9/#11). Keep the T420 quiet while BPE runs.
+- **Committed/pushed** — `docs/bernese-training-notes`: RH-002 (`e544492`), gitignore/session logs
+  (`b0f2fc3`, `9c70c1d`, `cd18e99`), `open_pr.sh` (`9f608d4`). `feat/rh-003-gen-sessions`: RH-003
+  (`b84c4a6`). `feat/rh-004-panel-sanitizer`: RH-004 core+remainder (`6c0d8a2`, `425735b`, `90bd92a`).
+  `feat/rh-005-codspp-tropo`: RH-005 core (`26cc914`).
+- **PRs open:** #38 (docs→main), #39 (RH-003), #40 (RH-004), #41 (RH-005) — #39/#40/#41 stacked on #38.
+- **Background:** PAGENET 0870 in final GPSEST solve (healthy, 99.9% CPU); 3 of 7 dailies banked.
+- **Next:** RH-004 gold-standard content (data/ops); RH-005 remainder (re-seed action + tropo
+  quarantine); RH-006 (final-solution clustering). Keep the T420 quiet while BPE runs — verify via an
+  existing worktree venv, don't `uv sync` a fresh one mid-run.
