@@ -19,7 +19,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_SUBDIRS = ("ATM", "BPE", "GRD", "OBS", "ORB", "ORX", "OUT", "RAW", "SOL", "STA")
+# GEN/ holds the session table (SESSIONS.SES) + general files; its omission was
+# readiness gap #2 — BPE aborts early without a session table.
+_SUBDIRS = ("ATM", "BPE", "GEN", "GRD", "OBS", "ORB", "ORX", "OUT", "RAW", "SOL", "STA")
 
 
 @dataclass
@@ -171,13 +173,20 @@ class LinuxBPEBackend:
         year: int,
         session: str,
         config: CampaignConfig | None = None,
+        sessions_template: str | Path | None = None,
         **kwargs: object,
     ) -> None:
-        """Create campaign subdirectories and, if *config* is provided,
-        generate Bernese input files (STA, CRD, ABB, VEL, CLU, BLQ).
+        """Create campaign subdirectories, stage the GEN/SESSIONS.SES session
+        table, and — if *config* is provided — generate the Bernese input files
+        (STA, CRD, ABB, VEL, CLU, BLQ).
 
-        File generation order: subdirs → STA → CRD → ABB → VEL → CLU → BLQ.
-        BLQ download is skipped when config.download_blq is False.
+        File generation order: subdirs → SESSIONS.SES → STA → CRD → ABB → VEL →
+        CLU → BLQ. BLQ download is skipped when config.download_blq is False.
+
+        SESSIONS.SES is written unconditionally (independent of *config*) because
+        BPE aborts without it (gap #2). Pass *sessions_template* to copy an exact
+        install file (e.g. $X/SUPGUI/PAN/SESSIONS.SES) instead of the built-in
+        daily template.
         """
         from .campaign_builder import (
             generate_abb,
@@ -186,12 +195,19 @@ class LinuxBPEBackend:
             generate_sta,
             generate_vel,
             stage_atx,
+            stage_sessions_ses,
         )
 
         campaign_path = self.campaign_dir / campaign_name
         for subdir in _SUBDIRS:
             (campaign_path / subdir).mkdir(parents=True, exist_ok=True)
         logger.info("Campaign subdirs created: %s", campaign_path)
+
+        # Session table (gap #2) — always, even without a CampaignConfig.
+        stage_sessions_ses(
+            campaign_path / "GEN",
+            Path(sessions_template).expanduser() if sessions_template is not None else None,
+        )
 
         if config is None:
             return

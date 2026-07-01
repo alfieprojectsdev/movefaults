@@ -202,11 +202,20 @@ Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops st
 *Consumer wiring: orchestrator still constructs the backend with defaults; thread `pcf_file`/`max_par`
 through `BerneseOrchestrator` when driving PAGENET (small follow-up, out of this ticket's scope).*
 
-### RH-003 · P0 · S
+### ~~RH-003~~ · P0 · S · **DONE** `e43b074`
 **`prepare_campaign()` adds GEN/ + SESSIONS.SES (gap #2)**
 
-- `_SUBDIRS` omits `GEN`; no session table generated → BPE dies (this exact gap blocked the manual
-  run in training). Add `GEN` to `_SUBDIRS`; generate/copy a daily `SESSIONS.SES` (`???0` template).
+- ~~`_SUBDIRS` omits `GEN`; no session table generated → BPE dies.~~ **Shipped:** `GEN` added to
+  `_SUBDIRS`; `generate_sessions_ses()` + `stage_sessions_ses()` in `campaign_builder.py` write the
+  stock daily `???0` session table (verbatim from `$X/SUPGUI/PAN/SESSIONS.SES`, whole-day
+  00:00:00–23:59:59) into campaign `GEN/`. Written unconditionally in `prepare_campaign()` — even
+  without a `CampaignConfig`, since BPE aborts without it. Preserves a pre-existing hand-tuned
+  SESSIONS.SES; `sessions_template=` arg copies an exact install file instead.
+- Tests: `test_campaign_builder.py` +5 (daily-template content, GEN subdir, no-config write, template
+  copy, preserve-existing). 80 tests pass, ruff clean (mypy: one pre-existing `requests` stub note in
+  `download_blq`, unrelated).
+- NOTE: other `GEN/` general files (`ANTENNA_I20.PCV`, `OBSERV.SEL`, `SINEX_RNX2SNX.SKL`) are also
+  needed for a full run but are separate reference-file staging — out of this ticket's scope.
 
 ### RH-004 · P1 · M
 **Panel/script sanitizer + gold-standard config provisioning (gaps #8, #14)**
