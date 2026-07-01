@@ -127,13 +127,24 @@ After §9's recovery, kept the T420 quiet: verified RH-004/RH-005 tests via the 
 worktree venv instead of syncing new worktrees. 0870 sailed through to the final GPSEST solve
 (job 502, observed at 99.9% CPU / 16 min — the expected ~40-min FPU-bound solve, not a hang).
 
+## 13. BPE stopped for relocation (clean shutdown)
+User relocating (new desk/internet). Stopped the run cleanly: killed the week runner (38873) first,
+then the BPE tree (menu server, RUNBPE 502, GPSEST 502 — GPSEST needed SIGKILL mid-solve); removed the
+lock, stale `WORK/*_<pid>`, and stale `PAGENET_DLY.RUN`. 0870 was mid final GPSEST solve (job 502, not
+banked) → discarded, restarts from job 001 on resume. Machine idle, nothing running.
+
+**Resume anywhere with internet:** `~/run_pagenet_week.sh --detach` — idempotent, skips the 3 banked
+dailies (084/085/086), restarts at 0870. PLG2 already stashed (088 safe). Keep the T420 quiet while it
+runs (don't `uv sync` a fresh worktree mid-solve; verify via an existing worktree venv).
+
 ## State at end of session
 - **Committed/pushed** — `docs/bernese-training-notes`: RH-002 (`e544492`), gitignore/session logs
-  (`b0f2fc3`, `9c70c1d`, `cd18e99`), `open_pr.sh` (`9f608d4`). `feat/rh-003-gen-sessions`: RH-003
-  (`b84c4a6`). `feat/rh-004-panel-sanitizer`: RH-004 core+remainder (`6c0d8a2`, `425735b`, `90bd92a`).
-  `feat/rh-005-codspp-tropo`: RH-005 core (`26cc914`).
+  (`b0f2fc3`, `9c70c1d`, `cd18e99`, `66f7277`), `open_pr.sh` (`9f608d4`). `feat/rh-003-gen-sessions`:
+  RH-003 (`b84c4a6`). `feat/rh-004-panel-sanitizer`: RH-004 core+remainder (`6c0d8a2`, `425735b`,
+  `90bd92a`). `feat/rh-005-codspp-tropo`: RH-005 core (`26cc914`).
 - **PRs open:** #38 (docs→main), #39 (RH-003), #40 (RH-004), #41 (RH-005) — #39/#40/#41 stacked on #38.
-- **Background:** PAGENET 0870 in final GPSEST solve (healthy, 99.9% CPU); 3 of 7 dailies banked.
-- **Next:** RH-004 gold-standard content (data/ops); RH-005 remainder (re-seed action + tropo
-  quarantine); RH-006 (final-solution clustering). Keep the T420 quiet while BPE runs — verify via an
-  existing worktree venv, don't `uv sync` a fresh one mid-run.
+- **Background:** STOPPED (clean) for relocation; 3 of 7 dailies banked (084/085/086); machine idle.
+- **Next:** resume the week (087–090); then RH-004 gold-standard content (data/ops), RH-005 remainder
+  (re-seed action + tropo quarantine), or RH-006 (final-solution clustering — fixes the 40-min
+  single-core solve). Loose ends: RH-002/RH-003 backlog hashes still pre-amend (batch-fix); async GFZ
+  inquiry + `deploy_r740.secrets` token rotation.
