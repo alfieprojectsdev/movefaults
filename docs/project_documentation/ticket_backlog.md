@@ -208,7 +208,7 @@ through `BerneseOrchestrator` when driving PAGENET (small follow-up, out of this
 - `_SUBDIRS` omits `GEN`; no session table generated → BPE dies (this exact gap blocked the manual
   run in training). Add `GEN` to `_SUBDIRS`; generate/copy a daily `SESSIONS.SES` (`???0` template).
 
-### RH-004 · P1 · M · **PARTIAL** (sanitizer core DONE `d725ab0`)
+### RH-004 · P1 · M · **PARTIAL** (all mechanisms DONE `d725ab0`+`32e1ea7`; only gold-standard content authoring left)
 **Panel/script sanitizer + gold-standard config provisioning (gaps #8, #14)**
 
 - ~~Instructor `OPT/*.INP` panels carry Windows `\` separators, dangling `WAIT` PIDs, and hardcoded
@@ -220,13 +220,20 @@ through `BerneseOrchestrator` when driving PAGENET (small follow-up, out of this
   `SCRIPT/*.pl` (a Perl backslash is an escape, not a separator; conversion would corrupt it).
   Verified on the real `PGN_WK/ADDNEQ2.INP` (flags 4 drive paths + 4 dates + 5 session stamps).
   `test_panel_sanitizer.py` +11 (verbatim panel-line fixtures). 86 pass, ruff + mypy clean.
-- **STILL OPEN (RH-004 remainder):**
-  - **Wire the sanitizer into the render/copy path** so panels are cleaned on the way to `$U/OPT`.
-  - **Gold-standard provisioning:** patched panels/scripts (BSW_DWLD, ADD_MON smartmatch, PGN_WK)
-    version-controlled in `services/bernese-workflow/script/`, synced to `$U`, not hand-edited per box
-    (config-versioning layer; survives MIS resets of the R740).
-  - **MAXPAR into the ADDNEQ2 panel (readiness task B):** set `MAXPAR 1 "<N>"` from the RH-002
-    `compute_maxpar()` value (real panel currently frozen at `"5000"`). Consumes RH-002's exported var.
+- **Render/copy-path wiring — SHIPPED:** `provision_opt_dir(src, dest, *, n_stations, strict)` sanitizes
+  every `*.INP` on the way to `$U/OPT`, copies non-INP files (`*.pl`) **verbatim**, and with `strict`
+  (default) **refuses to write** any panel still carrying an unresolved hazard (foreign path / hardcoded
+  session) — those must be hand-remapped before they qualify as gold-standard. `ProvisionReport.ok`.
+- **MAXPAR into ADDNEQ2 (readiness task B) — SHIPPED:** `set_addneq2_maxpar(text, value)` rewrites
+  `MAXPAR 1 "<N>"` (leaves `MSG_MAXPAR` help text); `provision_opt_dir(n_stations=…)` sizes it via
+  RH-002 `compute_maxpar()`. Consumes RH-002's value (panel shipped frozen at `"5000"`).
+  `test_panel_sanitizer.py` +6 (maxpar rewrite/noop/reject, provision sanitize+size+verbatim, strict
+  refuse, non-strict collect). 92 pass, ruff + mypy clean.
+- **STILL OPEN (only remaining piece):** author the actual **gold-standard panel content** —
+  hand-remap the real `PGN_WK`/`PGN_MO` `C:\Bernese\...` drive paths to `${X}/${U}/${P}` vars and strip
+  the frozen sessions, then commit the cleaned tree under `services/bernese-workflow/script/` for
+  `provision_opt_dir` to sync. This is a data/ops task (domain remap decisions), not code; the strict
+  provisioner now enforces it can't be skipped. Also: patch BSW_DWLD / ADD_MON smartmatch (gap #8).
 
 ### RH-005 · P1 · M
 **CODSPP-QC + tropo auto-recovery gates (gaps #9, #11)**

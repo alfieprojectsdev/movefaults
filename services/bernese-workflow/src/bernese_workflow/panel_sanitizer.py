@@ -27,7 +27,9 @@ would corrupt the script.
 from __future__ import annotations
 
 import re
+import shutil
 from dataclasses import dataclass, field
+from pathlib import Path
 
 # A double-quoted value on a panel line: SESSION_TABLE 1  "<value>"
 _QUOTED_RE = re.compile(r'"([^"]*)"')
@@ -168,3 +170,98 @@ def find_dangling_waits(pcf_text: str) -> list[DanglingWait]:
                 if pid not in defined:
                     dangling.append(DanglingWait(i, pid))
     return dangling
+
+
+# The ADDNEQ2 MAXPAR value line: `MAXPAR 1  "5000"`. Anchored to the line start so
+# it never matches `MSG_MAXPAR ...`. Group 2 is the current integer value.
+_MAXPAR_RE = re.compile(r'^(MAXPAR\s+\d+\s+")(\d+)(")', re.MULTILINE)
+
+
+def set_addneq2_maxpar(text: str, value: int) -> tuple[str, bool]:
+    """Set the ADDNEQ2 ``MAXPAR`` value (readiness task B).
+
+    Rewrites ``MAXPAR 1 "<n>"`` to *value*, leaving ``MSG_MAXPAR`` (the help text)
+    untouched. Pair with ``backends.compute_maxpar(n_stations)`` so the combined-NEQ
+    parameter ceiling scales with the network instead of a frozen literal (the panel
+    ships hardcoded at "5000"; a ~270-station R740 run overflows it). Returns
+    ``(new_text, changed)``; *changed* is False when the panel has no MAXPAR line.
+    """
+    if value <= 0:
+        raise ValueError(f"MAXPAR must be > 0, got {value}")
+    new_text, n = _MAXPAR_RE.subn(
+        lambda m: f"{m.group(1)}{value}{m.group(3)}", text
+    )
+    return new_text, n > 0
+
+
+@dataclass
+class ProvisionReport:
+    """Outcome of provisioning an OPT panel tree to ``$U``."""
+
+    written: list[Path] = field(default_factory=list)
+    # dest-relative panel path → residual warnings the sanitizer could not auto-fix.
+    warnings: dict[str, list[PanelWarning]] = field(default_factory=dict)
+
+    @property
+    def ok(self) -> bool:
+        return not any(self.warnings.values())
+
+
+def provision_opt_dir(
+    src_dir: str | Path,
+    dest_dir: str | Path,
+    *,
+    n_stations: int | None = None,
+    strict: bool = True,
+) -> ProvisionReport:
+    """Provision a Bernese OPT panel tree from a repo gold-standard into ``$U/OPT``.
+
+    Wires the sanitizer into the copy path so no un-sanitized panel reaches ``$U``:
+
+    - ``*.INP`` panels are separator-sanitized on the way out. ``ADDNEQ2.INP`` also
+      gets ``MAXPAR`` sized from *n_stations* (via ``compute_maxpar``) when given.
+    - Any OTHER file (notably ``*.pl`` scripts) is copied **verbatim** — never
+      separator-converted, since a Perl backslash is an escape, not a path.
+    - Residual warnings the sanitizer only flags (foreign drive-letter paths,
+      hardcoded session/date literals) are collected per file. With *strict* (the
+      default) a panel carrying any such warning raises ``ValueError`` instead of
+      being written — those must be remapped by hand before they can be gold-standard.
+
+    Directory structure under *src_dir* is preserved under *dest_dir*.
+    """
+    from .backends import compute_maxpar
+
+    src = Path(src_dir).expanduser()
+    dest = Path(dest_dir).expanduser()
+    report = ProvisionReport()
+
+    for path in sorted(p for p in src.rglob("*") if p.is_file()):
+        rel = path.relative_to(src)
+        target = dest / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+
+        if path.suffix.upper() != ".INP":
+            shutil.copy2(path, target)          # scripts etc. — verbatim
+            report.written.append(target)
+            continue
+
+        result = sanitize_panel_text(path.read_text(encoding="ascii", errors="replace"))
+        out_text = result.text
+        if path.name.upper() == "ADDNEQ2.INP" and n_stations is not None:
+            out_text, _ = set_addneq2_maxpar(out_text, compute_maxpar(n_stations))
+
+        if result.warnings:
+            report.warnings[str(rel)] = result.warnings
+            if strict:
+                offenders = ", ".join(
+                    f"L{w.line} {w.kind}" for w in result.warnings
+                )
+                raise ValueError(
+                    f"{rel}: panel carries unresolved hazards, refusing to provision "
+                    f"(remap by hand first): {offenders}"
+                )
+
+        target.write_text(out_text, encoding="ascii")
+        report.written.append(target)
+
+    return report

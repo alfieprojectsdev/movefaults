@@ -1,9 +1,12 @@
 """Tests for panel_sanitizer — fixtures are verbatim PGN_WK panel lines (RH-004)."""
 from __future__ import annotations
 
+import pytest
 from bernese_workflow.panel_sanitizer import (
     find_dangling_waits,
+    provision_opt_dir,
     sanitize_panel_text,
+    set_addneq2_maxpar,
 )
 
 # ---------------------------------------------------------------------------
@@ -111,3 +114,72 @@ def test_multiple_dangling_pids_in_one_wait():
     pcf = "001 A PGN_GEN CPU=ANY\n099 B NO_OPT CPU=ANY; WAIT=001 777 888\n"
     pids = {d.pid for d in find_dangling_waits(pcf)}
     assert pids == {"777", "888"}
+
+
+# ---------------------------------------------------------------------------
+# set_addneq2_maxpar (readiness task B)
+# ---------------------------------------------------------------------------
+
+def test_set_maxpar_rewrites_value_only():
+    text = 'MAXPAR 1  "5000"\nMSG_MAXPAR 1  "Maximum number of parameters"\n'
+    out, changed = set_addneq2_maxpar(text, 1580)
+    assert changed is True
+    assert 'MAXPAR 1  "1580"' in out
+    assert 'MSG_MAXPAR 1  "Maximum number of parameters"' in out  # help text untouched
+
+
+def test_set_maxpar_no_line_is_noop():
+    out, changed = set_addneq2_maxpar('SOMETHING 1  "1"\n', 1580)
+    assert changed is False
+
+
+def test_set_maxpar_rejects_nonpositive():
+    with pytest.raises(ValueError, match="MAXPAR"):
+        set_addneq2_maxpar('MAXPAR 1  "5000"\n', 0)
+
+
+# ---------------------------------------------------------------------------
+# provision_opt_dir — wire sanitizer into the copy-to-$U path
+# ---------------------------------------------------------------------------
+
+def test_provision_sanitizes_inp_sizes_maxpar_and_copies_scripts(tmp_path):
+    gold = tmp_path / "gold"
+    src = gold / "PGN_WK"
+    src.mkdir(parents=True)
+    # Clean panel with mixed separators (safe to convert) + a MAXPAR line.
+    (src / "ADDNEQ2.INP").write_text(
+        'SESSION_TABLE 1  "${P}/SOB\\GEN\\SESSIONS.SES"\nMAXPAR 1  "5000"\n'
+    )
+    # A Perl script must be copied verbatim (backslashes preserved).
+    (src / "helper.pl").write_text('$x =~ s/a\\tb/c/;\n')
+
+    dest = tmp_path / "GPSUSER" / "OPT"
+    report = provision_opt_dir(gold, dest, n_stations=270)  # provision from the tree root
+
+    assert report.ok is True
+    addneq2 = (dest / "PGN_WK" / "ADDNEQ2.INP").read_text()
+    assert '"${P}/SOB/GEN/SESSIONS.SES"' in addneq2      # separators fixed
+    assert 'MAXPAR 1  "1580"' in addneq2                 # 270*4+500, sized
+    assert (dest / "PGN_WK" / "helper.pl").read_text() == '$x =~ s/a\\tb/c/;\n'  # verbatim
+
+
+def test_provision_strict_refuses_dirty_panel(tmp_path):
+    src = tmp_path / "gold"
+    src.mkdir()
+    (src / "ADDNEQ2.INP").write_text('  "U" "C:\\Bernese\\GPSUSER54\\"\n')  # drive path
+
+    dest = tmp_path / "OPT"
+    with pytest.raises(ValueError, match="unresolved hazards"):
+        provision_opt_dir(src, dest, strict=True)
+
+
+def test_provision_nonstrict_collects_warnings(tmp_path):
+    src = tmp_path / "gold"
+    src.mkdir()
+    (src / "ADDNEQ2.INP").write_text('SESSION_YEAR 1  "2026"\n')  # hardcoded date
+
+    dest = tmp_path / "OPT"
+    report = provision_opt_dir(src, dest, strict=False)
+    assert report.ok is False
+    assert "ADDNEQ2.INP" in report.warnings
+    assert (dest / "ADDNEQ2.INP").exists()  # non-strict still writes
