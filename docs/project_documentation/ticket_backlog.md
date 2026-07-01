@@ -208,7 +208,7 @@ through `BerneseOrchestrator` when driving PAGENET (small follow-up, out of this
 - `_SUBDIRS` omits `GEN`; no session table generated → BPE dies (this exact gap blocked the manual
   run in training). Add `GEN` to `_SUBDIRS`; generate/copy a daily `SESSIONS.SES` (`???0` template).
 
-### RH-004 · P1 · M · **PARTIAL** (all mechanisms DONE `d725ab0`+`32e1ea7`; only gold-standard content authoring left)
+### RH-004 · P1 · M · **PARTIAL** (all mechanisms DONE `6c0d8a2`+`32e1ea7`; only gold-standard content authoring left)
 **Panel/script sanitizer + gold-standard config provisioning (gaps #8, #14)**
 
 - ~~Instructor `OPT/*.INP` panels carry Windows `\` separators, dangling `WAIT` PIDs, and hardcoded
