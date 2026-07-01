@@ -182,17 +182,25 @@ Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops st
 - Per-session DOY filter (RINEX2/3/RXO names) so intermittent stations (PLG2) are checked on the day
   they appear. Catches the RXOBV3 hard-abort pre-BPE. Backward compatible; 65 tests, ruff+mypy clean.
 
-### RH-002 · P0 · S
+### ~~RH-002~~ · P0 · S · **DONE** `1d017f1`
 **Parameterize `backends.run()` — PCF_FILE / campaign / CPU_FILE + MAXPAR sizing (gaps #3, #10)**
 
-- `run()` hardcodes `PCF_FILE="RNX2SNX"`, `CPU_FILE="PCF"` → cannot run PAGENET (the real workflow).
-  Parameterize PCF name + campaign; real CPU file is `USER.CPU`. (This is exactly what `pagenet_pcs.pl`
-  proved manually this week.)
-- Size `ADDNEQ2 MAXPAR` from station count when rendering panels (≈ N_sta×4 + margin). The stock 1000
-  blocks any full-network run — room-wide `neqckdim DIMENSION TOO SMALL` at ADDNEQ2. ~270 R740 stations
-  need well above 1000.
+- ~~`run()` hardcodes `PCF_FILE="RNX2SNX"`, `CPU_FILE="PCF"` → cannot run PAGENET (the real workflow).~~
+  **Shipped:** `LinuxBPEBackend` constructor now takes `pcf_file` (default `RNX2SNX`), `cpu_file`
+  (default `USER` — the shipping `USER.CPU`, not the phantom `PCF.CPU`), `driver_script`, and `max_par`.
+  `run()` exports the parameterized `PCF_FILE`/`CPU_FILE`/`BPE_CAMPAIGN` and passes the PCF as `argv[2]`
+  for `pagenet_pcs.pl`-style drivers (stock `rnx2snx_pcs.pl` ignores it). Defaults preserve the stock
+  contract.
+- ~~Size `ADDNEQ2 MAXPAR` from station count.~~ **Shipped:** `compute_maxpar(n_sta)` (≈ N_sta×4 + 500,
+  floor 1000) + `_count_crd_stations()`; `run()` auto-sizes from the campaign CRD (or `max_par` override)
+  and exports `MAXPAR` as a BPE variable. NOTE: the value is *exported*; wiring it into the ADDNEQ2 panel
+  templates themselves is **RH-004 / readiness task B** (panel templating). Left unset when uncomputable
+  so the panel default stands.
+- Tests: `test_backends.py` +10 (compute_maxpar bounds, CRD count, env-var flow, default preservation).
+  75 tests pass, ruff + mypy clean.
 
-*Highest-value next ticket; small and self-contained.*
+*Consumer wiring: orchestrator still constructs the backend with defaults; thread `pcf_file`/`max_par`
+through `BerneseOrchestrator` when driving PAGENET (small follow-up, out of this ticket's scope).*
 
 ### RH-003 · P0 · S
 **`prepare_campaign()` adds GEN/ + SESSIONS.SES (gap #2)**

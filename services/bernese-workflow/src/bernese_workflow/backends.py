@@ -76,6 +76,45 @@ def _parse_bpe_output(log_text: str) -> BPEResult:
     )
 
 
+def compute_maxpar(
+    n_stations: int,
+    *,
+    per_station: int = 4,
+    margin: int = 500,
+    floor: int = 1000,
+) -> int:
+    """Size the ADDNEQ2 MAXPAR parameter from a network's station count.
+
+    Heuristic from the R740 readiness eval (gap #10): ``MAXPAR ≈ N_sta×4 + margin``,
+    floored at Bernese's 1000 default. A ~270-station PAGENET network → ~1580, well
+    above the 1000 that silently truncates large solves. This is the readiness-doc
+    rule of thumb (coordinates + troposphere dominate the parameter count), NOT a
+    derived upper bound — validate against a real full-network solve before trusting
+    it unattended.
+    """
+    if n_stations < 0:
+        raise ValueError(f"n_stations must be >= 0, got {n_stations}")
+    return max(floor, n_stations * per_station + margin)
+
+
+# A Bernese .CRD data line: leading record index, then a 4-char station code.
+_CRD_STATION_RE = re.compile(r"^\s*\d+\s+[A-Z0-9]{4}\b")
+
+
+def _count_crd_stations(crd_path: Path) -> int:
+    """Best-effort station count from a Bernese .CRD file.
+
+    Counts data rows (``<idx> <CODE> ...``); header/comment lines don't match the
+    index+code shape. Returns 0 on a missing/unreadable file so callers fall back
+    to a default rather than crashing the run.
+    """
+    try:
+        text = crd_path.read_text(encoding="ascii", errors="replace")
+    except OSError:
+        return 0
+    return sum(1 for line in text.splitlines() if _CRD_STATION_RE.match(line))
+
+
 class LinuxBPEBackend:
     """
     Invokes Bernese BPE via the Perl startBPE.pm API on Linux.
@@ -92,11 +131,32 @@ class LinuxBPEBackend:
         campaign_dir: str | Path,
         timeout_sec: int = 7200,
         rinex_source_dir: str | Path | None = None,
+        pcf_file: str = "RNX2SNX",
+        cpu_file: str = "USER",
+        driver_script: str | Path | None = None,
+        max_par: int | None = None,
     ) -> None:
         self.bernese_root = Path(bernese_root).expanduser()
         self.user_dir = Path(user_dir).expanduser()
         self.campaign_dir = Path(campaign_dir).expanduser()
         self.timeout_sec = timeout_sec
+        # BPE run parameters (gap #3 / readiness task E). Training proved the real
+        # PAGENET pipeline runs a NON-default PCF (PAGENET / PAGENET_DLY) against the
+        # shipping USER.CPU — not the "RNX2SNX"/"PCF" hardcode the stub carried. These
+        # are now injectable so the orchestrator can drive any PCF/CPU without editing
+        # the backend.  CPU_FILE default is "USER" because USER.CPU is what Bernese
+        # ships and what startBPE resolves; there is no "PCF.CPU".
+        self.pcf_file = pcf_file
+        self.cpu_file = cpu_file
+        # Headless driver (parameterized stock rnx2snx_pcs.pl). Default keeps the
+        # stock name; pagenet_pcs.pl-style drivers additionally read the PCF from
+        # argv[2], which stock drivers harmlessly ignore.
+        self.driver_script = (
+            Path(driver_script).expanduser() if driver_script is not None else None
+        )
+        # ADDNEQ2 MAXPAR override (gap #10). None ⇒ size from the campaign CRD
+        # station count at run() via compute_maxpar(); an explicit int wins over that.
+        self.max_par = max_par
         # DATAPOOL RINEX source ($D/$V_RNXDIR, e.g. ~/GPSDATA/DATAPOOL/PGN).
         # When set, pre-flight validation reads RINEX headers HERE (per session)
         # instead of the campaign RAW/, which is empty until RNX_COP runs inside
@@ -238,26 +298,45 @@ class LinuxBPEBackend:
                 validate_dir,
             )
 
-        script = self.user_dir / "SCRIPT" / "rnx2snx_pcs.pl"
+        script = self.driver_script or (self.user_dir / "SCRIPT" / "rnx2snx_pcs.pl")
+
+        # MAXPAR: explicit constructor override wins; otherwise size from the
+        # campaign CRD station count (gap #10). Left unset when neither is available
+        # so the panel/PCF default stands rather than injecting a guessed number.
+        maxpar = self.max_par
+        if maxpar is None:
+            crd_path = campaign_path / "STA" / f"{campaign_name}.CRD"
+            n_sta = _count_crd_stations(crd_path)
+            if n_sta > 0:
+                maxpar = compute_maxpar(n_sta)
+
         env_overrides = {
             # Bernese path variables required by Perl scripts
             "X": str(self.bernese_root),
             "U": str(self.user_dir),
             "P": str(self.campaign_dir),
-            # BPE session parameters
-            "PCF_FILE": "RNX2SNX",
-            "CPU_FILE": "PCF",
+            # BPE session parameters (parameterized — gap #3 / task E)
+            "PCF_FILE": self.pcf_file,
+            "CPU_FILE": self.cpu_file,
             "BPE_CAMPAIGN": campaign_name,
             "YEAR": str(year),
             "SESSION": session,
         }
+        if maxpar is not None:
+            # Exported as a BPE variable so ADDNEQ2 panel templates can pick it up.
+            env_overrides["MAXPAR"] = str(maxpar)
 
         env = {**os.environ, **env_overrides}
 
-        logger.info("Starting BPE: perl %s %s %s", script, year, session)
+        logger.info(
+            "Starting BPE: perl %s %s %s pcf=%s cpu=%s maxpar=%s",
+            script, year, session, self.pcf_file, self.cpu_file, maxpar,
+        )
         try:
+            # PCF passed as argv[2] for pagenet_pcs.pl-style drivers; stock
+            # rnx2snx_pcs.pl ignores the extra argument.
             proc = subprocess.run(
-                ["perl", str(script), str(year), session],
+                ["perl", str(script), str(year), session, self.pcf_file],
                 capture_output=True,
                 text=True,
                 env=env,
