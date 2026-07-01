@@ -57,3 +57,13 @@ analysis/08 Bootstrapping/boostrap.mp4
 # !docs/bern52/BERN52_Guide.pdf
 
 *.env
+
+# Deployment scripts containing credentials — never commit
+scripts/bern_install.md
+scripts/deploy_r740.sh
+scripts/deploy_r740_checklist.md
+scripts/deploy_r740.secrets
+*.secrets
+
+# git worktrees (multi-instance dev)
+.trees/
