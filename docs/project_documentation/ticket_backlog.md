@@ -218,14 +218,23 @@ through `BerneseOrchestrator` when driving PAGENET (small follow-up, out of this
   `services/bernese-workflow/script/` as gold-standard, synced to `$U`, NOT hand-edited per box —
   the case for the config-versioning layer (survives MIS resets of the R740).
 
-### RH-005 · P1 · M
+### RH-005 · P1 · M · **PARTIAL** (CODSPP-QC core DONE)
 **CODSPP-QC + tropo auto-recovery gates (gaps #9, #11)**
 
-- Parse CODSPP `RMS OF UNIT WEIGHT` + `NEW − A PRIORI` delta per station: bad-a-priori (high RMS +
-  large delta) → re-seed `.CRD` from CODSPP output and retry (free auto-fix); bad-obs (high RMS, small
-  delta) → alert human. Cheapest auto-recovery in the pipeline.
-- Tropo/GPSEST stage: on PID 322 zenith-delay overflow, quarantine the malformed/short-baseline
-  NON-IGS partner for that session and retry; NEVER drop an IGS fiducial.
+- **CODSPP-QC parse + classify — SHIPPED (`codspp_qc.py`):** `parse_codspp_output()` reads a per-cluster
+  `SPP_*_NNN.OUT` (station code, `RMS OF UNIT WEIGHT`, `BAD OBSERVATIONS %`, `USED OBSERVATIONS`, and the
+  X/Y/Z `NEW- A PRIORI` deltas → `coord_shift_m`). `classify_codspp()` triages: high RMS + large shift →
+  `bad_apriori` (re-seed .CRD from CODSPP NEW coords, auto-fixable); high RMS + small shift → `bad_obs`
+  (data fault, alert human); else `ok`; `unknown` on unparseable. `parse_codxtr_summary()` reads the
+  combined CODXTR worst-station `MAX. RMS` / `MAX. BAD` lines. Thresholds are tunable params (defaults
+  rms 3 m / shift 1 m — CODSPP code solutions sit ~1 m; MUST tune on a real network). Verified against
+  the real CUSV 0840 block. `test_codspp_qc.py` +9, ruff + mypy clean.
+- **STILL OPEN (RH-005 remainder):**
+  - **Re-seed action (gap #9 auto-fix):** on `bad_apriori`, rewrite the station's `.CRD` from the CODSPP
+    NEW coordinates and re-run — the applied/orchestrator layer (like RH-004's provisioner).
+  - **Tropo quarantine (gap #11):** on PID 322 zenith-delay overflow, quarantine the malformed/short-
+    baseline NON-IGS partner for that session and retry; NEVER drop an IGS fiducial. Needs a failed-322
+    output sample to fix the parse against (none on disk this session).
 
 ### RH-006 · P2 · S
 **Final-solution clustering tuning (gap #13)**
