@@ -71,10 +71,40 @@ pushes with upstream, `--base/--title/--body-file [--head] [--draft]`. `git push
 - **#39** `feat/rh-003-gen-sessions → docs/bernese-training-notes` — RH-003, **stacked** on #38
   (branched off its tip; auto-retargets to `main` when #38 merges).
 
+## 8. RH-004 (core) — Bernese panel sanitizer (`6c0d8a2`, PR #40)
+Worktree `.trees/rh-004-panel-sanitizer` (branch `feat/rh-004-panel-sanitizer`, off docs tip since
+RH-004 is independent of RH-003). Shipped the **sanitizer core** of the M-size ticket:
+- `panel_sanitizer.py` — `sanitize_panel_text()` converts *mixed* Bernese/Windows separators
+  (`${P}/SOB\GEN` → `${P}/SOB/GEN`) but **flags, never rewrites**, foreign drive-letter paths
+  (`C:\Bernese\...` — converting would mask a still-broken path) and hardcoded session/date literals
+  (`_20261030.NQ0`, `SESSION_YEAR "2026"`, `STADAT`). `find_dangling_waits()` catches WAIT→undefined
+  PID (the `WAIT=522` class). **INP-only** — deliberately NOT run on `SCRIPT/*.pl` (Perl `\` = escape).
+  Verified on the real `PGN_WK/ADDNEQ2.INP` (flags 4 drive paths + 4 dates + 5 session stamps).
+  `test_panel_sanitizer.py` +11. 86 pass, ruff + mypy clean.
+- RH-004 **remainder** (open, in backlog): wire sanitizer into the render/copy path; gold-standard
+  config provisioning to `$U`; MAXPAR into the ADDNEQ2 panel (readiness task B, consumes RH-002's var).
+
+## 9. Background BPE 0870 HUNG + recovered
+Mid-session the detached run stalled: session 0870 sat on job **201 RNXGRA** for ~44 min. Diagnosis —
+RNXGRA's *program* ended cleanly (`MSG RNXGRA PROGRAM ENDED`, 9:22 CPU, GRA output written) but the
+**RUNBPE→BPE-server completion handshake was lost**: the status file (`PAGENET_DLY.RUN`) froze at
+`201 … running <`, the worker process was gone, and the server polled forever. NOT OOM (13 Gi free),
+NOT a data fault (the antenna-marker lines are warnings). Most likely trigger: **I/O/scheduler
+contention from my two concurrent `uv sync` runs + test suites** on this T420 during 04:39–05:30,
+disrupting the wrapper's status write. **Lesson: keep the T420 quiet while the BPE runs — don't run
+heavy `uv sync`/pytest concurrently.** Recovery: killed the hung tree (runner + `pagenet_pcs.pl` +
+menu server), cleared the lock + stale `WORK/*_<pid>` + stale `PAGENET_DLY.RUN`, confirmed `USER.CPU`
+held no stuck job state, relaunched `--detach` **quietly**. New runner PID 38873 (PPID→1 verified),
+0870 re-running from job 001. (Note: a prior 0870 attempt yesterday 18:05 reached float but also never
+produced FIN — 0870 has a history of not finishing; failure points differ, consistent with transient
+hangs, not deterministic data.)
+
 ## State at end of session
 - **Committed/pushed** — `docs/bernese-training-notes`: RH-002 (`e544492`), session log + gitignore
-  (`b0f2fc3`), `open_pr.sh` (`9f608d4`). `feat/rh-003-gen-sessions`: RH-003 (`b84c4a6`).
-- **PRs open:** #38, #39.
-- **Background:** PAGENET 087–090 running detached; 3 of 7 dailies banked (session 0870 in progress).
-- **Next:** RH-004 (panel/script sanitizer, gaps #8/#14 + wire MAXPAR into ADDNEQ2 panel = readiness
-  task B) in a fresh worktree.
+  (`b0f2fc3`), `open_pr.sh` (`9f608d4`), session log update (`9c70c1d`). `feat/rh-003-gen-sessions`:
+  RH-003 (`b84c4a6`). `feat/rh-004-panel-sanitizer`: RH-004 core (`6c0d8a2`).
+- **PRs open:** #38 (docs→main), #39 (RH-003, stacked), #40 (RH-004 core, stacked).
+- **Background:** PAGENET 0870 relaunched detached after a hang recovery (runner 38873, PPID→1);
+  3 of 7 dailies banked (084/085/086).
+- **Next:** RH-004 remainder (render-path wiring + provisioning + MAXPAR-into-panel), or RH-005
+  (CODSPP-QC + tropo auto-recovery, gaps #9/#11). Keep the T420 quiet while BPE runs.
