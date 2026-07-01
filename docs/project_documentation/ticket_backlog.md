@@ -208,15 +208,25 @@ through `BerneseOrchestrator` when driving PAGENET (small follow-up, out of this
 - `_SUBDIRS` omits `GEN`; no session table generated → BPE dies (this exact gap blocked the manual
   run in training). Add `GEN` to `_SUBDIRS`; generate/copy a daily `SESSIONS.SES` (`???0` template).
 
-### RH-004 · P1 · M
+### RH-004 · P1 · M · **PARTIAL** (sanitizer core DONE `d725ab0`)
 **Panel/script sanitizer + gold-standard config provisioning (gaps #8, #14)**
 
-- Instructor `OPT/*.INP` panels + `SCRIPT/` files carry Windows `\` separators (literal chars on
-  Linux), dangling `WAIT` PIDs (hang BPE), and hardcoded foreign sessions. Sanitize `\`→`/`, strip
-  dangling WAITs, reject hardcoded session/campaign literals.
-- Patched panels/scripts (BSW_DWLD, ADD_MON smartmatch, PGN_WK) belong version-controlled in
-  `services/bernese-workflow/script/` as gold-standard, synced to `$U`, NOT hand-edited per box —
-  the case for the config-versioning layer (survives MIS resets of the R740).
+- ~~Instructor `OPT/*.INP` panels carry Windows `\` separators, dangling `WAIT` PIDs, and hardcoded
+  foreign sessions.~~ **Shipped: `panel_sanitizer.py`.** `sanitize_panel_text()` converts *mixed*
+  Bernese/Windows separators (`${P}/SOB\GEN` → `${P}/SOB/GEN`) but **flags, never rewrites**, foreign
+  drive-letter paths (`C:\Bernese\...` — converting would mask a still-broken path) and hardcoded
+  session/date literals (`_20261030.NQ0`, `SESSION_YEAR "2026"`, `STADAT`). `find_dangling_waits()`
+  catches WAIT→undefined-PID (the stray `WAIT=522` class). **INP-only** — deliberately NOT run on
+  `SCRIPT/*.pl` (a Perl backslash is an escape, not a separator; conversion would corrupt it).
+  Verified on the real `PGN_WK/ADDNEQ2.INP` (flags 4 drive paths + 4 dates + 5 session stamps).
+  `test_panel_sanitizer.py` +11 (verbatim panel-line fixtures). 86 pass, ruff + mypy clean.
+- **STILL OPEN (RH-004 remainder):**
+  - **Wire the sanitizer into the render/copy path** so panels are cleaned on the way to `$U/OPT`.
+  - **Gold-standard provisioning:** patched panels/scripts (BSW_DWLD, ADD_MON smartmatch, PGN_WK)
+    version-controlled in `services/bernese-workflow/script/`, synced to `$U`, not hand-edited per box
+    (config-versioning layer; survives MIS resets of the R740).
+  - **MAXPAR into the ADDNEQ2 panel (readiness task B):** set `MAXPAR 1 "<N>"` from the RH-002
+    `compute_maxpar()` value (real panel currently frozen at `"5000"`). Consumes RH-002's exported var.
 
 ### RH-005 · P1 · M
 **CODSPP-QC + tropo auto-recovery gates (gaps #9, #11)**
