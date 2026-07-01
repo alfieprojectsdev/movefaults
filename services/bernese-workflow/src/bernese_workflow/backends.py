@@ -91,11 +91,19 @@ class LinuxBPEBackend:
         user_dir: str | Path,
         campaign_dir: str | Path,
         timeout_sec: int = 7200,
+        rinex_source_dir: str | Path | None = None,
     ) -> None:
         self.bernese_root = Path(bernese_root).expanduser()
         self.user_dir = Path(user_dir).expanduser()
         self.campaign_dir = Path(campaign_dir).expanduser()
         self.timeout_sec = timeout_sec
+        # DATAPOOL RINEX source ($D/$V_RNXDIR, e.g. ~/GPSDATA/DATAPOOL/PGN).
+        # When set, pre-flight validation reads RINEX headers HERE (per session)
+        # instead of the campaign RAW/, which is empty until RNX_COP runs inside
+        # the BPE. Validating empty RAW/ pre-BPE passes vacuously — the gap this closes.
+        self.rinex_source_dir = (
+            Path(rinex_source_dir).expanduser() if rinex_source_dir is not None else None
+        )
 
     def prepare_campaign(
         self,
@@ -169,10 +177,26 @@ class LinuxBPEBackend:
         from .rinex_header_validator import ValidationError, validate_rinex_headers
 
         campaign_path = self.campaign_dir / campaign_name
-        raw_dir = campaign_path / "RAW"
         sta_path = campaign_path / "STA" / f"{campaign_name}.STA"
 
-        if raw_dir.exists() and sta_path.exists():
+        # Validate the DATAPOOL source (per session) when configured — that is
+        # where RINEX lives pre-BPE. Fall back to the campaign RAW/ only when no
+        # source dir is set (legacy behaviour; note RAW/ is empty until RNX_COP).
+        # Session filtering + the non-vacuous guard apply ONLY to the source-dir
+        # path: RAW/ (legacy) is validated unfiltered, as before.
+        if self.rinex_source_dir is not None:
+            validate_dir: Path = self.rinex_source_dir
+            filter_year: int | None = year
+            filter_session: str | None = session
+            require_stations = True
+        else:
+            validate_dir = campaign_path / "RAW"
+            filter_year = None
+            filter_session = None
+            require_stations = False
+
+        if validate_dir.exists() and sta_path.exists():
+            raw_dir = validate_dir
             atm_dir = campaign_path / "ATM"
             if atm_dir.exists():
                 # resolve() deduplicates on case-insensitive filesystems (e.g. macOS)
@@ -197,13 +221,21 @@ class LinuxBPEBackend:
             else:
                 atx_path = None
 
-            report = validate_rinex_headers(raw_dir, sta_path, atx_path=atx_path)
+            report = validate_rinex_headers(
+                raw_dir,
+                sta_path,
+                atx_path=atx_path,
+                year=filter_year,
+                session=filter_session,
+                require_stations=require_stations,
+            )
             if not report.ok:
                 raise ValidationError(report)
         else:
             logger.warning(
-                "Pre-flight RINEX header check skipped for %s (RAW/ or STA not present)",
+                "Pre-flight RINEX header check skipped for %s (source %s or STA not present)",
                 campaign_name,
+                validate_dir,
             )
 
         script = self.user_dir / "SCRIPT" / "rnx2snx_pcs.pl"

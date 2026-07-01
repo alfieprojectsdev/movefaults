@@ -47,11 +47,22 @@ class ValidationReport:
     missing_from_raw: list[str] = field(default_factory=list)   # in STA, no RINEX found (warning only)
     atx_missing: list[str] = field(default_factory=list)        # antenna type absent from ATX
     warnings: list[str] = field(default_factory=list)
+    no_rinex_found: bool = False   # source dir yielded zero RINEX for the session (vacuous-pass guard)
 
     @property
     def ok(self) -> bool:
-        """True only if there are no errors that would cause RXOBV3 to silently drop stations."""
-        return not self.mismatches and not self.missing_from_sta and not self.atx_missing
+        """True only if there are no errors that would cause RXOBV3 to silently drop stations.
+
+        ``no_rinex_found`` is a hard error when set: a validation that parsed zero
+        RINEX files can never legitimately "pass" — that was the defeat behind the
+        empty-``RAW/`` vacuous pass (the validator ran before RNX_COP staged any data).
+        """
+        return (
+            not self.mismatches
+            and not self.missing_from_sta
+            and not self.atx_missing
+            and not self.no_rinex_found
+        )
 
 
 class ValidationError(Exception):
@@ -69,6 +80,11 @@ class ValidationError(Exception):
             )
         if report.atx_missing:
             lines.append(f"  Antenna types absent from ATX: {report.atx_missing}")
+        if report.no_rinex_found:
+            lines.append(
+                "  No RINEX observation files found for the session in the source directory "
+                "— validation cannot run (empty/wrong source, or data not yet staged)."
+            )
         super().__init__("\n".join(lines))
 
 
@@ -87,7 +103,37 @@ def _is_rinex_obs(path: Path) -> bool:
     return len(s) == 4 and s[1:3].isdigit() and s[3] == "o"
 
 
-def _parse_rinex_headers(raw_dir: Path) -> dict[str, dict[str, str]]:
+def _file_matches_session(path: Path, year: int, session: str) -> bool:
+    """True if ``path`` belongs to the given Bernese session.
+
+    Needed because a DATAPOOL source directory (e.g. ``$D/PGN``) holds RINEX for
+    *all* days; an intermittent station (present only on some DOYs) must be
+    validated against the single session actually being processed — otherwise a
+    station missing from one day's data is masked by its presence on another.
+
+    Matches the naming schemes seen in a live PAGENET campaign:
+      * RINEX 2 short name  ``pzam0870.26o`` -> chars [4:7] == DOY ("087")
+                            (station(4) + DOY(3) + session/hour char)
+      * RINEX 3 long name   ``CUSV..._20260870000_...`` -> contains "2026087" (year+DOY)
+      * Bernese .RXO copy   ``PLG2..._20260870.RXO``    -> contains "20260870" (year+session)
+    """
+    name = path.name
+    doy = session[:3]  # Bernese daily session ssss = DOY(3) + session-index(1)
+    # RINEX 2 short name: 4-char station + 3-digit DOY + 1 session/hour char
+    if len(name) >= 7 and name[4:7] == doy:
+        return True
+    # RINEX 3 long name (year+DOY) or Bernese .RXO copy (year+session)
+    if f"{year}{doy}" in name or f"{year}{session}" in name:
+        return True
+    return False
+
+
+def _parse_rinex_headers(
+    raw_dir: Path,
+    *,
+    year: int | None = None,
+    session: str | None = None,
+) -> dict[str, dict[str, str]]:
     """Scan RAW/ recursively for RINEX observation files; extract REC/ANT types.
 
     Returns a dict keyed by 4-char station code:
@@ -95,11 +141,17 @@ def _parse_rinex_headers(raw_dir: Path) -> dict[str, dict[str, str]]:
 
     Station code comes from the MARKER NAME header if present, else the
     first 4 chars of the filename (upper-cased).
+
+    When both ``year`` and ``session`` are given, only files belonging to that
+    session are parsed (per-session validation against a multi-day source dir).
     """
     result: dict[str, dict[str, str]] = {}
+    filter_session = year is not None and session is not None
 
     for p in raw_dir.rglob("*"):
         if not p.is_file() or not _is_rinex_obs(p):
+            continue
+        if filter_session and not _file_matches_session(p, year, session):  # type: ignore[arg-type]
             continue
 
         station_code = p.name[:4].upper()
@@ -244,14 +296,26 @@ def validate_rinex_headers(
     raw_dir: Path,
     sta_path: Path,
     atx_path: Path | None = None,
+    *,
+    year: int | None = None,
+    session: str | None = None,
+    require_stations: bool = False,
 ) -> ValidationReport:
     """Cross-check RINEX OBS headers in raw_dir against the campaign STA file.
 
     Args:
-        raw_dir:   Campaign RAW/ directory containing RINEX observation files.
+        raw_dir:   Directory containing RINEX observation files. Point this at
+                   the DATAPOOL source (``$D/$V_RNXDIR``) where RINEX lives
+                   *before* the BPE runs — the campaign ``RAW/`` is empty until
+                   RNX_COP copies data in, so validating it pre-BPE passes vacuously.
         sta_path:  Campaign .STA file (must exist).
         atx_path:  Staged ATX antenna calibration file (optional; ATX check
                    is skipped when None or when the file does not exist).
+        year:      4-digit year. With ``session``, restricts validation to that
+                   session's files (a multi-day source holds many DOYs).
+        session:   4-char Bernese session (e.g. "0870"). See ``year``.
+        require_stations: When True, a source that yields zero RINEX files is a
+                   hard error (``no_rinex_found``) instead of a vacuous pass.
 
     Returns:
         ValidationReport.  Call .ok to see if validation passed.
@@ -259,7 +323,17 @@ def validate_rinex_headers(
     """
     report = ValidationReport()
 
-    rinex_headers = _parse_rinex_headers(raw_dir)
+    rinex_headers = _parse_rinex_headers(raw_dir, year=year, session=session)
+    if not rinex_headers and require_stations:
+        report.no_rinex_found = True
+        logger.error(
+            "No RINEX observation files found in %s for session %s/%s — "
+            "refusing to pass validation vacuously",
+            raw_dir,
+            year,
+            session,
+        )
+        return report
     sta_info = _parse_sta_type002(sta_path)
     atx_types: frozenset[str] | None = None
     if atx_path is not None and atx_path.exists():
