@@ -15,7 +15,7 @@
                ├──▶ ~~BRN-002~~ ─▶ ~~BRN-003~~ ─▶ ~~BRN-004~~ ─▶ ~~BRN-005~~ ─▶ ~~BRN-006~~
 ~~ING-003~~ ──┘                                                          │
                                                                           ▼
-   R740 orchestrator hardening (P0):  RH-001 ─ RH-002 ─ RH-003 ─ RH-004 ──▶ BRN-001 (R740 install)
+   R740 orchestrator hardening (P0):  RH-001 ─ RH-002 ─ RH-003 ─ RH-004 ─ RH-007 ──▶ BRN-001 (R740 install)
                                        └── acceptance: re-run PAGENET week on R740, gaps auto-cleared
 
 ~~PR#33~~ ──▶ ~~ING-001~~ ──▶ ~~ING-002~~     (Bernese-parallel track)
@@ -226,6 +226,33 @@ Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops st
   single-core solve. Tune `V_CLUFIN`/`V_CLU` + `USER.CPU` maxjobs so GPSCLU splits the final solve
   across R740 cores. **The multi-core R740 payoff is a CONFIG task, not free hardware** — untuned,
   R740 runs the same single-core solve on a bigger network = worse than T420.
+
+### RH-007 · P0 · S
+**Wire Option-B IGS pre-download; retire FTP_DWLD from the template**
+
+Reconciliation debt found 2026-07-01: the "pre-download products, skip in-BPE FTP_DWLD" decision
+(Option B) is only half-built. Three sources disagree:
+- Decision (memory/roadmap): skip FTP_DWLD, pre-download via `igs_downloader`.
+- Production PAGENET PCF (`~/GPSUSER/PCF`): no download step at all — matches Option B (relies on
+  pre-staged `$D/COD0OPSFIN`). Empirically what PHIVOLCS/NAMRIA run (Eldar PCFs ship without FTP_DWLD).
+- Orchestrator template `basic_processing.pcf.j2`: **still ships `000 FTP_DWLD`** (Option-A leftover).
+- Orchestrator code `campaign_builder.py:273` `download_igs_products`: **defined but never called**
+  (zero call sites) — the Option-B pipe is dead code.
+
+Why Option B wins for orchestration: separation of concerns (retry download independently of the
+multi-hour run), pre-flight-validatable products, reproducible product vintage, CDDIS/IGN/BKG mirror
+fallback (IGS-001 already built it; FTP_DWLD has none), and resilience to the AIUB endpoint move
+(gap #6) that would break in-BPE download silently.
+
+- Strip `000 FTP_DWLD` from `basic_processing.pcf.j2` (folds into gap #4 — retemplate to PAGENET
+  `PGN_GEN` flavor, not stock `R2S_GEN`).
+- Wire `download_igs_products` into `prepare_campaign()` so Option B actually executes.
+- Add a pre-flight product-existence + naming check: `COD0OPSFIN_YYYYDDD0000_..._{ORB.SP3,CLK.CLK,
+  ERP.ERP,OSB.BIA}.gz` — verify IGS-001's downloader emits exactly what `V_ORB=COD0OPSFIN` expects
+  (gaps #6, #7). Fail the run BEFORE launching BPE if products are missing/incomplete.
+
+*P0-adjacent: no full run works without staged products. Depends on IGS-001 (done). See
+`bernese_orchestrator_r740_readiness.md` gaps #4/#6/#7.*
 
 ---
 
