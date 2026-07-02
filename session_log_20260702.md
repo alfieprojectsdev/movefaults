@@ -99,12 +99,76 @@ held no stuck job state, relaunched `--detach` **quietly**. New runner PID 38873
 produced FIN — 0870 has a history of not finishing; failure points differ, consistent with transient
 hangs, not deterministic data.)
 
+## 10. RH-004 remainder — panel provisioning + MAXPAR (`425735b`, PR #40)
+Completed the RH-004 code mechanisms on the same branch/PR:
+- `set_addneq2_maxpar(text, value)` — rewrites the ADDNEQ2 `MAXPAR` value line (leaves `MSG_MAXPAR`),
+  wiring readiness **task B** to RH-002's `compute_maxpar()`.
+- `provision_opt_dir(src, dest, *, n_stations, strict)` — the sanitizer's applied layer: sanitizes
+  every `*.INP` on the way to `$U/OPT`, sizes MAXPAR on `ADDNEQ2.INP`, copies non-INP (`*.pl`) VERBATIM,
+  and with `strict` (default) **refuses to write** any panel still carrying an unresolved hazard — a
+  dirty panel can't reach `$U`. `test_panel_sanitizer.py` +6 (92 pass). Only the gold-standard panel
+  *content* (hand-remap `C:\Bernese\`→`${vars}`) remains — a data/ops task the strict provisioner enforces.
+- **Hash-backfill bug found + fixed** (`90bd92a`): my `sed`-hash-then-`--amend` pattern recorded the
+  *pre-amend* hash (backlog said `d725ab0`, real core `6c0d8a2`) — also affected RH-002/RH-003 backlog
+  hashes on their branches. New rule (saved to memory): commit code first, reference the final hash in a
+  separate commit; never amend a commit whose hash a tracked file already cites.
+
+## 11. RH-005 core — CODSPP-QC parse + triage (`26cc914`, PR #41)
+Worktree `.trees/rh-005-codspp-tropo`. `codspp_qc.py`: `parse_codspp_output()` (station, `RMS OF UNIT
+WEIGHT`, BAD/USED obs, X/Y/Z `NEW- A PRIORI` → `coord_shift_m`); `classify_codspp()` → `ok`/`bad_apriori`
+(high RMS + large shift → re-seed .CRD)/`bad_obs` (high RMS + small shift → alert human)/`unknown`,
+tunable thresholds; `parse_codxtr_summary()` for the combined worst-station line. Verified against the
+real CUSV 0840 SPP block. `test_codspp_qc.py` +9, ruff + mypy clean. **Ran tests via the rh-004 venv +
+`PYTHONPATH` (no `uv sync`)** to avoid disturbing the BPE final solve. Remainder: the re-seed ACTION
+(gap #9) + PID-322 tropo quarantine (gap #11, needs a failed-322 sample).
+
+## 12. BPE hang lesson applied — no re-hang
+After §9's recovery, kept the T420 quiet: verified RH-004/RH-005 tests via the already-synced rh-004
+worktree venv instead of syncing new worktrees. 0870 sailed through to the final GPSEST solve
+(job 502, observed at 99.9% CPU / 16 min — the expected ~40-min FPU-bound solve, not a hang).
+
+## 13. BPE stopped for relocation (clean shutdown)
+User relocating (new desk/internet). Stopped the run cleanly: killed the week runner (38873) first,
+then the BPE tree (menu server, RUNBPE 502, GPSEST 502 — GPSEST needed SIGKILL mid-solve); removed the
+lock, stale `WORK/*_<pid>`, and stale `PAGENET_DLY.RUN`. 0870 was mid final GPSEST solve (job 502, not
+banked) → discarded, restarts from job 001 on resume. Machine idle, nothing running.
+
+**Resume anywhere with internet:** `~/run_pagenet_week.sh --detach` — idempotent, skips the 3 banked
+dailies (084/085/086), restarts at 0870. PLG2 already stashed (088 safe). Keep the T420 quiet while it
+runs (don't `uv sync` a fresh worktree mid-solve; verify via an existing worktree venv).
+
+## 14. Resumed after relocation + RH-004 review fix + RH-007
+- **BPE resumed** at the new desk (`~/run_pagenet_week.sh --detach`, runner PPID→1). 0870 re-ran from
+  job 001 through the ~40-min final GPSEST solve → **banked**; now on 0880. **4 of 7 dailies banked**
+  (084/085/086/087). Kept the T420 quiet throughout (all ticket tests via the rh-004 venv, no `uv sync`).
+- **RH-004 review fix (`11bb672`, PR #40):** `/code-review low` flagged `provision_opt_dir` strict mode
+  as non-atomic (wrote clean panels then raised on the first dirty one → half-updated `$U`). Fixed to
+  two-pass — sanitize + gather all warnings, raise before any write, then commit. +1 atomicity test.
+- **RH-007 DONE (`bdefc77`, PR #42):** Option-B IGS pre-download wired + FTP_DWLD retired. Stripped
+  `000 FTP_DWLD` from `basic_processing.pcf.j2`; `verify_igs_products()` (reuses `igs_downloader`
+  naming/layout as source of truth); `prepare_campaign(prefetch_products=True)` pre-downloads + verifies
+  before BPE. +8 tests, `test_orchestrator` FTP_DWLD assertion inverted. 83 pass.
+- **Tracker reconciled (`d95c871`, docs branch):** RH-002 hash corrected (`e544492`); RH-003 DONE,
+  RH-004/RH-005 PARTIAL (code done), dependency graph + status note updated; next P0 was RH-007 (now done).
+
+## 15. RH-006 (plumbing) — USER.CPU maxjobs + V_CLUFIN/V_CLU (`36540b2`, PR #43)
+Worktree `.trees/rh-006-clustering`. The 502 GPSCLU_P 40-min single-core solve = `V_CLUFIN=A`
+auto-clustering the whole net into one dense inversion. **Correction from the real PCF:** `V_CLUFIN` is a
+MODE flag (`A` auto / `N` skip), NOT a cluster-size number as the readiness doc implied — so the value
+that splits the solve is empirical and needs the R740 (BRN-001). Shipped the plumbing:
+- `cpu_config.compute_maxjobs()` — physical cores (FPU-bound, not threads), RAM-capped, reserve-aware
+  (task L); `set_user_cpu_maxjobs()` rewrites the `USER.CPU` localhost maxjobs field.
+- `PCFContext` exposes `v_clu` + `v_clufin`; template templates both (V_CLUFIN was absent). +13 tests, 88 pass.
+- RH-006 stays PARTIAL — orchestrator can now inject `V_CLUFIN`/maxjobs; the tuning value is R740 work.
+
 ## State at end of session
-- **Committed/pushed** — `docs/bernese-training-notes`: RH-002 (`e544492`), session log + gitignore
-  (`b0f2fc3`), `open_pr.sh` (`9f608d4`), session log update (`9c70c1d`). `feat/rh-003-gen-sessions`:
-  RH-003 (`b84c4a6`). `feat/rh-004-panel-sanitizer`: RH-004 core (`6c0d8a2`).
-- **PRs open:** #38 (docs→main), #39 (RH-003, stacked), #40 (RH-004 core, stacked).
-- **Background:** PAGENET 0870 relaunched detached after a hang recovery (runner 38873, PPID→1);
-  3 of 7 dailies banked (084/085/086).
-- **Next:** RH-004 remainder (render-path wiring + provisioning + MAXPAR-into-panel), or RH-005
-  (CODSPP-QC + tropo auto-recovery, gaps #9/#11). Keep the T420 quiet while BPE runs.
+- **PRs open (all stacked on #38 → main):** #38 (RH-001+RH-002+docs), #39 (RH-003), #40 (RH-004),
+  #41 (RH-005 core), #42 (RH-007), #43 (RH-006 plumbing).
+- **Branches:** `feat/rh-003-gen-sessions` `b84c4a6` · `feat/rh-004-panel-sanitizer` (…`11bb672`) ·
+  `feat/rh-005-codspp-tropo` `26cc914` · `feat/rh-007-igs-predownload` `bdefc77` ·
+  `feat/rh-006-clustering` `36540b2`.
+- **Background:** PAGENET running detached, session 0880 (job 412 GNSAMB_P); 4 of 7 dailies banked.
+- **Next:** all RH-00x code shipped (RH-001..007). Remaining: RH-005 remainder (re-seed action; tropo
+  blocked on a failed-322 sample), RH-004 gold-standard panel content (data/ops), RH-006 empirical
+  tuning (needs R740 = BRN-001). Loose end: RH-003 backlog hash pre-amend on its branch. Async: GFZ
+  inquiry + `deploy_r740.secrets` token rotation. **Merge the PR stack (#38 first).**
