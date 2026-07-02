@@ -172,3 +172,51 @@ that splits the solve is empirical and needs the R740 (BRN-001). Shipped the plu
   blocked on a failed-322 sample), RH-004 gold-standard panel content (data/ops), RH-006 empirical
   tuning (needs R740 = BRN-001). Loose end: RH-003 backlog hash pre-amend on its branch. Async: GFZ
   inquiry + `deploy_r740.secrets` token rotation. **Merge the PR stack (#38 first).**
+
+## 16. PR stack merged to main (`229e25a`) — with a hard lesson (afternoon)
+All six PRs landed: #38 → #39/#40/#41/#42/#43 (+ #44 docs→main, #45 merge-tooling scripts). **Detour:**
+`gh pr edit --base main` (retarget) is permission-gated; running it as `… >/dev/null 2>&1 && echo ok`
+swallowed the denial, so #40–#43 merged into the DOCS branch instead of main — caught only because
+`origin/main` never advanced. Recovery: merged true docs tip into rh-003, hand-merged
+`prepare_campaign` (kept BOTH RH-003 sessions_template + RH-007 prefetch features), full suite 128
+passed, #44 carried everything to main. Rules saved to memory: never `>/dev/null` a gated op; verify
+`baseRefName` after retarget; confirm target branch advanced after every merge. Worktrees pruned
+(6 removed + local branches) after verification.
+
+## 17. ING-005 ticket — gfzrnx RINEX-3/4 QC backend (`1898ab7`)
+Drafted from `gfzrnx_teqc_decision.md` evidence: version-routed dual-tool QC (RINEX-2 → teqc unchanged,
+RINEX-3/4 → new `GfzrnxQC`), same `RINEXQCResult` so Celery/IngestionLog untouched; license gate flagged
+(automation = Commercial campus; hold on GFZ inquiry). P1 · M. Local branch was 18 behind origin
+(merged stack) — rebased via new `scripts/git_rebase_ref.sh` (--autostash) wrapper, pushed clean.
+
+## 18. PAGENET week 084-090 COMPLETE — and a false-positive hang call
+All 7 dailies banked: FIN_2026{084..090}0.NQ0 (087 10:19, 088 12:08, 089 14:08, 090 16:38). Runner:
+"ALL 7 DAILIES PRESENT → next: Phase B (fix PGN_WK panel) + Phase C (ADD_WK weekly)".
+**Lesson (memory-corrected in `bernese_bpe_concurrency_hazard.md`):** flagged 0900 as hung at 502
+GPSCLU_P and prepped a kill — WRONG; it was a ~40-min single-cluster solve that finished on its own.
+Both my detectors were bogus: `.RUN` mtime stays fresh during real hangs (server rewrites it every poll)
+AND "zero worker children" happens legitimately between `_P`-stage clusters. Real hang signature (0870)
+= program ENDED in `.PRT` while `.RUN` state frozen, sustained ≥40-45 min. Also verified:
+`pagenet_pcs.pl` sets no `RERUN` → any re-invoke restarts the session from job 001 (~2h); job-level
+resume isn't available as-is. Bias toward waiting.
+
+## 19. Thumbdrive recovery + DA-002 (`3eb1ce3`)
+Triaged 3 sticks for blanking. SanDisk 8G = dead pam_usb key (pam_usb uninstalled; only ref is a
+`.before_disable_usb` backup) → wiped (`SANDISK8G`). Generic 4G = trash-only movies → wiped (`USB4G`).
+hp v210w = FAT-corrupt (941 bogus multi-GB direntries, `du` 1.1TB vs `df` 916MB, mojibake names,
+421 read errors); cataloged pre-wipe to `~/sdc_catalog_20260702/` (manifest 12,201 entries + 51
+drive-arch JSONLs, 2,413 sane artifacts, zero GNSS) — wipe REFUSED by hardware: kernel log shows
+`Write Protect is on` at attach = controller end-of-life lock. E-waste. Notables: udisks2/polkit
+formats removable media WITHOUT sudo (`gdbus … Block.Format` / `CreatePartitionAndFormat`); device
+letters SHIFTED after replug (sdc↔sdd) — a vendor/model identity gate before wipe prevented nuking the
+SanDisk twice. Lessons → **DA-002** ticket (P2·M): capacity-sanity gate, corrupt-direntry handling,
+walk dedup, read-error reporting, `--exclude` flag, checksums unimplemented. Do before/with DA-001.
+
+## Final state (2026-07-03 05:20)
+- **main = `229e25a`** (all RH-00x merged). Docs branch head `3eb1ce3` (ING-005 + DA-002 tickets), pushed.
+- **PAGENET dailies 084-090 done**; next Bernese work = Phase B/C weekly combination (PGN_WK/ADD_WK).
+- **Open tickets:** ING-005 (unblocked, code-ready), DA-002, DA-001 (needs real GNSS drive), BRN-001
+  (R740 install), RH-004/005 remainders, RH-006 tuning (needs R740).
+- **Async (Alfie):** GFZ license inquiry email; `deploy_r740.secrets` token rotation.
+- Memory updated: BPE hazard file (detection + RERUN + false-positive), drive-arch test gap (corrupt-
+  drive run), PR/worktree workflow gotchas.
