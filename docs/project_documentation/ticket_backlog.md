@@ -408,6 +408,30 @@ Observed failure modes → required guards:
 6. **Checksums missing entirely** — scan JSONL has no hash field, so Phase-1 MD5 dedup (design doc) is
    unimplemented; when it lands, guards 1–3 become mandatory prerequisites, not nice-to-haves.
 
+**Addendum (2026-07-03) — full-source safety audit before a 2TB survey; write-safety CONFIRMED
+(all writes/deletes verified: output-side only, rmtree targets are mkdtemp dirs exclusively; zero
+content reads except read-only archive extraction), plus four survey-correctness gaps:**
+
+7. **Silent skip-list hides real content** (`utils/paths.py::should_skip_path`) — ALL dot-prefixed
+   entries + `$RECYCLE.BIN` / `System Volume Information` / `.Trash*` / `__MACOSX` are skipped with only
+   an aggregate `skipped_count`. Bit in practice: one rehabbed thumbdrive's ENTIRE contents lived in
+   `.Trash-1000` — a survey would have reported it empty. On ext4 drives this hides `.ssh`, `.git`,
+   `.config`, shell histories — high-value excavation material. → Make the skip-list configurable
+   (`--include-hidden`), and ALWAYS itemize skipped roots in the summary so exclusions are visible.
+8. **Symlinks are followed** (`is_dir()`/`is_file()`/`stat()`, never `follow_symlinks=False`) — a
+   symlink on the scanned drive pointing at `/` or `/home` makes the scan silently walk the HOST
+   filesystem and catalog it as drive contents. Loops self-terminate via ENAMETOOLONG→OSError (no
+   hang), but escape-the-drive is real on ext4 sources. → `is_symlink()` gate: record symlinks as
+   their own category, never traverse.
+9. **Nested-archive recursion is depth-unbounded** — archive-in-archive recurses with no cap; a zip
+   quine/bomb fills `$TMPDIR` until ENOSPC (self-limits + cleans up, but can transiently starve /tmp,
+   which is RAM-backed on tmpfs systems). Multi-GB media RARs also mean long extractions to /tmp.
+   → Depth cap (e.g. 3) + honor a size budget; document `TMPDIR` override for big scans.
+10. **Re-run truncates prior results** — without `--resume`, output opens mode `"w"`: re-running the
+    same `-o` OVERWRITES the previous survey JSONL. Checkpoint (with `--resume`) holds every path in
+    RAM and rewrites the full JSON every 1000 files (O(n²/1000) I/O — acceptable at ~10⁵ files, wrong
+    shape for 10⁶+). → Refuse to clobber an existing output without `--force`; append-only checkpoint.
+
 *Do before or alongside DA-001 — a real legacy GNSS drive is MORE likely to be corrupt than this one.*
 
 ---
@@ -433,6 +457,8 @@ fallback would inherit), fold the summary INTO the existing scanner as a lightwe
 - Sizes come from the DA-002 sanity-gated walk, so `survey` reports corrupt/oversized direntries
   honestly instead of parroting a fake total. Verdict must surface "⚠ filesystem metadata inconsistent
   — capacity check failed" when the gate trips.
+- Verdict must DISCLOSE exclusions: itemize skipped hidden/system roots (DA-002 #7) and symlink count —
+  "safe-to-wipe" is meaningless if `.Trash-1000` (or any dot-dir) was silently omitted from the survey.
 - Tests: `tmp_path` trees — pure-media (safe verdict), one-RINEX-present (do-not-wipe verdict), empty,
   and a fixture with a claimed-oversize file (corruption verdict).
 
