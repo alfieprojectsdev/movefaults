@@ -220,3 +220,22 @@ walk dedup, read-error reporting, `--exclude` flag, checksums unimplemented. Do 
 - **Async (Alfie):** GFZ license inquiry email; `deploy_r740.secrets` token rotation.
 - Memory updated: BPE hazard file (detection + RERUN + false-positive), drive-arch test gap (corrupt-
   drive run), PR/worktree workflow gotchas.
+
+## 20. (2026-07-03 cont.) Drive surveys, DA-002/003 SHIPPED, PAGENET weekly DONE
+- **PR #46 MERGED (`0247e4b`)**: DA-002 hardening (capacity gate, mojibake, symlink no-traverse,
+  --exclude, depth cap, clobber guard, itemized skips, hardlink dedup) + DA-003 `drive-arch survey`
+  + RINEX year-regex + Leica `.mNN` classifier fallbacks. 69 tests. Field-proven same day.
+- **DOSTB20150918 (2TB, = DOS+TB, personal — provenance corrected):** 333,919 files scanned 3m29s.
+  **16,001 GNSS files, ~15.9k DELETED in $RECYCLE.BIN** (3 Windows SIDs): 8,385 .t02, 4,616 .sp3,
+  RINEX .02o-.19o. Drive pulled intact — recovery manifest pending. Catalog ~/surveys/DOSTB20150918/.
+- **Backup Plus (1TB Seagate):** survey verdict DO-NOT-WIPE — **97,494 GNSS files, all LIVE**:
+  75,908 Leica .m00 + 15,854 .t02 in SortPending/ (Loreto/Montevista/Boston/SAPN 2024 campaigns,
+  mtimes peak 2023-24). 17k archives unopened (.gz RINEX likely inside). Drive-arch Phase 2
+  (SortPending -> DATAPOOL reorg) is the natural next block. Catalog ~/surveys/BackupPlus/.
+- **PAGENET Phase B+C COMPLETE (Module 15 deliverable):** PGN_WK/ADDNEQ2.INP was a verbatim
+  NAMRIA-lab panel (SOB campaign, C:\\ envs, LAB-06) — localized via panel_sanitizer + DUMMY-form
+  initmenu fields + MAXPAR 5000->10000. ADD_WK's `d==6` GPS-Saturday gate would silently no-op on
+  our Tuesday-anchored DOY-week -> made ungated ADD_WK_A + single-PID PAGENET_WK.PCF; ran headless
+  122s, Error 0. **WK__2412.NQ0/.CRD/.OUT: all 7 dailies stacked, 72 stations.** A-posteriori RMS
+  0.011 m (no COVCOMI rescale) — revisit at R740 tuning.
+- DA-005 TUI plan drafted (tools/drive-archaeologist/docs/TUI_PLAN.md) + ticket.

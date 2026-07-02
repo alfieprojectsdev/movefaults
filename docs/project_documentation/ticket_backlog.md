@@ -479,6 +479,20 @@ Quality-of-life for the recurring "is this stick safe to blank?" task; NOT on th
 
 ---
 
+### DA-005 · P3 · L
+**Textual TUI — the drive-rehab funnel as an interface**
+
+Full design: [`tools/drive-archaeologist/docs/TUI_PLAN.md`](../../tools/drive-archaeologist/docs/TUI_PLAN.md).
+Five screens mirroring the proven workflow (drive picker -> survey verdict -> resumable scan ->
+JSONL explorer -> action scripts), Textual-based, read-only toward scanned drives, identity-gated
+targeting (device letters never trusted), command-echo pane for reproducibility. Phased: 005a
+picker+survey (M), 005b scan+reattach (M), 005c explorer+SQLite index (M/L), 005d recovery/migration
+scripts (L, gated on Phase 2/3). Scanner needs only an `on_progress` callback seam.
+
+*Depends on: DA-002/DA-003 (merged, PR #46). Plan only — not scheduled.*
+
+---
+
 ## pogf-geodetic-suite
 
 ### ~~IGS-001~~ · P0 · M · **DONE** `f742571`
