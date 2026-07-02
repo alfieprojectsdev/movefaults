@@ -13,6 +13,11 @@ from .profiles import CLASSIFICATION_PROFILES
 # o=obs n=nav g=GLONASS-nav d=Hatanaka m=met
 _RINEX_SHORT_RE = re.compile(r"^[a-z0-9]{4}\d{3}[a-x0-9]\.\d{2}[ondgm]$", re.IGNORECASE)
 
+# Leica raw GNSS: .m00, .m01, ... — an extension family, so it cannot live in
+# the static profile map. 3,665 of these surfaced unclassified on the first
+# real GNSS-bearing drive (DOSTB20150918 $RECYCLE.BIN).
+_LEICA_RAW_RE = re.compile(r"\.m\d{2}$", re.IGNORECASE)
+
 
 class Classifier:
     """
@@ -55,6 +60,8 @@ class Classifier:
             return category
         if _RINEX_SHORT_RE.match(filepath.name):
             return "GNSS Data"
+        if _LEICA_RAW_RE.search(filepath.name):
+            return "GNSS Raw (Leica)"
         return None
 
     def classify_by_ext(self, ext: str) -> str | None:

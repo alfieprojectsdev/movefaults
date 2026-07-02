@@ -275,3 +275,11 @@ def test_classifier_rinex_regex_fallback():
     assert c.classify(Path("ALGO0010.22O")) == "GNSS Data"  # still via ext map
     assert c.classify(Path("notrinex.23x")) is None
     assert c.classify(Path("toolongname0010.23o")) is None
+
+
+def test_classifier_leica_raw_fallback():
+    c = Classifier()
+    assert c.classify(Path("STATION_2019.m00")) == "GNSS Raw (Leica)"
+    assert c.classify(Path("$IZWLIHF.m00")) == "GNSS Raw (Leica)"  # recycle-bin stub keeps ext
+    assert c.classify(Path("file.m1")) is None
+    assert c.classify(Path("movie.m4v")) == "Video"  # ext map wins before fallback

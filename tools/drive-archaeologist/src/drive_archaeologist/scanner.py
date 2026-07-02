@@ -31,7 +31,7 @@ from .utils.paths import is_suspect_name, sanitize_for_json, should_skip_path
 console = Console()
 
 # Categories that make a drive ineligible for wiping (DA-003 verdict)
-GNSS_CATEGORIES = {"GNSS Data", "GNSS Raw (Trimble)"}
+GNSS_CATEGORIES = {"GNSS Data", "GNSS Raw (Trimble)", "GNSS Raw (Leica)"}
 
 CORRUPT_CATEGORY = "Corrupt Direntry"
 SYMLINK_CATEGORY = "Symlink"
