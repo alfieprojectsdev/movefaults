@@ -173,6 +173,20 @@ def test_provision_strict_refuses_dirty_panel(tmp_path):
         provision_opt_dir(src, dest, strict=True)
 
 
+def test_provision_strict_is_atomic_no_partial_write(tmp_path):
+    """A clean panel ordered before a dirty one must NOT be written when strict aborts."""
+    src = tmp_path / "gold"
+    src.mkdir()
+    (src / "AAA_clean.INP").write_text('RADIO 1  "SAVED"\n')          # sorts first, clean
+    (src / "ZZZ_dirty.INP").write_text('SESSION_YEAR 1  "2026"\n')    # sorts last, dirty
+
+    dest = tmp_path / "OPT"
+    with pytest.raises(ValueError, match="unresolved hazards"):
+        provision_opt_dir(src, dest, strict=True)
+    assert not (dest / "AAA_clean.INP").exists()  # nothing written on abort
+    assert not dest.exists() or list(dest.rglob("*.INP")) == []
+
+
 def test_provision_nonstrict_collects_warnings(tmp_path):
     src = tmp_path / "gold"
     src.mkdir()

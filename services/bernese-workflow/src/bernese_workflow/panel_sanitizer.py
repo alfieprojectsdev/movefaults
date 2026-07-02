@@ -224,10 +224,14 @@ def provision_opt_dir(
       separator-converted, since a Perl backslash is an escape, not a path.
     - Residual warnings the sanitizer only flags (foreign drive-letter paths,
       hardcoded session/date literals) are collected per file. With *strict* (the
-      default) a panel carrying any such warning raises ``ValueError`` instead of
-      being written — those must be remapped by hand before they can be gold-standard.
+      default) a panel carrying any such warning aborts the WHOLE provisioning with
+      ``ValueError`` — those must be remapped by hand before they can be gold-standard.
 
     Directory structure under *src_dir* is preserved under *dest_dir*.
+
+    Two-pass and atomic w.r.t. the strict check: everything is sanitized and all
+    warnings gathered BEFORE anything is written, so a dirty panel late in the tree
+    never leaves ``$U`` half-updated (no clean files written, then a raise).
     """
     from .backends import compute_maxpar
 
@@ -235,14 +239,16 @@ def provision_opt_dir(
     dest = Path(dest_dir).expanduser()
     report = ProvisionReport()
 
+    # Pass 1 — sanitize/plan every file and collect all warnings; write nothing yet.
+    # planned entries: (target, kind, payload) where kind is "copy" (payload=src
+    # path) or "write" (payload=sanitized text).
+    planned: list[tuple[Path, str, Path | str]] = []
     for path in sorted(p for p in src.rglob("*") if p.is_file()):
         rel = path.relative_to(src)
         target = dest / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
 
         if path.suffix.upper() != ".INP":
-            shutil.copy2(path, target)          # scripts etc. — verbatim
-            report.written.append(target)
+            planned.append((target, "copy", path))    # scripts etc. — verbatim
             continue
 
         result = sanitize_panel_text(path.read_text(encoding="ascii", errors="replace"))
@@ -252,16 +258,28 @@ def provision_opt_dir(
 
         if result.warnings:
             report.warnings[str(rel)] = result.warnings
-            if strict:
-                offenders = ", ".join(
-                    f"L{w.line} {w.kind}" for w in result.warnings
-                )
-                raise ValueError(
-                    f"{rel}: panel carries unresolved hazards, refusing to provision "
-                    f"(remap by hand first): {offenders}"
-                )
+        planned.append((target, "write", out_text))
 
-        target.write_text(out_text, encoding="ascii")
+    # Strict gate: abort before writing if ANY panel carries unresolved hazards.
+    if strict and not report.ok:
+        offenders = "; ".join(
+            f"{rel}: " + ", ".join(f"L{w.line} {w.kind}" for w in ws)
+            for rel, ws in report.warnings.items()
+        )
+        raise ValueError(
+            f"refusing to provision — panels carry unresolved hazards "
+            f"(remap by hand first): {offenders}"
+        )
+
+    # Pass 2 — commit the planned writes.
+    for target, kind, payload in planned:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if kind == "copy":
+            assert isinstance(payload, Path)
+            shutil.copy2(payload, target)
+        else:
+            assert isinstance(payload, str)
+            target.write_text(payload, encoding="ascii")
         report.written.append(target)
 
     return report
