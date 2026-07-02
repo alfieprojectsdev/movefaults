@@ -270,6 +270,65 @@ def stage_atx(atx_source: Path, campaign_atm_dir: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
+# Session table (GEN/SESSIONS.SES)
+# ---------------------------------------------------------------------------
+
+# Stock Bernese daily session table: one session "???0" spanning the whole UTC
+# day (00:00:00–23:59:59). "???" = wildcard DOY, "0" = session character. Copied
+# verbatim from $X/SUPGUI/PAN/SESSIONS.SES and every campaign GEN/SESSIONS.SES on
+# the verified T420 install. Station-independent, so it applies to any campaign.
+_SESSIONS_SES_DAILY = """
+LIST_OF_SESSIONS 1  "???0" "" "00 00 00" "" "23 59 59"
+  ## widget = uniline; check_strlen.1 = 4; numlines = 24
+  ## check_type.3 = time; check_type.5 = time
+
+MSG_LIST_OF_SESSIONS 1  "List of sessions"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# SESSION TABLE                                                                #
+#                                                                              #
+#                START EPOCH         END EPOCH                                 #
+#    > ID__ yyyy_mm_dd hh_mm_ss yyyy_mm_dd hh_mm_ss     <                      # LIST_OF_SESSIONS
+#                                                                              #
+# END_PANEL ####################################################################
+"""
+
+
+def generate_sessions_ses() -> str:
+    """Return the stock daily session table content for GEN/SESSIONS.SES.
+
+    A single session ``???0`` covering the whole UTC day. BPE reads this to map a
+    processed session id to its epoch window; without it the run aborts early
+    (readiness gap #2 — the exact stall hit in the NAMRIA training week). The
+    template carries no station data, so it is written for every campaign.
+    """
+    return _SESSIONS_SES_DAILY
+
+
+def stage_sessions_ses(campaign_gen_dir: Path, template: Path | None = None) -> Path:
+    """Write GEN/SESSIONS.SES into a campaign.
+
+    When *template* is given and exists (e.g. ``$X/SUPGUI/PAN/SESSIONS.SES`` for an
+    exact match to the installed Bernese version), it is copied; otherwise the
+    built-in daily ``???0`` template is written. Does not overwrite an existing
+    campaign SESSIONS.SES (a hand-tuned multi-session table is preserved).
+    """
+    campaign_gen_dir.mkdir(parents=True, exist_ok=True)
+    dest = campaign_gen_dir / "SESSIONS.SES"
+    if dest.exists():
+        logger.info("SESSIONS.SES already present, keeping it: %s", dest)
+        return dest
+    if template is not None and template.exists():
+        shutil.copy2(template, dest)
+        logger.info("Staged SESSIONS.SES from template: %s → %s", template, dest)
+    else:
+        dest.write_text(generate_sessions_ses(), encoding="ascii")
+        logger.info("Generated daily SESSIONS.SES: %s", dest)
+    return dest
+
+
+# ---------------------------------------------------------------------------
 # IGS product pre-download
 # ---------------------------------------------------------------------------
 
@@ -300,3 +359,50 @@ def prefetch_igs_products(
                 f"IGS {content} download failed for {date.strftime('%Y-%j')} (AC={ac})"
             )
         logger.info("IGS %s: %s", content, path)
+
+
+def verify_igs_products(
+    campaign_orb_dir: Path,
+    year: int,
+    doy: int,
+    *,
+    ac: str = "COD",
+    contents: tuple[str, ...] = ("ORB", "CLK"),
+) -> list[str]:
+    """Pre-flight: return the expected IGS product files that are MISSING (empty = all present).
+
+    Reuses ``igs_downloader``'s filename builder + on-disk layout
+    (``base_dir/YYYY/DDD/<decompressed>``) as the single source of truth, so the check
+    matches exactly what ``ProductDownloader`` writes and what the PCF ``V_ORB=COD0OPSFIN``
+    expects — closing the Option-B gap where a run launched with incomplete products
+    (gaps #6/#7). Call before launching the BPE and abort if the returned list is non-empty.
+
+    Only the IGS20 long-name era is supported (the current PAGENET regime); a pre-IGS20
+    date raises rather than silently checking the wrong names.
+    """
+    from datetime import datetime, timedelta
+
+    from pogf_geodetic_suite.igs_downloader import (
+        _IGS20_TRANSITION_WEEK,
+        _build_long_filename,
+        _gps_week,
+    )
+
+    date = datetime(year, 1, 1) + timedelta(days=doy - 1)
+    week = _gps_week(date)
+    if week < _IGS20_TRANSITION_WEEK:
+        raise NotImplementedError(
+            f"verify_igs_products covers the IGS20 long-name era only "
+            f"(GPS week >= {_IGS20_TRANSITION_WEEK}); got week {week} for {year}/{doy:03d}"
+        )
+
+    orb = Path(campaign_orb_dir)
+    ddd = f"{doy:03d}"
+    missing: list[str] = []
+    for content in contents:
+        # ProductDownloader stores the DECOMPRESSED file (.gz/.Z stripped).
+        local_name = _build_long_filename(ac, date, content).removesuffix(".gz")
+        rel = f"{year}/{ddd}/{local_name}"
+        if not (orb / rel).exists():
+            missing.append(rel)
+    return missing

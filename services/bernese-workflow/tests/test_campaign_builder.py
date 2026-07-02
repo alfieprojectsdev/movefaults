@@ -9,8 +9,10 @@ from bernese_workflow.campaign_builder import (
     generate_abb,
     generate_clu,
     generate_crd,
+    generate_sessions_ses,
     generate_sta,
     generate_vel,
+    stage_sessions_ses,
 )
 from bernese_workflow.campaign_models import CampaignConfig, StationRecord
 
@@ -195,6 +197,58 @@ def test_prepare_campaign_no_config_still_creates_subdirs(tmp_path):
 
     for sub in _SUBDIRS:
         assert (tmp_path / "GPSDATA" / "CAMP2" / sub).is_dir()
+
+
+# ---------------------------------------------------------------------------
+# SESSIONS.SES — session table (RH-003, gap #2)
+# ---------------------------------------------------------------------------
+
+def test_generate_sessions_ses_is_daily_template():
+    text = generate_sessions_ses()
+    assert '"???0"' in text                      # daily wildcard session id
+    assert "LIST_OF_SESSIONS" in text
+    assert '"00 00 00"' in text and '"23 59 59"' in text  # whole-day window
+
+
+def test_gen_subdir_present():
+    from bernese_workflow.backends import _SUBDIRS
+
+    assert "GEN" in _SUBDIRS
+
+
+def test_prepare_campaign_writes_sessions_ses_without_config(tmp_path):
+    """SESSIONS.SES must exist even with no CampaignConfig — BPE aborts without it."""
+    from bernese_workflow.backends import LinuxBPEBackend
+
+    backend = LinuxBPEBackend(
+        bernese_root=tmp_path / "BERN54",
+        user_dir=tmp_path / "GPSUSER",
+        campaign_dir=tmp_path / "GPSDATA",
+    )
+    backend.prepare_campaign("CAMP3", 2023, "0100")  # no config
+
+    ses = tmp_path / "GPSDATA" / "CAMP3" / "GEN" / "SESSIONS.SES"
+    assert ses.exists()
+    assert '"???0"' in ses.read_text()
+
+
+def test_stage_sessions_ses_copies_template(tmp_path):
+    template = tmp_path / "PAN" / "SESSIONS.SES"
+    template.parent.mkdir()
+    template.write_text("CUSTOM SESSION TABLE\n")
+
+    gen = tmp_path / "GPSDATA" / "CAMP" / "GEN"
+    stage_sessions_ses(gen, template)
+    assert (gen / "SESSIONS.SES").read_text() == "CUSTOM SESSION TABLE\n"
+
+
+def test_stage_sessions_ses_preserves_existing(tmp_path):
+    gen = tmp_path / "GPSDATA" / "CAMP" / "GEN"
+    gen.mkdir(parents=True)
+    (gen / "SESSIONS.SES").write_text("HAND TUNED MULTI-SESSION\n")
+
+    stage_sessions_ses(gen)  # should NOT overwrite
+    assert (gen / "SESSIONS.SES").read_text() == "HAND TUNED MULTI-SESSION\n"
 
 
 # ---------------------------------------------------------------------------

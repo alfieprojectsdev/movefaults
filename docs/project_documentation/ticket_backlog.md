@@ -237,16 +237,35 @@ through `BerneseOrchestrator` when driving PAGENET (small follow-up, out of this
   applied/orchestrator layer) + the PID-322 **tropo quarantine** (quarantine the malformed/short-baseline
   NON-IGS partner, retry; never drop an IGS fiducial — needs a failed-322 output sample to parse against).
 
-### RH-006 · P2 · S
+### RH-006 · P2 · S · **PARTIAL** — plumbing DONE (PR #43); empirical value pending R740
 **Final-solution clustering tuning (gap #13)**
 
-- `V_CLUFIN=A` auto-clustering made ONE giant cluster → the final GPSEST (PID 502) is a ~40-min
-  single-core solve. Tune `V_CLUFIN`/`V_CLU` + `USER.CPU` maxjobs so GPSCLU splits the final solve
-  across R740 cores. **The multi-core R740 payoff is a CONFIG task, not free hardware** — untuned,
-  R740 runs the same single-core solve on a bigger network = worse than T420.
+- **Shipped (plumbing):** `cpu_config.py` — `compute_maxjobs(physical_cores, ram_gb=…, reserve_cores=…)`
+  (task L: physical cores not threads, FPU-bound; RAM-capped) + `set_user_cpu_maxjobs()` rewrites the
+  `localhost` maxjobs field in `USER.CPU`. `PCFContext` now exposes `v_clu` (default 10) and **`v_clufin`**
+  (default `"A"`), and the template templates both (`V_CLUFIN` was absent before). +13 tests.
+- **STILL OPEN (needs R740):** the actual `V_CLUFIN` value that splits the final GPSCLU_P solve across
+  cores. Correction from the real PCF: `V_CLUFIN` is a MODE flag (`A` auto / `N` skip), not a
+  cluster-size number — `A` produced ONE giant single-core solve. Finding the split that parallelizes
+  it is empirical and needs the R740's core count + real timing (BRN-001). The orchestrator can now
+  *inject* both the chosen `V_CLUFIN` and a core-sized `maxjobs`; the value itself is a tuning task.
+  **The multi-core R740 payoff is CONFIG, not free hardware** — untuned, R740 runs the same single-core
+  solve on a bigger network = worse than T420.
 
-### RH-007 · P0 · S
+### ~~RH-007~~ · P0 · S · **DONE** (PR #42)
 **Wire Option-B IGS pre-download; retire FTP_DWLD from the template**
+
+**Shipped:** (1) stripped `000 FTP_DWLD` + its WAIT ref from `basic_processing.pcf.j2` (001 R2S_COP is
+now the head PID). (2) `verify_igs_products()` in `campaign_builder` — reuses `igs_downloader`'s
+`_build_long_filename` + on-disk layout (`ORB/YYYY/DDD/<decompressed>`) as the single source of truth;
+returns the missing product set (IGS20 long-name era; pre-2022 raises). (3) `prepare_campaign(...,
+prefetch_products=True, product_ac=...)` pre-downloads ORB/CLK via `prefetch_igs_products` then verifies,
+raising BEFORE any BPE run if incomplete. Opt-in (default off) → existing callers unchanged.
+`test_igs_predownload.py` +8, `test_orchestrator` FTP_DWLD assertion inverted. 83 pass, ruff clean.
+NOTE: the ORB→CLK loop in `prefetch_igs_products` already fails loudly on download error; `verify` is
+the belt-and-suspenders check that also covers pre-staged (`$D`) products.
+
+<details><summary>original ticket</summary>
 
 Reconciliation debt found 2026-07-01: the "pre-download products, skip in-BPE FTP_DWLD" decision
 (Option B) is only half-built. Three sources disagree:
@@ -271,6 +290,7 @@ fallback (IGS-001 already built it; FTP_DWLD has none), and resilience to the AI
 
 *P0-adjacent: no full run works without staged products. Depends on IGS-001 (done). See
 `bernese_orchestrator_r740_readiness.md` gaps #4/#6/#7.*
+</details>
 
 ---
 
