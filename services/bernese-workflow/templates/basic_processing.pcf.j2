@@ -103,7 +103,8 @@ V_SATINF Satellite information file               SATELLIT
 V_BLQINF BLQ filename, CMC corrections            {{ v_crdinf }}
 V_ATLINF ATL filename, CMC corrections            {{ v_crdinf }}
 V_SATCRX Satellite problem file                   SAT_$Y+0
-V_CLU    Maximum number of stations per cluster   10
+V_CLU    Maximum number of stations per cluster   {{ v_clu | default('10') }}
+V_CLUFIN N: skip A: auto clustering in GPSCLU      {{ v_clufin | default('A') }}
 V_SATSYS Select the GNSS (GPS, GLO)               {{ v_satsys | default('GPS') }}
 V_CRXINF Accepted sta. inform. inconcistencies
 V_RECINF Receiver information file                RECEIVER.
