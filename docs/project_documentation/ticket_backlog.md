@@ -1,6 +1,6 @@
 # Implementation Ticket Backlog
 
-**Last updated:** 2026-07-01
+**Last updated:** 2026-07-02
 **Source:** Codebase survey [`codebase_status_20260425.md`](codebase_status_20260425.md) cross-referenced with [`roadmap.md`](roadmap.md) and [`bernese_orchestrator_r740_readiness.md`](bernese_orchestrator_r740_readiness.md) (14 gaps from NAMRIA training week, 2026-06)
 
 > **Priority:** P0 = critical path blocker · P1 = production deployment · P2 = feature complete · P3 = deferred
@@ -15,8 +15,10 @@
                ├──▶ ~~BRN-002~~ ─▶ ~~BRN-003~~ ─▶ ~~BRN-004~~ ─▶ ~~BRN-005~~ ─▶ ~~BRN-006~~
 ~~ING-003~~ ──┘                                                          │
                                                                           ▼
-   R740 orchestrator hardening (P0):  RH-001 ─ RH-002 ─ RH-003 ─ RH-004 ─ RH-007 ──▶ BRN-001 (R740 install)
-                                       └── acceptance: re-run PAGENET week on R740, gaps auto-cleared
+   R740 orchestrator hardening:  ~~RH-001~~ ─ ~~RH-002~~ ─ ~~RH-003~~ ─ RH-004* ─ **RH-007** ──▶ BRN-001 (R740 install)
+                                  (P1 side: RH-004* / RH-005* code done, content/action remainder · RH-006 solve tuning)
+                                  └── acceptance: re-run PAGENET week on R740, gaps auto-cleared
+                                  * = code mechanisms shipped, non-code remainder open (see tickets)
 
 ~~PR#33~~ ──▶ ~~ING-001~~ ──▶ ~~ING-002~~     (Bernese-parallel track)
                                 └──▶ DA-001 (validate GNSS classification on a real legacy drive)
@@ -27,7 +29,9 @@
 **Status shift (2026-06/07):** the core Bernese orchestrator is BUILT (BRN-002..006) and the real
 PAGENET pipeline ran headless end-to-end on live data (NAMRIA training week). The critical path is no
 longer "start Bernese" — it is **R740 orchestrator hardening** (RH-00x below, from the 14-gap readiness
-eval) plus the BRN-001 install. RH-001 (per-session validator) already shipped (`1e3c952`).
+eval) plus the BRN-001 install. **Progress (2026-07-02):** RH-001..003 DONE, RH-004/RH-005 code
+mechanisms DONE (PRs #38–#41, stacked on #38). **Next critical-path P0 = RH-007** (retire FTP_DWLD,
+wire Option-B IGS pre-download). RH-004/RH-005 non-code remainders + RH-006 (solve tuning) are P1/P2.
 
 ---
 
@@ -182,7 +186,7 @@ Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops st
 - Per-session DOY filter (RINEX2/3/RXO names) so intermittent stations (PLG2) are checked on the day
   they appear. Catches the RXOBV3 hard-abort pre-BPE. Backward compatible; 65 tests, ruff+mypy clean.
 
-### ~~RH-002~~ · P0 · S · **DONE** `1d017f1`
+### ~~RH-002~~ · P0 · S · **DONE** `e544492` (PR #38)
 **Parameterize `backends.run()` — PCF_FILE / campaign / CPU_FILE + MAXPAR sizing (gaps #3, #10)**
 
 - ~~`run()` hardcodes `PCF_FILE="RNX2SNX"`, `CPU_FILE="PCF"` → cannot run PAGENET (the real workflow).~~
@@ -202,39 +206,36 @@ Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops st
 *Consumer wiring: orchestrator still constructs the backend with defaults; thread `pcf_file`/`max_par`
 through `BerneseOrchestrator` when driving PAGENET (small follow-up, out of this ticket's scope).*
 
-### ~~RH-003~~ · P0 · S · **DONE** `e43b074`
+### ~~RH-003~~ · P0 · S · **DONE** `b84c4a6` (PR #39)
 **`prepare_campaign()` adds GEN/ + SESSIONS.SES (gap #2)**
 
-- ~~`_SUBDIRS` omits `GEN`; no session table generated → BPE dies.~~ **Shipped:** `GEN` added to
-  `_SUBDIRS`; `generate_sessions_ses()` + `stage_sessions_ses()` in `campaign_builder.py` write the
-  stock daily `???0` session table (verbatim from `$X/SUPGUI/PAN/SESSIONS.SES`, whole-day
-  00:00:00–23:59:59) into campaign `GEN/`. Written unconditionally in `prepare_campaign()` — even
-  without a `CampaignConfig`, since BPE aborts without it. Preserves a pre-existing hand-tuned
-  SESSIONS.SES; `sessions_template=` arg copies an exact install file instead.
-- Tests: `test_campaign_builder.py` +5 (daily-template content, GEN subdir, no-config write, template
-  copy, preserve-existing). 80 tests pass, ruff clean (mypy: one pre-existing `requests` stub note in
-  `download_blq`, unrelated).
-- NOTE: other `GEN/` general files (`ANTENNA_I20.PCV`, `OBSERV.SEL`, `SINEX_RNX2SNX.SKL`) are also
-  needed for a full run but are separate reference-file staging — out of this ticket's scope.
+- ~~`_SUBDIRS` omits `GEN`; no session table → BPE dies.~~ **Shipped:** `GEN` added to `_SUBDIRS`;
+  `campaign_builder.generate_sessions_ses()` + `stage_sessions_ses()` write the stock daily `???0` table
+  into campaign `GEN/`, unconditionally in `prepare_campaign()` (BPE needs it regardless of config),
+  preserving a hand-tuned existing file; `sessions_template=` copies an exact install file. +5 tests.
 
-### RH-004 · P1 · M
+### RH-004 · P1 · M · **PARTIAL** — all code mechanisms DONE `6c0d8a2`/`425735b`/`11bb672` (PR #40)
 **Panel/script sanitizer + gold-standard config provisioning (gaps #8, #14)**
 
-- Instructor `OPT/*.INP` panels + `SCRIPT/` files carry Windows `\` separators (literal chars on
-  Linux), dangling `WAIT` PIDs (hang BPE), and hardcoded foreign sessions. Sanitize `\`→`/`, strip
-  dangling WAITs, reject hardcoded session/campaign literals.
-- Patched panels/scripts (BSW_DWLD, ADD_MON smartmatch, PGN_WK) belong version-controlled in
-  `services/bernese-workflow/script/` as gold-standard, synced to `$U`, NOT hand-edited per box —
-  the case for the config-versioning layer (survives MIS resets of the R740).
+- **Shipped `panel_sanitizer.py`:** `sanitize_panel_text()` converts *mixed* Bernese/Windows separators
+  but **flags, never rewrites** foreign drive paths (`C:\Bernese\...`) + hardcoded session/date literals;
+  `find_dangling_waits()` (WAIT→undefined PID); `set_addneq2_maxpar()` (readiness task B, from RH-002
+  `compute_maxpar`); `provision_opt_dir()` — sanitizes `*.INP` on the way to `$U/OPT`, copies `*.pl`
+  verbatim, **two-pass atomic** strict-refusal of dirty panels. INP-only (Perl `\`=escape). +12 tests.
+- **STILL OPEN:** author the **gold-standard panel content** — hand-remap real `PGN_WK`/`PGN_MO`
+  `C:\Bernese\` paths to `${X}/${U}/${P}`, strip frozen sessions, commit under
+  `services/bernese-workflow/script/` for `provision_opt_dir` to sync. Data/ops task (domain remap), not
+  code; the strict provisioner enforces it can't be skipped. Also patch BSW_DWLD / ADD_MON (gap #8).
 
-### RH-005 · P1 · M
+### RH-005 · P1 · M · **PARTIAL** — CODSPP-QC core DONE `26cc914` (PR #41)
 **CODSPP-QC + tropo auto-recovery gates (gaps #9, #11)**
 
-- Parse CODSPP `RMS OF UNIT WEIGHT` + `NEW − A PRIORI` delta per station: bad-a-priori (high RMS +
-  large delta) → re-seed `.CRD` from CODSPP output and retry (free auto-fix); bad-obs (high RMS, small
-  delta) → alert human. Cheapest auto-recovery in the pipeline.
-- Tropo/GPSEST stage: on PID 322 zenith-delay overflow, quarantine the malformed/short-baseline
-  NON-IGS partner for that session and retry; NEVER drop an IGS fiducial.
+- **Shipped `codspp_qc.py`:** `parse_codspp_output()` (RMS OF UNIT WEIGHT, BAD/USED obs, X/Y/Z
+  `NEW- A PRIORI` → `coord_shift_m`), `classify_codspp()` → `ok`/`bad_apriori`/`bad_obs`/`unknown`
+  (tunable thresholds), `parse_codxtr_summary()`. Verified on the real CUSV 0840 block. +9 tests.
+- **STILL OPEN:** the re-seed **action** (on `bad_apriori`, rewrite `.CRD` from CODSPP NEW coords, retry —
+  applied/orchestrator layer) + the PID-322 **tropo quarantine** (quarantine the malformed/short-baseline
+  NON-IGS partner, retry; never drop an IGS fiducial — needs a failed-322 output sample to parse against).
 
 ### RH-006 · P2 · S
 **Final-solution clustering tuning (gap #13)**
