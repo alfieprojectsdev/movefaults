@@ -365,8 +365,9 @@ During archive recursion, `mark_scanned(filepath)` records the ephemeral temp-ex
 ### DA-001 · P1 · S
 **Validate drive-archaeologist GNSS classification on a REAL legacy GNSS drive**
 
-Found 2026-07-01: `artifacts.db` shows the scanner ran on a real mounted drive — but a **DOST
-media/movies drive** (`/run/media/finch/DOSTB20150918`), NOT GNSS data. So scanner *mechanics*
+Found 2026-07-01: `artifacts.db` shows the scanner ran on a real mounted drive — but a **personal
+media/movies drive** (`/run/media/finch/DOSTB20150918` — "DOSTB" = DOS + TB, a 2TB drive, NOT a
+DOST asset), NOT GNSS data. So scanner *mechanics*
 (walk/dedup/checkpoint) have real-FS exercise, but the **GNSS-classification path** (RINEX / Trimble
 `.T0x` / Hatanaka / legacy profiles in `profiles.py` + `classifier.py`) has only synthetic/mock
 coverage (`mock_drive/`, `test_data/`, `tmp_path`). A movies drive tests everything EXCEPT the tool's
@@ -383,7 +384,7 @@ caught real gaps (year-extensions, Leica). Remaining for full DA-001 closure: sp
 classifications against known content + excavate/recover the recycle-bin GNSS before this drive is
 ever repurposed.
 
-- Mount a real legacy GNSS drive (DOST/PHIVOLCS archive — same drive class as the DOSTB one)
+- Mount a real legacy GNSS drive (PHIVOLCS archive)
 - Run the scanner; verify RINEX/Trimble/Hatanaka files classify correctly (spot-check against known content)
 - Capture any mis-classifications as profile fixes; add a real-data regression fixture if feasible
 
