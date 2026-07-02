@@ -1,6 +1,6 @@
 # Project Roadmap: Phased Implementation Based on Dependency Hierarchies
 
-**Last updated:** 2026-03-03
+**Last updated:** 2026-07-01
 **Original date:** 2026-01-26
 
 > For per-deliverable status and projected dates, see [`deliverables_tracker.md`](deliverables_tracker.md).
@@ -48,13 +48,13 @@ movefaults_clean/
 │   ├── pogf-geodetic-suite/     # Shared: coordinate transforms, RINEX QC, IGS downloader
 │   └── CORS-dashboard/          # Legacy React/GraphQL dashboard (forensic reference only)
 ├── services/
-│   ├── vadase-rt-monitor/       # Real-time NMEA earthquake detection (~80% complete)
+│   ├── vadase-rt-monitor/       # Real-time NMEA earthquake detection (~85%; ReceiverMode state machine, TimescaleDB wired)
 │   ├── ingestion-pipeline/      # Celery-based RINEX ingestion (~30% complete)
-│   ├── bernese-workflow/        # Bernese BPE orchestrator (~15% complete)
+│   ├── bernese-workflow/        # Bernese BPE orchestrator — CORE BUILT (BRN-002..006); R740-hardening is the frontier
 │   └── field-ops/               # Digital field logsheet PWA (Phase 1A — complete)
 ├── tools/
-│   ├── drive-archaeologist/     # CLI: excavate legacy GNSS data from old drives (~60%)
-│   └── velocity-reviewer/       # Web UI: interactive GNSS time series outlier review (new)
+│   ├── drive-archaeologist/     # CLI: excavate legacy GNSS data (~60%; scanner proven on real media drive, GNSS-classification path mock-only)
+│   └── velocity-reviewer/       # Web UI: interactive GNSS time series outlier review (complete, bd743bb)
 ├── src/ingestion/               # Simplified local ingestion module (consolidation pending)
 ├── analysis/                    # Numbered research scripts 01–10 (legacy, not yet ported)
 └── docs/
@@ -102,7 +102,12 @@ movefaults_clean/
 - *Spec: `docs/project_documentation/gnss_automation_modules/tech_spec_digital_logsheet.md`*
 
 **Deliverable 2.5: RINEX Quality Control Module** 🔄 **IN PROGRESS**
-- `teqc` as primary QC backend (gfzrnx not yet acquired)
+- `teqc` as primary QC backend. **gfzrnx migration decision (2026-06):** teqc stays primary for
+  GPS-only RINEX-2 work; the migration trigger is the **first RINEX 3/4 file teqc can't process**,
+  NOT a multi-GNSS desire. teqc is unmaintained (UNAVCO 2019); the mixed-version PAGENET data
+  (IGS=RINEX3) makes the version migration when-not-if. gfzrnx needs a **commercial campus license**
+  for the planned automated pipeline (scientific-free covers current manual work). See
+  `gfzrnx_teqc_decision` memory + `~/Downloads/gfzrnx_license_inquiry_GFZ.md`.
 - Wrapper exists in `packages/pogf-geodetic-suite/`; Trimble conversion step documented
 - Trimble NetR9 filename pattern identified; `drive-archaeologist` profiles need updating
 - *Spec: `docs/project_documentation/gnss_automation_modules/tech_spec_rinex_qc.md`*
@@ -120,8 +125,14 @@ movefaults_clean/
 
 **Deliverable 2.1: drive-archaeologist Integration** 🔄 **IN PROGRESS (~60%)**
 - Phase 1 scanner works; archive support partial
+- **Testing gap (found 2026-07-01):** scanner *mechanics* (walk/dedup/checkpoint) were run once on a
+  REAL mounted drive — but a **DOST media/movies drive** (`/run/media/finch/DOSTB20150918`, per
+  `artifacts.db`), NOT a GNSS drive. The **GNSS classification path** (RINEX/Trimble/Hatanaka
+  profiles — the tool's actual purpose) has only synthetic/mock coverage (`mock_drive/`, `test_data/`,
+  `tmp_path` fixtures). → **DA-001: validate classification against a real legacy GNSS drive** before
+  trusting excavation output. Real GNSS drives likely available (DOST/PHIVOLCS archive).
 - Pending: Trimble raw file classification (`.T01`, `.T02`, `.T04`, `.DAT`, `.TGD`),
-  ingestion-pipeline handoff
+  ingestion-pipeline handoff (ING-001)
 - Location: `tools/drive-archaeologist/`
 - *Ref: `docs/project_documentation/gnss_automation_modules/ref_drive_archaeologist.md`*
 
@@ -131,9 +142,36 @@ movefaults_clean/
 
 > Primary scientific processing engine. Depends on robust data ingestion from Tier 2.
 
-**Deliverable 1.3: Automated Bernese Processing Workflow** 🔬 **RESEARCH COMPLETE — IMPLEMENTATION STARTING**
+**Deliverable 1.3: Automated Bernese Processing Workflow** 🔄 **CORE BUILT — R740-HARDENING IS THE FRONTIER**
 
-Research milestones completed (2026-02-26/27):
+> **Status correction (2026-07-01):** this deliverable is NOT "starting" — the core orchestrator is
+> built and the real PHIVOLCS PAGENET pipeline was run headless end-to-end on live data during the
+> NAMRIA training week. What remains is hardening it for unattended R740 production.
+
+**BUILT (BRN-002..006, commits `bead683`→`c002a88`, 2026-04/05):**
+- `BPEBackend` protocol + `LinuxBPEBackend` (Perl `startBPE.pm` subprocess invocation)
+- `campaign_builder` (8-step campaign file generation), `pcf_context`, PHIVOL_REL PCF template
+- `rinex_header_validator` (BRN-006: pre-BPE receiver/antenna cross-check)
+- Orchestrator velocity-pipeline hook + `plot_v2.py` `--reference-station` (BRN-005)
+
+**PROVEN (NAMRIA training week, 2026-06):**
+- Full Modules 1-14 ran headless + unattended on live 71-station PAGENET data via a parameterized
+  stock driver (`pagenet_pcs.pl`) + idempotent runner (`scripts/run_pagenet_week.sh`).
+- Module 13/14 HELMCHK passed: RMS 8.64 mm, 6 fiducials accepted, 0 rejected (sub-10mm datum gate).
+- The orchestrator's **execution contract is validated on real data.**
+
+**THE FRONTIER — R740 orchestrator hardening (14 evidence-backed gaps):**
+See `docs/project_documentation/bernese_orchestrator_r740_readiness.md` for the full P0/P1/P2 plan.
+Every failure worked around BY HAND in training is a thing the orchestrator must do AUTOMATICALLY:
+- P0: per-session station validator (PLG2 hard-abort), parameterize backends, GEN/SESSIONS.SES,
+  MAXPAR sizing, panel `\`→`/` sanitizer.
+- P1: CODSPP-QC + tropo auto-recovery, final-solution clustering tuning (the 502 GPSCLU_P
+  single-core bottleneck — the R740 multi-core payoff is a CONFIG task, not free hardware).
+- Only **BRN-001 (R740 install)** remains open on the infrastructure side.
+
+---
+
+**Prior research milestones (2026-02-26/27), retained for reference:**
 - Bernese 5.4 **installed and verified** on T420 — EXAMPLE campaign BPE ran 47 steps, solutions
   match reference at ≤0.09 mm
 - Non-interactive BPE API confirmed: `startBPE.pm` Perl module (`$BPE/startBPE.pm`)
@@ -160,10 +198,10 @@ Research milestones completed (2026-03-03):
 - **8 campaign file generation order** confirmed: STA → CRD+ABB → ATL → PLD → VEL → CLU → BLQ;
   BLQ from Chalmers web service (FES2004 model, no tabs, 24-char fixed-column)
 
-Pending:
-- R740 Bernese installation (same procedure as T420, no ISA mismatch)
-- Jinja2 INP templates from completed diff → `LinuxBPEBackend` skeleton
-- `plot_v2.py` parameterisation (interactive reference station prompt → CLI arg)
+Pending (superseded by the R740-hardening frontier above — this list is the OLD 2026-03 view):
+- ~~Jinja2 INP templates → `LinuxBPEBackend` skeleton~~ — DONE (BRN-002/003)
+- ~~`plot_v2.py` parameterisation~~ — DONE (BRN-005, `--reference-station`)
+- R740 Bernese installation (BRN-001) — still open; easier than T420 (no PPA/ISA fights)
 
 Architecture decisions:
 - `BPEBackend` protocol: `LinuxBPEBackend` (R740) + `WindowsBPEBackend` (future)
