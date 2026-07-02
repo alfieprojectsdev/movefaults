@@ -381,6 +381,37 @@ actual purpose — the classifier could mis-tag or miss real RINEX/Trimble files
 
 ---
 
+### DA-002 · P2 · M
+**Harden scanner against corrupt FAT filesystems — lessons from first real corrupt drive (2026-07-02)**
+
+First scan of a genuinely corrupt drive (hp v210w 7.5G thumbdrive, FAT trashed by a failed USB-auth
+experiment) exposed failure modes that WILL recur on decades-old PHIVOLCS legacy drives. The scan
+succeeded only because corruption zones were mapped manually (via `find`/`df` forensics) and excluded
+by orchestrating 51 separate per-subdir scans externally. An unattended excavation run would have hung
+or produced garbage. Catalog + evidence: `~/sdc_catalog_20260702/`.
+
+Observed failure modes → required guards:
+
+1. **Bogus direntry sizes** — 941 entries claiming 100MB–3.4GB each on a 7.5GB stick (`du` said 1.1TB;
+   `statvfs`/`df` said 916MB). Any hashing/dedup/copy step would read garbage for hours or EIO-loop.
+   → Pre-scan sanity gate: warn when Σ(claimed sizes) ≫ filesystem capacity ("directory metadata
+   inconsistent with filesystem usage — probable FAT corruption"); per-file `claimed_size > fs_capacity`
+   → classify `corrupt_direntry`, never open/read.
+2. **Mojibake / undecodable filenames** (`ç▄#╦ßrl.╦d╓`, trailing-space dirnames, `.@`) — classifier
+   regexes assume decodable names; path serialization can choke on surrogates.
+   → Detect non-UTF-8-decodable / control-char names → `corrupt_direntry`; surrogateescape-safe JSONL writes.
+3. **Cross-linked duplicate direntries** (same path yielded twice in one walk) — path-keyed dedup breaks;
+   future checksum dedup would double-read. → De-dupe walk output on (dev, inode/path) per pass.
+4. **Silent read errors** — 421 unreadable entries surfaced only in stderr. → Count + report per-scan read
+   errors in the summary (visibility gate, same spirit as the RXOBV3 silent-drop fix in BRN-006).
+5. **No `--exclude` CLI option** — cannot skip a known-corrupt subtree. → Add repeatable `--exclude GLOB`.
+6. **Checksums missing entirely** — scan JSONL has no hash field, so Phase-1 MD5 dedup (design doc) is
+   unimplemented; when it lands, guards 1–3 become mandatory prerequisites, not nice-to-haves.
+
+*Do before or alongside DA-001 — a real legacy GNSS drive is MORE likely to be corrupt than this one.*
+
+---
+
 ## pogf-geodetic-suite
 
 ### ~~IGS-001~~ · P0 · M · **DONE** `f742571`
