@@ -137,14 +137,27 @@ banked) → discarded, restarts from job 001 on resume. Machine idle, nothing ru
 dailies (084/085/086), restarts at 0870. PLG2 already stashed (088 safe). Keep the T420 quiet while it
 runs (don't `uv sync` a fresh worktree mid-solve; verify via an existing worktree venv).
 
+## 14. Resumed after relocation + RH-004 review fix + RH-007
+- **BPE resumed** at the new desk (`~/run_pagenet_week.sh --detach`, runner PPID→1). 0870 re-ran from
+  job 001 through the ~40-min final GPSEST solve → **banked**; now on 0880. **4 of 7 dailies banked**
+  (084/085/086/087). Kept the T420 quiet throughout (all ticket tests via the rh-004 venv, no `uv sync`).
+- **RH-004 review fix (`11bb672`, PR #40):** `/code-review low` flagged `provision_opt_dir` strict mode
+  as non-atomic (wrote clean panels then raised on the first dirty one → half-updated `$U`). Fixed to
+  two-pass — sanitize + gather all warnings, raise before any write, then commit. +1 atomicity test.
+- **RH-007 DONE (`bdefc77`, PR #42):** Option-B IGS pre-download wired + FTP_DWLD retired. Stripped
+  `000 FTP_DWLD` from `basic_processing.pcf.j2`; `verify_igs_products()` (reuses `igs_downloader`
+  naming/layout as source of truth); `prepare_campaign(prefetch_products=True)` pre-downloads + verifies
+  before BPE. +8 tests, `test_orchestrator` FTP_DWLD assertion inverted. 83 pass.
+- **Tracker reconciled (`d95c871`, docs branch):** RH-002 hash corrected (`e544492`); RH-003 DONE,
+  RH-004/RH-005 PARTIAL (code done), dependency graph + status note updated; next P0 was RH-007 (now done).
+
 ## State at end of session
-- **Committed/pushed** — `docs/bernese-training-notes`: RH-002 (`e544492`), gitignore/session logs
-  (`b0f2fc3`, `9c70c1d`, `cd18e99`, `66f7277`), `open_pr.sh` (`9f608d4`). `feat/rh-003-gen-sessions`:
-  RH-003 (`b84c4a6`). `feat/rh-004-panel-sanitizer`: RH-004 core+remainder (`6c0d8a2`, `425735b`,
-  `90bd92a`). `feat/rh-005-codspp-tropo`: RH-005 core (`26cc914`).
-- **PRs open:** #38 (docs→main), #39 (RH-003), #40 (RH-004), #41 (RH-005) — #39/#40/#41 stacked on #38.
-- **Background:** STOPPED (clean) for relocation; 3 of 7 dailies banked (084/085/086); machine idle.
-- **Next:** resume the week (087–090); then RH-004 gold-standard content (data/ops), RH-005 remainder
-  (re-seed action + tropo quarantine), or RH-006 (final-solution clustering — fixes the 40-min
-  single-core solve). Loose ends: RH-002/RH-003 backlog hashes still pre-amend (batch-fix); async GFZ
-  inquiry + `deploy_r740.secrets` token rotation.
+- **PRs open (all stacked on #38 → main):** #38 (RH-001+RH-002+docs), #39 (RH-003), #40 (RH-004),
+  #41 (RH-005 core), #42 (RH-007).
+- **Branches:** `feat/rh-003-gen-sessions` `b84c4a6` · `feat/rh-004-panel-sanitizer` `6c0d8a2`/`425735b`/
+  `90bd92a`/`11bb672` · `feat/rh-005-codspp-tropo` `26cc914` · `feat/rh-007-igs-predownload` `bdefc77`.
+- **Background:** PAGENET running detached, session 0880 (job 322); 4 of 7 dailies banked.
+- **Next:** RH-006 (final-solution clustering — the 40-min single-core solve); RH-005 remainder
+  (re-seed action; tropo quarantine blocked on a failed-322 sample); RH-004 gold-standard content
+  (data/ops). Loose end: RH-003 backlog hash still pre-amend on its branch. Async: GFZ inquiry +
+  `deploy_r740.secrets` token rotation.
