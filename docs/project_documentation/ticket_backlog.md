@@ -23,6 +23,8 @@
 ~~PR#33~~ ──▶ ~~ING-001~~ ──▶ ~~ING-002~~     (Bernese-parallel track)
                                 └──▶ DA-001 (validate GNSS classification on a real legacy drive)
 
+~~ING-003~~ ──▶ ING-005 (gfzrnx RINEX-3/4 QC backend · trigger MET · license-gated for automation)
+
 ~~VAD-001~~  ~~VAD-002~~                       (done; were needed before R740 go-live)
 ```
 
@@ -327,6 +329,24 @@ The scanner classifies GNSS files; the Celery pipeline validates and loads them.
 **teqc as RINEX QC backend**
 
 `rinex_qc.py` now shells to `teqc +qc` (replacing placeholder `gfzrnx` stub). Structured `RINEXQCResult` dataclass; QC metrics propagated to `IngestionLog` through the Celery chain. Two CodeRabbit review cycles addressed (timeout, QC persistence, error propagation, test coverage). 12 unit tests.
+
+---
+
+### ING-005 · P1 · M
+**gfzrnx as RINEX-3/4 QC backend — version-routed dual-tool QC**
+
+teqc is unmaintained (last build `2019Feb25`) and a RINEX-2-era tool: it **hard-refuses RINEX 3** (`must be RINEX Version <= 2.11 ... exiting`, zero obs read) and cannot do RINEX 4 at all. The live PAGENET campaign is already mixed-version — every IGS fiducial is RINEX 3.04 (`CUSV00THA_R_2026...`, GPS+GLO+GAL+QZS+BDS), only the PAGENET CORS subset still emits RINEX 2 short-name. So the current teqc-only `RinexQC` silently cannot QC any fiducial. Trigger to migrate is **met now, empirically** — evidence: `docs/project_documentation/gfzrnx_vs_teqc_rinex3_evidence.md` (gfzrnx 2.2.0 QC'd all constellations in 14s on the same file teqc rejected on line 1).
+
+Migration is **de-risked, not greenfield**: PHIVOLCS (Cass, COS staff under MOVE Faults) has run gfzrnx as a teqc substitute with manual BPE GPS processing for years; gfzrnx 2.2.0 lx64 binary verified on-disk (`~/Downloads/gfzrnx/`).
+
+- Add a `GfzrnxQC` backend in `qc/` that shells to `gfzrnx -finp <file> -check` (or the QC stat mode from Cass's manual), parsing into the **existing `RINEXQCResult`** dataclass — keep the return type stable so the Celery chain and `IngestionLog` propagation are untouched.
+- Version-route in the QC entry point: detect RINEX version from the file header (major version field, line 1), dispatch RINEX-2 → teqc (unchanged, keeps GPS-only CORS subset working), RINEX-3/4 → gfzrnx. Do NOT rip out teqc — it stays the RINEX-2 path.
+- Normalise QC metrics across the two tools so downstream consumers see one schema regardless of backend (map gfzrnx's fields to `obs_count` / `cycle_slips` / `mp1_rms` / `mp2_rms`, `None` where a tool doesn't emit an equivalent).
+- Binary discovery: `gfzrnx_path` param like `teqc_path`, default `"gfzrnx"`, same `FileNotFoundError → RuntimeError` install-hint pattern. **Do NOT commit the gfzrnx binary** (licensed; each user registers their own free GFZ scientific account and downloads the identical non-node-locked binary).
+- Tests: RINEX-3.04 fixture (fiducial) routes to gfzrnx and parses; RINEX-2 fixture still routes to teqc; header version-detection unit tests incl. malformed/short header; missing-binary path.
+
+*Prerequisite met (evidence doc + on-disk RINEX-3 fiducials + gfzrnx 2.2.0). Depends on: ING-003 (teqc seam to route around). Feeds: Deliverable 2.5 (RINEX QC), `bernese-workflow` ingestion QC.*
+*LICENSE GATE — automation only: manual desktop use fits the free **Scientific** license (established practice, years). The PLANNED automated server pipeline = "recurring process chain / operational use" → needs the **Commercial campus** license per GFZ terms; PHIVOLCS being public does NOT exempt it. This ticket lands the code; do not flip the ingestion pipeline to automated/orchestrated gfzrnx QC until the GFZ inquiry confirms terms (email drafted `~/Downloads/gfzrnx_license_inquiry_GFZ.md`). See `memory/gfzrnx_teqc_decision.md`.*
 
 ---
 
