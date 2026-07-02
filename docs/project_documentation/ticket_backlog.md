@@ -412,6 +412,35 @@ Observed failure modes → required guards:
 
 ---
 
+### DA-003 · P3 · S
+**`drive-arch survey` — fast triage subcommand (no JSONL, no hashing)**
+
+Triaging the 6 thumbdrives on 2026-07-02/03 for wipe never needed a full scan — the wipe/keep call
+came from three cheap signals: total size, top-N extension histogram, and "does anything classify as
+GNSS?". The full `scan` (per-file JSONL, metadata, eventual MD5) is overkill for a 116MB photo stick.
+Rather than have operators fall back to ad-hoc `du -sh` / `find | sed` one-liners (non-portable GNU-isms,
+and — critically — `du` reported a bogus **1.1 TB** on the corrupt hp v210w, exactly the lie a shell
+fallback would inherit), fold the summary INTO the existing scanner as a lightweight mode.
+
+- Add `drive-arch survey <path>` (Click subcommand alongside `scan`): walk once via the SAME
+  `DeepScanner`/classifier, accumulate counts in memory, emit NO artifact file.
+- Output: total size + file count, top-N extension/category histogram, GNSS-classified count, and a
+  one-line verdict (`no GNSS payload — safe-to-wipe candidate (human confirms)` vs `N GNSS files — DO
+  NOT wipe, run full scan`). Rich table, human-first.
+- Reuse the classifier already trusted for `scan` — do NOT introduce a second, dumber heuristic that
+  can disagree with `scan` on the same tree. In-process only; NO `subprocess` shell-out to `du`/`find`
+  (portability + the corruption-lie reason above).
+- Sizes come from the DA-002 sanity-gated walk, so `survey` reports corrupt/oversized direntries
+  honestly instead of parroting a fake total. Verdict must surface "⚠ filesystem metadata inconsistent
+  — capacity check failed" when the gate trips.
+- Tests: `tmp_path` trees — pure-media (safe verdict), one-RINEX-present (do-not-wipe verdict), empty,
+  and a fixture with a claimed-oversize file (corruption verdict).
+
+*Small. Depends on DA-002 (needs the capacity-sanity gate so `survey` can't be fooled the way `du` was).
+Quality-of-life for the recurring "is this stick safe to blank?" task; NOT on the GNSS critical path.*
+
+---
+
 ## pogf-geodetic-suite
 
 ### ~~IGS-001~~ · P0 · M · **DONE** `f742571`
