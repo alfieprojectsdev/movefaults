@@ -1,7 +1,6 @@
 PID SCRIPT   OPT_DIR  CAMPAIGN CPU      F WAIT FOR....
 3** 8******* 8******* 8******* 8******* 1 3** 3** 3** 3** 3** 3** 3** 3** 3** 3**
-000 FTP_DWLD NO_OPT            ANY      1
-001 R2S_COP  NO_OPT            ANY      1 000
+001 R2S_COP  NO_OPT            ANY      1
 002 ATX2PCV  R2S_GEN           ANY      1 001
 003 COOVEL   R2S_GEN           ANY      1 001
 004 COOVEL   R2S_GE2           ANY      1 001
@@ -103,7 +102,8 @@ V_SATINF Satellite information file               SATELLIT
 V_BLQINF BLQ filename, CMC corrections            {{ v_crdinf }}
 V_ATLINF ATL filename, CMC corrections            {{ v_crdinf }}
 V_SATCRX Satellite problem file                   SAT_$Y+0
-V_CLU    Maximum number of stations per cluster   10
+V_CLU    Maximum number of stations per cluster   {{ v_clu | default('10') }}
+V_CLUFIN N: skip A: auto clustering in GPSCLU      {{ v_clufin | default('A') }}
 V_SATSYS Select the GNSS (GPS, GLO)               {{ v_satsys | default('GPS') }}
 V_CRXINF Accepted sta. inform. inconcistencies
 V_RECINF Receiver information file                RECEIVER.

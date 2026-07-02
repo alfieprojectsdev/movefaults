@@ -174,19 +174,26 @@ class LinuxBPEBackend:
         session: str,
         config: CampaignConfig | None = None,
         sessions_template: str | Path | None = None,
+        prefetch_products: bool = False,
+        product_ac: str = "COD",
         **kwargs: object,
     ) -> None:
         """Create campaign subdirectories, stage the GEN/SESSIONS.SES session
         table, and — if *config* is provided — generate the Bernese input files
         (STA, CRD, ABB, VEL, CLU, BLQ).
 
-        File generation order: subdirs → SESSIONS.SES → STA → CRD → ABB → VEL →
-        CLU → BLQ. BLQ download is skipped when config.download_blq is False.
+        File generation order: subdirs → SESSIONS.SES → (IGS products) → STA → CRD →
+        ABB → VEL → CLU → BLQ. BLQ download is skipped when config.download_blq is False.
 
         SESSIONS.SES is written unconditionally (independent of *config*) because
         BPE aborts without it (gap #2). Pass *sessions_template* to copy an exact
         install file (e.g. $X/SUPGUI/PAN/SESSIONS.SES) instead of the built-in
         daily template.
+
+        When *prefetch_products* is set, IGS orbit/clock products for the session are
+        pre-downloaded into ORB/ via ``igs_downloader`` (Option B — replaces the retired
+        in-BPE FTP_DWLD step) and a pre-flight existence check runs; a missing/incomplete
+        product set raises here, BEFORE the BPE is launched.
         """
         from .campaign_builder import (
             generate_abb,
@@ -208,6 +215,21 @@ class LinuxBPEBackend:
             campaign_path / "GEN",
             Path(sessions_template).expanduser() if sessions_template is not None else None,
         )
+
+        # IGS products (Option B): pre-download + verify before any BPE run. DOY is the
+        # first three chars of the Bernese session id (e.g. "0870" → 087).
+        if prefetch_products:
+            from .campaign_builder import prefetch_igs_products, verify_igs_products
+            doy = int(session[:3])
+            orb_dir = campaign_path / "ORB"
+            prefetch_igs_products(orb_dir, year, doy, ac=product_ac)
+            missing = verify_igs_products(orb_dir, year, doy, ac=product_ac)
+            if missing:
+                raise RuntimeError(
+                    f"IGS products incomplete for {year}/{doy:03d} (AC={product_ac}) after "
+                    f"prefetch — refusing to prepare campaign: missing {missing}"
+                )
+            logger.info("IGS products verified for %s/%03d", year, doy)
 
         if config is None:
             return

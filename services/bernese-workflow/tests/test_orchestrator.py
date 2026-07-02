@@ -91,7 +91,8 @@ def test_generate_pcf_phivol_template(tmp_path):
         content = f.read()
 
     assert "PIVSMIND" in content
-    assert "000 FTP_DWLD" in content
+    assert "FTP_DWLD" not in content   # RH-007: retired in favour of Option-B pre-download
+    assert "001 R2S_COP" in content    # first PID after FTP_DWLD removal
     assert "443 AMBXTR" in content
     assert "514 HELMCHK" in content
     assert "IGS" in content   # v_b default
