@@ -300,3 +300,50 @@ def prefetch_igs_products(
                 f"IGS {content} download failed for {date.strftime('%Y-%j')} (AC={ac})"
             )
         logger.info("IGS %s: %s", content, path)
+
+
+def verify_igs_products(
+    campaign_orb_dir: Path,
+    year: int,
+    doy: int,
+    *,
+    ac: str = "COD",
+    contents: tuple[str, ...] = ("ORB", "CLK"),
+) -> list[str]:
+    """Pre-flight: return the expected IGS product files that are MISSING (empty = all present).
+
+    Reuses ``igs_downloader``'s filename builder + on-disk layout
+    (``base_dir/YYYY/DDD/<decompressed>``) as the single source of truth, so the check
+    matches exactly what ``ProductDownloader`` writes and what the PCF ``V_ORB=COD0OPSFIN``
+    expects — closing the Option-B gap where a run launched with incomplete products
+    (gaps #6/#7). Call before launching the BPE and abort if the returned list is non-empty.
+
+    Only the IGS20 long-name era is supported (the current PAGENET regime); a pre-IGS20
+    date raises rather than silently checking the wrong names.
+    """
+    from datetime import datetime, timedelta
+
+    from pogf_geodetic_suite.igs_downloader import (
+        _IGS20_TRANSITION_WEEK,
+        _build_long_filename,
+        _gps_week,
+    )
+
+    date = datetime(year, 1, 1) + timedelta(days=doy - 1)
+    week = _gps_week(date)
+    if week < _IGS20_TRANSITION_WEEK:
+        raise NotImplementedError(
+            f"verify_igs_products covers the IGS20 long-name era only "
+            f"(GPS week >= {_IGS20_TRANSITION_WEEK}); got week {week} for {year}/{doy:03d}"
+        )
+
+    orb = Path(campaign_orb_dir)
+    ddd = f"{doy:03d}"
+    missing: list[str] = []
+    for content in contents:
+        # ProductDownloader stores the DECOMPRESSED file (.gz/.Z stripped).
+        local_name = _build_long_filename(ac, date, content).removesuffix(".gz")
+        rel = f"{year}/{ddd}/{local_name}"
+        if not (orb / rel).exists():
+            missing.append(rel)
+    return missing
