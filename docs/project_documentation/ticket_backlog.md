@@ -372,6 +372,17 @@ media/movies drive** (`/run/media/finch/DOSTB20150918`), NOT GNSS data. So scann
 coverage (`mock_drive/`, `test_data/`, `tmp_path`). A movies drive tests everything EXCEPT the tool's
 actual purpose — the classifier could mis-tag or miss real RINEX/Trimble files and no test would catch it.
 
+**UPDATE 2026-07-03 — partially validated, by accident.** The hardened scanner (PR #46) surveyed
+DOSTB20150918 itself with `--include-hidden` and found **16,001 GNSS-classified files** the original
+media-drive scan never saw: ~15,900 sit in `$RECYCLE.BIN` under THREE different Windows user SIDs —
+8,385 Trimble `.t02` raw, 4,616 `.sp3`, 2,369 `.erp`, 353 `.clk`, 124 Hatanaka `.crx`, RINEX obs
+spanning `.02o`–`.19o` (the 2002/2003 files matched only via the new regex fallback; the static list
+starts at `.15`). Plus 3,665 Leica `.mNN` raw (classified after `cd7316c`). Live (non-deleted) GNSS:
+`repos/BERN54`, `repos/GPSDATA`. So the classification path HAS now run against real GNSS data and
+caught real gaps (year-extensions, Leica). Remaining for full DA-001 closure: spot-check
+classifications against known content + excavate/recover the recycle-bin GNSS before this drive is
+ever repurposed.
+
 - Mount a real legacy GNSS drive (DOST/PHIVOLCS archive — same drive class as the DOSTB one)
 - Run the scanner; verify RINEX/Trimble/Hatanaka files classify correctly (spot-check against known content)
 - Capture any mis-classifications as profile fixes; add a real-data regression fixture if feasible
