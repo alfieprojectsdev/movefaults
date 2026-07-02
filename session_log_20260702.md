@@ -151,13 +151,24 @@ runs (don't `uv sync` a fresh worktree mid-solve; verify via an existing worktre
 - **Tracker reconciled (`d95c871`, docs branch):** RH-002 hash corrected (`e544492`); RH-003 DONE,
   RH-004/RH-005 PARTIAL (code done), dependency graph + status note updated; next P0 was RH-007 (now done).
 
+## 15. RH-006 (plumbing) — USER.CPU maxjobs + V_CLUFIN/V_CLU (`36540b2`, PR #43)
+Worktree `.trees/rh-006-clustering`. The 502 GPSCLU_P 40-min single-core solve = `V_CLUFIN=A`
+auto-clustering the whole net into one dense inversion. **Correction from the real PCF:** `V_CLUFIN` is a
+MODE flag (`A` auto / `N` skip), NOT a cluster-size number as the readiness doc implied — so the value
+that splits the solve is empirical and needs the R740 (BRN-001). Shipped the plumbing:
+- `cpu_config.compute_maxjobs()` — physical cores (FPU-bound, not threads), RAM-capped, reserve-aware
+  (task L); `set_user_cpu_maxjobs()` rewrites the `USER.CPU` localhost maxjobs field.
+- `PCFContext` exposes `v_clu` + `v_clufin`; template templates both (V_CLUFIN was absent). +13 tests, 88 pass.
+- RH-006 stays PARTIAL — orchestrator can now inject `V_CLUFIN`/maxjobs; the tuning value is R740 work.
+
 ## State at end of session
 - **PRs open (all stacked on #38 → main):** #38 (RH-001+RH-002+docs), #39 (RH-003), #40 (RH-004),
-  #41 (RH-005 core), #42 (RH-007).
-- **Branches:** `feat/rh-003-gen-sessions` `b84c4a6` · `feat/rh-004-panel-sanitizer` `6c0d8a2`/`425735b`/
-  `90bd92a`/`11bb672` · `feat/rh-005-codspp-tropo` `26cc914` · `feat/rh-007-igs-predownload` `bdefc77`.
-- **Background:** PAGENET running detached, session 0880 (job 322); 4 of 7 dailies banked.
-- **Next:** RH-006 (final-solution clustering — the 40-min single-core solve); RH-005 remainder
-  (re-seed action; tropo quarantine blocked on a failed-322 sample); RH-004 gold-standard content
-  (data/ops). Loose end: RH-003 backlog hash still pre-amend on its branch. Async: GFZ inquiry +
-  `deploy_r740.secrets` token rotation.
+  #41 (RH-005 core), #42 (RH-007), #43 (RH-006 plumbing).
+- **Branches:** `feat/rh-003-gen-sessions` `b84c4a6` · `feat/rh-004-panel-sanitizer` (…`11bb672`) ·
+  `feat/rh-005-codspp-tropo` `26cc914` · `feat/rh-007-igs-predownload` `bdefc77` ·
+  `feat/rh-006-clustering` `36540b2`.
+- **Background:** PAGENET running detached, session 0880 (job 412 GNSAMB_P); 4 of 7 dailies banked.
+- **Next:** all RH-00x code shipped (RH-001..007). Remaining: RH-005 remainder (re-seed action; tropo
+  blocked on a failed-322 sample), RH-004 gold-standard panel content (data/ops), RH-006 empirical
+  tuning (needs R740 = BRN-001). Loose end: RH-003 backlog hash pre-amend on its branch. Async: GFZ
+  inquiry + `deploy_r740.secrets` token rotation. **Merge the PR stack (#38 first).**
