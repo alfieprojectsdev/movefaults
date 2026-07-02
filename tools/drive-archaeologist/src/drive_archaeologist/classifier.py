@@ -2,9 +2,21 @@
 File classification based on extension profiles.
 """
 
+import re
 from pathlib import Path
 
 from .profiles import CLASSIFICATION_PROFILES
+
+# RINEX 2 short filename: ssssdddh.yyt (site, DOY, session, 2-digit year, type).
+# The profile extension list only enumerates years .15–.22; real archives span
+# far more (e.g. .05o, .23o) and include Hatanaka (.yyd) and met (.yym) files.
+# o=obs n=nav g=GLONASS-nav d=Hatanaka m=met
+_RINEX_SHORT_RE = re.compile(r"^[a-z0-9]{4}\d{3}[a-x0-9]\.\d{2}[ondgm]$", re.IGNORECASE)
+
+# Leica raw GNSS: .m00, .m01, ... — an extension family, so it cannot live in
+# the static profile map. 3,665 of these surfaced unclassified on the first
+# real GNSS-bearing drive (DOSTB20150918 $RECYCLE.BIN).
+_LEICA_RAW_RE = re.compile(r"\.m\d{2}$", re.IGNORECASE)
 
 
 class Classifier:
@@ -33,7 +45,8 @@ class Classifier:
 
     def classify(self, filepath: Path) -> str | None:
         """
-        Classify a file based on its extension.
+        Classify a file based on its extension, with a RINEX short-name
+        regex fallback for year-extensions absent from the profile list.
 
         Args:
             filepath: The path to the file.
@@ -42,7 +55,14 @@ class Classifier:
             The classification category as a string, or None if no match is found.
         """
         extension = filepath.suffix.lower()
-        return self._extension_map.get(extension)
+        category = self._extension_map.get(extension)
+        if category is not None:
+            return category
+        if _RINEX_SHORT_RE.match(filepath.name):
+            return "GNSS Data"
+        if _LEICA_RAW_RE.search(filepath.name):
+            return "GNSS Raw (Leica)"
+        return None
 
     def classify_by_ext(self, ext: str) -> str | None:
         return self._extension_map.get(ext.lower())
