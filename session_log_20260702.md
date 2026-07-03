@@ -239,3 +239,32 @@ walk dedup, read-error reporting, `--exclude` flag, checksums unimplemented. Do 
   122s, Error 0. **WK__2412.NQ0/.CRD/.OUT: all 7 dailies stacked, 72 stations.** A-posteriori RMS
   0.011 m (no COVCOMI rescale) — revisit at R740 tuning.
 - DA-005 TUI plan drafted (tools/drive-archaeologist/docs/TUI_PLAN.md) + ticket.
+
+## 21. (2026-07-03 cont.) Backup Plus excavation manifest + CR fixes (#47)
+- **Backup Plus migration manifest** (`~/surveys/BackupPlus/migration_manifest_v2.tsv`): 96,146 GNSS
+  files -> `DATAPOOL/SITE/YYYY/DOY/[variant]/` canonical layout, 133.7 GiB, 167 sites. Variant token
+  preserves sampling-rate/receiver subdirs that a flat layout would collide (30S_01H vs 30S_1H vs
+  1S_1H per campaign; 1H_1S/1H_30S in Montevista's reversed naming; dual-receiver PIVS 2022).
+  860 same-name+size dup copies -> dup_skip (shortest source kept); only 2 true size-conflicts left
+  (MABN2210.19o vs its tmp/ copy). 483 unmapped GNSS (products w/o site-date names). Date confidence
+  per row: 18k filename-dated (authoritative), 79k mtime-year (spot-check boundary years). Executor =
+  drive-arch Phase 3, not built; 134 GiB won't fit T420 SSD (119G) -> needs R740/other target.
+  DECISION PENDING (domain): 30S_01H vs 30S_1H are two conversion runs of same raw ~100B apart —
+  which is authoritative before dedup is a call for Alfie/Cass.
+- **/code-review low on PR #46 -> 4 findings, all fixed in PR #47 (MERGED `52c175e`):**
+  (1) survey_verdict disclosed unopened archives only when ZERO extracted — mixed depth-capped run
+  gave clean verdict w/ no warning; now warns on seen-extracted>0. (2) --resume bypassed clobber
+  guard even w/ no checkpoint on disk -> appended duplicate full pass to completed catalog; now only
+  bypasses when checkpoint loaded prior state (was LIVE in my own Backup Plus --resume run — luck it
+  had no pre-existing output). (3) fs_capacity truthiness -> 0 disabled corruption gate; now is-not-None.
+  (4) dead ext_by_cat dict dropped. 3 regression tests, 72 pass.
+
+## Final state (2026-07-03, end)
+- **main = `52c175e`** (PR #46 hardening + #47 CR fixes). drive-arch: DA-002/003 shipped +
+  Leica/RINEX classifier fallbacks + CR-clean. Worktree `.trees/da-hardening` still checked out.
+- **Two drives cataloged, both NON-wipeable, both mounted+untouched:** DOSTB (2TB, 16k deleted GNSS
+  in $RECYCLE.BIN, recovery pending) + Backup Plus (1TB, 97k live GNSS, migration manifest ready).
+- **PAGENET weekly (Module 15) DONE:** WK__2412.NQ0/.CRD/.OUT, 7 dailies, 72 sta, RMS 0.011m.
+- **Open next moves (Alfie's pick):** exec Backup Plus migration (Phase 3, needs target disk +
+  30S dedup decision); DOSTB recycle-bin recovery ($R/$I pairing); DA-005 TUI; ING-005 gfzrnx;
+  BRN-001 R740. Async (Alfie): GFZ license email, deploy_r740.secrets rotation.
