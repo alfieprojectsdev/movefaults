@@ -144,10 +144,14 @@ class DeepScanner:
 
     def scan(self):
         """Main scanning loop with progress tracking"""
+        # A --resume flag only counts as resuming if the checkpoint actually
+        # loaded prior state; appending a fresh full pass to a completed
+        # output would silently duplicate every record.
+        resuming = bool(self.checkpoint and self.checkpoint.scanned_paths)
         if (
             self.output_file is not None
             and self.output_file.exists()
-            and not self.checkpoint
+            and not resuming
             and not self.force
         ):
             raise FileExistsError(
@@ -161,7 +165,7 @@ class DeepScanner:
             self.log(f"Output: {self.output_file}")
             console.print(f"[bold green]Output:[/bold green] {self.output_file}")
 
-        mode = "a" if self.checkpoint else "w"
+        mode = "a" if resuming else "w"
         outfile = (
             open(self.output_file, mode, encoding="utf-8", errors="replace")
             if self.output_file is not None
@@ -295,7 +299,7 @@ class DeepScanner:
             if category in GNSS_CATEGORIES:
                 self.stats.gnss_files += 1
             if (
-                self._fs_capacity
+                self._fs_capacity is not None
                 and self.stats.claimed_bytes > self._fs_capacity
                 and not self.stats.metadata_inconsistent
             ):
@@ -429,10 +433,11 @@ class DeepScanner:
             )
         if self.stats.symlinks:
             warnings.append(f"{self.stats.symlinks} symlinks recorded but not followed")
-        if self.stats.archives_seen and not self.stats.archives_extracted:
+        unopened = self.stats.archives_seen - self.stats.archives_extracted
+        if unopened > 0:
             warnings.append(
-                f"{self.stats.archives_seen} archives present but not opened — "
-                "GNSS files inside archives would not be counted"
+                f"{unopened} archives not opened (of {self.stats.archives_seen} seen) — "
+                "GNSS files inside them would not be counted"
             )
         if self.error_count:
             warnings.append(f"{self.error_count} entries could not be read")

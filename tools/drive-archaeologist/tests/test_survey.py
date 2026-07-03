@@ -81,7 +81,7 @@ def test_verdict_disclosures(tmp_path):
     joined = " | ".join(warnings)
     assert "NOT surveyed" in joined  # hidden skip disclosed
     assert "symlinks" in joined
-    assert "archives present but not opened" in joined
+    assert "archives not opened" in joined
 
 
 def test_survey_cli_end_to_end(tmp_path):
