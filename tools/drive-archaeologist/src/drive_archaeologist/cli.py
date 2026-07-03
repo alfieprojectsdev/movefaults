@@ -172,6 +172,90 @@ def survey(
     console.print(f"[bold {color}]Verdict: {verdict}[/bold {color}]")
 
 
+@main.group()
+def recover():
+    """Recycle-bin recovery: pair $R/$I metadata, then copy out (DA-006).
+
+    Two explicit stages — review the manifest between them:
+
+    \b
+      drive-arch recover pair  <catalog.jsonl> --dest-root DIR -o manifest.tsv
+      drive-arch recover copy  <manifest.tsv>  --dest-root DIR
+
+    Reads only from the scanned drive; writes only under --dest-root.
+    """
+
+
+@recover.command("pair")
+@click.argument("catalog", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--dest-root",
+    type=click.Path(path_type=Path),
+    required=True,
+    help="Recovery destination root (must be OFF the scanned drive)",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    required=True,
+    help="Manifest TSV to write (dry-run output; nothing is copied)",
+)
+@click.option(
+    "--category",
+    "-c",
+    "categories",
+    multiple=True,
+    help="Catalog category to recover; repeatable (default: the GNSS categories)",
+)
+def recover_pair(catalog: Path, dest_root: Path, output: Path, categories: tuple[str, ...]):
+    """Build a recovery manifest from a scan catalog. Copies nothing."""
+    from .recovery import pair_recycle_bin
+
+    result = pair_recycle_bin(catalog, dest_root, categories=set(categories) or None)
+    result.write_manifest(output)
+    console.print(
+        f"[bold]manifest rows:[/bold] {len(result.rows):,} "
+        f"(ok={len(result.rows) - result.orphans:,}, orphan={result.orphans:,})"
+    )
+    console.print(f"[bold]payload:[/bold] {result.total_bytes / 1024**3:.2f} GiB -> {dest_root}")
+    console.print(f"[bold]$I stubs excluded:[/bold] {result.stubs_skipped:,}")
+    if result.dest_collisions:
+        console.print(f"[bold red]dest collisions: {result.dest_collisions}[/bold red]")
+    for e in result.errors[:10]:
+        console.print(f"[yellow]⚠ {e}[/yellow]")
+    if len(result.errors) > 10:
+        console.print(f"[yellow]… {len(result.errors) - 10} more errors[/yellow]")
+    console.print(f"[bold green]manifest:[/bold green] {output}")
+    console.print(f"Review it, then: drive-arch recover copy {output} --dest-root {dest_root}")
+
+
+@recover.command("copy")
+@click.argument("manifest", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--dest-root",
+    type=click.Path(path_type=Path),
+    required=True,
+    help="Same root given to pair; any manifest row outside it is refused",
+)
+def recover_copy(manifest: Path, dest_root: Path):
+    """Execute a reviewed manifest: size-verified, idempotent copy-out."""
+    from .recovery import copy_from_manifest
+
+    stats = copy_from_manifest(manifest, dest_root)
+    console.print(
+        f"[bold]copied:[/bold] {stats.copied:,} ({stats.copied_bytes / 1024**3:.2f} GiB)  "
+        f"[bold]skipped (already present):[/bold] {stats.skipped:,}  "
+        f"[bold {'red' if stats.failed else 'green'}]failed: {stats.failed:,}[/]"
+    )
+    for e in stats.errors[:10]:
+        console.print(f"[yellow]⚠ {e}[/yellow]")
+    if len(stats.errors) > 10:
+        console.print(f"[yellow]… {len(stats.errors) - 10} more errors[/yellow]")
+    if stats.failed:
+        raise click.exceptions.Exit(1)
+
+
 @main.command()
 def tui():
     """Launch the interactive TUI (drive picker + survey).
