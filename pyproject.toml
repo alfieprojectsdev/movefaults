@@ -53,6 +53,11 @@ drive-archaeologist = [
     "whoosh>=2.7.4",
 ]
 
+# Optional TUI for drive-archaeologist (DA-005): `drive-arch tui`
+drive-archaeologist-tui = [
+    "textual>=1.0.0",
+]
+
 # Dependencies for the vadase-rt-monitor service
 vadase-rt-monitor = [
     "asyncpg>=0.29.0",

@@ -1,0 +1,83 @@
+/* drive-arch TUI — color-blind-safe: every color state also has a text label */
+
+DrivesScreen DataTable {
+    height: 1fr;
+}
+
+#drives-hint {
+    dock: bottom;
+    height: 1;
+    color: $text-muted;
+    padding: 0 1;
+}
+
+SurveyScreen #survey-title {
+    text-style: bold;
+    padding: 0 1;
+}
+
+SurveyScreen #survey-counter {
+    padding: 0 1;
+    color: $text-muted;
+}
+
+SurveyScreen #command-echo {
+    dock: bottom;
+    height: 1;
+    color: $text-muted;
+    background: $surface;
+    padding: 0 1;
+}
+
+SurveyScreen #survey-buttons {
+    height: 3;
+    padding: 0 1;
+}
+
+SurveyScreen Button {
+    margin-right: 2;
+}
+
+VerdictCard {
+    height: auto;
+    padding: 0 1;
+}
+
+VerdictCard #verdict-tables {
+    height: auto;
+}
+
+VerdictCard #category-table {
+    width: 2fr;
+    height: auto;
+    margin-right: 2;
+}
+
+VerdictCard #disclosures {
+    width: 1fr;
+    height: auto;
+    border: round $primary;
+    padding: 0 1;
+}
+
+VerdictCard #verdict-banner {
+    height: auto;
+    padding: 0 1;
+    margin-top: 1;
+    text-style: bold;
+}
+
+VerdictCard #verdict-banner.verdict-keep {
+    background: $error 30%;
+    color: $text;
+}
+
+VerdictCard #verdict-banner.verdict-wipe-candidate {
+    background: $success 30%;
+    color: $text;
+}
+
+VerdictCard #verdict-banner.verdict-unreliable {
+    background: $warning 30%;
+    color: $text;
+}
