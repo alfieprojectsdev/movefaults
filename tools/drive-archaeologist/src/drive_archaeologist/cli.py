@@ -153,14 +153,12 @@ def survey(
     table.add_column("Category", style="cyan")
     table.add_column("Files", justify="right")
     table.add_column("Top extensions", style="dim")
-    ext_by_cat: dict[str, list[str]] = {}
     for category, count in stats.categories.most_common(top):
         exts = [
             e
             for e, _ in stats.extensions.most_common()
             if scanner.classifier.classify_by_ext(e) == category
         ][:4]
-        ext_by_cat[category] = exts
         table.add_row(category, f"{count:,}", " ".join(exts))
     console.print(table)
     console.print(

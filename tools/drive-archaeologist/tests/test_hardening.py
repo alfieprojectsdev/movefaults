@@ -283,3 +283,40 @@ def test_classifier_leica_raw_fallback():
     assert c.classify(Path("$IZWLIHF.m00")) == "GNSS Raw (Leica)"  # recycle-bin stub keeps ext
     assert c.classify(Path("file.m1")) is None
     assert c.classify(Path("movie.m4v")) == "Video"  # ext map wins before fallback
+
+
+def test_resume_without_prior_checkpoint_still_refuses_clobber(tmp_path):
+    root = tmp_path / "drive"
+    root.mkdir()
+    (root / "a.txt").write_text("a")
+    out = tmp_path / "out.jsonl"
+    out.write_text("completed catalog\n")
+    # --resume but no checkpoint file on disk: appending would duplicate records
+    with pytest.raises(FileExistsError):
+        DeepScanner(root, output_file=out, resume=True).scan()
+    assert out.read_text() == "completed catalog\n"
+
+
+def test_resume_with_real_checkpoint_appends(tmp_path):
+    root = tmp_path / "drive"
+    root.mkdir()
+    (root / "a.txt").write_text("a")
+    (root / "b.txt").write_text("b")
+    out = tmp_path / "out.jsonl"
+    s1 = DeepScanner(root, output_file=out, resume=True)
+    s1.scan()  # completes, checkpoint saved
+    (root / "c.txt").write_text("c")
+    s2 = DeepScanner(root, output_file=out, resume=True)
+    s2.scan()  # genuine resume: only c.txt is new
+    names = [r["name"] for r in read_jsonl(out)]
+    assert sorted(names) == ["a.txt", "b.txt", "c.txt"]  # no duplicates
+
+
+def test_partial_archive_extraction_still_disclosed(tmp_path):
+    root = tmp_path / "drive"
+    root.mkdir()
+    _nested_zip(root)  # outer.zip containing inner.zip
+    out = tmp_path / "out.jsonl"
+    scanner = run_scan(root, out, max_archive_depth=1)  # outer opens, inner capped
+    _, warnings = scanner.survey_verdict()
+    assert any("not opened" in w for w in warnings)  # mixed case disclosed
