@@ -172,5 +172,25 @@ def survey(
     console.print(f"[bold {color}]Verdict: {verdict}[/bold {color}]")
 
 
+@main.command()
+def tui():
+    """Launch the interactive TUI (drive picker + survey).
+
+    Requires the optional TUI dependencies:
+    uv sync --extra drive-archaeologist-tui
+    """
+    try:
+        from .tui.app import run_tui
+    except ModuleNotFoundError as e:
+        if e.name and e.name.startswith("textual"):
+            console.print(
+                "[red]Textual is not installed — install the TUI extra first:[/red]\n"
+                "  uv sync --extra drive-archaeologist-tui"
+            )
+            raise click.Abort() from None
+        raise
+    run_tui()
+
+
 if __name__ == "__main__":
     main()

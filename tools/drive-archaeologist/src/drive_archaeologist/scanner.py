@@ -79,6 +79,8 @@ class DeepScanner:
         force: bool = False,
         stats_only: bool = False,
         fs_capacity_bytes: int | None = None,
+        on_progress: Callable[[int, float], None] | None = None,
+        quiet: bool = False,
     ):
         self.root = Path(root_path).resolve()
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -89,6 +91,8 @@ class DeepScanner:
         self.max_archive_depth = max_archive_depth
         self.force = force
         self.stats_only = stats_only
+        self.on_progress = on_progress
+        self.quiet = quiet
 
         if stats_only:
             self.output_file = None
@@ -130,7 +134,7 @@ class DeepScanner:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_line = f"[{timestamp}] [{level}] {sanitize_for_json(message)}"
         if self.log_file is None:
-            if level in ("WARNING", "ERROR"):
+            if level in ("WARNING", "ERROR") and not self.quiet:
                 console.print(f"[yellow]{log_line}[/yellow]")
             return
         try:
@@ -160,10 +164,12 @@ class DeepScanner:
             )
 
         self.log(f"Starting deep scan of: {self.root}")
-        console.print(f"[bold blue]Scanning:[/bold blue] {self.root}")
+        if not self.quiet:
+            console.print(f"[bold blue]Scanning:[/bold blue] {self.root}")
         if self.output_file is not None:
             self.log(f"Output: {self.output_file}")
-            console.print(f"[bold green]Output:[/bold green] {self.output_file}")
+            if not self.quiet:
+                console.print(f"[bold green]Output:[/bold green] {self.output_file}")
 
         mode = "a" if resuming else "w"
         outfile = (
@@ -172,17 +178,20 @@ class DeepScanner:
             else None
         )
         try:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TextColumn("[progress.percentage]{task.completed} files"),
-                TimeElapsedColumn(),
-                console=console,
-            ) as progress:
-                self.progress = progress
-                self.task = self.progress.add_task("[cyan]Scanning...", total=None)
+            if self.quiet:
                 self._scan_directory(self.root, outfile)
+            else:
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TextColumn("[progress.percentage]{task.completed} files"),
+                    TimeElapsedColumn(),
+                    console=console,
+                ) as progress:
+                    self.progress = progress
+                    self.task = self.progress.add_task("[cyan]Scanning...", total=None)
+                    self._scan_directory(self.root, outfile)
         finally:
             if outfile is not None:
                 outfile.close()
@@ -314,6 +323,14 @@ class DeepScanner:
                 self.progress.update(
                     self.task, advance=1, description=f"[cyan]Scanning... ({self.file_count} files)"
                 )
+
+            if self.on_progress is not None:
+                elapsed = time.time() - self.start_time
+                rate = self.file_count / elapsed if elapsed > 0 else 0.0
+                try:
+                    self.on_progress(self.file_count, rate)
+                except Exception as e:
+                    self.log(f"on_progress callback error: {e}", level="ERROR")
 
             if self.on_classified is not None and not corrupt:
                 try:
@@ -458,6 +475,17 @@ class DeepScanner:
         elapsed = time.time() - self.start_time
         elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed))
         rate = self.file_count / elapsed if elapsed > 0 else 0
+
+        if self.quiet:
+            self.log("=" * 60)
+            self.log("Scan Complete!")
+            self.log(f"Files processed: {self.file_count:,}")
+            self.log(f"Files skipped: {self.skipped_count:,}")
+            self.log(f"Errors: {self.error_count}")
+            self.log(f"Time elapsed: {elapsed_str}")
+            self.log(f"Rate: {rate:.1f} files/sec")
+            self.log("=" * 60)
+            return
 
         console.print("\n" + "=" * 60)
         console.print("[bold green]Scan Complete![/bold green]")
