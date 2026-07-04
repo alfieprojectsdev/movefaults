@@ -31,6 +31,7 @@ EXPORT_ROOT = Path.home() / "surveys"
 class SurveyScreen(Screen):
     BINDINGS = [
         Binding("b,escape", "back", "Back"),
+        Binding("f", "full_scan", "Full scan"),
         Binding("h", "resurvey_toggle_hidden", "Toggle hidden + re-survey"),
         Binding("e", "export_summary", "Export summary"),
     ]
@@ -54,7 +55,7 @@ class SurveyScreen(Screen):
         yield Static("Starting survey…", id="survey-counter")
         yield Container(id="verdict-slot")
         with Horizontal(id="survey-buttons"):
-            yield Button("Full scan (DA-005b)", id="full-scan", disabled=True)
+            yield Button("Full scan", id="full-scan", disabled=True)
             yield Button(self._hidden_button_label(), id="resurvey-hidden")
             yield Button("Export summary", id="export", disabled=True)
             yield Button("Back", id="back")
@@ -118,9 +119,12 @@ class SurveyScreen(Screen):
         )
         self.query_one("#verdict-slot", Container).mount(VerdictCard(scanner))
         self.query_one("#export", Button).disabled = False
+        self.query_one("#full-scan", Button).disabled = False
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "back":
+        if event.button.id == "full-scan":
+            self.action_full_scan()
+        elif event.button.id == "back":
             self.action_back()
         elif event.button.id == "resurvey-hidden":
             self.action_resurvey_toggle_hidden()
@@ -129,6 +133,15 @@ class SurveyScreen(Screen):
 
     def action_back(self) -> None:
         self.app.pop_screen()
+
+    def action_full_scan(self) -> None:
+        from .scan import ScanScreen
+
+        if self.scanner is None:
+            self.notify("Survey still running", severity="warning")
+            return
+        # Survey's file count = total estimate for the scan progress bar
+        self.app.push_screen(ScanScreen(device=self.device, total_hint=self.scanner.file_count))
 
     def action_resurvey_toggle_hidden(self) -> None:
         self.include_hidden = not self.include_hidden
