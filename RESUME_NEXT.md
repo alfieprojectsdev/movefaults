@@ -1,50 +1,53 @@
 # RESUME — next session
 
-**Queued 2026-07-03. Start here.**
+**Updated 2026-07-04. Previous queue (DA-005a) DONE — see tally below.**
 
-## NEXT TASK: DA-005a — drive-arch TUI, phase 1 (picker + survey screen)
+## Completed 2026-07-04
+- **DA-005a** TUI phase 1 (drive picker + survey) — PR #48 merged.
+- **DOSTB GNSS evacuation COMPLETE** — 14,269 files verified on Backup Plus
+  `RECOVERED_DOSTB20150918/`: 14,080 from $RECYCLE.BIN ($I/$R pairing) + 86 live
+  (`_LIVE/`) + 103 campaign companions (`_COMPANIONS/`). Checksum-verified (rsync -c).
+  Bulk = 2021 June North Luzon cGPS (IESAS). Archive triage: no field GNSS in the
+  3,831 archives (all IGS/EU-station test data). Manifests/scripts:
+  `~/surveys/DOSTB20150918/`. SSD staging deleted. DOSTB bin-empty = Alfie manual.
+- **DA-006** `drive-arch recover pair|copy` — PR #49 merged (incl. CR fixes:
+  `..` traversal → `_orphaned/`, errors persisted to `<output>.errors.txt`).
+- **Drive policy set:** 1TB Backup Plus = project property, official GNSS home;
+  2TB DOSTB = personal, GNSS evacuated.
 
-Implement the first phase of the Textual TUI. Full design already written:
-**`tools/drive-archaeologist/docs/TUI_PLAN.md`** — read it first.
+## NEXT TASK (recommended): DA-005b — scan screen, DESIGN PAGE FIRST
+One-page design to append to `tools/drive-archaeologist/docs/TUI_PLAN.md` before code:
+- **Process model decision:** Alfie confirmed multi-hour scans inevitable (5TB NAS,
+  old 3.5" HDDs) → target = detached subprocess (TUI spawns `drive-arch scan` CLI,
+  state file with PID+output+drive identity, progress via jsonl tail, reattach on
+  reopen). NOT thread-worker (dies with app — 005a's known gotcha).
+- **Checkpoint scaling:** current CheckpointManager rewrites full scanned-paths JSON
+  every 1000 files — quadratic I/O at 5M files. Needs append-only log or SQLite
+  BEFORE any NAS scan.
+- Rest is mechanical: path picker, clobber dialog (scanner already raises
+  FileExistsError), progress bar + ETA from survey count via on_progress seam.
 
-### Scope for DA-005a (this session)
-- App skeleton (`src/drive_archaeologist/tui/app.py`, Textual `App`, screen routing).
-- **Screen 1 — drive picker** (`tui/screens/drives.py` + `tui/devices.py`): lsblk/udev
-  enumeration, vendor/model/size/label/fs/mount/RM/RO columns, hazard badges
-  (`RO=1 → write-locked`, `du≫capacity → probable corruption`). Selection resolves by
-  **identity (vendor+serial+label), never device letter** — the sdc/sdd letter-shift near-miss
-  must be impossible.
-- **Screen 2 — survey** (`tui/screens/survey.py` + `tui/widgets/verdict_card.py`): wraps
-  `DeepScanner(stats_only=True)` in a Textual worker thread; live counter; verdict card =
-  category table + disclosure block + color-coded banner (green/red/yellow).
-- **Scanner seam:** add `on_progress: Callable[[int, float], None]` to `DeepScanner` (count, rate)
-  so the TUI subscribes instead of parsing console output. Only scanner change needed.
-- Tests: Textual `Pilot` headless snapshots (drives + survey screens) + `on_progress` seam unit test.
-- Packaging: optional `drive-archaeologist[tui]` extra (Textual dep), entry point `drive-arch tui`.
+## Also open
+- **Classifier tickets:** $I/$R prefix awareness (5,500 stubs counted as GNSS on
+  DOSTB, +28% inflation); `.iNN` ancillary pattern (APAR132m.i46 missed); archive
+  entry-listing triage mode (list zip/gz contents without extraction).
+- **Backup Plus migration EXEC** (Phase 3): manifest ready
+  `~/surveys/BackupPlus/migration_manifest_v2.tsv` (96k files, 133.7 GiB). Still
+  blocked: ≥140 GiB target disk + 30S_01H-vs-30S_1H decision. Note: recovered
+  DOSTB data now also on this drive awaiting canonical DATAPOOL placement.
+- ING-005 gfzrnx QC backend (license-gated); BRN-001 R740 Bernese install.
+- Worktrees `.trees/da-005a-tui`, `.trees/da-006-recovery` — merged, prunable.
 
-### Workflow reminders (see memory)
-- Worktree per protocol: `git worktree add .trees/da-005a-tui -b feat/da-005a-tui origin/main`,
-  then `uv sync --extra dev --extra drive-archaeologist` INSIDE it, then `git checkout -- uv.lock`.
-- Run tests via `uv run --no-sync` in the worktree venv.
-- Major commit → PR via `bash scripts/open_pr.sh` (gh writes are gated). Merge via
-  `bash scripts/merge_pr.sh <n>`; verify `origin/main` advanced after.
-- TDD; ruff + mypy clean before commit. NO Claude/AI refs in commit messages.
-- **Hard rule:** TUI is read-only toward scanned drives — never wipes/moves/modifies drive contents.
-
-## Also open (not queued — Alfie's pick order)
-- Backup Plus migration EXEC (drive-arch Phase 3): manifest ready
-  `~/surveys/BackupPlus/migration_manifest_v2.tsv` (96k files, 133.7 GiB). BLOCKED: needs a
-  ≥140 GiB target disk (T420 SSD is 119 G) + domain decision on 30S_01H-vs-30S_1H authoritative run.
-- DOSTB recycle-bin recovery: 16k deleted GNSS, `$R`/`$I` pairing script; ~6 GB; drive replug needed.
-- ING-005 gfzrnx QC backend (code-ready, license-gated for automation).
-- BRN-001 R740 Bernese install.
-
-## Async (Alfie, not code)
-- GFZ license inquiry email (`~/Downloads/gfzrnx_license_inquiry_GFZ.md`).
-- `scripts/deploy_r740.secrets` OAuth token rotation.
+## Workflow reminders (see memory)
+- Worktree per feature; `uv sync --extra dev --extra drive-archaeologist
+  [--extra drive-archaeologist-tui]` inside; `git checkout -- uv.lock` unless deps changed.
+- Tests via `uv run --no-sync`. PRs via `bash scripts/open_pr.sh`; merge via
+  `bash scripts/merge_pr.sh <n>`; verify origin/main advanced (retry on
+  "base branch was modified" race). NO Claude/AI refs in commits.
 
 ## State snapshot
-- main = `52c175e` (DA-002/003 + CR fixes merged). Working branch `docs/bernese-training-notes` @ `fcd8514`.
-- Two drives mounted, cataloged, NON-wipeable, untouched: DOSTB (2TB), Backup Plus (1TB).
-- PAGENET weekly done: `WK__2412.NQ0` (7 dailies, 72 sta, RMS 0.011 m).
-- Session log: `session_log_20260702.md` (sections 1–21).
+- main = `9d0214f` (PR #48 TUI + PR #49 recover merged).
+- Backup Plus (1TB, project): mounted rw, holds RECOVERED_DOSTB20150918 (9 GB).
+- DOSTB (2TB, personal): GNSS evacuated; bins await Alfie's manual empty.
+- /home freed to ~7.7G (lean_machine run 2026-07-04; docker prune line is a hazard
+  when TimescaleDB is up — volumes of stopped containers get wiped).
