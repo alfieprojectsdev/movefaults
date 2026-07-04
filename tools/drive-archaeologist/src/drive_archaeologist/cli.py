@@ -214,6 +214,10 @@ def recover_pair(catalog: Path, dest_root: Path, output: Path, categories: tuple
 
     result = pair_recycle_bin(catalog, dest_root, categories=set(categories) or None)
     result.write_manifest(output)
+    if result.errors:
+        errors_file = output.with_suffix(".errors.txt")
+        errors_file.write_text("\n".join(result.errors) + "\n", encoding="utf-8")
+        console.print(f"[yellow]all {len(result.errors)} errors -> {errors_file}[/yellow]")
     console.print(
         f"[bold]manifest rows:[/bold] {len(result.rows):,} "
         f"(ok={len(result.rows) - result.orphans:,}, orphan={result.orphans:,})"
@@ -243,6 +247,10 @@ def recover_copy(manifest: Path, dest_root: Path):
     from .recovery import copy_from_manifest
 
     stats = copy_from_manifest(manifest, dest_root)
+    if stats.errors:
+        errors_file = manifest.with_suffix(".errors.txt")
+        errors_file.write_text("\n".join(stats.errors) + "\n", encoding="utf-8")
+        console.print(f"[yellow]all {len(stats.errors)} errors -> {errors_file}[/yellow]")
     console.print(
         f"[bold]copied:[/bold] {stats.copied:,} ({stats.copied_bytes / 1024**3:.2f} GiB)  "
         f"[bold]skipped (already present):[/bold] {stats.skipped:,}  "

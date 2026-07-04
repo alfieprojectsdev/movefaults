@@ -174,6 +174,12 @@ def pair_recycle_bin(
                     result.errors.append(str(e))
             meta = i_cache[i_path]
 
+            if meta is not None and ".." in Path(windows_path_to_rel(meta[0])).parts:
+                # Corrupt/hostile $I whose original path would climb out of
+                # dest_root — recover the file anyway, under _orphaned/
+                result.errors.append(f"path traversal in $I original path (orphaned): {i_path}")
+                meta = None
+
             if meta is None:
                 rel = Path("_orphaned") / top_name
                 original, deleted_display, status = "", "", "orphan"

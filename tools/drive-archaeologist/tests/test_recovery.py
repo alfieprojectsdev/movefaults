@@ -141,6 +141,29 @@ class TestPairRecycleBin:
         result = pair_recycle_bin(catalog, tmp_path / "out", categories={"GNSS Raw (Trimble)"})
         assert [r.src_path.name for r in result.rows] == ["$RORPHAN.dat"]
 
+    def test_traversal_in_original_path_goes_to_orphaned(self, tmp_path):
+        """A corrupt/hostile $I with '..' components must not map outside
+        dest_root — and the file must still be recovered, not dropped."""
+        root = tmp_path / "drive"
+        sid = root / "$RECYCLE.BIN" / "S-1-5-21-1111-2222-3333-1001"
+        sid.mkdir(parents=True)
+        (sid / "$REVIL01.22o").write_bytes(b"obs")
+        (sid / "$IEVIL01.22o").write_bytes(make_dollar_i("D:\\..\\..\\etc\\SITE0010.22o", size=3))
+        catalog = tmp_path / "catalog.jsonl"
+        catalog.write_text(
+            json.dumps(
+                {"path": str(sid / "$REVIL01.22o"), "category": "GNSS Data", "size_bytes": 3}
+            )
+            + "\n"
+        )
+        dest_root = tmp_path / "out"
+        result = pair_recycle_bin(catalog, dest_root)
+        assert len(result.rows) == 1
+        row = result.rows[0]
+        assert row.status == "orphan"
+        assert row.dest_path == dest_root / "_orphaned/$REVIL01.22o"
+        assert any("traversal" in e for e in result.errors)
+
     def test_no_dest_collisions_reported(self, tmp_path):
         root = build_bin_tree(tmp_path / "drive")
         catalog = catalog_for(root, tmp_path)
@@ -185,6 +208,25 @@ class TestCopyFromManifest:
 
 
 class TestRecoverCli:
+    def test_copy_persists_all_errors_to_file(self, tmp_path):
+        root = build_bin_tree(tmp_path / "drive")
+        catalog = catalog_for(root, tmp_path)
+        dest_root = tmp_path / "recovered"
+        manifest = tmp_path / "manifest.tsv"
+        runner = CliRunner()
+        runner.invoke(
+            main,
+            ["recover", "pair", str(catalog), "--dest-root", str(dest_root), "-o", str(manifest)],
+        )
+        # Break every source so all copies fail
+        for row in manifest.read_text().splitlines()[1:]:
+            Path(row.split("\t")[0]).unlink()
+        r = runner.invoke(main, ["recover", "copy", str(manifest), "--dest-root", str(dest_root)])
+        assert r.exit_code == 1
+        errors_file = manifest.with_suffix(".errors.txt")
+        assert errors_file.is_file()
+        assert len(errors_file.read_text().splitlines()) == 3  # every failure, not first 10
+
     def test_pair_then_copy_end_to_end(self, tmp_path):
         root = build_bin_tree(tmp_path / "drive")
         catalog = catalog_for(root, tmp_path)
