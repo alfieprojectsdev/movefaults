@@ -114,6 +114,81 @@ src/drive_archaeologist/tui/
 | DA-005c | Explore: category tree, filters, SQLite side-index | M/L |
 | DA-005d | Actions: manifests, recycle-bin recovery script, migration dry-run | L (gated on Phase 2/3) |
 
+## DA-005b design — scan screen (2026-07-04, decisions confirmed with Alfie)
+
+**Context that changed since the original plan:** multi-hour scans are inevitable
+(5TB NAS drives, old 3.5" HDDs queued), and DA-005a shipped with a known gotcha —
+Textual thread workers cannot be force-cancelled and die with the app. Both push the
+same direction: the scan must not live inside the TUI process.
+
+### Decision 1 — process model: detached subprocess (not thread worker)
+
+The TUI **spawns the CLI**: `drive-arch scan <root> -o <out> --resume ...` via
+`subprocess.Popen(start_new_session=True)`, console output redirected to
+`<out>.console.log`. The scan is then just another OS process; the TUI is a viewer.
+
+- **State registry** `~/.local/state/drive-arch/active_scans.json` — one entry per
+  spawn: pid, started_at, full argv, output path, root, and **drive identity**
+  (vendor+serial+label, same rule as the picker — a reattach must never trust a
+  device letter). TUI writes it at spawn, prunes entries on clean completion.
+- **Progress = tail the output JSONL.** The scanner already flushes per record, so
+  line count == files done; survey's file count (when a survey ran first) gives the
+  total for a real progress bar + ETA. No sockets, no IPC — the seam is the file.
+- **Completion/crash detection:** pid exit + `Scan Complete!` in the log = done;
+  pid gone without it = crashed → offer resume.
+- **Pause** = SIGINT (scanner's existing KeyboardInterrupt path already saves the
+  checkpoint). **Cancel** = SIGTERM, partial output + checkpoint kept. **Back** just
+  leaves the screen — the scan keeps running detached; reattach from the picker or
+  on next TUI start. Button labels must make the difference explicit.
+- TUI-spawned scans **always pass `--resume`** so checkpointing is armed from file 1
+  (current semantics: `--resume` with an empty checkpoint = fresh scan, so this is
+  free).
+
+Rejected: in-process worker with "survive by checkpoint only" (fails the NAS
+use-case: closing the laptop lid must not kill a 6-hour scan); daemon/service
+(overkill, nothing to manage when no scan runs).
+
+### Decision 2 — checkpoint scaling fix (prerequisite, lands first)
+
+`CheckpointManager.save_checkpoint()` rewrites the **entire** scanned-paths set as
+pretty-printed JSON every 1,000 files. At 5M files that's ~500 MB rewritten 5,000
+times — quadratic I/O that would dominate the scan itself.
+
+**Fix: append-only checkpoint.** `checkpoint_<scan_id>.log`, one `json.dumps(path)`
+per line (JSON string per line handles newlines/mojibake in paths), appended and
+flushed in small batches (~100 paths; crash loses at most one batch, which resume
+re-scans harmlessly). Load = read lines into the existing set. Public API
+(`is_scanned` / `mark_scanned` / `save_checkpoint` / `cleanup`) unchanged — storage
+swap only. Legacy `checkpoint_*.json` found on load → converted once, then removed.
+Clean completion deletes the log (`cleanup()`, as today).
+
+Rejected: SQLite (new moving part, nothing here needs queries; the append log is
+human-inspectable with `wc -l`).
+
+### Screen 3 scope (unchanged from mock, mechanics now specified)
+
+- Output path picker prefilled `~/surveys/<label>/full_scan.jsonl`; toggles for
+  include-hidden (default on) and archive depth (default 0 — match survey).
+- Clobber guard: scanner's existing `FileExistsError` surfaces as the
+  resume / overwrite / new-name dialog (maps to `--resume` / `--force` / new path).
+- Progress bar + files/s + ETA + elapsed; buttons `[P]ause [C]ancel [B]ack`.
+- Command echo shows the exact spawned CLI line (audit + reproducibility).
+
+### Tests
+
+- Checkpoint: append-log roundtrip, batch flush, legacy-JSON migration, compaction
+  on cleanup; property test — resume after kill at arbitrary point loses ≤ batch.
+- Registry: read/write/prune; reattach resolves drive identity, refuses letter drift.
+- Subprocess lifecycle with a fake slow scanner script: spawn → tail progress →
+  SIGINT pause → resume → reattach from a fresh app instance (simulated TUI restart).
+- Pilot: scan screen render, clobber dialog branches, Back-vs-Cancel labeling.
+
+### Phasing — two PRs
+
+1. **DA-005b-1:** checkpoint append-log refactor (scanner-only; independently useful
+   for today's CLI scans on big drives).
+2. **DA-005b-2:** subprocess runner + state registry + scan screen + reattach.
+
 ## Mock — survey verdict (screen 2)
 
 ```
