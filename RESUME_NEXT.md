@@ -1,6 +1,6 @@
 # RESUME — next session
 
-**Updated 2026-07-04. Previous queue (DA-005a) DONE — see tally below.**
+**Updated 2026-07-04 (late). DA-005a, DA-006, AND DA-005b all DONE — see tally.**
 
 ## Completed 2026-07-04
 - **DA-005a** TUI phase 1 (drive picker + survey) — PR #48 merged.
@@ -15,17 +15,16 @@
 - **Drive policy set:** 1TB Backup Plus = project property, official GNSS home;
   2TB DOSTB = personal, GNSS evacuated.
 
-## NEXT TASK (recommended): DA-005b — scan screen, DESIGN PAGE FIRST
-One-page design to append to `tools/drive-archaeologist/docs/TUI_PLAN.md` before code:
-- **Process model decision:** Alfie confirmed multi-hour scans inevitable (5TB NAS,
-  old 3.5" HDDs) → target = detached subprocess (TUI spawns `drive-arch scan` CLI,
-  state file with PID+output+drive identity, progress via jsonl tail, reattach on
-  reopen). NOT thread-worker (dies with app — 005a's known gotcha).
-- **Checkpoint scaling:** current CheckpointManager rewrites full scanned-paths JSON
-  every 1000 files — quadratic I/O at 5M files. Needs append-only log or SQLite
-  BEFORE any NAS scan.
-- Rest is mechanical: path picker, clobber dialog (scanner already raises
-  FileExistsError), progress bar + ETA from survey count via on_progress seam.
+## DA-005b DONE 2026-07-04 (design approved then implemented same day)
+- PR #50: append-only checkpoint log (3.6s vs 18.5s @200k paths; API unchanged).
+- PR #51 (landed on main via #52 — gh retarget silently failed, watch for that):
+  detached-subprocess scan jobs (`scanjobs.py`), registry in
+  `$XDG_STATE_HOME/drive-arch/`, TUI scan screen + clobber dialog + reattach,
+  survey [F] wired. SIGINT-pause/resume proven over 8000-file real subprocess run.
+
+## NEXT TASK (recommended): DA-005c — Explore screen
+Category tree + filters + SQLite side-index over full-scan JSONL (TUI_PLAN.md §4).
+Alternative next: classifier tickets (below) — small, self-contained.
 
 ## Also open
 - **Classifier tickets:** $I/$R prefix awareness (5,500 stubs counted as GNSS on
@@ -36,7 +35,7 @@ One-page design to append to `tools/drive-archaeologist/docs/TUI_PLAN.md` before
   blocked: ≥140 GiB target disk + 30S_01H-vs-30S_1H decision. Note: recovered
   DOSTB data now also on this drive awaiting canonical DATAPOOL placement.
 - ING-005 gfzrnx QC backend (license-gated); BRN-001 R740 Bernese install.
-- Worktrees `.trees/da-005a-tui`, `.trees/da-006-recovery` — merged, prunable.
+- Worktrees `.trees/da-005a-tui`, `.trees/da-006-recovery`, `.trees/da-005b1-checkpoint`, `.trees/da-005b2-scanscreen` — all merged, prunable.
 
 ## Workflow reminders (see memory)
 - Worktree per feature; `uv sync --extra dev --extra drive-archaeologist
@@ -46,7 +45,7 @@ One-page design to append to `tools/drive-archaeologist/docs/TUI_PLAN.md` before
   "base branch was modified" race). NO Claude/AI refs in commits.
 
 ## State snapshot
-- main = `9d0214f` (PR #48 TUI + PR #49 recover merged).
+- main = `c5007ab` (PRs #48-#52 all merged: TUI, recover, checkpoint, scan screen).
 - Backup Plus (1TB, project): mounted rw, holds RECOVERED_DOSTB20150918 (9 GB).
 - DOSTB (2TB, personal): GNSS evacuated; bins await Alfie's manual empty.
 - /home freed to ~7.7G (lean_machine run 2026-07-04; docker prune line is a hazard
