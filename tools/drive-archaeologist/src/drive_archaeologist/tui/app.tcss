@@ -81,3 +81,43 @@ VerdictCard #verdict-banner.verdict-unreliable {
     background: $warning 30%;
     color: $text;
 }
+
+ScanScreen #scan-title {
+    text-style: bold;
+    padding: 0 1;
+}
+
+ScanScreen #scan-form {
+    padding: 1;
+    height: auto;
+}
+
+ScanScreen #scan-form Input {
+    margin-bottom: 1;
+}
+
+ScanScreen #scan-progress {
+    padding: 1;
+    height: auto;
+}
+
+ScanScreen #scan-progress Button {
+    margin-right: 2;
+}
+
+ClobberDialog {
+    align: center middle;
+}
+
+ClobberDialog #clobber-box {
+    width: 70;
+    height: auto;
+    border: thick $warning;
+    background: $surface;
+    padding: 1 2;
+}
+
+ClobberDialog Button {
+    margin-right: 2;
+    margin-top: 1;
+}
