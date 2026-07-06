@@ -1,6 +1,19 @@
 # RESUME — next session
 
-**Updated 2026-07-04 (late). DA-005a, DA-006, AND DA-005b all DONE — see tally.**
+**Updated 2026-07-06. Sessions 07-04 (DA-005a/b/006 shipped) + 07-06 (stick forensics).**
+
+## Session 2026-07-06 — TCT stick investigation (CLOSED, negative)
+- 4GB "General UDisk" (mount D113-F76B): survey 0 files → raw-device forensics:
+  boot sector = fresh Linux `mkfs.fat`; full 3.75 GiB signature scan (PDF/JPEG/PNG/
+  PK/TCT-strings) = zero hits; data area = 0xFF fill (NAND erased state).
+- VERDICT: TCT document never recoverably on this stick — new/blank stick, or dead
+  controller (erased-mapping failure) reformatted afterward. Software recovery
+  exhausted; chip-off only theoretical path.
+- Alfie's follow-ups (non-code): ask developer to re-send scan; certified true copy
+  from Registry of Deeds; locate paper owner's duplicate.
+- Artifacts: `~/surveys/UDisk-D113-F76B/` (carve_scan.py + findings). Lessons →
+  memory `drive_arch_forensics_lessons` → tickets DA-007/DA-008 below.
+- Cleanup: `sudo setfacl -b /dev/sdc` or replug clears the read ACL.
 
 ## Completed 2026-07-04
 - **DA-005a** TUI phase 1 (drive picker + survey) — PR #48 merged.
