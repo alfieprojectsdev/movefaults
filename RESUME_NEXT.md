@@ -32,6 +32,12 @@ Alternative next: classifier tickets (below) — small, self-contained.
   spinning. Diagnosis order: 12V power brick, drive seating, then suspect dead drive.
   On success: mount READ-ONLY, `drive-arch survey`, standard funnel. Watch for
   device-letter shift; match dock by serial.
+- **DA-008 survey forensics (NEW, small):** empty-drive diagnostics proven on the
+  D113-F76B stick hunt 2026-07-06 — boot-sector OEM string disclosure, suspicious-empty
+  warning instead of bare safe-to-wipe, 0x00/0xFF blank-media sampling (needs optional
+  raw read access). Details in memory `drive_arch_forensics_lessons`.
+- **DA-007 carve mode (low-pri):** signature scan as escalation; working prototype
+  `~/surveys/UDisk-D113-F76B/carve_scan.py`.
 - **Classifier tickets:** $I/$R prefix awareness (5,500 stubs counted as GNSS on
   DOSTB, +28% inflation); `.iNN` ancillary pattern (APAR132m.i46 missed); archive
   entry-listing triage mode (list zip/gz contents without extraction).
