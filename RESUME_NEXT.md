@@ -27,6 +27,11 @@ Category tree + filters + SQLite side-index over full-scan JSONL (TUI_PLAN.md §
 Alternative next: classifier tickets (below) — small, self-contained.
 
 ## Also open
+- **NEW legacy 3.5" HDD — INCOMPLETE (2026-07-04):** drive in Ugreen dock (ASMT 2235
+  bridge, dock serial 20D11E806285) enumerated as 0B "Media removed" — disk not
+  spinning. Diagnosis order: 12V power brick, drive seating, then suspect dead drive.
+  On success: mount READ-ONLY, `drive-arch survey`, standard funnel. Watch for
+  device-letter shift; match dock by serial.
 - **Classifier tickets:** $I/$R prefix awareness (5,500 stubs counted as GNSS on
   DOSTB, +28% inflation); `.iNN` ancillary pattern (APAR132m.i46 missed); archive
   entry-listing triage mode (list zip/gz contents without extraction).
