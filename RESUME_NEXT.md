@@ -40,11 +40,11 @@ Category tree + filters + SQLite side-index over full-scan JSONL (TUI_PLAN.md §
 Alternative next: classifier tickets (below) — small, self-contained.
 
 ## Also open
-- **NEW legacy 3.5" HDD — INCOMPLETE (2026-07-04):** drive in Ugreen dock (ASMT 2235
-  bridge, dock serial 20D11E806285) enumerated as 0B "Media removed" — disk not
-  spinning. Diagnosis order: 12V power brick, drive seating, then suspect dead drive.
-  On success: mount READ-ONLY, `drive-arch survey`, standard funnel. Watch for
-  device-letter shift; match dock by serial.
+- **Legacy 3.5" HDD — BLOCKED ON HARDWARE (diagnosed 2026-07-06):** adapter is a
+  bare bus-powered Ugreen USB-SATA cable (174c:225c, serial 20D11E806285) — 5V only.
+  3.5" drives need 12V; "Media removed" = platters never spin. NOT a drive fault.
+  ACTION: buy powered USB-SATA dock/enclosure (12V brick, 3.5"-capable — also covers
+  the 5TB NAS drives). Then: mount READ-ONLY, `drive-arch survey`, standard funnel.
 - **DA-008 survey forensics (NEW, small):** empty-drive diagnostics proven on the
   D113-F76B stick hunt 2026-07-06 — boot-sector OEM string disclosure, suspicious-empty
   warning instead of bare safe-to-wipe, 0x00/0xFF blank-media sampling (needs optional
