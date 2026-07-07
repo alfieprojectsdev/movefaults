@@ -1,6 +1,54 @@
 # RESUME — next session
 
-**Updated 2026-07-06. Sessions 07-04 (DA-005a/b/006 shipped) + 07-06 (stick forensics).**
+**Updated 2026-07-07. Sessions 07-04 (DA-005a/b/006 shipped), 07-06 (stick forensics),
+07-07 (Seagate ST500DM002 excavation + logsheet crossref).**
+
+## Session 2026-07-07 — Seagate ST500DM002 excavation (IN PROGRESS at handoff)
+- Drive: 500GB Seagate, 3 partitions. `sdd3` DATA0 (265.6G): surveyed → full-scanned
+  (140,760 files, 133.8 GiB; 55,266 GNSS-classified, 68.9 GiB loose + 14,933 archives
+  w/ GNSS content, 13.2 GiB via entry-listing triage) → **copy to Backup Plus
+  `RECOVERED_SEAGATE_W2A0W9T2_DATA0/` running at session end** (RAW/GPSR/wvfs/
+  TimeSeries/SP3, ~132 GiB; SP3 to be deleted post-copy — redundant, re-downloadable
+  from CDDIS). `sdd2` (200.1G, mount DC9A88179A87EBF8): **surveyed only** — 32 GNSS
+  files, DO NOT wipe verdict, not yet full-scanned/copied. **Queued: full-scan sdd2
+  once sdd3 copy chain hits ALL DONE** (same spindle — sequenced to avoid I/O
+  contention, per Alfie's explicit choice over "start sdd2 right after RAW").
+- Dock: Ugreen/JMicron JMS551 (152d:0561) via bare USB2, port 2-1.2. Confirmed real
+  enumeration flakiness (error -71 at boot; one mid-session bridge-identity blip)
+  root-caused to **TLP autosuspend fighting a udev rule** — fixed via
+  `USB_DENYLIST="152d:0561"` in /etc/tlp.conf + `tlp start` (cleaner than the udev
+  rule alone, which TLP kept overriding). Verified: `power/control` = `on`.
+- **DA-010 (NEW) — logsheet cross-reference, proven working use case.** Given a paper
+  logsheet gap-list (site + year-month ranges expected) and one or more scan
+  catalogs, report FOUND (data already excavated, needs pulling) vs STILL MISSING
+  (no catalogued drive has it) vs ZERO-COVERAGE sites (nothing anywhere, top hunt
+  priority). Proven on `~/Downloads/Data to be retrieved (ALA_ADP).md` (IESAS
+  Luzon/Mindanao/PHIVOLCS-owned, 452 requested site-months) against DATA0+DOSTB+
+  BackupPlus catalogs: 47 found, 405 still missing, 14 zero-coverage sites (ANGT,
+  ANTP, BALA, BTUN, LBAN, LGYE, MALY, MUNT, SOLA, STNA, TAWI, TCGN, TNDG, VIGN).
+  Site+date extraction must handle real-world messy naming: `SITE_yyyymmdd`
+  deployment-suffixed dirs, `YYYYMM` campaign subdirs, Trimble
+  `SITEyyyyMMddHHMM.T02`, Leica `SITEdddX.mNN` (DOY + session letter — first attempt
+  missed all 2017+ data by requiring site-folder to be exactly 4 chars; fixed by
+  matching site code as a prefix anywhere in the path). Scripts + results:
+  `~/surveys/SEAGATE-W2A0W9T2/crossref*.py`, `crossref_found_all_drives.tsv`,
+  `crossref_still_missing_all_drives.tsv`. **Caveat: DOSTB contributed 0 matches,
+  not fully debugged (plausible — different campaign geography); sdd2 not yet
+  scanned, may close a few more gaps once it lands.**
+- **DA-009 (NEW) — bulk export command.** `drive-arch recover` (DA-006) only handles
+  `$RECYCLE.BIN` pairing. Live-directory copy-out (DOSTB `_LIVE`/`_COMPANIONS`, this
+  session's DATA0 dirs) keeps getting hand-rolled. Proposal:
+  `drive-arch export <catalog.jsonl> --dest-root DIR [--category ...] [--path-prefix ...]`
+  reusing `recovery.copy_from_manifest`'s verified/idempotent backend; split
+  `pair_recycle_bin`'s catalog-filter logic from its bin-specific path
+  reconstruction so recover+export share one backend. Should get append-only
+  checkpoint/resume from day one (DA-005b-1 pattern) — this dock has demonstrated,
+  repeatable disconnect risk, not hypothetical.
+- **DA-007 archive-triage — priority bumped.** Proven at scale twice now (DOSTB
+  3.8k archives; DATA0 16k archives, 14,933 w/ GNSS). Promote from low-pri
+  carve-mode prototype to a real subcommand.
+- Memory: `drive_arch_export_resilience_lessons` (dock/TLP details, DA-009/007
+  rationale).
 
 ## Session 2026-07-06 — TCT stick investigation (CLOSED, negative)
 - 4GB "General UDisk" (mount D113-F76B): survey 0 files → raw-device forensics:
