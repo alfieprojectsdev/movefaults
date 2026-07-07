@@ -1,9 +1,72 @@
 # RESUME — next session
 
-**Updated 2026-07-07. Sessions 07-04 (DA-005a/b/006 shipped), 07-06 (stick forensics),
-07-07 (Seagate ST500DM002 excavation + logsheet crossref).**
+**Updated 2026-07-07 (evening halt). Sessions 07-04 (DA-005a/b/006 shipped),
+07-06 (stick forensics), 07-07 (Seagate excavation + logsheet crossref, PAUSED
+mid-copy for the night — see HALT STATE below, start here).**
 
-## Session 2026-07-07 — Seagate ST500DM002 excavation (IN PROGRESS at handoff)
+## HALT STATE 2026-07-07 evening — safe to resume tomorrow
+Everything below was stopped cleanly (no kill -9, no unplugged-mid-write). Physical
+Seagate ST500DM002 + Ugreen/JMicron dock: **left connected/mounted overnight** unless
+Alfie decides otherwise — no destructive step was pending.
+
+**1. rsync copy (DATA0 → Backup Plus) — stopped at RAW ~95%, SIGTERM (clean).**
+Resume tomorrow with the exact same command (idempotent — already-copied whole files
+are skipped, `--partial` kept the in-flight file so at most one file re-transfers):
+```
+SRC="/run/media/finch/DATA0"
+DEST="/run/media/finch/Backup Plus/RECOVERED_SEAGATE_W2A0W9T2_DATA0"
+LOG=~/surveys/SEAGATE-W2A0W9T2/rsync_copy.log
+for d in RAW GPSR wvfs TimeSeries SP3; do
+  echo "=== $(date +%H:%M:%S) starting $d ===" >> "$LOG"
+  rsync -rt --partial --info=progress2 "$SRC/$d/" "$DEST/$d/" >> "$LOG" 2>&1
+  echo "=== $(date +%H:%M:%S) finished $d, exit=$? ===" >> "$LOG"
+done
+echo "=== $(date +%H:%M:%S) ALL DONE ===" >> "$LOG"
+```
+(SP3 output should be deleted after copy — redundant, re-downloadable from CDDIS,
+per Alfie's call.) TLP/dock autosuspend fix from earlier today (`USB_DENYLIST` in
+/etc/tlp.conf) is persistent — no need to redo.
+
+**2. sdd2 scan — still queued, unchanged.** Full-scan the 200GB `sdd2` partition
+(mount `DC9A88179A87EBF8`, 32 GNSS files per its earlier survey) only AFTER the
+rsync loop above hits `ALL DONE` — same physical spindle, sequenced to avoid I/O
+contention (Alfie's explicit choice).
+
+**3. DA-010 logsheet crossref — TWO source docs done, THIRD (consolidation) not
+started.** Cross-referenced against DATA0+DOSTB+Backup Plus catalogs:
+- ALA_ADP (IESAS Luzon/Mindanao/PHIVOLCS-owned): 47 found / 405 missing / 14
+  zero-coverage sites. `~/surveys/SEAGATE-W2A0W9T2/crossref_found_all_drives.tsv`
+  + `crossref_still_missing_all_drives.tsv`.
+- CJVC (Cebu-Bohol-Panay-Negros/Cotabato-Sindangan/Luzon campaigns + Leyte/
+  Marinduque/Mindoro/Romblon/Masbate/Samar/Palawan CGPS + VFS single-freq):
+  36 found / 864 missing / 104 zero-coverage sites (of 129).
+  `crossref_cjvc_found.tsv` + `crossref_cjvc_still_missing.tsv`. VFS table
+  needed the real `.docx` (cell-shading colors) — markdown export lost the
+  color legend; extracted via python-docx `w:shd/@w:fill`, mapped by color
+  family (exact hex drifted from the legend swatches, matched by family):
+  8 cells "to retrieve", 30 "no data/pulled out" (confirmed absent everywhere
+  too — no false negative), rest available/RINEX-only/uncolored.
+  `vfs_network_colorcoded.tsv`.
+- **NOT DONE: consolidated report grouped by geodetic network** (Alfie's actual
+  ask — "proper geodetic network groupings by province etc"). Site→group mapping
+  already extracted and saved: `~/surveys/site_to_group.json` (ALA_ADP: 60 sites
+  → IESAS LUZON/MINDANAO/PHIVOLCS-OWNED; CJVC: 172 sites → 9 campaign/CGPS-network
+  names + VFS). **Next step: merge this mapping with the four found/missing TSVs
+  above into one report, grouped by network** (province-level grouping needs a
+  verified site→province lookup that doesn't exist yet — flag this gap rather
+  than guess). Scripts (crossref3.py, crossref_cjvc.py, crossref_cjvc_final.py,
+  consolidate.py — the last one is the unfinished piece) copied to
+  `~/surveys/SEAGATE-W2A0W9T2/scripts/` for persistence.
+- **Known caveat carried over: DOSTB contributed 0 matches to either crossref,
+  not fully debugged** (plausible given different campaign geography, but
+  unverified).
+- **Process lesson from today, worth remembering:** an f-string regex brace-escape
+  bug (`{0,3}` vs `{{0,3}}` inside an `rf'...'` string) silently broke the Leica
+  DOY-suffix matcher twice in a row — once in the original script, once in a
+  "fix" that re-introduced the same mistake. Always test a regex fix against one
+  known real filename before rerunning the full crossref.
+
+## Session 2026-07-07 — Seagate ST500DM002 excavation (background/earlier, mostly superseded by HALT STATE above)
 - Drive: 500GB Seagate, 3 partitions. `sdd3` DATA0 (265.6G): surveyed → full-scanned
   (140,760 files, 133.8 GiB; 55,266 GNSS-classified, 68.9 GiB loose + 14,933 archives
   w/ GNSS content, 13.2 GiB via entry-listing triage) → **copy to Backup Plus
