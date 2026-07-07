@@ -4,6 +4,18 @@
 07-06 (stick forensics), 07-07 (Seagate excavation + logsheet crossref, PAUSED
 mid-copy for the night — see HALT STATE below, start here).**
 
+## UPDATE 2026-07-07 later — forced REISUB reboot (unmount hung on shutdown)
+A later shutdown attempt hung trying to unmount a drive; Alfie forced a REISUB
+reboot. **DATA0 (sdc2+sdc3) verified clean after reboot**: df sizes identical to
+pre-reboot, spot-read 3 real files across the tree (2012/2017/GPSR areas), dir
+listing intact, zero I/O errors in dmesg — no corruption. Drive re-enumerated as
+`sdc` this time (was `sdd` before) — pure letter-shift, identity resolution
+already accounts for this. **Backup Plus was NOT attached during this check —
+do the same quick spot-check on it first thing tomorrow** (df sizes match +
+`stat` a couple of files under `RECOVERED_SEAGATE_W2A0W9T2_DATA0/RAW/` +
+`RECOVERED_DOSTB20150918/`) before resuming the rsync copy, since it's the
+more likely candidate for whatever was stuck mid-unmount.
+
 ## HALT STATE 2026-07-07 evening — safe to resume tomorrow
 Everything below was stopped cleanly (no kill -9, no unplugged-mid-write). Physical
 Seagate ST500DM002 + Ugreen/JMicron dock: **left connected/mounted overnight** unless
