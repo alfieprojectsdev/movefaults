@@ -54,6 +54,27 @@ Everything below was stopped cleanly (no kill -9, no unplugged-mid-write). Physi
 Seagate ST500DM002 + Ugreen/JMicron dock: **left connected/mounted overnight** unless
 Alfie decides otherwise — no destructive step was pending.
 
+**CORRECTION 2026-07-08:** the "~95%" below was wrong — rsync's `--info=progress2`
+percentage on a huge incrementally-recursed tree is relative to files DISCOVERED
+so far, not the true total. Actual state when resumed: only ~21 GB / 15,425 files
+of RAW's 126 GB / 116,489 files had really copied. Verify with `du`+`find` on the
+destination, never trust the live percentage on a tree this size/shape.
+
+**ALSO 2026-07-08: found + worked around real NTFS corruption on Backup Plus.**
+`RAW/2014/JOSE/`'s own directory index (inode 1420320) is damaged — every
+attempt to add a filename into that directory fails with `Input/output error`
+(ntfs-3g: "Failed to read vcn 0x11 from inode 1420320" / "Failed to add filename
+to the index"). `ntfsfix -n /dev/sdc2` (needs `sudo`) came back clean ($MFT/
+$MFTMirr/boot sector all OK) — this is a deeper directory-index fault ntfsfix
+doesn't reach; a real fix needs Windows `chkdsk /f`. **Workaround: copied
+DATA0's `RAW/2014/JOSE/` (1,263 files, 3.3G) to a FRESH directory name,
+`RAW/2014/JOSE_recovered/`, on Backup Plus — sidesteps the corrupt inode
+entirely (new directory = new index). 1,263/1,263, 0 errors.** The main copy
+loop's RAW pass now runs with `--exclude="2014/JOSE/"` since that path is a
+dead end on the destination. **If reorganizing this recovery later, remember
+`JOSE_recovered/` is really just `2014/JOSE/`'s content, misplaced only because
+of this corruption — not a distinct site/directory.**
+
 **1. rsync copy (DATA0 → Backup Plus) — stopped at RAW ~95%, SIGTERM (clean).**
 Resume tomorrow with the exact same command (idempotent — already-copied whole files
 are skipped, `--partial` kept the in-flight file so at most one file re-transfers):
