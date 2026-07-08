@@ -4,6 +4,39 @@
 07-06 (stick forensics), 07-07 (Seagate excavation + logsheet crossref, PAUSED
 mid-copy for the night — see HALT STATE below, start here).**
 
+## MISSED FROM NOTES 2026-07-07 — MOVE Faults Midyear slide deck (this repo has no
+context for this, but it happened yesterday same session — added retroactively)
+- Built `2026 Midyear Performance - MOVE Faults (DRAFT).pptx`
+  (`/home/finch/Documents/movefaults/`) — 11 slides, format from the 2026 template,
+  content pattern from the 2025 deck, all figures from Q1/Q2 2026 QDRRs + Project
+  Plan Section 5/6 + (later) real budget PDFs. Script: `/tmp/build_midyear_deck.py`
+  (not persisted anywhere durable — recreate from source docs if needed again,
+  it's fully described in this note).
+- **Budget slide (10) — now backed by real numbers, verified across all 5 monthly
+  "Status of Reprogrammed MOOE" GGRDD reports** (Dec25/Feb26/Mar26/Apr26/May26,
+  scanned PDFs, MOVE FAULTS section page varies per month — Alfie supplies it).
+  **Full detail + monthly-update instructions now in a DEDICATED PERSISTENT
+  memory file** (`movefaults_2026_budget_tracking` — not just this doc, since
+  Alfie flagged this as important to keep current through H2 2026): 37%
+  utilization as of May 31 (₱4.56M / ₱12.38M updated LIB), steady ~₱1.05M/month,
+  trend 10%→18%→27%→37% Feb-May, ₱54.45M capital outlay (10 GNSS receivers)
+  has zero utilization visibility (separate line, not in the MOOE report — and
+  cross-checks against Q1/Q2 QDRRs show no confirmed new-CORS install either).
+- Roster corrected: Baldemoro → Garcia (per `movefaults-staff.md`, fills the
+  Project Plan's previously-TBA slot).
+- Deliberately-honest gaps left IN the deck (not fabricated): new-CORS
+  installation/procurement status unconfirmed in Q1-Q2 QDRRs (flagged on slides
+  2, 7, 11); VFS Single-Frequency Network table's color legend was recovered
+  from the real .docx (`w:shd/@w:fill`, python-docx) since markdown export lost
+  it — legend swatch hex drifted from data-cell hex, matched by color family,
+  noted as such.
+- Alfie sent this to Cass for integration into the master
+  `2026 Midyear Performance Review - EGGRDS` deck + proofread — **already
+  integrated as of today** (confirmed by Alfie). Proofread ask covered: verify
+  figures vs the 3 source docs, check for import formatting breakage, confirm
+  the roster swap, don't erase the deliberate gap-flags, watch for a June 30
+  MOOE report landing before the presentation (would need a budget-slide update).
+
 ## UPDATE 2026-07-07 later — forced REISUB reboot (unmount hung on shutdown)
 A later shutdown attempt hung trying to unmount a drive; Alfie forced a REISUB
 reboot. **DATA0 (sdc2+sdc3) verified clean after reboot**: df sizes identical to
