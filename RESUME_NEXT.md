@@ -1,8 +1,147 @@
 # RESUME — next session
 
-**Updated 2026-07-07 (evening halt). Sessions 07-04 (DA-005a/b/006 shipped),
-07-06 (stick forensics), 07-07 (Seagate excavation + logsheet crossref, PAUSED
-mid-copy for the night — see HALT STATE below, start here).**
+**Updated 2026-07-13 (evening shutdown, clean halt — START HERE). Prior:
+07-08 (freeze mid-copy), 07-07 (Seagate excavation + crossref), 07-04
+(DA-005a/b/006).**
+
+## HALT STATE 2026-07-13 — clean shutdown, copy nearly done, VADASE fixes shipped
+
+**Drive copy (DATA0 → Backup Plus): RAW IS GENUINELY COMPLETE.**
+- Morning: Backup Plus refused to mount — `$MFTMirr does not match $MFT
+  (record 0)`. Fixed with real `sudo ntfsfix /dev/sdc2` (not -n), mounted
+  clean after. Root cause chain: 07-08 freeze was triggered by the Seagate/
+  JMicron dock dropping SMART `CHECK POWER MODE` (all-zero sense data) —
+  same signature recurred 07-13 at idle (09:26) and mid-copy (12:26)
+  WITHOUT killing the drive. Recurring but so-far non-fatal.
+- During the resumed copy, 4 MORE corrupt dest dirs surfaced beyond the 9
+  known 2014 ones: `2016/VCAC/`, `2016/temp/`, `2017/CACA_20170513_*/`,
+  `2017/ATIM_20170512/`. NOT yet worked around — copy skipped them
+  (rsync skip-and-continue). **Batch-fix next session: grep full
+  rsync_copy.log for "Input/output error", extract distinct dirs, copy each
+  to `<name>_recovered/` (same JOSE trick), verify counts.**
+- 16:59:46: `finished RAW, exit=0` — REAL this time (to-chk showed full
+  114,674-file denominator; the 07-08 "ALL DONE" was a kill-race artifact).
+- GPSR restarted from ~0% and was killed cleanly at ~89% of first chunk for
+  shutdown. wvfs at 27%, TimeSeries/SP3 done (verified counts 346/346, 6/6).
+- **Resume command: rerun `/tmp/resume_copy2.sh` logic for GPSR+wvfs only**
+  (RAW done; excludes only matter for RAW). Simplest:
+  `for d in GPSR wvfs; do rsync -rt --partial --info=progress2 "$SRC/$d/" "$DEST/$d/"; done`
+  with SRC=/run/media/finch/DATA0, DEST="/run/media/finch/Backup Plus/RECOVERED_SEAGATE_W2A0W9T2_DATA0".
+- After ALL DONE: delete SP3 (redundant, CDDIS re-downloadable), verify RAW
+  dest-vs-source counts, batch-fix the 4 new corrupt dirs, THEN sdd2 scan.
+- Watchdog pattern that worked: `journalctl -f` grep for
+  `CHECK POWER MODE|Unexpected sense|USB disconnect|I/O error, dev sd` —
+  detached copy in /tmp/detached_watchdog.sh, log at
+  `~/surveys/SEAGATE-W2A0W9T2/watchdog.log`.
+
+**VADASE code review COMPLETE + fixes shipped as 4 PRs (2026-07-13):**
+- Review of unreviewed Apr-May direct-to-main range `9aff14d^..main`:
+  8 finder angles + verify pass; 8 CONFIRMED findings + ~20 secondary.
+  Full details: `~/surveys/vadase_review_banked_candidates.json`.
+- **PR #53** (fix/vadase-ingest-runtime): shared-adapter lifecycle (silent
+  total data loss for 34/35 stations — worst finding), NTRIP v1 drain ate
+  32 sentences/reconnect, handshake timeout, FatalConfigError (401/404 no
+  longer retried forever), full-jitter backoff, replay TaskGroup deadlock
+  fix, dead .env reloaded. 46 tests pass, TDD, end-to-end verified both
+  happy + DB-down paths.
+- **PR #54** (fix/vadase-replay-timing): `.seconds`→`.total_seconds()` day-
+  rollover bug (realtime replay NEVER slept; --speed was a no-op) + 
+  run_demo.sh (--help, dataset check, bc removed, matplotlib probe removed).
+- **PR #55** (fix/vadase-grafana-ops): alert email showed boolean 1.0000
+  instead of measured velocity ($values.C→B), AVG(v_horizontal), env-driven
+  DB password + alert email (personal gmail removed), station variable off
+  the hypertable. NOT runtime-verified (needs docker compose up — R740).
+- **PR-D IN PROGRESS, uncommitted** in worktree `.trees/vadase-pr-d`
+  (branch fix/vadase-packaging-docs, STACKED on PR #53's branch):
+  done so far: deleted 0-byte validate_parser.py (git rm), created
+  src/adapters/outputs/composite.py (CompositeOutputPort) +
+  src/adapters/outputs/logging.py (LoggingOutputPort for dry-run).
+  REMAINING: remove both dead entry points from pyproject.toml:29-30,
+  drop unused `date` import nmea_parser.py:6, wire LoggingOutputPort into
+  run_ingestor dry-run, swap replay_events+stress_test_parallel to the
+  shared CompositeOutputPort, add checksum-contract tests to
+  test_nmea_parser.py (restores NMEAChecksumError coverage + fixes F401),
+  README working invocations (PYTHONPATH=. — documented invocations are ALL
+  broken), purge writer.py refs from ONBOARDING.md:106,142 /
+  DATABASE_SCHEMA.md:3,37 / tree.md:34. Then pytest+ruff+commit+
+  `scripts/open_pr.sh --base fix/vadase-ingest-runtime` (stacked).
+- Tickets deferred from review: threshold single-source-of-truth
+  (15mm/s hardcoded in 4 Grafana places, thresholds.yml EMPTY),
+  src/→named-package rename (wheel packaging fundamentally broken —
+  `uv run vadase-ingestor` ModuleNotFoundError, only PYTHONPATH=. works),
+  salvage review of unmerged jules/vadase-ingestion-fix branch (504
+  insertions incl. nmea_parser fix + 68 test lines).
+- Worktrees active: .trees/vadase-pr-a (merged into #53's branch, keep
+  until merge), -pr-b, -pr-c, -pr-d (uncommitted work!).
+
+**Also 2026-07-13:** Gmail draft for Cassandra→Lucille Masbate/Marilao
+open-file-report follow-up created in apelicano@gmail.com Drafts (threaded
+under the forwarded thread; copy body into gpspivs01 to send). /statusline
+setup request pending (deferred at shutdown).
+
+## HALT STATE 2026-07-08 — machine hard-froze mid-copy, drives safely powered off
+**Root cause: dock/drive dropout under I/O load, NOT the fixed autosuspend issue.**
+At 14:46:12 `udisksd`'s routine SMART housekeeping sent `CHECK POWER MODE` to the
+Seagate (DATA0, serial W2A0W9T2) and got back all-zero sense data — the JMicron
+dock (152d:0561) stopped responding to the bridge. System hard-froze ~1 min later
+(journal just stops mid-routine-logging at 14:47:25, no clean shutdown target
+reached). Came back up on its own/forced at 14:52:27 — **5-min gap, not a REISUB
+this time**, nobody was at the keyboard when it happened. **This is the same dock
+as the 07-07 incident; the `USB_DENYLIST` TLP fix did NOT prevent this one** — so
+either it's a load-triggered dropout distinct from autosuspend, or the fix is
+incomplete. Needs real investigation before trusting this dock with another long
+unattended copy (maybe: try a different USB port, check the dock's own power
+supply/cable, watch `dmesg -w` live during a resume to catch the exact failure
+signature).
+
+**Both drives cleanly powered off at session end** (`udisksctl power-off`,
+verified gone from `lsblk`) — safe to unplug physically, no unmount was pending.
+
+**Copy progress is genuinely uncertain — do NOT trust the last logged "ALL DONE".**
+Sequence of what actually happened today, in order:
+1. Resumed yesterday's halted copy (JOSE-workaround excluded) — hit **8 more**
+   corrupt `RAW/2014/` directories beyond JOSE: GUMA, GUNY, IBAZ, ILN3, INFA,
+   ISB4, ITBA, ITGN (3,646 `Input/output error (5)` lines total across all 9).
+   `sudo ntfsfix -n /dev/sdc2` came back clean **again** — confirms (as expected)
+   it only checks `$MFT`/boot sector, never sees directory-index corruption.
+   Fixed via the same workaround as JOSE: copied all 8 into fresh
+   `RAW/2014/<SITE>_recovered/` dirs. **1,629/1,629 files, 0 errors, verified.**
+2. I killed the running rsync to apply that exclude list, but only killed its
+   forked child PIDs, not the outer loop script — the loop has no error-gating
+   between stages (`rsync ...; echo finished`), so it barreled through
+   GPSR→wvfs→TimeSeries→SP3 in ~13 seconds and logged "ALL DONE" while most
+   of it never actually transferred. **Real dest-vs-source counts at that
+   point: RAW 50,251/116,489 (43%), GPSR 42/20,555 (0.2%!), wvfs 915/3,330
+   (27%), TimeSeries 346/346 (100%), SP3 6/6 (100%).** Lesson: never trust a
+   loop script's own "finished, exit=$?" line when you killed a child PID
+   directly instead of the parent — verify with real file counts.
+3. Kicked off a proper resume at 13:42 (RAW+GPSR+wvfs, now excluding all 9
+   corrupt dirs). **This is the run that got cut off by the freeze at 14:47** —
+   unknown how far RAW got past the 50,251 mark before the drive dropped out.
+4. **First action tomorrow: re-mount both drives, re-run the dest-vs-source
+   `find | wc -l` comparison per top-level dir (RAW/GPSR/wvfs — TimeSeries/SP3
+   already 100%, skip those) before deciding whether to resume or restart.**
+   `--partial` on all these rsyncs means no data was corrupted by the abrupt
+   cut, just incomplete — safe to blind-resume once counts are known, same
+   command as before (9-dir exclude list, see 07-07 section below for the
+   original command shape).
+
+## DA-010 consolidated report — DONE (but see caveat below)
+`~/surveys/consolidated_gnss_retrieval_priority.md` — merges ALA_ADP + CJVC
+crossrefs + VFS color-coded table, grouped by geodetic network, **excludes
+sites the logsheet already marks Complete** (my first draft wrongly counted
+those as "zero coverage" — corrected). Final: **197 sites with a real
+outstanding request, 139 zero-coverage (top priority), across 10 networks.**
+Script: `/tmp/build_consolidated_final.py` (not persisted to repo — rerun from
+here if needed, self-contained, reuses `site_to_group.json` + the crossref
+TSVs + inventory-indexing logic already described below).
+**Open caveat, not resolved tonight:** only 10 of the 14 expected CJVC networks
+show up (Palawan, Romblon, Samar, Marinduque all absent). Could be genuine
+(those networks' logsheet rows are all "Complete", nothing to retrieve) or a
+tagging gap in `site_to_group.json` (Marinduque's heading `**MARINDUQUE\***`
+lacks the "NETWORK"/"CGPS" keyword the original regex required — suspected,
+unconfirmed). **Verify before treating this report as final** — check the
+raw CJVC doc for those 4 networks' actual retrieve-column contents.
 
 ## MISSED FROM NOTES 2026-07-07 — MOVE Faults Midyear slide deck (this repo has no
 context for this, but it happened yesterday same session — added retroactively)
