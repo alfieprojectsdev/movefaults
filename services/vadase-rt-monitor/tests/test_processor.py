@@ -1,8 +1,8 @@
 
-import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime
+
+import pytest
 from src.domain.processor import IngestionCore, ReceiverMode
 from src.ports.outputs import OutputPort
 
@@ -157,3 +157,28 @@ def test_force_integration_starts_manual():
 def test_default_starts_receiver():
     core = make_core()
     assert core.mode == ReceiverMode.RECEIVER
+
+
+@pytest.mark.asyncio
+async def test_consume_does_not_manage_port_lifecycle():
+    """The output port's connect/close belong to the composition root, not the core.
+
+    A single adapter is shared by all station cores (35+ in production); if each
+    core connect()s and close()s it, the first core to exit closes the shared
+    pool and every other station's writes are silently dropped.
+    """
+    calls = []
+
+    class TrackingPort(MockOutputPort):
+        async def connect(self):
+            calls.append("connect")
+
+        async def close(self):
+            calls.append("close")
+
+    core = IngestionCore(station_id="TEST", output_port=TrackingPort(), threshold_mm_s=15.0)
+    queue = asyncio.Queue()
+    await queue.put(None)  # sentinel: consume exits immediately
+    await core.consume(queue, asyncio.Event())
+
+    assert calls == [], f"consume() must not touch port lifecycle, but called: {calls}"

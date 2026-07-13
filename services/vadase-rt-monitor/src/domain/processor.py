@@ -103,22 +103,22 @@ class IngestionCore:
     async def consume(self, queue: asyncio.Queue, stop_event: asyncio.Event):
         """
         Main loop: Read from queue -> Process -> Write to Output
+
+        The output port's lifecycle (connect/close) is owned by the composition
+        root, NOT by the core: one adapter is shared across all station cores,
+        so a core closing it would kill every other station's writes.
         """
-        await self.output_port.connect()
-        try:
-            while not stop_event.is_set():
-                try:
-                    line = await asyncio.wait_for(queue.get(), timeout=1.0)
-                except asyncio.TimeoutError:
-                    continue
+        while not stop_event.is_set():
+            try:
+                line = await asyncio.wait_for(queue.get(), timeout=1.0)
+            except asyncio.TimeoutError:
+                continue
 
-                if line is None: # Sentinel
-                    break
+            if line is None: # Sentinel
+                break
 
-                await self.process_sentence(line)
-                queue.task_done()
-        finally:
-            await self.output_port.close()
+            await self.process_sentence(line)
+            queue.task_done()
 
     async def process_sentence(self, sentence: str):
         try:

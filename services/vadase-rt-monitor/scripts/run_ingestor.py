@@ -1,10 +1,17 @@
 import asyncio
-import yaml
+from pathlib import Path
+
 import structlog
 import typer
+import yaml
+from dotenv import load_dotenv
 from src.adapters.inputs.tcp import TCPAdapter
 from src.adapters.outputs.null import NullOutputPort
 from src.domain.processor import IngestionCore
+
+# Service-level .env (DB_* credentials etc.) — the TimescaleDBAdapter reads
+# os.environ directly, so the composition root must load the file.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 logger = structlog.get_logger()
 app = typer.Typer()
