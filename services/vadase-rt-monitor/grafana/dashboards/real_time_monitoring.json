@@ -4,15 +4,23 @@
   "schemaVersion": 39,
   "version": 1,
   "refresh": "5s",
-  "time": { "from": "now-2h", "to": "now" },
+  "time": {
+    "from": "now-2h",
+    "to": "now"
+  },
   "timezone": "utc",
   "graphTooltip": 1,
-  "tags": ["vadase", "seismic"],
+  "tags": [
+    "vadase",
+    "seismic"
+  ],
   "editable": true,
   "fiscalYearStartMonth": 0,
   "links": [],
   "weekStart": "",
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "timepicker": {},
   "templating": {
     "list": [
@@ -20,8 +28,11 @@
         "name": "station",
         "label": "Station",
         "type": "query",
-        "datasource": { "type": "postgres", "uid": "timescaledb-main" },
-        "query": "SELECT DISTINCT station_code FROM vadase_velocities ORDER BY 1",
+        "datasource": {
+          "type": "postgres",
+          "uid": "timescaledb-main"
+        },
+        "query": "SELECT station_code FROM stations WHERE status = 'active' ORDER BY 1",
         "refresh": 2,
         "includeAll": true,
         "multi": false,
@@ -35,13 +46,24 @@
   "panels": [
     {
       "id": 1,
-      "title": "Horizontal Velocity — ${station}",
+      "title": "Horizontal Velocity \u2014 ${station}",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
-      "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "timescaledb-main"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "timescaledb-main"
+          },
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -55,33 +77,61 @@
           "custom": {
             "lineWidth": 1,
             "fillOpacity": 5,
-            "thresholdsStyle": { "mode": "line" }
+            "thresholdsStyle": {
+              "mode": "line"
+            }
           },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red",   "value": 15 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 15
+              }
             ]
           },
-          "color": { "mode": "fixed", "fixedColor": "blue" }
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "single", "sort": "none" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 2,
-      "title": "ENU Displacement — ${station}",
+      "title": "ENU Displacement \u2014 ${station}",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
-      "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "timescaledb-main"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "timescaledb-main"
+          },
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -92,29 +142,93 @@
       "fieldConfig": {
         "defaults": {
           "unit": "lengthm",
-          "custom": { "lineWidth": 1, "fillOpacity": 0 },
-          "color": { "mode": "palette-classic" }
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "East (mm)"  }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue"  } }] },
-          { "matcher": { "id": "byName", "options": "North (mm)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
-          { "matcher": { "id": "byName", "options": "Up (mm)"    }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red"   } }] }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "East (mm)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "North (mm)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Up (mm)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
         ]
       },
       "options": {
-        "tooltip": { "mode": "multi", "sort": "none" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 3,
       "title": "Event Detections",
       "type": "table",
-      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 7 },
-      "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "timescaledb-main"
+      },
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "timescaledb-main" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "timescaledb-main"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
@@ -124,25 +238,70 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "custom": { "align": "left", "cellOptions": { "type": "auto" } }
+          "custom": {
+            "align": "left",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Peak Vel (mm/s)" },
+            "matcher": {
+              "id": "byName",
+              "options": "Peak Vel (mm/s)"
+            },
             "properties": [
-              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 15 }] } },
-              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 15
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
             ]
           }
         ]
       },
       "options": {
-        "sortBy": [{ "desc": true, "displayName": "Time" }],
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Time"
+          }
+        ],
         "cellHeight": "sm",
-        "footer": { "show": false }
+        "footer": {
+          "show": false
+        }
       },
       "transformations": [
-        { "id": "convertFieldType", "options": { "conversions": [{ "targetField": "Time", "destinationType": "time" }] } }
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "targetField": "Time",
+                "destinationType": "time"
+              }
+            ]
+          }
+        }
       ]
     }
   ]
