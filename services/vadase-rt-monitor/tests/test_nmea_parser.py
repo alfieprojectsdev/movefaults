@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+import pytest
 from src.parsers.nmea_parser import (
     NMEAChecksumError,
     parse_ldm,
@@ -84,3 +85,22 @@ def test_parse_lvm_spec_example():
     assert result["timestamp"] == expected_ts
 
 
+
+def test_parse_ldm_raises_on_bad_checksum():
+    """Contract: a corrupted LDM sentence raises NMEAChecksumError (not None).
+
+    The processor's checksum_error accounting (domain/processor.py) depends on
+    catching this exception — a refactor that returns None instead would make
+    corrupted stream sentences count as unparseable and go untracked.
+    """
+    sentence = "$GNLDM,113805.50,030215,113805.50,030215,0.0101,0.0204,0.0459,0.0021,0.0020,0.0041,0.00021,0.00023,0.00041,0.05,19,0,1,1*FF"
+    with pytest.raises(NMEAChecksumError):
+        parse_ldm(sentence)
+
+
+def test_parse_lvm_raises_on_bad_checksum():
+    """Same contract for velocity sentences."""
+    sentence = _create_sentence("GNLVM,113805.50,030215,0.0011,0.0021,0.0015,0.00012,0.00013,0.00021,0.043561,19,0")
+    corrupted = sentence[:-2] + ("00" if not sentence.endswith("00") else "11")
+    with pytest.raises(NMEAChecksumError):
+        parse_lvm(corrupted)
