@@ -26,8 +26,10 @@ dependencies = [
 # Define command-line entry points for all tools in the monorepo
 drive-archaeologist = "drive_archaeologist.cli:main"
 drive-arch = "drive_archaeologist.cli:main"
-vadase-ingestor = "scripts.run_ingestor:main"
-vadase-validate = "scripts.validate_parser:main"
+# NOTE: vadase-rt-monitor deliberately has no console entry point. The hatch
+# wheel sources map only src/ dirs, so "scripts.run_ingestor:main" could never
+# import (ModuleNotFoundError). Run from the service dir instead:
+#   cd services/vadase-rt-monitor && PYTHONPATH=. uv run python scripts/run_ingestor.py
 rinex-qc = "pogf_geodetic_suite.qc.rinex_qc:main"
 igs-downloader = "pogf_geodetic_suite.igs_downloader:main"
 field-ops-api = "field_ops.main:start"

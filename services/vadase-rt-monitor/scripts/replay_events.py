@@ -1,12 +1,12 @@
 import asyncio
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
 
 import structlog
 import typer
 from dotenv import load_dotenv
 from src.adapters.inputs.directory import DirectoryAdapter
+from src.adapters.outputs.composite import CompositeOutputPort
 from src.adapters.outputs.null import NullOutputPort
 from src.domain.processor import IngestionCore
 from src.strategies.playback import FastImportStrategy, RealTimeStrategy
@@ -79,37 +79,10 @@ class _DemoEventPort:
         _print_event_banner(station, detection_time, peak_velocity, peak_displacement, duration)
 
 
-class _CompositeWriter:
-    """Fan-out to multiple OutputPort instances (e.g. DB + LivePlotter)."""
-
-    def __init__(self, writers):
-        self.writers = writers
-
-    async def connect(self):
-        for w in self.writers:
-            await w.connect()
-
-    async def close(self):
-        for w in self.writers:
-            await w.close()
-
-    async def write_velocity(self, *a, **k):
-        for w in self.writers:
-            await w.write_velocity(*a, **k)
-
-    async def write_displacement(self, *a, **k):
-        for w in self.writers:
-            await w.write_displacement(*a, **k)
-
-    async def write_event_detection(self, *a, **k):
-        for w in self.writers:
-            await w.write_event_detection(*a, **k)
-
-
 async def run_async(
     path: Path,
     mode: str,
-    base_date: Optional[date],
+    base_date: date | None,
     station_id: str,
     threshold: float,
     dry_run: bool,
@@ -146,9 +119,9 @@ async def run_async(
         except ImportError:
             typer.echo("matplotlib not installed — skipping live plot.")
 
-    base_port = writers[0] if len(writers) == 1 else _CompositeWriter(writers)
     # Always wrap in _DemoEventPort: replay_events.py is a demo/analysis tool.
-    output_port = _DemoEventPort(base_port)
+    # CompositeOutputPort handles the single-writer case identically.
+    output_port = _DemoEventPort(CompositeOutputPort(writers))
 
     queue = asyncio.Queue(maxsize=1000)
     stop_event = asyncio.Event()
@@ -182,7 +155,7 @@ async def run_async(
 def main(
     file_path: Path = typer.Option(..., "--file", "-f", help="Path to NMEA file or directory"),
     mode: str = typer.Option("import", "--mode", "-m", help="'import' (fast) or 'replay' (1 Hz)"),
-    base_date: Optional[str] = typer.Option(None, "--base-date", "-d", help="Base date YYYY-MM-DD"),
+    base_date: str | None = typer.Option(None, "--base-date", "-d", help="Base date YYYY-MM-DD"),
     station_id: str = typer.Option("TEST", "--station", "-s", help="Station ID"),
     threshold: float = typer.Option(15.0, "--threshold", help="Event threshold mm/s"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Discard DB writes (no asyncpg import)"),

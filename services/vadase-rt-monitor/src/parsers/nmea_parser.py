@@ -3,7 +3,7 @@ NMEA Parser for Leica VADASE LDM and LVM sentences
 Implements full parsing with checksum validation
 """
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 

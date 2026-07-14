@@ -6,7 +6,7 @@ import typer
 import yaml
 from dotenv import load_dotenv
 from src.adapters.inputs.tcp import TCPAdapter
-from src.adapters.outputs.null import NullOutputPort
+from src.adapters.outputs.logging import LoggingOutputPort
 from src.domain.processor import IngestionCore
 
 # Service-level .env (DB_* credentials etc.) — the TimescaleDBAdapter reads
@@ -23,7 +23,7 @@ async def run_service(config_path: str, dry_run: bool):
     Hexagonal Architecture: NTRIP -> Queue -> IngestionCore -> OutputPort.
     """
     try:
-        with open(config_path, 'r') as f:
+        with open(config_path) as f:
             config = yaml.safe_load(f)
             stations = config.get('stations', [])
     except FileNotFoundError:
@@ -35,8 +35,10 @@ async def run_service(config_path: str, dry_run: bool):
         return
 
     # TimescaleDBAdapter is imported lazily so asyncpg is never loaded on --dry-run.
+    # Dry-run LOGS every write instead of discarding: an operator verifying a
+    # new station must be able to see whether data actually flows.
     if dry_run:
-        db_writer = NullOutputPort()
+        db_writer = LoggingOutputPort()
     else:
         from src.adapters.outputs.timescaledb import TimescaleDBAdapter
         db_writer = TimescaleDBAdapter()
