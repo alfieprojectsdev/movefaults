@@ -1,8 +1,54 @@
 # RESUME — next session
 
-**Updated 2026-07-13 (evening shutdown, clean halt — START HERE). Prior:
-07-08 (freeze mid-copy), 07-07 (Seagate excavation + crossref), 07-04
-(DA-005a/b/006).**
+**Updated 2026-07-14 (clean shutdown — START HERE). Prior: 07-13 (RAW done,
+VADASE PRs), 07-08 (freeze), 07-07 (excavation+crossref), 07-04 (DA-005).**
+
+## HALT STATE 2026-07-14 — clean shutdown, everything verified
+
+**BACKUP PLUS: VERDICT ESCALATED TO EVACUATE.** Full story in memory
+`backup_plus_health_crisis` — read it first. Short: 3rd write-corruption
+episode found (GPSR "exit=0" was short 7,606 files — a CONTIGUOUS 139-dir
+block 140211P–140708P exists on dest but refuses all writes, I/O error 5;
+140211P died mid-write 33/63). SMART is UNOBTAINABLE (bridge rejects all
+passthrough, even Seagate's own openSeaChest — apt 23.12 installed) AND the
+bridge is SELF-ENCRYPTING (TCG/IEEE-1667: bridge PCB death = total data
+loss; shucking useless). Backup Plus is READ-ONLY by policy; it holds sole
+copies of the DOSTB recovery. **Next actions: (1) procure replacement drive
+2-4TB (BP carries ~796GB, 86% full), (2) Windows chkdsk /f only as a
+read-stabilizer, (3) evacuate everything to the new drive, (4) re-copy GPSR
+from Seagate DATA0 (intact master: 20,555 files; only 12,949 landed).**
+wvfs verified complete 3,330/3,330. RAW verified complete 07-13 (+4 corrupt
+dest dirs 2016/VCAC, 2016/temp, 2017/CACA_*, 2017/ATIM_* still pending the
+_recovered workaround — do that on the REPLACEMENT drive, not BP).
+
+**sdd2 (200GB partition DC9A88179A87EBF8) scan: PAUSED mid-run, resumable.**
+2,943,000 records so far (vastly more than DATA0's 140k — dense tree, likely
+a system volume). SIGINT-paused cleanly, "Progress saved. Use --resume".
+Resume: `uv run drive-arch scan /run/media/finch/DC9A88179A87EBF8 -o
+~/surveys/SEAGATE-W2A0W9T2/sdd2_full_scan.jsonl --resume` (mount sda2/sdd2
+by label first; letters shift). Then classification breakdown + crossref
+against the retrieval priority list.
+
+**VADASE: review cycle CLOSED.** PRs #53/#54/#56/#55 all squash-merged to
+main 2026-07-14; full 51-test suite verified passing on merged origin/main;
+all 8 worktrees pruned (4 DA + 4 VADASE), local branches deleted.
+**Gotcha for stacked PRs: GitHub did NOT auto-retarget #56 when #53's branch
+merged, and `gh pr edit --base` fails silently (GraphQL Projects-classic
+deprecation — same as PR #51). Working fix: `gh api -X PATCH
+repos/<owner>/<repo>/pulls/<n> -f base=main`, then VERIFY with gh pr view.**
+Deferred tickets from the review: threshold single-source-of-truth (15mm/s
+in 4 Grafana places, thresholds.yml empty), src/→named-package rename
+(monorepo-wide), jules/vadase-ingestion-fix salvage review, PR #55 runtime
+verification (needs docker compose up — R740).
+
+**Dock (JMicron 152d:0561) status:** SMART CHECK-POWER-MODE tick fails every
+10 min against the ST500DM002 — logged, non-fatal all day. Real dropout
+signatures (USB disconnect/device offlined/IO error) never fired 07-14.
+Next dock experiment queued: swap in the legacy 3.5" HDD (needs the powered
+dock — it's 12V) to isolate dock-vs-drive.
+
+**Drives: all unmounted + powered off cleanly** (scan SIGINT-checkpointed
+first, watchdog killed, sync'd). Safe physical unplug.
 
 ## HALT STATE 2026-07-13 — clean shutdown, copy nearly done, VADASE fixes shipped
 
