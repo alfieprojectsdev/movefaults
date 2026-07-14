@@ -1,15 +1,19 @@
 import asyncio
-import typer
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
 import structlog
-
-from src.strategies.playback import RealTimeStrategy, FastImportStrategy
+import typer
+from dotenv import load_dotenv
 from src.adapters.inputs.directory import DirectoryAdapter
 from src.adapters.outputs.null import NullOutputPort
 from src.domain.processor import IngestionCore
+from src.strategies.playback import FastImportStrategy, RealTimeStrategy
+
+# Service-level .env (DB_* credentials etc.) — the TimescaleDBAdapter reads
+# os.environ directly, so the composition root must load the file.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 app = typer.Typer()
 
@@ -159,17 +163,19 @@ async def run_async(
 
     typer.echo(f"Starting {mode.upper()} replay: {path}")
 
-    producer_task = asyncio.create_task(adapter.start(queue, stop_event))
-    consumer_task = asyncio.create_task(core.consume(queue, stop_event))
-
+    # Composition root owns the port lifecycle (cores must not connect/close a
+    # potentially shared port). TaskGroup cancels the sibling when either task
+    # fails, so a dead consumer (e.g. DB down) surfaces its error instead of
+    # leaving the producer blocked forever on the bounded queue.
+    await output_port.connect()
     try:
-        await producer_task
-        await consumer_task
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(adapter.start(queue, stop_event))
+            tg.create_task(core.consume(queue, stop_event))
         typer.echo("Replay complete.")
-    except KeyboardInterrupt:
-        typer.echo("Stopping...")
+    finally:
         stop_event.set()
-        await asyncio.gather(producer_task, consumer_task, return_exceptions=True)
+        await output_port.close()
 
 
 @app.command()
@@ -205,13 +211,19 @@ def main(
             typer.echo("Error: Invalid date format. Use YYYY-MM-DD.")
             raise typer.Exit(code=1)
 
-    asyncio.run(
-        run_async(
-            file_path, mode, parsed_date, station_id, threshold,
-            dry_run, plot, pattern, force_integration, decay, window_size,
-            speed,
+    try:
+        asyncio.run(
+            run_async(
+                file_path, mode, parsed_date, station_id, threshold,
+                dry_run, plot, pattern, force_integration, decay, window_size,
+                speed,
+            )
         )
-    )
+    except KeyboardInterrupt:
+        # Ctrl+C surfaces here (asyncio.run re-raises it after cancelling the
+        # task tree) — inside the coroutine it arrives as CancelledError, so a
+        # KeyboardInterrupt handler there is unreachable.
+        typer.echo("Stopped.")
 
 
 if __name__ == "__main__":
