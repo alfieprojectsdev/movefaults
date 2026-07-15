@@ -1,7 +1,78 @@
 # RESUME — next session
 
-**Updated 2026-07-14 (clean shutdown — START HERE). Prior: 07-13 (RAW done,
-VADASE PRs), 07-08 (freeze), 07-07 (excavation+crossref), 07-04 (DA-005).**
+**Updated 2026-07-15 (mid-session, two background jobs still running — START
+HERE). Prior: 07-14 (clean shutdown, VADASE PRs, EVACUATE verdict), 07-13
+(RAW done), 07-08 (freeze), 07-07 (excavation+crossref), 07-04 (DA-005).**
+
+## IN PROGRESS 2026-07-15 — two background jobs running, check before anything else
+
+**1. Backup Plus → DOSTB migration** (script `/tmp/migrate_bp_to_dostb.sh`,
+log `~/surveys/SEAGATE-W2A0W9T2/backupplus_to_dostb_migration.log`, monitor
+task `bg5m3jvnp`). Sequence: RAW → SP3 → TimeSeries → wvfs →
+`RECOVERED_DOSTB20150918_from_BackupPlus`. As of last check: still on RAW,
+~72,851/116,489 files copied, only expected errors (the same 13 known-corrupt
+2014-directory block from 07-08/07-13, already handled via `_recovered/`
+workarounds — those copy fine, only the corrupt originals throw I/O error 5).
+**Check status:** `grep -a "===" ~/surveys/SEAGATE-W2A0W9T2/backupplus_to_dostb_migration.log | tail`
+and `find ".../DOSTB20150918/RECOVERED_SEAGATE_W2A0W9T2_DATA0/RAW" -type f | wc -l`.
+
+**2. sdd2 scan resume** (200GB partition `DC9A88179A87EBF8` on the Seagate,
+`--resume` from the 07-14 SIGINT checkpoint). As of last check: 4,987,000
+records, still running (2 processes alive). This partition is MUCH denser
+than DATA0 (140k records) — likely a system/OS volume, not primarily GNSS.
+Check: `wc -l ~/surveys/SEAGATE-W2A0W9T2/sdd2_full_scan.jsonl`.
+
+**Why this session rerouted away from Backup Plus:** GPSR recopy attempt
+found Backup Plus's copy still stuck at 12,949/20,555 (63%) — same 139-dir
+corrupt block from 07-14, confirmed STILL PRESENT/UNFIXED via a fresh `du`
+(identical error list). Per [[backup-plus-health-crisis]] verdict, did a
+**fresh full copy of GPSR (all 20,555 files) to DOSTB instead** — verified
+20,555/20,555, 0 errors. Then deleted the stale partial GPSR off Backup Plus
+(corrupt block also blocks `rm`, left an unremovable 1.2MB stub — harmless,
+not worth chasing) and started the fuller migration above to get everything
+off Backup Plus onto DOSTB while its media reliability is unresolved.
+**DOSTB is now the de facto working GNSS store** (not just interim) until
+Backup Plus is repaired (`chkdsk /f /r`, needs Windows) or replaced.
+
+## DOSTB 2026-07-15 — freed 1.4TB, GNSS payload from 2 new WD drives added
+
+**Space freed:** DOSTB went from 1.7T used (93%) to 304G used (17%) — user
+manually cleared Movies (800G, 678 titles) + Shows (487G, 37 titles,
+including a 131G orphaned "Doctor Who" recovered from a chkdsk `found.001`)
++ `.Trash-1000` (83G) via Double Commander plain-delete (which did a REAL
+permanent delete on this ntfs-3g mount, not move-to-trash — Recycle Bin
+stayed at 0 files). **`ps4e` (99G, protected InSAR pipeline — see
+[[dostb-ps4e-insar-pipeline]]) verified intact, untouched.**
+- Along the way, 38 titles initially failed `rm -rf` ("Directory not empty")
+  — traced to a REAL but MINOR SMART fault on DOSTB (`/dev/sdc`,
+  `Current_Pending_Sector=1`, `Reallocated_Sector_Ct=0` — one bad sector,
+  no history, not comparable to Backup Plus's crisis). Double Commander's
+  delete succeeded anyway on a later pass — either the sector read cleared
+  on retry, or DC handles stat-failures differently. Worth a `smartctl -A`
+  recheck sometime to confirm the pending count actually cleared, not urgent.
+- Built a `Deaccession Ledger` artifact (checklist UI, clipboard export of an
+  `rm -rf` script) for the triage — superseded by the full manual clear but
+  URL kept for reference: https://claude.ai/code/artifact/e2654d29-491c-45c0-9821-d67d90efb069
+
+**Two new WD desktop drives scanned + copied to DOSTB:**
+- `GPS_1TB_2` (WD10EARS, 1TB): 1,141 GNSS files classified, 1,127 copied
+  (16 discrepancy = extraction path-prefix edge cases, not data loss) to
+  `RECOVERED_GPS_1TB_2_WD10EARS_WCAV5M032380/`, verified count match.
+- `HD-LBU2` (WD20EARS, 2TB): 7,488 GNSS files classified, 7,423 copied to
+  `RECOVERED_HD-LBU2_WD20EARS_WCAZA4430660/`, verified count match.
+- **Crossref against `~/surveys/consolidated_gnss_retrieval_priority.md`:**
+  NAUJ + PUER = genuine zero-coverage closures (report updated: 139→137).
+  JOSE/MAMB/SABL = real 2011 raw archives (1,400-1,600 files each) but wrong
+  years vs. the requested gaps (2010/2012/2013/2016) — flagged in the report,
+  does NOT close those gaps. SOLE = false positive, ruled out (coincidental
+  Bernese processing-dir name "sole", actual stations inside are SOLC/SOLD +
+  IGS reference sites, not the requested SOLE).
+- **Gotcha discovered:** `drive-arch recover` (DA-006, PR #49, merged to
+  main 2026-07-04) does NOT exist on this branch (`docs/bernese-training-notes`)
+  — branch is stale relative to main, missing `recovery.py` entirely. Used
+  plain `rsync --files-from=<jsonl-derived-list>` instead (worked fine,
+  simpler than expected for pure category-filtered copy). **Needs a rebase/
+  merge of main into this branch before DA-006/DA-009 tooling is usable here.**
 
 ## HALT STATE 2026-07-14 — clean shutdown, everything verified
 
