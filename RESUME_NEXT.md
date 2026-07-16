@@ -36,26 +36,37 @@ Backup Plus (see [[backup-plus-health-crisis]]). Backup Plus should be
 treated read-only/retired pending a real Windows `chkdsk /f /r` or
 replacement — no more bulk writes to it.
 
-## BLOCKED 2026-07-16 — sdd2 scan resume, do NOT just `--resume` again
+## BLOCKED 2026-07-16 — sdd2 scan resume, do NOT just `--resume` again (RESOLVED: use `main`, no code fix needed)
 
 `drive-arch scan` on the 200GB partition (`DC9A88179A87EBF8`, Seagate) hit a
 **symlink-loop hang**, not a normal interruption. Inspected the output file
 post-mortem: of 5,152,000 lines written, **4,520,088 (87%) are garbage** —
 repeating paths like `/tmp/da_dirsymlink2a.tar_vccs6_lp/cur/cur/cur/.../par/
-da_dirsymlink2a.tar_.../cur/cur/...`. Looks like drive-arch extracted an
-archive to `/tmp` (name suggests a `cur`↔`par` symlink-cycle test fixture,
-possibly embedded inside another archive on this partition) and recursed
-with no cycle guard until the unclean shutdown killed it.
-`grep -rl "dirsymlink" tools/drive-archaeologist` found nothing in the repo
-itself, and the extracted `/tmp` copy is gone post-reboot — so the exact
-source path/archive that triggers this is not yet identified.
-**Do not `--resume` blindly — it will hit the same archive and hang again.**
-Before resuming: (a) add a symlink-loop/cycle guard to the archive-extraction
-path in drive-arch (check for `..` in resolved paths, or cap recursion
-depth), or (b) find and `--exclude` the specific triggering archive path
-first. Either way, the existing `sdd2_full_scan.jsonl` should probably be
-truncated back to before line ~630,000 (where the garbage starts) rather
-than trusted as-is.
+da_dirsymlink2a.tar_.../cur/cur/...`. `dirsymlink2a.tar` is a known GNU-tar
+testsuite fixture (a deliberate `cur`↔`par` symlink cycle used to test tar's
+own loop handling) — presumably embedded inside some dev-tools backup on
+this partition, extracted as a nested archive.
+
+**Root cause was branch staleness, not a live bug.** Diffed
+`tools/drive-archaeologist/src/drive_archaeologist/scanner.py` on this
+branch against `main`: `main` already has a `filepath.is_symlink()` gate in
+`_scan_directory` (part of `DA-002`, "finding #8") that records any symlink
+via `readlink` and `continue`s — before any `is_dir()`/`is_file()` check —
+so it can never recurse into a symlink loop. It's covered by an existing
+test, `test_symlink_loop_is_harmless`
+(`tools/drive-archaeologist/tests/test_hardening.py:121`), which is this
+exact scenario (a self-referential dir symlink + a real file, asserts the
+file is only recorded once). **This branch (`docs/bernese-training-notes`)
+just never received `DA-002` (or `DA-003`/`DA-005a`)** — same root cause
+already flagged for the missing `drive-arch recover` command.
+
+**Fix: do not patch drive-arch.** Either merge/rebase `main` into this
+branch, or just run the `drive-arch` scan from a `main` checkout (or
+`main`'s installed `.venv`) instead of this branch's. Once on a
+DA-002-equipped build, `--resume` is safe to retry as normal.
+The existing `sdd2_full_scan.jsonl` should be truncated back to before the
+garbage starts (~line 630,000) before resuming, since a hardened build will
+correctly skip the symlink outright rather than hang on it.
 
 **Why this session rerouted away from Backup Plus:** GPSR recopy attempt
 found Backup Plus's copy still stuck at 12,949/20,555 (63%) — same 139-dir
