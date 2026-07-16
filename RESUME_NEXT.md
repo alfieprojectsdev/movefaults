@@ -1,26 +1,61 @@
 # RESUME — next session
 
-**Updated 2026-07-15 (mid-session, two background jobs still running — START
-HERE). Prior: 07-14 (clean shutdown, VADASE PRs, EVACUATE verdict), 07-13
-(RAW done), 07-08 (freeze), 07-07 (excavation+crossref), 07-04 (DA-005).**
+**Updated 2026-07-16 (Backup Plus→DOSTB migration COMPLETE+VERIFIED; sdd2
+scan blocked on a real bug, do not resume as-is — START HERE). Prior: 07-15
+(migration/scan kicked off), 07-14 (clean shutdown, VADASE PRs, EVACUATE
+verdict), 07-13 (RAW done), 07-08 (freeze), 07-07 (excavation+crossref),
+07-04 (DA-005).**
 
-## IN PROGRESS 2026-07-15 — two background jobs running, check before anything else
+## DONE 2026-07-16 — Backup Plus → DOSTB migration COMPLETE
 
-**1. Backup Plus → DOSTB migration** (script `/tmp/migrate_bp_to_dostb.sh`,
-log `~/surveys/SEAGATE-W2A0W9T2/backupplus_to_dostb_migration.log`, monitor
-task `bg5m3jvnp`). Sequence: RAW → SP3 → TimeSeries → wvfs →
-`RECOVERED_DOSTB20150918_from_BackupPlus`. As of last check: still on RAW,
-~72,851/116,489 files copied, only expected errors (the same 13 known-corrupt
-2014-directory block from 07-08/07-13, already handled via `_recovered/`
-workarounds — those copy fine, only the corrupt originals throw I/O error 5).
-**Check status:** `grep -a "===" ~/surveys/SEAGATE-W2A0W9T2/backupplus_to_dostb_migration.log | tail`
-and `find ".../DOSTB20150918/RECOVERED_SEAGATE_W2A0W9T2_DATA0/RAW" -type f | wc -l`.
+Laptop had an unclean shutdown mid-session on 07-15 (manual power-off, no
+drives unmounted first) which killed both background jobs. On reconnect:
+**no corruption found** on Backup Plus/DOSTB/DATA0/sdd2-partition (checked
+`journalctl -k -b` for I/O errors/dirty ntfs flags — clean). One unrelated
+drive, `HD-LBU2` (1.5TB FAT32, WD desktop drive from earlier in the week),
+had its dirty bit set (`FAT-fs (sdf1): Volume was not properly unmounted`);
+ran `dosfsck -n` (clean, only the dirty-bit itself + a harmless boot-sector
+backup mismatch), then `dosfsck -a` to clear it, remounted OK.
 
-**2. sdd2 scan resume** (200GB partition `DC9A88179A87EBF8` on the Seagate,
-`--resume` from the 07-14 SIGINT checkpoint). As of last check: 4,987,000
-records, still running (2 processes alive). This partition is MUCH denser
-than DATA0 (140k records) — likely a system/OS volume, not primarily GNSS.
-Check: `wc -l ~/surveys/SEAGATE-W2A0W9T2/sdd2_full_scan.jsonl`.
+The migration script (`/tmp/migrate_bp_to_dostb.sh`) had been wiped by the
+reboot (`/tmp` doesn't survive power-off despite being its own partition) —
+recreated from this doc's prior revision and rerun; `rsync -a --partial`
+picked up cleanly where the interrupted run left off. Finished 13:46:12,
+all stages exit=0. **Verified dest vs. source file counts:**
+
+| dir | src | dest | match |
+|---|---|---|---|
+| RAW | 116,835 | 115,272 | short by 1,563 — expected, the known 139-corrupt-dir block on Backup Plus (unreadable at source, NOT a copy failure) |
+| SP3 | 6 | 6 | ✅ |
+| TimeSeries | 346 | 346 | ✅ |
+| wvfs | 3,330 | 3,330 | ✅ |
+| RECOVERED_DOSTB20150918 | 14,269 | 14,269 | ✅ |
+
+**DOSTB is now the complete, verified working GNSS store** superseding
+Backup Plus (see [[backup-plus-health-crisis]]). Backup Plus should be
+treated read-only/retired pending a real Windows `chkdsk /f /r` or
+replacement — no more bulk writes to it.
+
+## BLOCKED 2026-07-16 — sdd2 scan resume, do NOT just `--resume` again
+
+`drive-arch scan` on the 200GB partition (`DC9A88179A87EBF8`, Seagate) hit a
+**symlink-loop hang**, not a normal interruption. Inspected the output file
+post-mortem: of 5,152,000 lines written, **4,520,088 (87%) are garbage** —
+repeating paths like `/tmp/da_dirsymlink2a.tar_vccs6_lp/cur/cur/cur/.../par/
+da_dirsymlink2a.tar_.../cur/cur/...`. Looks like drive-arch extracted an
+archive to `/tmp` (name suggests a `cur`↔`par` symlink-cycle test fixture,
+possibly embedded inside another archive on this partition) and recursed
+with no cycle guard until the unclean shutdown killed it.
+`grep -rl "dirsymlink" tools/drive-archaeologist` found nothing in the repo
+itself, and the extracted `/tmp` copy is gone post-reboot — so the exact
+source path/archive that triggers this is not yet identified.
+**Do not `--resume` blindly — it will hit the same archive and hang again.**
+Before resuming: (a) add a symlink-loop/cycle guard to the archive-extraction
+path in drive-arch (check for `..` in resolved paths, or cap recursion
+depth), or (b) find and `--exclude` the specific triggering archive path
+first. Either way, the existing `sdd2_full_scan.jsonl` should probably be
+truncated back to before line ~630,000 (where the garbage starts) rather
+than trusted as-is.
 
 **Why this session rerouted away from Backup Plus:** GPSR recopy attempt
 found Backup Plus's copy still stuck at 12,949/20,555 (63%) — same 139-dir
