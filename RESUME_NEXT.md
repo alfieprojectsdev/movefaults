@@ -1,10 +1,58 @@
 # RESUME — next session
 
-**Updated 2026-07-16 (Backup Plus→DOSTB migration COMPLETE+VERIFIED; sdd2
-scan blocked on a real bug, do not resume as-is — START HERE). Prior: 07-15
-(migration/scan kicked off), 07-14 (clean shutdown, VADASE PRs, EVACUATE
-verdict), 07-13 (RAW done), 07-08 (freeze), 07-07 (excavation+crossref),
-07-04 (DA-005).**
+**Updated 2026-07-22 (Bernese software backed up to 2 thumb drives ahead of
+Dell R740 transfer attempt — START HERE). Prior: 07-16 (Backup Plus→DOSTB
+migration complete, sdd2-scan diagnosis corrected), 07-15 (migration/scan
+kicked off), 07-14 (clean shutdown, VADASE PRs, EVACUATE verdict), 07-13
+(RAW done), 07-08 (freeze), 07-07 (excavation+crossref), 07-04 (DA-005).**
+
+## DONE 2026-07-22 — Bernese backed up to 2 thumb drives (LAN-cable transfer still to be tried)
+
+Goal: get the working T420 Bernese 5.4 install onto the Dell R740 as a
+backup route, in case the planned direct LAN-cable transfer doesn't happen
+or the R740 install needs redoing. Two drives now hold this:
+
+**`FLASH16G`** (15G, 7.0G used) — the primary payload:
+- `BERN54/` (2.5G, 8,367 files, verified count match) — full software install
+- `GPSDATA/` (4.3G, 4,250 files) — campaign data **minus `CAMPAIGN54/PAGENET`**
+  (18G, deliberately excluded — doesn't fit any available drive, and isn't
+  needed for the R740 bring-up; PAGENET/NAMRIA provenance noted in
+  [[pagenet-namria-provenance]])
+- `install_bernese_dell.sh` — run this ON the Dell after copying the drive
+  contents over. Patches `LOADGPS.setvar`'s `$C`, `BPE_SERVER_HOST`
+  (auto-detects via `hostname`), and `QTBERN`; runs an `ldd`-based runtime
+  library check on the Fortran binaries and the MENU GUI separately (MENU's
+  Qt is statically linked — only needs system X11 libs, not a Qt runtime);
+  prints the full resolved environment variable block; and includes a
+  documented **Plan B: recompile from source** section if the copied
+  binaries don't run (ABI/libgfortran mismatch etc.) — apt gfortran-13, Qt
+  static build, the 2 required symlinks, X11 -dev packages, `setup.sh` in
+  the verified option order. shellcheck-clean.
+- `BERNESE_INSTALL_NOTES.md` — offline copy of the `bernese_install.md`
+  project memory (full procedure + all T420/R740 gotchas), in case the Dell
+  has no access back to this session's memory.
+
+**`SANDISK8G`** (7.5G, 2.7G used) — redundant second copy, software-only
+(GPSDATA doesn't fit alongside it — 4.81G needed vs 4.8G free, same margin
+problem, explicitly skipped rather than risk a partial FAT32 copy):
+- `BERN54/` (2.5G, same content, verified count + wasn't the file that got
+  killed by a 2-min tool timeout on the first attempt — redone properly
+  backgrounded, then verified)
+- `install_bernese_dell.sh` + `BERNESE_INSTALL_NOTES.md` (checksums match
+  FLASH16G's copies)
+- `qt-build-offline/` — the Qt 4.8.7 source tarball (230M, from
+  `~/Downloads/qt-build/`) + `temp/build_qt4.sh` from this repo. Added as
+  insurance for Plan B in case the Dell's internet is flaky: Qt 4.8.7 isn't
+  in any apt repo and the qt.io archive mirror can be slow/unreliable;
+  `build_qt4.sh` skips its own download step when the tarball is already
+  sitting next to it. (`gfortran-13`/X11-dev weren't bundled — those are
+  current Ubuntu packages any mirror serves, low value to pre-stage.)
+
+Both drives' contents verified (file counts + md5sum on the small files,
+tarball checksum match) before unmounting. Both cleanly unmounted.
+
+**Still to do:** the actual direct LAN-cable transfer T420→R740 (this
+backup is the fallback, not the primary plan) — not started this session.
 
 ## DONE 2026-07-16 — Backup Plus → DOSTB migration COMPLETE
 
