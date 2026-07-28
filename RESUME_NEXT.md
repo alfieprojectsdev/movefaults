@@ -1,10 +1,146 @@
 # RESUME — next session
 
-**Updated 2026-07-22 (Bernese software backed up to 2 thumb drives ahead of
-Dell R740 transfer attempt — START HERE). Prior: 07-16 (Backup Plus→DOSTB
-migration complete, sdd2-scan diagnosis corrected), 07-15 (migration/scan
-kicked off), 07-14 (clean shutdown, VADASE PRs, EVACUATE verdict), 07-13
-(RAW done), 07-08 (freeze), 07-07 (excavation+crossref), 07-04 (DA-005).**
+**Updated 2026-07-28 (gps3/R740 Bernese install UNBLOCKED over SSH; verification
+BPE run was in progress at session end — START HERE). Prior: 07-22 (thumb-drive
+backup), 07-16 (Backup Plus→DOSTB migration complete, sdd2-scan diagnosis
+corrected), 07-15 (migration/scan kicked off), 07-14 (clean shutdown, VADASE
+PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze), 07-07
+(excavation+crossref), 07-04 (DA-005).**
+
+## ⚠ ACTION REQUIRED — rotate the Claude OAuth token
+
+**During this session I (Claude) accidentally printed the plaintext
+`OAUTH_TOKEN` from `scripts/deploy_r740.secrets` into the transcript** — a
+redaction fallback (`${val:-}`) printed the raw value when the char-count
+expansion failed. The token (`sk-ant-oat01-…`, 108 chars) is in this
+session's `.jsonl` under `~/.claude/projects/…`.
+
+**Rotate it:** revoke at claude.ai → Settings, regenerate with
+`claude setup-token`, then update BOTH:
+- `scripts/deploy_r740.secrets` (T420, gitignored, chmod 600)
+- `~/.bashrc:120` on gps3 (`export CLAUDE_CODE_OAUTH_TOKEN=...`)
+
+Also: `R740_PASS` in that same secrets file is `gps3` — same as the username,
+on a LAN-reachable box with sudo. Worth changing while you're in there.
+
+## IN PROGRESS at session end 2026-07-28 — verification BPE on gps3
+
+`perl $U/SCRIPT/rnx2snx_pcs.pl 2023 0100` launched detached (nohup) on gps3
+at 17:58. **It survives SSH disconnect and T420 shutdown** — it runs entirely
+on gps3. At last check: 26 of ~64 steps finished, 1 running, 37 waiting,
+**0 errors**. Expect ~20–35 min total.
+
+Check tomorrow:
+```bash
+ssh gps3@192.168.48.98
+tail -5 ~/GPSDATA/CAMPAIGN54/EXAMPLE/BPE/RNX2SNX.RUN     # all "finished"?
+grep -ciE "error|\*\*\*" ~/GPSDATA/CAMPAIGN54/EXAMPLE/BPE/RNX2SNX.OUT   # want 0
+tail -20 ~/rnx2snx_verify.log
+```
+Success criterion (per [[bernese-install]]): all 47+ steps OK, and SINEX
+`$P/EXAMPLE/OUT/*.SNX` matches the `$SAVEDISK` reference at ≤0.09 mm.
+
+## DONE 2026-07-28 — gps3 install unblocked, entirely over SSH
+
+**SSH key auth established** T420→gps3 (`ssh-copy-id`, existing ed25519 key).
+gps3 = `192.168.48.98`, user `gps3`. This is what made everything below
+possible without physical access.
+
+**The `$U` blocker from `docs/BERNESE_GPS3_HANDOVER.md` is FIXED**, but note
+**the handover doc's proposed fix (§3) was wrong — do not apply it.** It
+claimed `$U` "was left at the stock default" and proposed `U="${C}/USER"`.
+Ground truth showed `$USR` **already** points at `${C}/USER` and resolves
+fine: `$USR` (template area, ships inside BERN54) and `$U` (live per-user
+working tree under `${HOME}`) are **distinct by design**. Repointing `$U`
+would collapse them — the same failure the doc's own "Do NOT symlink"
+section warns about.
+
+Real cause: `$U`=`/home/gps3/GPSUSER` and `$T`=`/home/gps3/GPSWORK` simply
+never existed, because they live outside the `BERN54` tree the thumb-drive
+backup copied. Fixed by generating them fresh:
+```bash
+source /home/gps3/BERN54/LOADGPS.setvar
+printf "3\ny\nx\n" | perl $C/SCRIPT/EXE/configure.pm    # menu option 3
+```
+Result: `$U/PAN/MENU_EXT.INP` present (the exact file that was failing),
+104 PAN INPs, USER.CPU, 138 scripts, 9 PCFs, 49 OPT dirs, `$T` created, and
+**0 stale `/home/finch` references**.
+
+**Why NOT to copy `$U` from the T420 instead:** its INP panel files carry
+absolute paths baked in — verified 56 such files (`"U" "/home/finch/GPSUSER"`,
+`"P" "/home/finch/GPSDATA/CAMPAIGN54"`, …). Generating fresh is correct.
+
+**`setup.sh` turned out unnecessary** for this: it's only a 174-line shell
+wrapper that execs `configure.pm`, which already ships inside `BERN54`.
+Option 3 reads solely from `$C/SUPGUI/PAN/` and `$C/USER/`, both already
+present. `configure.pm` has no flag to pick a menu item (only `--init`,
+`--perl`, `--path`, `--qtBern`), so it must be driven on stdin — safe here,
+but **guard with `timeout`**: `_yesNo()` is a `while(1)` that spins forever
+if stdin hits EOF unexpectedly.
+
+**Also fixed / found:**
+- **DATAPOOL REF54 symlinks recreated** (`EXAMPLE.CRD/.VEL/.ABB` →
+  `*_REF`). FAT32 cannot store symlinks so the thumb-drive transfer
+  flattened all of them — zero symlinks survived anywhere in `BERN54`.
+  BPE step R2S_COP fails without these.
+- **`BSW54Unx_2024-11-11` transferred** to `/home/gps3/` (1.3G, 13/13 files
+  verified). Not needed for option 3 as it turned out, but useful for menu
+  options 2/5 and the Plan-B recompile.
+- **No FAT32 exec-bit damage** — 0/88 non-executable in `EXE_GNU`, 0/28 in
+  `SCRIPT/EXE`. Better than the handover doc feared.
+- **`DE421.EPH` and `CRX2RNX` were already present** on gps3 — both live
+  inside `BERN54` and transferred with it. My `install_bernese_dell.sh`
+  scope note wrongly listed them as excluded; corrected.
+- Claude Code **is** set up on gps3 (v2.1.133 at `~/.local/bin/claude`,
+  node v24.15.0, `CLAUDE_CODE_OAUTH_TOKEN` at `~/.bashrc:120`, plus
+  `~/.claude/.credentials.json` from an interactive login). It's an **OAuth
+  token, not an API key**. Earlier "UNSET" readings were a false alarm —
+  `~/.bashrc:8` has the standard Debian non-interactive early-return guard,
+  so line 120 never runs over a non-interactive `ssh cmd`.
+- **`scripts/deploy_r740.sh` was never actually run against gps3** — it
+  installs Claude Code via `sudo npm install -g` (would land in
+  `/usr/lib/node_modules`, not `~/.local/bin`) and its Phase 3 appends a
+  `LOADGPS.setvar` line to `~/.bashrc` (zero such references there). gps3
+  was set up by hand. The script remains untested.
+- `/home/gps3/home/ltpt420` — confirmed a real botched-rsync artifact from
+  Nov 2025. Unrelated, harmless, left alone.
+- **`$U/GEN/SESSIONS.SES` is missing** — BPE logs `Cannot open INP file …
+  SESSIONS.SES / Using standard session definition`. Non-fatal fallback, but
+  this is exactly the gap already recorded in
+  [[bernese-orchestrator-r740-gaps]]. Address before real campaign work.
+
+### `install_bernese_dell.sh` — 3 bugs fixed (all mine)
+
+1. **`QTDIR: unbound variable` crash** (the failure in the handover doc's
+   §2, line 148). I'd switched the Plan-B heredoc from `<<'PLANB'` to
+   `<<PLANB` so paths would expand — which also made bash try to expand an
+   *illustrative* `export QTDIR=$HOME/…` line that's meant to be read, not
+   run. Under `set -u` that killed the whole install. Reverted to a quoted
+   delimiter; comment added so nobody re-breaks it.
+2. **No exec-bit restoration.** The `ldd` check verifies linkage but not
+   `+x`, and vfat can't store the bit. Added an explicit `chmod +x` pass
+   over `EXE_GNU`, `SCRIPT/EXE`, `*.sh`, `*.pl`, `menu`.
+3. **Over-escaped REF54 snippet** printed `EXAMPLE.\$f`, which if pasted
+   would create a file literally named `EXAMPLE.$f`. Fixed and verified by
+   actually executing the rendered command.
+
+Plus **idempotency**: rsync now uses `--size-only` (FAT32's 2-second mtime
+granularity makes unchanged files look modified, forcing needless re-copies).
+Re-run against an already-correct tree completes in ~0.1s. shellcheck clean;
+both flash drives carry the fixed copy (md5-verified identical).
+
+## STILL TO DO
+- Rotate the OAuth token (see top) and change `R740_PASS`.
+- Confirm the BPE verification run passed (commands above).
+- **PAGENET transfer, 18G** — never sent; too big for either thumb drive.
+  Now trivial over the working SSH link:
+  ```bash
+  rsync -aHAX --info=progress2 ~/GPSDATA/CAMPAIGN54/PAGENET/ \
+    gps3@192.168.48.98:/home/gps3/GPSDATA/CAMPAIGN54/PAGENET/
+  ```
+  Use `-aHAX` (not a FAT32 hop) to preserve symlinks/modes this time.
+- Create `$U/GEN/SESSIONS.SES` on gps3.
+- Add `source ~/BERN54/LOADGPS.setvar` to gps3's `~/.bashrc` (not there yet).
 
 ## DONE 2026-07-22 — Bernese backed up to 2 thumb drives (LAN-cable transfer still to be tried)
 
