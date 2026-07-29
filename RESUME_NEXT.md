@@ -370,12 +370,34 @@ worth considering who has accounts on gps3 (3 users were logged in).
 
 ## STILL TO DO
 - **Rotate the OAuth token** (see top) and change `R740_PASS`.
-- **Verify the PERC H750 RAID level** — no MegaRAID CLI is installed on gps3
-  and `dmesg` shows driver init but not the level, so read it from **iDRAC**
-  (Storage → Virtual Disks) or `sudo apt install storcli` then
-  `sudo storcli64 /c0/v0 show`. Storage provisioning did NOT need this, but it
-  still gates treating gps3 as the archive's **only** copy — the legacy
-  archive is currently single-copy on a drive with a pending sector.
+- **Verify the PERC H750 RAID level.** Confirmed 2026-07-29 to be
+  **unobtainable without privilege**: member disks are hidden behind the
+  virtual disk (`/proc/scsi/scsi` shows only `DELL PERC H750 Adp`),
+  `dmesg_restrict=1`, no controller CLI installed, `/dev/ipmi0` is root-only.
+  **Correction:** `storcli`/`perccli`/`megacli` are **NOT in the Ubuntu
+  repos** (`apt-cache policy` → no candidate) — an earlier note here wrongly
+  said `apt install storcli`. Two working routes:
+
+  **A — iDRAC web UI** (authoritative, no install): Storage → Virtual Disks.
+  iDRAC has its own NIC; gps3's route table shows only `192.168.48.0/24`, so
+  find its address with `sudo apt install ipmitool && sudo ipmitool lan print 1`.
+
+  **B — infer from the members** (`smartmontools` IS in the repos):
+  ```bash
+  sudo apt install -y smartmontools
+  { sudo vgs ubuntu-vg
+    for i in $(seq 0 31); do
+      sudo smartctl -d megaraid,$i -i /dev/sda 2>/dev/null \
+        | grep -E "Device Model|Product:|User Capacity|Serial" | sed "s/^/slot $i: /"
+    done; } 2>&1 | tee ~/raid-members.log
+  ```
+  With member count *N*, member size *S*, and usable *U* = 32.64 TiB the level
+  is determined: RAID 5 → *U*=(N−1)S · RAID 6 → *U*=(N−2)S · RAID 10 →
+  *U*=N·S/2 · RAID 0 → *U*=N·S.
+
+  Storage provisioning did NOT need this, but it still gates treating gps3 as
+  the archive's **only** copy — the legacy archive is currently single-copy on
+  a drive with a pending sector.
 - **Reclaim `~/GPSDATA.old-20260729`** (4.5 G on `/`) once you're satisfied —
   `sudo rm -rf ~/GPSDATA.old-20260729`. Until then it's the rollback.
 - **Sync the repo to gps3** — `gps3:~/repos/movefaults_clean` is NOT a stale
