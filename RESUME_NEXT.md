@@ -1,7 +1,7 @@
 # RESUME — next session
 
-**Updated 2026-07-28 (gps3/R740 Bernese install UNBLOCKED over SSH; verification
-BPE run was in progress at session end — START HERE). Prior: 07-22 (thumb-drive
+**Updated 2026-07-28 (gps3/R740 Bernese install COMPLETE + VERIFIED — 0.0000 mm
+SINEX match — START HERE). Prior: 07-22 (thumb-drive
 backup), 07-16 (Backup Plus→DOSTB migration complete, sdd2-scan diagnosis
 corrected), 07-15 (migration/scan kicked off), 07-14 (clean shutdown, VADASE
 PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze), 07-07
@@ -23,22 +23,36 @@ session's `.jsonl` under `~/.claude/projects/…`.
 Also: `R740_PASS` in that same secrets file is `gps3` — same as the username,
 on a LAN-reachable box with sudo. Worth changing while you're in there.
 
-## IN PROGRESS at session end 2026-07-28 — verification BPE on gps3
+## ✅ VERIFIED 2026-07-28 — gps3/R740 Bernese install COMPLETE
 
-`perl $U/SCRIPT/rnx2snx_pcs.pl 2023 0100` launched detached (nohup) on gps3
-at 17:58. **It survives SSH disconnect and T420 shutdown** — it runs entirely
-on gps3. At last check: 26 of ~64 steps finished, 1 running, 37 waiting,
-**0 errors**. Expect ~20–35 min total.
+`perl $U/SCRIPT/rnx2snx_pcs.pl 2023 0100` ran detached on gps3
+17:58:09 → 18:09:33. **PASSED:**
 
-Check tomorrow:
+- `Sessions finished: OK: 1  Error: 0  Total Time: 00:11:23`
+- 114 jobs, **0 errors, 0 reruns**
+- **SINEX diff vs reference: 0.0000 mm max**, all 54 params (18 stations ×
+  STAX/STAY/STAZ), `$P/EXAMPLE/SOL/FIN_20230100.SNX` vs
+  `$S/RNX2SNX/2023/SOL/FIN_20230100.SNX.gz_REF` — identical to the T420
+  result recorded in [[bernese-install]].
+- **11m23s vs the T420's 20m40s** — R740 is ~1.8× faster.
+
+Two false alarms when reading the results, noted so they don't confuse a
+future check:
+- `pgrep -f rnx2snx_pcs.pl` over SSH **matches your own command string** and
+  reports RUNNING forever. Use `pgrep -af` and eyeball it, or match on the
+  BPE server PID instead.
+- `grep -ciE "error|\*\*\*"` on `RNX2SNX.OUT` returns **3 on a fully
+  successful run** — the summary line `Error: 0` and two table headers all
+  contain the word. Don't treat nonzero as failure; read the
+  `Sessions finished:` line instead.
+
+Reproduce the SINEX check:
 ```bash
-ssh gps3@192.168.48.98
-tail -5 ~/GPSDATA/CAMPAIGN54/EXAMPLE/BPE/RNX2SNX.RUN     # all "finished"?
-grep -ciE "error|\*\*\*" ~/GPSDATA/CAMPAIGN54/EXAMPLE/BPE/RNX2SNX.OUT   # want 0
-tail -20 ~/rnx2snx_verify.log
+source ~/BERN54/LOADGPS.setvar
+gzip -dc $S/RNX2SNX/2023/SOL/FIN_20230100.SNX.gz_REF > /tmp/ref.SNX
+# compare SOLUTION/ESTIMATE STAX/STAY/STAZ (field 10) against
+# $P/EXAMPLE/SOL/FIN_20230100.SNX — want <=0.09 mm
 ```
-Success criterion (per [[bernese-install]]): all 47+ steps OK, and SINEX
-`$P/EXAMPLE/OUT/*.SNX` matches the `$SAVEDISK` reference at ≤0.09 mm.
 
 ## DONE 2026-07-28 — gps3 install unblocked, entirely over SSH
 
@@ -131,7 +145,6 @@ both flash drives carry the fixed copy (md5-verified identical).
 
 ## STILL TO DO
 - Rotate the OAuth token (see top) and change `R740_PASS`.
-- Confirm the BPE verification run passed (commands above).
 - **PAGENET transfer, 18G** — never sent; too big for either thumb drive.
   Now trivial over the working SSH link:
   ```bash
