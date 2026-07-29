@@ -7,18 +7,44 @@ corrected), 07-15 (migration/scan kicked off), 07-14 (clean shutdown, VADASE
 PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze), 07-07
 (excavation+crossref), 07-04 (DA-005).**
 
-## ⚠ ACTION REQUIRED — rotate the Claude OAuth token
+## ⚠ ACTION REQUIRED — revoke the leaked Claude OAuth token
 
-**During this session I (Claude) accidentally printed the plaintext
+**On 2026-07-29 I (Claude, T420 session) accidentally printed the plaintext
 `OAUTH_TOKEN` from `scripts/deploy_r740.secrets` into the transcript** — a
 redaction fallback (`${val:-}`) printed the raw value when the char-count
-expansion failed. The token (`sk-ant-oat01-…`, 108 chars) is in this
-session's `.jsonl` under `~/.claude/projects/…`.
+expansion failed. It is a 108-char `sk-ant-oat01-…` static token.
 
-**Rotate it:** revoke at claude.ai → Settings, regenerate with
-`claude setup-token`, then update BOTH:
-- `scripts/deploy_r740.secrets` (T420, gitignored, chmod 600)
-- `~/.bashrc:120` on gps3 (`export CLAUDE_CODE_OAUTH_TOKEN=...`)
+**Remaining action: revoke it at claude.ai → Settings.** Everything else is
+already done (2026-07-29):
+
+- ✅ **Stripped from gps3's `~/.bashrc`** (was line 120). Verified: absent from
+  interactive shells, `.bashrc` still parses, the Bernese `LOADGPS` line
+  survived (now line 124).
+- ✅ Both `~/.bashrc.bak*` files on gps3 **shredded** — each still contained
+  the token line, and neither held anything else unique.
+- ⬜ **Still to do:** revoke at claude.ai, and remove `OAUTH_TOKEN` from
+  `scripts/deploy_r740.secrets` on the T420.
+
+**Correction to an earlier assumption:** gps3's Claude Code session does NOT
+use this token. Alfie re-authenticated via the interactive browser flow
+(`platform.claude.com/oauth/code/callback`), which writes
+`~/.claude/.credentials.json` holding a `claudeAiOauth` object
+(`accessToken` + `refreshToken` + `expiresAt`, `subscriptionType=pro`) — a
+distinct, self-renewing credential. **Note both credential kinds share the
+`sk-ant-oat01-` prefix**, so grepping for that prefix matches the *legitimate*
+credentials file too; a hit there is expected, not a leak.
+
+Consequence: **revoking the leaked token will not disrupt the gps3 session**,
+so it can be revoked at any time without staging a replacement first.
+
+Residual copies of the secret are the two Claude session transcripts (T420's
+and gps3's `.jsonl` files). Those are historical logs; revocation is what
+makes them inert. Deleting a live session's transcript is not worth the
+disruption.
+
+**`deploy_r740.sh` Phase 3 writes `CLAUDE_CODE_OAUTH_TOKEN` into gps3's
+`~/.bashrc`** — if that script is ever run, it will reintroduce the line we
+just removed. Drop that phase, since interactive login now covers auth.
 
 Also: `R740_PASS` in that same secrets file is `gps3` — same as the username,
 on a LAN-reachable box with sudo. Worth changing while you're in there.

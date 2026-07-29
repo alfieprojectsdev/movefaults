@@ -281,17 +281,29 @@ for boot recovery).
 | Legacy archive → `lv_archive` | ~150 G, currently single-copy on an external drive with a pending sector |
 | `deploy_r740.sh` GPSUSER hazard | unfixed |
 
-### Token rotation
+### Token — UPDATED 2026-07-29 11:35, supersedes anything above
 
-`~/.bashrc:120` holds `CLAUDE_CODE_OAUTH_TOKEN`. **That token was accidentally
-printed in plaintext into the T420 session's transcript on 2026-07-29** and
-should be revoked and regenerated (`claude setup-token`), then updated in both
-`~/.bashrc` here and `scripts/deploy_r740.secrets` on the T420. Also
-`R740_PASS` in that secrets file is `gps3` — same as the username, on a
-LAN-reachable box with sudo.
+A 108-char `sk-ant-oat01-…` static token was accidentally printed into the
+T420 session's transcript. Cleanup already performed from the T420:
 
-If *this* session is authenticated with that token, it still works — but it is
-exposed and should not stay in use.
+- ✅ `export CLAUDE_CODE_OAUTH_TOKEN=…` **removed from `~/.bashrc`** (was line
+  120; `LOADGPS` is now line 124). Verified absent from interactive shells,
+  `.bashrc` parses, Bernese env still resolves.
+- ✅ Both `~/.bashrc.bak*` files **shredded** — both contained the token line.
+- ⬜ **Remaining: revoke it at claude.ai → Settings** (a human must do this),
+  and strip `OAUTH_TOKEN` from `scripts/deploy_r740.secrets` on the T420.
+
+**This session is NOT authenticated with that token.** It uses
+`~/.claude/.credentials.json` (`claudeAiOauth`: accessToken + refreshToken +
+expiresAt, `subscriptionType=pro`) from the interactive browser login. So
+revoking the leaked token will not disconnect you.
+
+**Gotcha when scanning:** interactive OAuth credentials use the **same
+`sk-ant-oat01-` prefix**, so `grep -r sk-ant-oat01 ~` matches
+`.credentials.json` legitimately. A hit there is expected — do not "clean" it.
+
+Do NOT re-add the token to `~/.bashrc`. Note `deploy_r740.sh` Phase 3 would
+reintroduce it — another reason not to run that script (see §4.1).
 
 ---
 
