@@ -1,12 +1,194 @@
 # RESUME — next session
 
-**Updated 2026-07-29 (gps3 storage provisioned + GPSDATA migrated + Bernese
-parity re-verified on the new volumes — START HERE). Prior: 07-28 (gps3
-Bernese install verified, 0.0000 mm SINEX), 07-22 (thumb-drive backup), 07-16
-(Backup Plus→DOSTB migration complete, sdd2-scan diagnosis corrected), 07-15
-(migration/scan kicked off), 07-14 (clean shutdown, VADASE PRs, EVACUATE
-verdict), 07-13 (RAW done), 07-08 (freeze), 07-07 (excavation+crossref),
-07-04 (DA-005).**
+**Updated 2026-07-29 late (storage DONE + RAID resolved + CONTINUITY AUDIT —
+START HERE). Prior: 07-28 (gps3 Bernese install verified, 0.0000 mm SINEX),
+07-22 (thumb-drive backup), 07-16 (Backup Plus→DOSTB migration complete,
+sdd2-scan diagnosis corrected), 07-15 (migration/scan kicked off), 07-14
+(clean shutdown, VADASE PRs, EVACUATE verdict), 07-13 (RAW done), 07-08
+(freeze), 07-07 (excavation+crossref), 07-04 (DA-005).**
+
+## 🔴 CONTINUITY AUDIT 2026-07-29 — read this before the storage sections
+
+Alfie asked how MOVE Faults data survives staff turnover / outlives any one
+person. (Correction for the record: Alfie is a **regular PHIVOLCS employee,
+15 years tenure**, loyalty award 2025-02-08 — NOT a contractor. Earlier notes
+in this file used the wrong framing, imported from unrelated SAVD context.)
+
+Audited the repo as if a successor inherited it tomorrow. **Ranked by damage —
+note the hard drives rank FIFTH. The bytes are the least fragile thing here.**
+
+**1. The code of record lives on a PERSONAL GitHub account.**
+`git@github.com:alfieprojectsdev/movefaults.git`. Every runbook, the Bernese
+procedure that took months to derive, all decision history, the gps3
+handovers. Nobody at PHIVOLCS can grant access but Alfie. The risk is not
+losing data — it is losing *the knowledge of how to use the data*.
+
+**2. NO SINGLE BRANCH HOLDS THE TRUTH.** Measured 2026-07-29:
+
+| | commits |
+|---|---|
+| `origin/main` has, `docs/bernese-training-notes` lacks | **22** (VADASE PRs #53–56, drive-arch DA-002/DA-006 hardening) |
+| `docs/bernese-training-notes` has, `origin/main` lacks | **39** (entire gps3 Bernese install, storage provisioning, handovers, `scripts/gps3_*.sh`) |
+
+A successor clones and lands on `main` by default → gets **none** of the gps3
+work. No commit anywhere currently represents the complete project.
+
+**3. Archive has no manifest.** 157 GB / ~155k files, no root-level document
+stating stations, date ranges, directory-structure meaning, raw-vs-derived,
+known gaps, or provenance.
+
+**4. No fixity.** Zero checksum manifests. Over a 20-year horizon silent bit
+rot is a certainty and today there is no way to detect it.
+
+**5. Only complete copy is on personal hardware** (DOSTB) — the procurement
+issue, and only the fifth-worst problem.
+
+### Tier 0 — free, highest value, DO FIRST
+- **Reconcile the branches** so one commit holds everything. Cheapest
+  high-value action available.
+- **Mirror the repo to agency hardware** (gps3 has 32 TB):
+  ```bash
+  git clone --mirror git@github.com:alfieprojectsdev/movefaults.git \
+    /srv/gnss-archive/git/movefaults.git
+  # cron: git --git-dir=.../movefaults.git remote update --prune
+  ```
+- **`ARCHIVE_MANIFEST.md`** at the archive root — generatable from existing
+  drive-arch scan JSONL.
+- **`sha256sum` manifest** stored with the archive AND in git.
+
+### Tier 1 — the GNSS work only Alfie can do, with a real deadline
+**Consolidate station metadata into IGS-format site logs.** GNSS observations
+are scientifically worthless without antenna model/height/ARP, receiver
+model/firmware, monument type, and dates of every config change — get antenna
+height wrong and the vertical is silently wrong. That knowledge is currently
+scattered across `antenna_constants.md`, the legacy `gpsdb_rev`
+receiver/antenna tables, field logsheets, and people's memories. **The people
+who remember which antenna was on which monument in 2012 retire before the
+hardware fails.** IGS site log format is plain text, standard, readable in 40
+years.
+
+### Tier 2 — institutional designation (free, bureaucratic, decisive)
+Records officer → records disposition schedule, **permanent retention**
+(National Archives of the Philippines). One-page Data Management Plan naming a
+custodian **role, not a person**. Reference the archive in a division-level
+issuance. Cite **OAIS (ISO 14721)** — it reframes this as conformance to an
+international standard rather than a personal initiative.
+
+### Tier 3 — the copy that outlives the agency
+Deposit with IGS / EarthScope-UNAVCO / a DOI-issuing repository. Survives
+PHIVOLCS having a bad decade, and citation is its own protection. **Blocked
+on two policy items:** PAGENET is NAMRIA's under MOU (see
+[[pagenet-namria-provenance]]), and agency data-release policy is above
+project level. Derived products (velocities, time series, coordinate
+solutions) are usually easier to release than raw observations.
+
+## PROCUREMENT PLAN 2026-07-29 — offsite backup
+
+**Sizing (measured, not estimated):** DOSTB 157 G (RAW alone 125 G) + T420
+GPSDATA 22 G (PAGENET 18 G) = **~180 G today**; +0.4–1 TB/yr once 35 CORS
+stations stream. Spec **20 TB usable per copy** — the 8 TB→20 TB price delta
+is smaller than the staff cost of re-procuring in 2028.
+
+**Recommended Phase 1: 4 × 20 TB external HDD, ~₱35k each ≈ ₱140,000.**
+Rotation: 2 on-site alternating weekly, 2 off-site in a different building
+swapped monthly. Also yields accidental versioning — a month-stale offsite
+drive still holds files a bad script deleted last week.
+
+**Why drives and NOT a NAS — the procurement hinge:** government accounting
+capitalizes equipment above a per-unit threshold (believed ₱50,000 —
+**VERIFY**). Above it = Capital Outlay/PPE; below = **semi-expendable,
+MOOE-chargeable**. A ₱150k NAS is the wrong bucket and needs a new
+appropriation. Four ₱35k drives are semi-expendable → fundable from the
+**₱7.82M unobligated MOOE** (as of 2026-05-31, see
+[[movefaults-2026-budget-tracking]]). ₱140k ≈ 13% of one month's burn.
+
+**⚠ Two procurement rules:**
+1. **VERIFY THRESHOLDS WITH THE BAC FIRST.** RA 12009 (New Government
+   Procurement Act) superseded RA 9184, IRR effective 2025 — modalities and
+   ceilings changed, and GPPB resolutions adjust them. Ask: *"For an NGA,
+   current Small Value Procurement ceiling under RA 12009, and the PPE
+   capitalization threshold for semi-expendable classification?"*
+2. **NEVER split a requirement to dodge bidding.** Contract splitting is
+   prohibited and carries personal liability at COA audit. Scoping a genuinely
+   modest Phase 1 now + separately-justified Phase 2 next FY is legitimate;
+   slicing one need into sub-threshold pieces is not.
+
+**Technical spec — brand-neutral (legally required), each line traceable to a
+documented failure on THIS project:**
+
+| Requirement | Justification |
+|---|---|
+| **NO hardware/self-encrypting USB bridge** | Backup Plus's bridge was TCG+IEEE-1667 AES — bridge death = ciphertext on healthy platters, unrecoverable. Non-negotiable. |
+| **SMART readable via standard SAT passthrough** | Backup Plus blocked ALL SMART access incl. via Seagate's own tool — health was unassessable before failure. |
+| **CMR, not SMR** | SMR degrades catastrophically on large sequential writes — exactly our workload. |
+| 20 TB min usable; USB 3.2 Gen1+; ≥3yr warranty; rated 24×7 / ≥180 TB/yr | sizing + duty cycle |
+
+**Timeline:** PPMP → check 2026 APP (supplemental APP if absent — most likely
+delay) → PR + spec → BAC modality → **obligate before 31 Dec 2026**. Allow
+6–10 weeks for SVP incl. supplemental APP. Starting now is comfortable;
+starting in October is not.
+
+**Phase 2 (nearline NAS/second server) → 2027 APP as Capital Outlay**, ideally
+appended to the ₱54.45M receiver programming while it's still being shaped.
+
+## DO NOW — free, closes most exposure while procurement grinds
+1. **Populate `/srv/gnss-archive` from DOSTB** (~157 G over the working SSH
+   link). 20 TB of RAID 5 sits empty; this alone goes from one copy to two on
+   independent hardware, today.
+2. **Configure smartd properly on gps3** — see the RAID section below.
+3. **Formally re-designate DOSTB in writing** as interim second copy with an
+   end date tied to procurement — documents the risk and stops personal
+   property silently becoming critical infrastructure.
+4. **Reboot gps3** onto the pending kernel deliberately (first real test of the
+   new fstab; all entries `nofail`, `findmnt --verify` passed).
+
+## ✅ RAID LEVEL RESOLVED 2026-07-29 — RAID 5, 16 × 2.4 TB SAS
+
+Determined by the gps3 session, **arithmetic independently re-verified from the
+T420**. `storcli`/`perccli`/`megacli` are NOT in the Ubuntu repos; the working
+route was `smartctl -d megaraid,N` (smartmontools IS in the archive), which
+tunnels SMART through the driver to each member.
+
+16 × Toshiba AL15SEB24EQY, 2.4 TB, 10K SAS, distinct serials, **all healthy —
+zero reallocated/pending/uncorrectable**. VD measures 35,997,194,649,600 B.
+
+| candidate | capacity | vs VD |
+|---|---|---|
+| RAID 0 (16 data) | 38.400 TB | +6.67% |
+| **RAID 5 (15 data)** | **36.000 TB** | **+0.01%** ✓ |
+| RAID 6 (14 data) | 33.600 TB | −6.66% |
+| RAID 10 (8 data) | 19.200 TB | −46.7% |
+
+Unambiguous. "15 × RAID 0 + hot spare" also fits arithmetically but nobody
+builds it (a spare cannot rebuild RAID 0) — and that same fit rules out a hot
+spare existing at all. Controller `optimal_io_size=4` was checked and is
+**uninformative, not corroborating** (PERC reports a generic value).
+
+**Verdict: gps3 CAN host the archive, but must NOT be its only copy.**
+- No hot spare → a failed drive leaves the array degraded with **zero
+  redundancy until a human physically swaps it** — days if it fails Friday.
+- Rebuild reads all 15 survivors = **36 TB**. URE risk ≈ **3.1%** at
+  enterprise-SAS 1e-16. (The internet's "RAID 5 is dead" figure of ~94%
+  assumes consumer SATA 1e-14 — does not apply here.)
+- All 16 drives are in ONE chassis, ONE room, ONE power feed.
+
+### ⚠ smartd on gps3 is running but monitoring NOTHING
+Stock config is `DEVICESCAN`, which cannot see behind the PERC — a green,
+active service watching **zero drives**, which is worse than off because it
+looks like coverage. Also **no MTA exists** (no postfix/exim/sendmail) and
+`/etc/smartmontools/run.d/` contains only `10mail`, so default `-m root`
+alerts are generated and silently discarded.
+
+Config must: (a) use **16 explicit `/dev/sda -d megaraid,0..15` lines**;
+(b) send alerts to a **non-mail sink** — `-M exec` a script doing
+`logger -t smartd-alert -p daemon.crit` **plus** appending to
+`/var/log/smartd-alerts.log` (journald has 322 MB retained; the file is
+pollable from the T420, which makes alerting externally observable);
+(c) **stagger long self-tests** so 16 drives don't scrub simultaneously into a
+BPE run; (d) **verify registration** — `smartd -q onecheck` must show 16
+devices, not 0. Never accept "service is active" as evidence.
+
+**Also:** kernel `6.8.0-136` installed, `6.8.0-111` running.
 
 ## ✅ DONE 2026-07-29 — gps3 storage provisioned, GPSDATA migrated, parity held
 
