@@ -143,9 +143,111 @@ granularity makes unchanged files look modified, forcing needless re-copies).
 Re-run against an already-correct tree completes in ~0.1s. shellcheck clean;
 both flash drives carry the fixed copy (md5-verified identical).
 
+## PLAN 2026-07-29 — gps3 storage allocation + external-drive migration
+
+### Discovery: gps3 has 32.6 TB unallocated
+
+`sda` is a **32.7 TB Dell PERC H750 hardware-RAID virtual disk** (spinning
+media, no software RAID). The Ubuntu installer carved out only a **100 G**
+root LV — everything else is free extents in `ubuntu-vg`. This changes the
+migration picture completely: gps3 can hold the entire GNSS archive.
+
+**PREREQUISITE — verify the RAID level first.** If gps3 becomes the archive
+home (Backup Plus is retired, DOSTB is currently the only good copy), we
+must know whether that 32.7 TB is redundant:
+```bash
+sudo dmesg | grep -i megaraid
+sudo apt install megacli && sudo megacli -LDInfo -Lall -aALL
+```
+or read it from iDRAC. **RAID 6/10 → fine. RAID 0 → must not be the only copy.**
+
+### Recommended LV layout
+
+| LV | Size | FS | Mount | Purpose |
+|---|---|---|---|---|
+| `ubuntu-lv` *(exists)* | 100 G → **250 G** | ext4 | `/` | OS/packages only |
+| `lv_gpsdata` | **4 TB** | XFS | `/home/gps3/GPSDATA` | live campaigns, DATAPOOL, SAVEDISK |
+| `lv_archive` | **20 TB** | XFS | `/srv/gnss-archive` | legacy data from external drives |
+| `lv_work` | **1 TB** | XFS | `/home/gps3/GPSWORK` | BPE scratch (`$T`) |
+| *free* | **~7 TB** | — | — | headroom |
+
+Reasoning:
+- **Data off root** — a full data volume must never wedge the OS.
+- **Mount points chosen so `LOADGPS.setvar` needs no edits**: `$P`/`$D`/`$S`
+  already resolve under `$HOME/GPSDATA`, `$T` is `$HOME/GPSWORK`.
+- **Scratch isolated** — BPE churns small files; keeps the archive
+  unfragmented and lets `$T` be excluded from backups.
+- **Leave ~7 TB unallocated** — LVM grows online trivially; **XFS cannot
+  shrink at all**. Free extents cost nothing and cover a wrong guess.
+- **XFS on data** (dynamic inodes — archives are millions of small files;
+  better multi-TB large-file throughput). Root stays ext4 (shrinkable).
+- **`noatime`** in fstab across data volumes.
+- If ext4 is used on any data LV, `mkfs -m 0` — the default 5% reserve is
+  1 TB wasted on a 20 TB volume.
+
+```bash
+sudo lvextend -L 250G /dev/ubuntu-vg/ubuntu-lv && sudo resize2fs /dev/ubuntu-vg/ubuntu-lv
+sudo lvcreate -L 4T  -n lv_gpsdata ubuntu-vg
+sudo lvcreate -L 20T -n lv_archive ubuntu-vg
+sudo lvcreate -L 1T  -n lv_work    ubuntu-vg
+for lv in lv_gpsdata lv_archive lv_work; do sudo mkfs.xfs /dev/ubuntu-vg/$lv; done
+```
+Then **move** the existing `GPSDATA` (currently on root) onto the new LV —
+mount at a temp point, `rsync -aHAX`, verify counts, swap in fstab. Do NOT
+just mount over it (that hides the data and wastes the root space).
+
+### Network is the migration bottleneck — measured
+
+gps3 is wired gigabit (`eno4`, 1000 Mb/s). **The T420 is the problem**: its
+ethernet `enp0s25` sits on `192.168.40.0/24` while gps3 is on
+`192.168.48.0/24`, **with no route between them** (verified: 100% loss
+forcing `-I enp0s25`). Hence wifi.
+
+| path | measured | PAGENET 12.5G | archive ~150G |
+|---|---|---|---|
+| GNSS_2G (2.4 GHz) | **0.56 MB/s** | ~6 hr | ~3 days |
+| GNSS_5G2 (5 GHz) | **6 MB/s** | ~35 min | ~7 hr |
+| direct cable | ~110 MB/s (est.) | ~2 min | ~25 min |
+
+Switched to **`GNSS_5G2`** (ch149, same subnet, 11× faster, latency
+40 ms → 2.4 ms). 2.4 GHz here is badly congested — many SSIDs, and the link
+dropped entirely once mid-session needing an `nmcli` bounce.
+
+**Best option for bulk migration: direct cable.** gps3 has **three unused
+gigabit NICs** (`eno1np0`, `eno2np1`, `eno3` — all `down`). This is exactly
+what `scripts/deploy_r740.sh --direct` + `~/repos/hardline/direct_link.sh`
+were written for.
+
+### PAGENET — only ~12.5 G of the 18 G is worth copying
+
+| dir | size | verdict |
+|---|---|---|
+| `RAW` | 12 G | **copy** — source RINEX, irreplaceable *(check first whether DOSTB already has it — avoid a second copy)* |
+| `SOL` | 329 M | **copy** — the actual solutions |
+| ORB/GEN/STA/BPE/ATM | ~155 M | copy, trivial size |
+| `OUT` | 2.6 G | **skip** — program logs |
+| `OBS` | 2.5 G | **skip** — regenerable from RAW via RXOBV3 |
+
+Value beyond benchmarking depends on whether gps3 will *reprocess* PAGENET.
+Note per [[pagenet-namria-provenance]] this is NAMRIA data held under MOU —
+worth considering who has accounts on gps3 (3 users were logged in).
+
+### Migration order
+
+1. Verify RAID level.
+2. Create LVs, move `GPSDATA` onto `lv_gpsdata`.
+3. Establish the direct cable link (or accept 5 GHz for the smaller sets).
+4. PAGENET `RAW`+`SOL`+small dirs → `lv_gpsdata`.
+5. DOSTB archive → `lv_archive`, `rsync -aHAX` (preserves symlinks/modes —
+   the thing FAT32 destroyed).
+6. Verify with per-directory `find | wc -l` source-vs-dest, per the lesson in
+   [[backup-plus-health-crisis]] (rsync exit=0 ≠ complete).
+
 ## STILL TO DO
 - Rotate the OAuth token (see top) and change `R740_PASS`.
-- **PAGENET transfer, 18G** — never sent; too big for either thumb drive.
+- Execute the storage + migration plan above (needs sudo on gps3).
+- **PAGENET transfer** — deliberately NOT run yet: 18 G into 25 G free would
+  take root to ~93%, and it belongs on `lv_gpsdata` once that exists.
   Now trivial over the working SSH link:
   ```bash
   rsync -aHAX --info=progress2 ~/GPSDATA/CAMPAIGN54/PAGENET/ \
