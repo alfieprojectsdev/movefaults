@@ -104,17 +104,40 @@ already done (2026-07-29):
 - ⬜ **Still to do:** revoke at claude.ai, and remove `OAUTH_TOKEN` from
   `scripts/deploy_r740.secrets` on the T420.
 
-**Correction to an earlier assumption:** gps3's Claude Code session does NOT
-use this token. Alfie re-authenticated via the interactive browser flow
-(`platform.claude.com/oauth/code/callback`), which writes
-`~/.claude/.credentials.json` holding a `claudeAiOauth` object
-(`accessToken` + `refreshToken` + `expiresAt`, `subscriptionType=pro`) — a
-distinct, self-renewing credential. **Note both credential kinds share the
-`sk-ant-oat01-` prefix**, so grepping for that prefix matches the *legitimate*
-credentials file too; a hit there is expected, not a leak.
+**Credential situation — corrected twice, this is the verified version
+(2026-07-29 ~15:40):**
 
-Consequence: **revoking the leaked token will not disrupt the gps3 session**,
-so it can be revoked at any time without staging a replacement first.
+Alfie re-authenticated via the interactive browser flow
+(`platform.claude.com/oauth/code/callback`), which wrote
+`~/.claude/.credentials.json` holding a `claudeAiOauth` object
+(`accessToken` + `refreshToken` + `expiresAt`, `subscriptionType=pro`).
+**Note both credential kinds share the `sk-ant-oat01-` prefix**, so grepping
+for that prefix matches the *legitimate* credentials file too — a hit there is
+expected, not a leak.
+
+**BUT the env var wins.** `/status` on gps3 reports
+`Auth token: CLAUDE_CODE_OAUTH_TOKEN`, so the environment variable takes
+**precedence** over `.credentials.json`. An earlier note here claimed
+revoking "will not disrupt the gps3 session" — **that was wrong.**
+
+Why it survived the `.bashrc` strip: the Cockpit shell (pid 223097) started
+**11:20:54**, ~13 min *before* the token line was removed at **11:33:41**. It
+sourced the old file and `export`ed the token into its live environment, and
+every child since — including `claude` launched at 15:28 — inherits it.
+(`/proc/PID/environ` shows `0` for that shell because it is an *exec-time*
+snapshot and never reflects later `export`s; the child shows `1`.)
+
+All files are clean — `~/.bashrc`, `/etc/environment`, `/etc/profile`,
+`~/.profile`, systemd user env, and `settings.json` has no `env` block. It is
+purely a stale in-memory export in one long-lived shell.
+
+**Revoke ordering (do NOT skip step 1):**
+1. Close that Cockpit terminal / open a fresh shell — or `unset
+   CLAUDE_CODE_OAUTH_TOKEN` — then relaunch `claude`.
+2. Verify `/status` no longer shows `CLAUDE_CODE_OAUTH_TOKEN` (it should fall
+   back to the interactive OAuth credentials).
+3. **Then** revoke at claude.ai. Revoking before step 1 breaks that session
+   mid-work with a confusing auth error.
 
 Residual copies of the secret are the two Claude session transcripts (T420's
 and gps3's `.jsonl` files). Those are historical logs; revocation is what

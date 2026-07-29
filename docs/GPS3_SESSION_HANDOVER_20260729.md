@@ -293,10 +293,19 @@ T420 session's transcript. Cleanup already performed from the T420:
 - ⬜ **Remaining: revoke it at claude.ai → Settings** (a human must do this),
   and strip `OAUTH_TOKEN` from `scripts/deploy_r740.secrets` on the T420.
 
-**This session is NOT authenticated with that token.** It uses
-`~/.claude/.credentials.json` (`claudeAiOauth`: accessToken + refreshToken +
-expiresAt, `subscriptionType=pro`) from the interactive browser login. So
-revoking the leaked token will not disconnect you.
+**CORRECTED 2026-07-29 15:40 — this session IS authenticated with that
+token.** `/status` reports `Auth token: CLAUDE_CODE_OAUTH_TOKEN`, so the env
+var takes **precedence** over `~/.claude/.credentials.json`. An earlier
+version of this file said the opposite; it was wrong.
+
+It survived the `.bashrc` strip because the Cockpit shell started 11:20:54,
+~13 min before the line was removed at 11:33:41 — it exported the token into
+its live environment and every child since inherits it. All files are clean;
+it is a stale in-memory export in one long-lived shell.
+
+**Before the token is revoked:** close that terminal / open a fresh shell (or
+`unset CLAUDE_CODE_OAUTH_TOKEN`), relaunch `claude`, and confirm `/status` no
+longer names the env var. Revoking first will break this session mid-work.
 
 **Gotcha when scanning:** interactive OAuth credentials use the **same
 `sk-ant-oat01-` prefix**, so `grep -r sk-ant-oat01 ~` matches
