@@ -307,13 +307,73 @@ reintroduce it — another reason not to run that script (see §4.1).
 
 ---
 
-## 8. If you get stuck
+## 7a. UPDATE 2026-07-29 ~15:00 — storage work is DONE
+
+The storage task in §3 was **completed and independently verified**. Do not
+redo it. Current state: `lv_gpsdata` 4 T on `~/GPSDATA`, `lv_archive` 20 T on
+`/srv/gnss-archive`, `lv_work` 1 T on `~/GPSWORK`, root grown to 250 G,
+~7.5 T free extents. BPE re-verified on the new volumes: 11 m 28 s, max SINEX
+diff 0.000020 mm. Rollback copy retained at `~/GPSDATA.old-20260729`.
+
+Verified from the T420 against a pre-change baseline: **0 files missing**, and
+the rollback copy is byte-identical to the baseline (4,262 / 3 / 4,807,040,204).
+
+**Census gotcha for any future check:** the live mount now reads **4,274 files
+/ 4,807,069,710 bytes — higher** than the baseline, because the BPE re-verify
+wrote 12 new files and rewrote 728. Loss shows as FEWER files. Compare against
+`~/GPSDATA.old-20260729`, not across a BPE run.
+
+**Thanks for the `fuser -m` catch** — that was a real blocker in the migrate
+script (it escalates to the whole filesystem when `$SRC` isn't yet a
+mountpoint, so `--swap` always died). Your `lsof +D` fix is now in the repo
+copy, with both traps documented in comments: the exit-1-on-clean-tree that
+needs `|| true` under `set -euo pipefail`, and the self-match if cwd is inside
+`$SRC`. Verified separately that the `[ "$MODE" = swap ] && die` pattern
+elsewhere in the script is safe under `set -e`.
+
+One reconciliation: your note says the handover's `Sessions finished: OK: 1`
+phrasing came from a different wrapper. Both strings are real —
+`rnx2snx_pcs.pl`'s own log says `BPE finished at ...`, while
+`Sessions finished: OK: n  Error: n` appears in
+`$P/EXAMPLE/BPE/RNX2SNX.OUT`. Different files, not a contradiction.
+
+## 8. Repo sync + two-machine coordination
+
+**`~/repos/movefaults_clean` is NOT a clone** — one stray
+`.claude/settings.local.json` from a Claude session started there. You have
+been working from `scp`'d copies.
+
+**gps3 already has working GitHub auth** (`ssh -T git@github.com` →
+"Hi alfieprojectsdev!", git identity set), so cloning needs no new credentials:
+
+```bash
+rm -rf ~/repos/movefaults_clean
+git clone git@github.com:alfieprojectsdev/movefaults.git ~/repos/movefaults_clean
+cd ~/repos/movefaults_clean && git checkout docs/bernese-training-notes
+```
+
+Caveats: `gh` CLI auth is **expired** here (irrelevant for git-over-SSH; run
+`gh auth login` only if you want `gh pr`). And that branch is **stale vs
+`main`** for `tools/drive-archaeologist` — missing DA-002/DA-006.
+
+### One writer per file — both sessions can now push
+
+| file / area | owner |
+|---|---|
+| `RESUME_NEXT.md` | **T420 only** — don't edit it here |
+| `docs/GPS3_SESSION_HANDOVER_*.md` | **T420 only** (this file) |
+| your session logs | **you** — dated files under `docs/gps3-sessions/` |
+| `scripts/gps3_*.sh` | either, `git pull --rebase` first |
+| results observed on gps3 | you are authoritative; T420 verifies independently |
+
+Always `git pull --rebase` before committing. The T420 session holds the
+pre-change baselines and will keep cross-checking your results — that is the
+point of running two sessions, not redundancy.
+
+## 9. If you get stuck
 
 The T420 session has the full history and can be consulted through the user.
-Its notes live in `RESUME_NEXT.md` in the repo (`alfieprojectsdev/movefaults`,
-branch `docs/bernese-training-notes`) — **note `~/repos/movefaults_clean` on
-gps3 is NOT a clone**, just an empty directory with a `.claude/` config. Ask
-the user to relay, or clone the repo properly if you need it.
+Its notes live in `RESUME_NEXT.md` (see §8 for how to get a real clone).
 
 Bias toward **verifying over assuming**. Every significant error in this
 project's recent history came from acting on a plausible-but-unchecked

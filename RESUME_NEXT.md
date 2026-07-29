@@ -1,11 +1,90 @@
 # RESUME — next session
 
-**Updated 2026-07-28 (gps3/R740 Bernese install COMPLETE + VERIFIED — 0.0000 mm
-SINEX match — START HERE). Prior: 07-22 (thumb-drive
-backup), 07-16 (Backup Plus→DOSTB migration complete, sdd2-scan diagnosis
-corrected), 07-15 (migration/scan kicked off), 07-14 (clean shutdown, VADASE
-PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze), 07-07
-(excavation+crossref), 07-04 (DA-005).**
+**Updated 2026-07-29 (gps3 storage provisioned + GPSDATA migrated + Bernese
+parity re-verified on the new volumes — START HERE). Prior: 07-28 (gps3
+Bernese install verified, 0.0000 mm SINEX), 07-22 (thumb-drive backup), 07-16
+(Backup Plus→DOSTB migration complete, sdd2-scan diagnosis corrected), 07-15
+(migration/scan kicked off), 07-14 (clean shutdown, VADASE PRs, EVACUATE
+verdict), 07-13 (RAW done), 07-08 (freeze), 07-07 (excavation+crossref),
+07-04 (DA-005).**
+
+## ✅ DONE 2026-07-29 — gps3 storage provisioned, GPSDATA migrated, parity held
+
+Executed by the **Claude Code session running on gps3 itself** (started this
+day as a live-troubleshooting safeguard, driven from `~/HANDOVER.md`); its own
+writeup is at `gps3:/home/gps3/SESSION_LOG_20260729_storage.md`.
+
+**LVs created** (`ubuntu-vg` had 32.64 TiB free, confirmed by `vgs`):
+
+| LV | Size | FS | Mount |
+|---|---|---|---|
+| `ubuntu-lv` | 100 G → **250 G** | ext4, online resize | `/` (now 30% used, 167 G free) |
+| `lv_gpsdata` | 4 T | XFS | `~/GPSDATA` |
+| `lv_archive` | 20 T | XFS | `/srv/gnss-archive` |
+| `lv_work` | 1 T | XFS | `~/GPSWORK` (`$T`, BPE scratch) |
+| free | ~7.5 T | — | headroom |
+
+fstab backup `/etc/fstab.bak-20260729`; all three new entries use
+`defaults,noatime,nofail`.
+
+**Migration verified INDEPENDENTLY from the T420** (not taken on trust):
+- **0 files missing** from the new mount vs the retained rollback copy — the
+  only test that actually proves no loss.
+- The rollback copy `~/GPSDATA.old-20260729` is **byte-identical to the
+  pre-work baseline** captured from the T420 at 11:46: 4,262 files /
+  3 symlinks / 4,807,040,204 bytes.
+- All 3 DATAPOOL/REF54 symlinks intact; `FIN_20230100.SNX` (63,880 B),
+  `DE421.EPH` (13,966,960 B), `CRX2RNX` (36,424 B) byte-identical.
+- **Gotcha for future checks:** raw census totals on the live mount now read
+  4,274 files / 4,807,069,710 bytes — **higher** than the baseline, because
+  the BPE re-verify ran afterwards and wrote 12 new files (`GPSXTR.L30-39`,
+  `CCPREORB.L03`, `SATMRK.L03`) plus rewrote 728 others. Data loss shows as
+  FEWER files; compare against the rollback copy, not across a BPE run.
+
+**Bernese parity preserved on XFS:** 11 m 28 s (vs 11 m 23 s on ext4), max
+SINEX diff **0.000020 mm** (20 nanometers) across all 54 params — still
+0.0000 mm at 4 dp.
+
+**Rollback still available** while `~/GPSDATA.old-20260729` exists (4.5 G on
+`/`): `umount ~/GPSDATA && rmdir ~/GPSDATA && mv ~/GPSDATA.old-20260729
+~/GPSDATA`, then drop the `GPSDATA` line from `/etc/fstab`.
+
+**XFS `df` reads ~2% "used" on every new volume** (393 G on the 20 T archive,
+83 G on 4 T, 20 G on 1 T) — metadata reservation scaling with volume size,
+not real data. Don't mistake it for stray files.
+
+### Bug the gps3 session found in my migrate script (now fixed)
+
+`gps3_gpsdata_migrate.sh` used `fuser -m "$SRC"` to detect open files.
+`fuser -m` takes a path and reports every process using the **filesystem**
+that path lives on — and before the swap `$SRC` is a plain directory on `/`,
+so it escalated to `/` and matched nearly every process on the box. The check
+fired unconditionally and **`--swap` always died** with "close them before
+swapping". A genuine blocker; my own testing never exercised that branch.
+
+Fixed in-repo (2026-07-29) with a guarded `lsof +D`, which walks the tree
+instead. Two traps documented in the code so nobody reintroduces them:
+`lsof +D` **exits 1 when the tree is clean**, so under `set -euo pipefail` the
+command substitution needs `|| true` or the script dies silently; and it
+self-matches if the script's cwd is inside `$SRC`.
+(Verified separately: the `[ "$MODE" = swap ] && die` pattern elsewhere in the
+script is safe under `set -e` — a false test does not trigger an exit.)
+
+### Also learned on gps3
+- **Claude Code's `!` prefix gives sudo no controlling tty** — `! sudo <cmd>`
+  fails with "a terminal is required to read the password". Nor does priming
+  `sudo -v` help: the Bash tool's shell has **no controlling terminal at all**
+  (`ps` shows `TT=?`), so with sudo's default `tty_tickets` a ticket cached in
+  your pts can never match. Workaround used throughout: run privileged
+  commands in a real terminal redirected to a log, then have Claude read the
+  log.
+- **`pgrep -f <pattern>` matches the monitoring script's own command line.**
+  Bit both sessions. Use `pgrep -af` and inspect, or match on a pinned PID.
+- **Completion string differs by launcher:** `rnx2snx_pcs.pl`'s own log says
+  `BPE finished at ...`, while `Sessions finished: OK: n Error: n` appears in
+  `$P/EXAMPLE/BPE/RNX2SNX.OUT`. Both are real — different files, not a
+  contradiction.
+- **`*.SNX.gz_REF` really is gzipped** — compare with `gunzip -c`, not raw.
 
 ## ⚠ ACTION REQUIRED — revoke the leaked Claude OAuth token
 
@@ -170,6 +249,8 @@ Re-run against an already-correct tree completes in ~0.1s. shellcheck clean;
 both flash drives carry the fixed copy (md5-verified identical).
 
 ## PLAN 2026-07-29 — gps3 storage allocation + external-drive migration
+### ⚠ SUPERSEDED: the LV/migration half was EXECUTED — see "DONE 2026-07-29" at the top.
+### What remains live below: the network/throughput findings and the PAGENET scoping.
 
 ### Discovery: gps3 has 32.6 TB unallocated
 
@@ -289,11 +370,27 @@ worth considering who has accounts on gps3 (3 users were logged in).
 
 ## STILL TO DO
 - **Rotate the OAuth token** (see top) and change `R740_PASS`.
-- Verify the PERC RAID level, then execute the storage + migration plan
-  above (all needs sudo on gps3).
-- **PAGENET transfer** — deliberately NOT run yet: 18 G into 25 G free would
-  take root to ~93%, and it belongs on `lv_gpsdata` once that exists. Copy
-  only `RAW`+`SOL`+small dirs (~12.5 G), not `OUT`/`OBS`:
+- **Verify the PERC H750 RAID level** — no MegaRAID CLI is installed on gps3
+  and `dmesg` shows driver init but not the level, so read it from **iDRAC**
+  (Storage → Virtual Disks) or `sudo apt install storcli` then
+  `sudo storcli64 /c0/v0 show`. Storage provisioning did NOT need this, but it
+  still gates treating gps3 as the archive's **only** copy — the legacy
+  archive is currently single-copy on a drive with a pending sector.
+- **Reclaim `~/GPSDATA.old-20260729`** (4.5 G on `/`) once you're satisfied —
+  `sudo rm -rf ~/GPSDATA.old-20260729`. Until then it's the rollback.
+- **Sync the repo to gps3** — `gps3:~/repos/movefaults_clean` is NOT a stale
+  clone, it's **not a git repo at all** (one file: `.claude/settings.local.json`,
+  left by a Claude session run from that directory). The gps3 session has been
+  working from `scp`'d copies of the scripts and `HANDOVER.md`. It will need
+  the real repo for the orchestrator phase. See "Repo sync options" below.
+- **Deploy/test the orchestrator** (`services/bernese-workflow/`) — 128 tests
+  pass but it has **never driven a real BPE**. Now unblocked: gps3 has a
+  verified Bernese, provisioned storage, and 1 T of scratch on `lv_work`.
+- **Legacy archive → `/srv/gnss-archive`** (~150 G, 20 T volume ready) —
+  gated on the RAID check above.
+- **PAGENET transfer** — `lv_gpsdata` now exists with 4 T, so the space
+  objection is gone. Copy only `RAW`+`SOL`+small dirs (~12.5 G), not
+  `OUT`/`OBS`:
   ```bash
   rsync -aHAX --info=progress2 \
     --exclude=OUT/ --exclude=OBS/ \
@@ -301,6 +398,53 @@ worth considering who has accounts on gps3 (3 users were logged in).
     gps3@192.168.48.98:/home/gps3/GPSDATA/CAMPAIGN54/PAGENET/
   ```
   `-aHAX` preserves symlinks/modes (the thing the FAT32 hop destroyed).
+
+### Repo sync options for gps3 (recommendation: just clone it)
+
+State as of 2026-07-29 (verified): `gps3:~/repos/movefaults_clean` is **not a
+clone** — a single `.claude/settings.local.json`, left behind by a Claude
+session started from that directory. Not stale; never a repo.
+
+**gps3 already has working GitHub auth** — `ssh -T git@github.com` returns
+*"Hi alfieprojectsdev! You've successfully authenticated"*, and
+`user.name`/`user.email` are set. So no new credentials are needed:
+
+```bash
+rm -rf ~/repos/movefaults_clean            # only the stray .claude/ file
+git clone git@github.com:alfieprojectsdev/movefaults.git ~/repos/movefaults_clean
+cd ~/repos/movefaults_clean && git checkout docs/bernese-training-notes
+```
+
+Notes:
+- **`gh` CLI auth on gps3 is expired** (`gh auth status` → "Failed to log in").
+  Irrelevant for git over SSH; only matters if you want `gh pr` there. Fix
+  with `gh auth login` if needed.
+- I considered a read-only **deploy key** to limit blast radius, but the
+  existing key is already the user's full-access account key — a deploy key
+  would not reduce exposure that is already the status quo. Not worth the
+  ceremony. (gps3 is also single-user: only `/home/gps3` exists.)
+- Check out **`docs/bernese-training-notes`**, where `RESUME_NEXT.md` and the
+  `scripts/gps3_*.sh` live. Remember this branch is **stale vs `main`** for
+  `tools/drive-archaeologist` (missing DA-002/DA-006) — see the 07-16 section.
+
+### ⚠ Two-machine coordination protocol (two Claude sessions can now both push)
+
+With a real clone on gps3, both sessions can commit to the same branch. To
+avoid push races, **one writer per file**:
+
+| file / area | owner |
+|---|---|
+| `RESUME_NEXT.md` | **T420 only** |
+| `docs/GPS3_SESSION_HANDOVER_*.md` | **T420 only** (it is the handover *to* gps3) |
+| gps3 session logs | **gps3 only** — new dated files, e.g. `docs/gps3-sessions/SESSION_LOG_<date>.md` |
+| `scripts/gps3_*.sh` | either, but `git pull --rebase` first |
+| anything executed on gps3 (storage, BPE, orchestrator runtime) | gps3 is authoritative for *observed results*; T420 verifies independently |
+
+Always `git pull --rebase` before committing on either machine. The T420
+session keeps doing independent verification (it holds the pre-change
+baselines) — that cross-check caught nothing wrong this time but is the reason
+the "more files, not fewer" census result was correctly read as BPE output
+rather than corruption.
 
 ### Closed this session (kept for context)
 - ~~Create `$U/GEN/SESSIONS.SES` on gps3~~ — **no action needed, and doing it

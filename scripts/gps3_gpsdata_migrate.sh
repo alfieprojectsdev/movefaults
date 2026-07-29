@@ -100,10 +100,27 @@ ok "no BPE process running"
 
 # Anything holding files open under GPSDATA will silently keep the old inodes
 # alive after the swap, so callers would keep reading stale data.
-if command -v fuser >/dev/null 2>&1 && fuser -m "$SRC" >/dev/null 2>&1; then
-    warn "processes currently have files open under $SRC:"
-    fuser -vm "$SRC" 2>&1 | head -10 || true
-    [ "$MODE" = "swap" ] && die "close them before swapping"
+#
+# Do NOT use `fuser -m "$SRC"` here. `-m` takes a path and reports every
+# process using the FILESYSTEM that path lives on. Before the swap $SRC is a
+# plain directory on /, so fuser escalates to / and matches essentially every
+# process on the box — the check fired unconditionally and `--swap` always
+# died with "close them before swapping". Found on gps3 2026-07-29.
+#
+# `lsof +D` walks the directory tree itself, which is the actual question.
+# Two traps it carries:
+#   * it exits 1 when the tree has NO open files (the safe case), so under
+#     `set -euo pipefail` the command substitution must end in `|| true` or
+#     the script dies silently right here;
+#   * it self-matches if this script's cwd or an open fd is under $SRC — run
+#     the script from outside the tree (it is invoked from $HOME).
+if command -v lsof >/dev/null 2>&1; then
+    open_under=$(lsof +D "$SRC" 2>/dev/null | tail -n +2 || true)
+    if [ -n "$open_under" ]; then
+        warn "processes currently have files open under $SRC:"
+        printf '%s\n' "$open_under" | head -10
+        [ "$MODE" = "swap" ] && die "close them before swapping"
+    fi
 fi
 
 read -r SF SL SB <<<"$(census "$SRC")"
