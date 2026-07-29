@@ -1,5 +1,11 @@
 # gps3 Claude Code — Session Handover
 
+> **⚠ SUPERSEDED IN PART (2026-07-29 late).** The storage task described here
+> is **DONE** — do not redo it. For repo sync, branch state, and inter-machine
+> coordination, read **`docs/GPS3_COORDINATION_ONBOARDING.md`** instead; it is
+> the current document. The §5 "things that look broken but are not" section
+> below is still accurate and worth keeping.
+
 **Written:** 2026-07-29 by the Claude Code session running on the T420
 **For:** a Claude Code session running *on gps3 itself*, to troubleshoot live
 **Purpose:** storage provisioning (~32.6 TB unallocated), then GNSS orchestration
