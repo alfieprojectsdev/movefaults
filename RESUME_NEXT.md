@@ -185,16 +185,34 @@ Reasoning:
 - If ext4 is used on any data LV, `mkfs -m 0` — the default 5% reserve is
   1 TB wasted on a 20 TB volume.
 
+**Scripts written 2026-07-29 — use these, don't hand-type LVM:**
+`scripts/gps3_storage_provision.sh` and `scripts/gps3_gpsdata_migrate.sh`
+(both shellcheck-clean, dry-run by default, idempotent).
+
 ```bash
-sudo lvextend -L 250G /dev/ubuntu-vg/ubuntu-lv && sudo resize2fs /dev/ubuntu-vg/ubuntu-lv
-sudo lvcreate -L 4T  -n lv_gpsdata ubuntu-vg
-sudo lvcreate -L 20T -n lv_archive ubuntu-vg
-sudo lvcreate -L 1T  -n lv_work    ubuntu-vg
-for lv in lv_gpsdata lv_archive lv_work; do sudo mkfs.xfs /dev/ubuntu-vg/$lv; done
+# copy over, then run inside tmux so an SSH drop can't interrupt a resize
+scp scripts/gps3_*.sh gps3@192.168.48.98:~/
+ssh -t gps3@192.168.48.98 'tmux new -As storage'
+#   sudo ./gps3_storage_provision.sh            # dry run — prints every command
+#   sudo ./gps3_storage_provision.sh --apply
+#   sudo ./gps3_gpsdata_migrate.sh --sync       # rsync + census verify (repeatable)
+#   sudo ./gps3_gpsdata_migrate.sh --swap       # gated cutover
 ```
-Then **move** the existing `GPSDATA` (currently on root) onto the new LV —
-mount at a temp point, `rsync -aHAX`, verify counts, swap in fstab. Do NOT
-just mount over it (that hides the data and wastes the root space).
+
+Safety properties built in (verified by test, not just asserted):
+- `mkfs` runs **without `-f`** — refuses any device that already holds a
+  filesystem, so a typo cannot wipe a populated volume.
+- provision **never** touches the live `~/GPSDATA`; it mounts `lv_gpsdata`
+  at `/mnt/lv_gpsdata_staging` instead.
+- migrate's **census** compares file count + symlink count + total bytes.
+  Tested to catch both failure modes this project has actually hit:
+  truncated copies and dropped symlinks. `rsync` exit=0 alone is not
+  treated as proof (see [[backup-plus-health-crisis]]).
+- cutover **renames** the old tree to `GPSDATA.old-<date>` and never deletes
+  it — rollback is one `mv`. Reclaiming that root space is a manual step.
+- fstab entries use **`nofail`** and are validated with `findmnt --verify`
+  *before* any reboot can act on them.
+- both refuse to run while a BPE process is active.
 
 ### Network is the migration bottleneck — measured
 
