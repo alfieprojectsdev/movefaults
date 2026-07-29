@@ -244,18 +244,30 @@ worth considering who has accounts on gps3 (3 users were logged in).
    [[backup-plus-health-crisis]] (rsync exit=0 ≠ complete).
 
 ## STILL TO DO
-- Rotate the OAuth token (see top) and change `R740_PASS`.
-- Execute the storage + migration plan above (needs sudo on gps3).
+- **Rotate the OAuth token** (see top) and change `R740_PASS`.
+- Verify the PERC RAID level, then execute the storage + migration plan
+  above (all needs sudo on gps3).
 - **PAGENET transfer** — deliberately NOT run yet: 18 G into 25 G free would
-  take root to ~93%, and it belongs on `lv_gpsdata` once that exists.
-  Now trivial over the working SSH link:
+  take root to ~93%, and it belongs on `lv_gpsdata` once that exists. Copy
+  only `RAW`+`SOL`+small dirs (~12.5 G), not `OUT`/`OBS`:
   ```bash
-  rsync -aHAX --info=progress2 ~/GPSDATA/CAMPAIGN54/PAGENET/ \
+  rsync -aHAX --info=progress2 \
+    --exclude=OUT/ --exclude=OBS/ \
+    ~/GPSDATA/CAMPAIGN54/PAGENET/ \
     gps3@192.168.48.98:/home/gps3/GPSDATA/CAMPAIGN54/PAGENET/
   ```
-  Use `-aHAX` (not a FAT32 hop) to preserve symlinks/modes this time.
-- Create `$U/GEN/SESSIONS.SES` on gps3.
-- Add `source ~/BERN54/LOADGPS.setvar` to gps3's `~/.bashrc` (not there yet).
+  `-aHAX` preserves symlinks/modes (the thing the FAT32 hop destroyed).
+
+### Closed this session (kept for context)
+- ~~Create `$U/GEN/SESSIONS.SES` on gps3~~ — **no action needed, and doing it
+  would be wrong.** `SESSIONS.SES` is a **per-campaign** file
+  (`$P/<CAMPAIGN>/GEN/SESSIONS.SES`); gps3's EXAMPLE already has one, and the
+  verified T420 has no `$U/GEN` either. The BPE log line is a normal fallback
+  probe, not a defect. A user-level table could override per-campaign ones.
+- ~~Add `source ~/BERN54/LOADGPS.setvar` to gps3's `~/.bashrc`~~ — **done**,
+  verified in an interactive shell (`$C`, `$U` resolve). Appended after the
+  non-interactive early-return guard, so `ssh host 'cmd'` still won't see it
+  by design — scripts must source it explicitly.
 
 ## DONE 2026-07-22 — Bernese backed up to 2 thumb drives (LAN-cable transfer still to be tried)
 
