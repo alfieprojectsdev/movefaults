@@ -1,11 +1,75 @@
 # RESUME — next session
 
-**Updated 2026-07-29 late (storage DONE + RAID resolved + CONTINUITY AUDIT —
-START HERE). Prior: 07-28 (gps3 Bernese install verified, 0.0000 mm SINEX),
-07-22 (thumb-drive backup), 07-16 (Backup Plus→DOSTB migration complete,
-sdd2-scan diagnosis corrected), 07-15 (migration/scan kicked off), 07-14
-(clean shutdown, VADASE PRs, EVACUATE verdict), 07-13 (RAW done), 07-08
-(freeze), 07-07 (excavation+crossref), 07-04 (DA-005).**
+**Updated 2026-07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live —
+START HERE). Prior: 07-29 (storage provisioned, RAID resolved, continuity
+audit), 07-28 (gps3 Bernese install verified, 0.0000 mm SINEX), 07-22
+(thumb-drive backup), 07-16 (Backup Plus→DOSTB migration complete, sdd2-scan
+diagnosis corrected), 07-15 (migration/scan kicked off), 07-14 (clean
+shutdown, VADASE PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze),
+07-07 (excavation+crossref), 07-04 (DA-005).**
+
+## ✅ 2026-07-30 — branch split closed, branching policy adopted
+
+**PR #57 merged.** `main` advanced `bc7b5b9` → `11315ee` and now holds the
+complete project. Verified after merging (not trusted from the exit code) that
+`origin/main` actually advanced and that the gps3 work is present on it.
+
+| | at 07-29 | now |
+|---|---|---|
+| commits `main` lacked | 22 | **0** |
+| commits the branch lacked | 39 | 0 |
+
+**`docs/bernese-training-notes` is RETIRED and DELETED** (remote + local),
+after confirming 0 unmerged commits. Do not recreate it. Everything it held is
+on `main`.
+
+**Both machines are on `main` @ `11315ee`.** gps3's checkout now finally has
+*both* sides — `recovery.py` (DA-006) and the DA-002 symlink guard are present,
+so the stale-`drive-arch` hazard flagged in the 07-16 section is resolved.
+
+**Branching policy = Rule 1 (`CLAUDE.md`, PR #58):** all substantive work
+reaches `main` through a PR; **branches live at most one week**; `git pull
+--rebase` before every push. The one-week limit is the load-bearing part — the
+27-day drift that produced PR #57 happened because a branch outlived its
+purpose and became a second trunk, not because branches are bad.
+
+### Open PRs at session end
+| PR | change |
+|---|---|
+| **#58** | branching policy → `CLAUDE.md` (1 file) |
+| **#59** | `igs-downloader-reserach.md` → `research.md` rename, `R100` so history follows (1 file) |
+
+### gps3 status
+- **smartd is live and correct** — verified from the T420:
+  `Monitoring 0 ATA/SATA, 16 SCSI/SAS`. All 16 RAID members registered.
+- Its `smartd_setup.sh` uses `-m root -M exec smartd-runner`, which **looks
+  wrong but is right**: that is run-parts over `/etc/smartmontools/run.d/`,
+  where it installed a `20log` hook writing to `logger` *and*
+  `/var/log/smartd-alerts.log`. `10mail` fails silently (no MTA); `20log`
+  succeeds. Composes better than a direct `-M exec`. Do not "fix" it.
+- Long self-tests deliberately NOT scheduled — the PERC runs its own patrol
+  read and 16 concurrent long tests would contend with it. **gps3's next
+  action: confirm patrol read is enabled via iDRAC**, then decide.
+- A **Monitor is armed on the T420** polling every 3 min for: `origin/main`
+  advancing, remote branches appearing/disappearing, gps3's working tree
+  changing, and gps3 going unreachable over SSH. It does not survive the end of
+  that T420 session — re-arm it if you want push notifications again.
+
+### Corrections logged this session
+- **`fuser -m` was a real blocker** in `gps3_gpsdata_migrate.sh`, found by the
+  gps3 session: `-m` reports every process using the *filesystem* a path lives
+  on, so pre-swap it matched nearly everything and `--swap` always died. Fixed
+  with a guarded `lsof +D` (which exits 1 on a clean tree — needs `|| true`
+  under `set -euo pipefail`, and self-matches if cwd is inside the tree).
+- **Root-level `uv run pytest` is broken on `main`** — 23 collection errors
+  (`No module named 'tests.conftest'`, a `tests/` namespace collision across
+  the monorepo). **Pre-existing**, verified against a clean `origin/main`
+  worktree. Per-service invocations all pass: bernese-workflow 128,
+  vadase-rt-monitor 51, drive-archaeologist 133. Worth a ticket — `CLAUDE.md`
+  documents the root invocation, so it currently misleads.
+- **~50 stale remote branches** remain (`code-health-*`,
+  `cleanup-commented-out-loops-*`, `claude/review-*`, …). Under Rule 1 these
+  should not linger; audit each for full containment in `main` before deleting.
 
 ## 🔴 CONTINUITY AUDIT 2026-07-29 — read this before the storage sections
 
@@ -23,7 +87,9 @@ procedure that took months to derive, all decision history, the gps3
 handovers. Nobody at PHIVOLCS can grant access but Alfie. The risk is not
 losing data — it is losing *the knowledge of how to use the data*.
 
-**2. NO SINGLE BRANCH HOLDS THE TRUTH.** Measured 2026-07-29:
+**2. ~~NO SINGLE BRANCH HOLDS THE TRUTH~~ — ✅ RESOLVED 2026-07-30 by PR #57.**
+`main` now holds everything and the side branch is deleted. Rule 1 in
+`CLAUDE.md` prevents recurrence. Original finding kept below for the record:
 
 | | commits |
 |---|---|
