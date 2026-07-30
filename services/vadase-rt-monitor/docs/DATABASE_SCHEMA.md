@@ -1,6 +1,12 @@
 # Database Schema
 
-The monitor uses **TimescaleDB** (a PostgreSQL extension for time-series) to store high-frequency 1Hz GNSS data. The persistence logic is implemented in `src/database/writer.py`.
+The monitor uses **TimescaleDB** (a PostgreSQL extension for time-series) to store high-frequency 1Hz GNSS data. The persistence logic is implemented in `src/adapters/outputs/timescaledb.py` (`TimescaleDBAdapter`).
+
+> **⚠ Staleness note:** the table descriptions below predate the Alembic
+> migrations and use the old singular names. The current source of truth is
+> `migrations/versions/` (010 creates `vadase_velocities` /
+> `vadase_displacements` / `vadase_events`; 011 adds `displacement_source`).
+> The adapter's `_INSERT_*` statements show the exact live columns.
 
 ## Core Tables
 
@@ -34,7 +40,7 @@ Both `vadase_velocity` and `vadase_displacement` are configured as **Hypertables
 - Parallelized query execution over large time ranges.
 
 ### Batch Writing
-To minimize database round-trips and I/O wait, the `DatabaseWriter` implements a buffering mechanism:
+To minimize database round-trips and I/O wait, the `TimescaleDBAdapter` implements a buffering mechanism:
 1.  Measurements are appended to an in-memory list.
 2.  A background task flushes the buffer every `flush_interval` (nominally 1 second) or when `batch_size` (nominally 100) is reached.
 3.  Writes use `executemany` for efficient bulk insertion.

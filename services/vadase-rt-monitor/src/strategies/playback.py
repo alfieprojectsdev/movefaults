@@ -63,8 +63,12 @@ class RealTimeStrategy(PlaybackStrategy):
             
             # Handle rollover
             if self.last_timestamp:
-                 # If time jumped back >12h, assume next day
-                if (self.last_timestamp - dt).seconds > 43200:
+                # If time jumped back >12h, assume next day.
+                # Must be total_seconds(): on a normal forward step the
+                # difference is negative, and .seconds on a negative timedelta
+                # normalizes to days=-1, seconds=86399 — falsely triggering
+                # rollover on every sample (replay then never sleeps).
+                if (self.last_timestamp - dt).total_seconds() > 43200:
                     self.current_date += timedelta(days=1)
                     dt = datetime.combine(self.current_date, time_obj)
             

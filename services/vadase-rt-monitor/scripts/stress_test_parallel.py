@@ -8,12 +8,7 @@ from datetime import date
 
 from src.strategies.playback import RealTimeStrategy, FastImportStrategy
 from src.adapters.inputs.directory import DirectoryAdapter
-from src.domain.processor import IngestionCore
-from src.ports.outputs import OutputPort
-
-# ... Imports ...
-from src.strategies.playback import RealTimeStrategy, FastImportStrategy
-from src.adapters.inputs.directory import DirectoryAdapter
+from src.adapters.outputs.composite import CompositeOutputPort
 from src.domain.processor import IngestionCore
 from src.ports.outputs import OutputPort
 
@@ -23,23 +18,10 @@ logger = structlog.get_logger()
 class StressTestWriter(OutputPort):
     async def connect(self): pass
     async def close(self): pass
-    async def write_velocity(self, station_id, data): pass 
+    async def write_velocity(self, station_id, data): pass
     async def write_displacement(self, station_id, data): pass
     async def write_event_detection(self, station, t, pv, pd, dur):
-        logger.warning(f"EVENT DETECTED", station=station, peak_v=pv)
-
-class CompositeWriter:
-    def __init__(self, writers): self.writers = writers
-    async def connect(self): 
-        for w in self.writers: await w.connect()
-    async def close(self): 
-        for w in self.writers: await w.close()
-    async def write_velocity(self, *a, **k): 
-        for w in self.writers: await w.write_velocity(*a, **k)
-    async def write_displacement(self, *a, **k): 
-        for w in self.writers: await w.write_displacement(*a, **k)
-    async def write_event_detection(self, *a, **k): 
-        for w in self.writers: await w.write_event_detection(*a, **k)
+        logger.warning("EVENT DETECTED", station=station, peak_v=pv)
 
 async def run_station(file_path: Path, station_id: str, mode: str, base_date: Optional[date], force_integration: bool, enable_plot: bool):
     try:
@@ -62,7 +44,7 @@ async def run_station(file_path: Path, station_id: str, mode: str, base_date: Op
             except ImportError:
                 logger.warning("matplotlib_missing")
 
-        output_port = CompositeWriter(writers)
+        output_port = CompositeOutputPort(writers)
         
         queue = asyncio.Queue(maxsize=100)
         stop_event = asyncio.Event()
@@ -75,10 +57,14 @@ async def run_station(file_path: Path, station_id: str, mode: str, base_date: Op
 
         logger.info("station_starting", station=station_id, file=file_path.name)
 
-        producer = asyncio.create_task(adapter.start(queue, stop_event))
-        consumer = asyncio.create_task(core.consume(queue, stop_event))
-
-        await asyncio.gather(producer, consumer)
+        # Composition root owns the port lifecycle (consume() no longer does).
+        await output_port.connect()
+        try:
+            producer = asyncio.create_task(adapter.start(queue, stop_event))
+            consumer = asyncio.create_task(core.consume(queue, stop_event))
+            await asyncio.gather(producer, consumer)
+        finally:
+            await output_port.close()
         logger.info("station_finished", station=station_id)
 
     except Exception as e:

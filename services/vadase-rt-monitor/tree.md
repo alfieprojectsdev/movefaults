@@ -1,3 +1,9 @@
+> **HISTORICAL DOCUMENT (pre-implementation proposal).** This layout was a
+> design sketch and does not match the current tree — e.g. there is no
+> `src/database/` (persistence lives in `src/adapters/outputs/timescaledb.py`),
+> and the hexagonal `src/ports` + `src/adapters` split happened instead.
+> Use `ls -R src/` or the README for the real structure.
+
 vadase-rt-monitor/
 ├── .gitignore
 ├── .env.example

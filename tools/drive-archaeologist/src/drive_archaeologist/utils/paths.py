@@ -43,16 +43,23 @@ SYSTEM_DIRECTORIES = {
 }
 
 
-def should_skip_path(path: Path) -> bool:
+def should_skip_path(path: Path, include_hidden: bool = False) -> bool:
     """
     Determine if a path should be skipped during scanning.
 
     Args:
         path: Path to check
+        include_hidden: When True, do not skip hidden (dot-prefixed) or
+            system entries. Skipping them silently hides real content —
+            a drive whose only files live in .Trash-1000 would otherwise
+            survey as empty (DA-002 finding #7).
 
     Returns:
         True if path should be skipped, False otherwise
     """
+    if include_hidden:
+        return False
+
     # Skip system directories
     for part in path.parts:
         if part in SYSTEM_DIRECTORIES:
@@ -66,19 +73,31 @@ def should_skip_path(path: Path) -> bool:
     return False
 
 
+def is_suspect_name(name: str) -> bool:
+    """
+    Detect filenames that indicate filesystem corruption (DA-002 finding #2).
+
+    Corrupt FAT directory entries surface as mojibake: bytes that do not
+    decode as UTF-8 (Python exposes them as lone surrogates) or embedded
+    C0 control characters. Such entries must never be opened or extracted.
+    """
+    try:
+        name.encode("utf-8")
+    except UnicodeEncodeError:
+        return True
+    return any(ord(c) < 0x20 or ord(c) == 0x7F for c in name)
+
+
 def sanitize_for_json(text: str) -> str:
     """
-    Sanitize string for JSON output.
+    Sanitize a string so it can be written to a UTF-8 JSONL stream.
 
-    Args:
-        text: String to sanitize
-
-    Returns:
-        Sanitized string safe for JSON
+    Paths from corrupt filesystems can contain lone surrogates (undecodable
+    bytes); writing those to a UTF-8 file raises UnicodeEncodeError and the
+    record is lost. backslashreplace keeps the raw byte values visible
+    (e.g. ``\\udcff``) so corrupt names stay forensically identifiable.
     """
-    # Replace backslashes with forward slashes for cross-platform consistency
-    # (but keep original paths in output for user clarity)
-    return text
+    return text.encode("utf-8", errors="backslashreplace").decode("utf-8")
 
 
 def safe_filename(name: str) -> str:

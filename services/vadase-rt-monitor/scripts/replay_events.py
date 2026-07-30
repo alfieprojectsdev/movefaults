@@ -1,15 +1,19 @@
 import asyncio
-import typer
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
 
 import structlog
-
-from src.strategies.playback import RealTimeStrategy, FastImportStrategy
+import typer
+from dotenv import load_dotenv
 from src.adapters.inputs.directory import DirectoryAdapter
+from src.adapters.outputs.composite import CompositeOutputPort
 from src.adapters.outputs.null import NullOutputPort
 from src.domain.processor import IngestionCore
+from src.strategies.playback import FastImportStrategy, RealTimeStrategy
+
+# Service-level .env (DB_* credentials etc.) — the TimescaleDBAdapter reads
+# os.environ directly, so the composition root must load the file.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 app = typer.Typer()
 
@@ -75,37 +79,10 @@ class _DemoEventPort:
         _print_event_banner(station, detection_time, peak_velocity, peak_displacement, duration)
 
 
-class _CompositeWriter:
-    """Fan-out to multiple OutputPort instances (e.g. DB + LivePlotter)."""
-
-    def __init__(self, writers):
-        self.writers = writers
-
-    async def connect(self):
-        for w in self.writers:
-            await w.connect()
-
-    async def close(self):
-        for w in self.writers:
-            await w.close()
-
-    async def write_velocity(self, *a, **k):
-        for w in self.writers:
-            await w.write_velocity(*a, **k)
-
-    async def write_displacement(self, *a, **k):
-        for w in self.writers:
-            await w.write_displacement(*a, **k)
-
-    async def write_event_detection(self, *a, **k):
-        for w in self.writers:
-            await w.write_event_detection(*a, **k)
-
-
 async def run_async(
     path: Path,
     mode: str,
-    base_date: Optional[date],
+    base_date: date | None,
     station_id: str,
     threshold: float,
     dry_run: bool,
@@ -142,9 +119,9 @@ async def run_async(
         except ImportError:
             typer.echo("matplotlib not installed — skipping live plot.")
 
-    base_port = writers[0] if len(writers) == 1 else _CompositeWriter(writers)
     # Always wrap in _DemoEventPort: replay_events.py is a demo/analysis tool.
-    output_port = _DemoEventPort(base_port)
+    # CompositeOutputPort handles the single-writer case identically.
+    output_port = _DemoEventPort(CompositeOutputPort(writers))
 
     queue = asyncio.Queue(maxsize=1000)
     stop_event = asyncio.Event()
@@ -159,24 +136,26 @@ async def run_async(
 
     typer.echo(f"Starting {mode.upper()} replay: {path}")
 
-    producer_task = asyncio.create_task(adapter.start(queue, stop_event))
-    consumer_task = asyncio.create_task(core.consume(queue, stop_event))
-
+    # Composition root owns the port lifecycle (cores must not connect/close a
+    # potentially shared port). TaskGroup cancels the sibling when either task
+    # fails, so a dead consumer (e.g. DB down) surfaces its error instead of
+    # leaving the producer blocked forever on the bounded queue.
+    await output_port.connect()
     try:
-        await producer_task
-        await consumer_task
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(adapter.start(queue, stop_event))
+            tg.create_task(core.consume(queue, stop_event))
         typer.echo("Replay complete.")
-    except KeyboardInterrupt:
-        typer.echo("Stopping...")
+    finally:
         stop_event.set()
-        await asyncio.gather(producer_task, consumer_task, return_exceptions=True)
+        await output_port.close()
 
 
 @app.command()
 def main(
     file_path: Path = typer.Option(..., "--file", "-f", help="Path to NMEA file or directory"),
     mode: str = typer.Option("import", "--mode", "-m", help="'import' (fast) or 'replay' (1 Hz)"),
-    base_date: Optional[str] = typer.Option(None, "--base-date", "-d", help="Base date YYYY-MM-DD"),
+    base_date: str | None = typer.Option(None, "--base-date", "-d", help="Base date YYYY-MM-DD"),
     station_id: str = typer.Option("TEST", "--station", "-s", help="Station ID"),
     threshold: float = typer.Option(15.0, "--threshold", help="Event threshold mm/s"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Discard DB writes (no asyncpg import)"),
@@ -205,13 +184,19 @@ def main(
             typer.echo("Error: Invalid date format. Use YYYY-MM-DD.")
             raise typer.Exit(code=1)
 
-    asyncio.run(
-        run_async(
-            file_path, mode, parsed_date, station_id, threshold,
-            dry_run, plot, pattern, force_integration, decay, window_size,
-            speed,
+    try:
+        asyncio.run(
+            run_async(
+                file_path, mode, parsed_date, station_id, threshold,
+                dry_run, plot, pattern, force_integration, decay, window_size,
+                speed,
+            )
         )
-    )
+    except KeyboardInterrupt:
+        # Ctrl+C surfaces here (asyncio.run re-raises it after cancelling the
+        # task tree) — inside the coroutine it arrives as CancelledError, so a
+        # KeyboardInterrupt handler there is unreachable.
+        typer.echo("Stopped.")
 
 
 if __name__ == "__main__":

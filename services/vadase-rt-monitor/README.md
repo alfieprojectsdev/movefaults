@@ -60,11 +60,10 @@ asyncio.run(init_db())
 
 ### Run Ingestion
 ```bash
-# Using the registered script command
-uv run vadase-ingestor
-
-# Or directly
-uv run python scripts/run_ingestor.py
+# From the service directory (PYTHONPATH=. makes the bare `src.` imports
+# resolve — the monorepo wheel does not package this service's scripts/):
+cd services/vadase-rt-monitor
+PYTHONPATH=. uv run python scripts/run_ingestor.py
 ```
 
 ### Development
@@ -97,7 +96,8 @@ Password: admin
 Replay historical earthquake log files (`.rtl`, `.nmea`) to verify parser logic and visualization.
 ```bash
 # Replay a specific earthquake file with live plotting and forced manual integration
-uv run python scripts/replay_events.py \
+# (from services/vadase-rt-monitor with PYTHONPATH=. — see Run Ingestion above)
+PYTHONPATH=. uv run python scripts/replay_events.py \
   --file "data/NMEA_DGOS_10102025/NMEA_DGOS LDM_20251010_040000.rtl" \
   --mode replay \
   --base-date 2025-10-10 \
@@ -107,7 +107,9 @@ uv run python scripts/replay_events.py \
 ```
 *   `--mode replay`: Simulates real-time 1Hz streaming.
 *   `--force-integration`: Overrides receiver's displacement data with locally calculated values (fixes "Velocity Only" issues).
-*   `--dry-run`: Skips writing to Postgres (outputs to stdout logs).
+*   `--dry-run`: Skips writing to Postgres (replay discards writes silently —
+    event banners still print; `run_ingestor.py --dry-run` logs every write so
+    you can verify a station's data flow before going live).
 
 ### 2. Parallel Stress Test
 Simulate multi-station load by running concurrent ingestion pipelines.
@@ -127,7 +129,7 @@ Test the full TCP/NTRIP stack using a mock server.
 
 **Terminal 1 (Server):**
 ```bash
-uv run python scripts/mock_ntrip_caster.py \
+PYTHONPATH=. uv run python scripts/mock_ntrip_caster.py \
   --file "data/NMEA_DGOS_10102025/NMEA_DGOS LDM_20251010_040000.rtl" \
   --port 2101
 ```
@@ -135,7 +137,7 @@ uv run python scripts/mock_ntrip_caster.py \
 **Terminal 2 (Client):**
 ```bash
 # Create a local test config pointing to localhost
-uv run python scripts/run_ingestor.py \
+PYTHONPATH=. uv run python scripts/run_ingestor.py \
   --config config/stations_local_test.yml \
   --dry-run
 ```

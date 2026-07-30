@@ -103,9 +103,9 @@ if self.mountpoint:
     await self._perform_handshake()  # NTRIP authentication
 ```
 
-### Data Storage: `src/database/writer.py`
+### Data Storage: `src/adapters/outputs/timescaledb.py`
 
-**What it does:** Saves processed data to TimescaleDB (PostgreSQL with time-series extensions).
+**What it does:** `TimescaleDBAdapter` saves processed data to TimescaleDB (PostgreSQL with time-series extensions). It implements the `OutputPort` protocol; sibling implementations in the same package: `NullOutputPort` (tests), `LoggingOutputPort` (dry-run), `CompositeOutputPort` (fan-out to several sinks).
 
 **Key operations:**
 - `write_velocity()` - Stores velocity measurements
@@ -139,7 +139,7 @@ GPS Station → TCP Connection → NMEA Parser → Processor → Database
 1. **Network Layer** (`tcp.py`): Receives streaming NMEA sentences
 2. **Parsing Layer** (`nmea_parser.py`): Converts text to structured data
 3. **Processing Layer** (`processor.py`): Applies algorithms and detects events
-4. **Storage Layer** (`writer.py`): Saves results to database
+4. **Storage Layer** (`adapters/outputs/timescaledb.py`): Saves results to database
 
 ## Configuration Files
 

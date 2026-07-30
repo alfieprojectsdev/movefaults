@@ -32,6 +32,48 @@ def test_no_callback_does_not_crash(tmp_path):
     assert scanner.file_count == 1
 
 
+def test_on_progress_fires_with_count_and_rate(tmp_path):
+    test_dir = tmp_path / "scan"
+    test_dir.mkdir()
+    for i in range(4):
+        (test_dir / f"file{i}.txt").write_text(f"content {i}")
+
+    seen: list[tuple[int, float]] = []
+    scanner = DeepScanner(
+        test_dir, stats_only=True, on_progress=lambda count, rate: seen.append((count, rate))
+    )
+    scanner.scan()
+
+    assert [count for count, _ in seen] == [1, 2, 3, 4]
+    assert all(isinstance(rate, float) and rate >= 0 for _, rate in seen)
+
+
+def test_on_progress_exception_does_not_abort_scan(tmp_path):
+    test_dir = tmp_path / "scan"
+    test_dir.mkdir()
+    for i in range(3):
+        (test_dir / f"file{i}.txt").write_text(f"content {i}")
+
+    def bad_progress(count, rate):
+        raise RuntimeError("simulated progress failure")
+
+    scanner = DeepScanner(test_dir, stats_only=True, on_progress=bad_progress)
+    scanner.scan()
+    assert scanner.file_count == 3
+
+
+def test_quiet_suppresses_console_output(tmp_path, capsys):
+    test_dir = tmp_path / "scan"
+    test_dir.mkdir()
+    (test_dir / "file1.txt").write_text("hello")
+
+    scanner = DeepScanner(test_dir, stats_only=True, quiet=True)
+    scanner.scan()
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert scanner.file_count == 1
+
+
 def test_callback_exception_does_not_abort_scan(tmp_path):
     test_dir = tmp_path / "scan"
     test_dir.mkdir()

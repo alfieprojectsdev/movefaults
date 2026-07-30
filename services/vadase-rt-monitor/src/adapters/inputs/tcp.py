@@ -7,10 +7,20 @@ from src.ports.inputs import InputPort
 
 logger = structlog.get_logger()
 
+
+class FatalConfigError(ConnectionError):
+    """A handshake failure that retrying cannot fix (bad credentials, wrong
+    mountpoint). Retrying these hammers the caster with bad-auth requests and
+    risks locking the shared account — the station must stop instead."""
+
+
 class TCPAdapter(InputPort):
     """
     Input Adapter for TCP Streams (NTRIP Client).
     """
+
+    HANDSHAKE_TIMEOUT = 10.0  # seconds; the 10 s data watchdog doesn't cover the handshake
+
     def __init__(
         self, 
         host: str, 
@@ -43,7 +53,11 @@ class TCPAdapter(InputPort):
                 self.reader, self.writer = await asyncio.open_connection(self.host, self.port)
 
                 if self.mountpoint:
-                    await self._perform_handshake()
+                    # readline() inside the handshake has no watchdog of its own;
+                    # a caster that accepts TCP but never responds would hang forever.
+                    await asyncio.wait_for(
+                        self._perform_handshake(), timeout=self.HANDSHAKE_TIMEOUT
+                    )
 
                 self.logger.info("connected")
                 backoff = _BACKOFF_BASE  # reset on successful connection
@@ -76,13 +90,21 @@ class TCPAdapter(InputPort):
 
                 await self.cleanup()
 
+            except FatalConfigError as e:
+                self.logger.error(
+                    "fatal_config_error", error=str(e),
+                    hint="fix station credentials/mountpoint and restart; not retrying",
+                )
+                await self.cleanup()
+                return
             except Exception as e:
                 self.logger.error("connection_error", error=str(e))
                 await self.cleanup()
 
             if not stop_event.is_set():
-                jitter = random.uniform(0.0, 1.0)
-                delay = backoff + jitter
+                # Full jitter across [base, backoff]: after a shared caster outage,
+                # 35 stations must not reconnect in lockstep at each backoff step.
+                delay = random.uniform(_BACKOFF_BASE, backoff)
                 self.logger.info("reconnecting_in", seconds=round(delay, 1))
                 await asyncio.sleep(delay)
                 backoff = min(backoff * 2, _BACKOFF_MAX)
@@ -119,18 +141,23 @@ class TCPAdapter(InputPort):
         response_str = response_line.decode().strip()
 
         if "SOURCETABLE" in response_str:
-            raise ConnectionError(
+            raise FatalConfigError(
                 f"NTRIP mountpoint '{self.mountpoint}' is not an active stream "
                 f"(caster returned SOURCETABLE); verify mountpoint name"
             )
         if "200 OK" in response_str:
-            await self._drain_http_headers()
+            # NTRIP 1.0 casters reply "ICY 200 OK" and stream data immediately —
+            # no headers, no blank line; draining would eat the first NMEA
+            # sentences of every (re)connect. Only HTTP-style responses
+            # (NTRIP 2.0) carry a header block to drain.
+            if response_str.startswith("HTTP/"):
+                await self._drain_http_headers()
             self.logger.info("handshake_success", response=response_str)
             return
         if "401" in response_str:
-            raise ConnectionError("NTRIP unauthorized: check credentials")
+            raise FatalConfigError("NTRIP unauthorized: check credentials")
         if "404" in response_str:
-            raise ConnectionError(f"NTRIP mountpoint not found: {self.mountpoint}")
+            raise FatalConfigError(f"NTRIP mountpoint not found: {self.mountpoint}")
         raise ConnectionError(f"NTRIP handshake failed: {response_str}")
 
     async def _drain_http_headers(self) -> None:

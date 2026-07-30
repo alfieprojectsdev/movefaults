@@ -43,10 +43,14 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SMTP_ENABLED: "true"
       GF_SMTP_HOST: smtp.gmail.com:587
-      GF_SMTP_USER: ${GRAFANA_SMTP_USER:-alfieprojects.dev@gmail.com}
+      GF_SMTP_USER: ${GRAFANA_SMTP_USER:-gpspivs01@gmail.com}
       GF_SMTP_PASSWORD: ${GRAFANA_SMTP_PASSWORD}
-      GF_SMTP_FROM_ADDRESS: ${GRAFANA_SMTP_USER:-alfieprojects.dev@gmail.com}
+      GF_SMTP_FROM_ADDRESS: ${GRAFANA_SMTP_USER:-gpspivs01@gmail.com}
       GF_SMTP_FROM_NAME: "VADASE Alerts"
+      # Consumed by $__env{} interpolation in the provisioning YAMLs:
+      # datasource DB password + alert contact-point address.
+      POGF_DB_PASSWORD: ${POGF_DB_PASSWORD:-pogf_password}
+      VADASE_ALERT_EMAIL: ${VADASE_ALERT_EMAIL:-gpspivs01@gmail.com}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./services/vadase-rt-monitor/grafana/provisioning:/etc/grafana/provisioning

@@ -10,7 +10,9 @@ contactPoints:
       - uid: vadase-email
         type: email
         settings:
-          addresses: alfieprojects.dev@gmail.com
+          # Set VADASE_ALERT_EMAIL in the environment; docker-compose passes it
+          # through with the shared MOVE Faults project inbox as default.
+          addresses: $__env{VADASE_ALERT_EMAIL}
           singleEmail: false
 
 # ---------------------------------------------------------------------------
@@ -41,7 +43,7 @@ groups:
           summary: "Velocity threshold breach at {{ $labels.station_code }}"
           description: >-
             {{ $labels.station_code }}: average horizontal velocity
-            {{ $values.C.Value | printf "%.4f" }} m/s exceeds the 15 mm/s seismic threshold.
+            {{ $values.B.Value | printf "%.4f" }} m/s exceeds the 15 mm/s seismic threshold.
         labels:
           severity: warning
         data:
@@ -56,11 +58,10 @@ groups:
                 SELECT
                   NOW() AS time,
                   station_code,
-                  AVG(SQRT(v_east * v_east + v_north * v_north)) AS v_horizontal
+                  AVG(v_horizontal) AS v_horizontal
                 FROM vadase_velocities
                 WHERE time >= NOW() - INTERVAL '10 seconds'
-                  AND v_east IS NOT NULL
-                  AND v_north IS NOT NULL
+                  AND v_horizontal IS NOT NULL
                 GROUP BY station_code
               format: table
 

@@ -8,7 +8,9 @@ datasources:
     database: pogf_db
     user: pogf_user
     secureJsonData:
-      password: pogf_password
+      # Same env var that docker-compose feeds Postgres (POGF_DB_PASSWORD) —
+      # rotating the password in .env updates both sides; no stale literal here.
+      password: $__env{POGF_DB_PASSWORD}
     jsonData:
       sslmode: disable
       maxOpenConns: 10
