@@ -23,6 +23,8 @@
 ~~PR#33~~ ──▶ ~~ING-001~~ ──▶ ~~ING-002~~     (Bernese-parallel track)
                                 └──▶ DA-001 (validate GNSS classification on a real legacy drive)
 
+~~ING-003~~ ──▶ ING-005 (gfzrnx RINEX-3/4 QC backend · trigger MET · license-gated for automation)
+
 ~~VAD-001~~  ~~VAD-002~~                       (done; were needed before R740 go-live)
 ```
 
@@ -330,6 +332,24 @@ The scanner classifies GNSS files; the Celery pipeline validates and loads them.
 
 ---
 
+### ING-005 · P1 · M
+**gfzrnx as RINEX-3/4 QC backend — version-routed dual-tool QC**
+
+teqc is unmaintained (last build `2019Feb25`) and a RINEX-2-era tool: it **hard-refuses RINEX 3** (`must be RINEX Version <= 2.11 ... exiting`, zero obs read) and cannot do RINEX 4 at all. The live PAGENET campaign is already mixed-version — every IGS fiducial is RINEX 3.04 (`CUSV00THA_R_2026...`, GPS+GLO+GAL+QZS+BDS), only the PAGENET CORS subset still emits RINEX 2 short-name. So the current teqc-only `RinexQC` silently cannot QC any fiducial. Trigger to migrate is **met now, empirically** — evidence: `docs/project_documentation/gfzrnx_vs_teqc_rinex3_evidence.md` (gfzrnx 2.2.0 QC'd all constellations in 14s on the same file teqc rejected on line 1).
+
+Migration is **de-risked, not greenfield**: PHIVOLCS (Cass, COS staff under MOVE Faults) has run gfzrnx as a teqc substitute with manual BPE GPS processing for years; gfzrnx 2.2.0 lx64 binary verified on-disk (`~/Downloads/gfzrnx/`).
+
+- Add a `GfzrnxQC` backend in `qc/` that shells to `gfzrnx -finp <file> -check` (or the QC stat mode from Cass's manual), parsing into the **existing `RINEXQCResult`** dataclass — keep the return type stable so the Celery chain and `IngestionLog` propagation are untouched.
+- Version-route in the QC entry point: detect RINEX version from the file header (major version field, line 1), dispatch RINEX-2 → teqc (unchanged, keeps GPS-only CORS subset working), RINEX-3/4 → gfzrnx. Do NOT rip out teqc — it stays the RINEX-2 path.
+- Normalise QC metrics across the two tools so downstream consumers see one schema regardless of backend (map gfzrnx's fields to `obs_count` / `cycle_slips` / `mp1_rms` / `mp2_rms`, `None` where a tool doesn't emit an equivalent).
+- Binary discovery: `gfzrnx_path` param like `teqc_path`, default `"gfzrnx"`, same `FileNotFoundError → RuntimeError` install-hint pattern. **Do NOT commit the gfzrnx binary** (licensed; each user registers their own free GFZ scientific account and downloads the identical non-node-locked binary).
+- Tests: RINEX-3.04 fixture (fiducial) routes to gfzrnx and parses; RINEX-2 fixture still routes to teqc; header version-detection unit tests incl. malformed/short header; missing-binary path.
+
+*Prerequisite met (evidence doc + on-disk RINEX-3 fiducials + gfzrnx 2.2.0). Depends on: ING-003 (teqc seam to route around). Feeds: Deliverable 2.5 (RINEX QC), `bernese-workflow` ingestion QC.*
+*LICENSE GATE — automation only: manual desktop use fits the free **Scientific** license (established practice, years). The PLANNED automated server pipeline = "recurring process chain / operational use" → needs the **Commercial campus** license per GFZ terms; PHIVOLCS being public does NOT exempt it. This ticket lands the code; do not flip the ingestion pipeline to automated/orchestrated gfzrnx QC until the GFZ inquiry confirms terms (email drafted `~/Downloads/gfzrnx_license_inquiry_GFZ.md`). See `memory/gfzrnx_teqc_decision.md`.*
+
+---
+
 ### ING-004 · P3 · S
 **Stable checkpoint key for archive-extracted files**
 
@@ -345,19 +365,131 @@ During archive recursion, `mark_scanned(filepath)` records the ephemeral temp-ex
 ### DA-001 · P1 · S
 **Validate drive-archaeologist GNSS classification on a REAL legacy GNSS drive**
 
-Found 2026-07-01: `artifacts.db` shows the scanner ran on a real mounted drive — but a **DOST
-media/movies drive** (`/run/media/finch/DOSTB20150918`), NOT GNSS data. So scanner *mechanics*
+Found 2026-07-01: `artifacts.db` shows the scanner ran on a real mounted drive — but a **personal
+media/movies drive** (`/run/media/finch/DOSTB20150918` — "DOSTB" = DOS + TB, a 2TB drive, NOT a
+DOST asset), NOT GNSS data. So scanner *mechanics*
 (walk/dedup/checkpoint) have real-FS exercise, but the **GNSS-classification path** (RINEX / Trimble
 `.T0x` / Hatanaka / legacy profiles in `profiles.py` + `classifier.py`) has only synthetic/mock
 coverage (`mock_drive/`, `test_data/`, `tmp_path`). A movies drive tests everything EXCEPT the tool's
 actual purpose — the classifier could mis-tag or miss real RINEX/Trimble files and no test would catch it.
 
-- Mount a real legacy GNSS drive (DOST/PHIVOLCS archive — same drive class as the DOSTB one)
+**UPDATE 2026-07-03 — partially validated, by accident.** The hardened scanner (PR #46) surveyed
+DOSTB20150918 itself with `--include-hidden` and found **16,001 GNSS-classified files** the original
+media-drive scan never saw: ~15,900 sit in `$RECYCLE.BIN` under THREE different Windows user SIDs —
+8,385 Trimble `.t02` raw, 4,616 `.sp3`, 2,369 `.erp`, 353 `.clk`, 124 Hatanaka `.crx`, RINEX obs
+spanning `.02o`–`.19o` (the 2002/2003 files matched only via the new regex fallback; the static list
+starts at `.15`). Plus 3,665 Leica `.mNN` raw (classified after `cd7316c`). Live (non-deleted) GNSS:
+`repos/BERN54`, `repos/GPSDATA`. So the classification path HAS now run against real GNSS data and
+caught real gaps (year-extensions, Leica). Remaining for full DA-001 closure: spot-check
+classifications against known content + excavate/recover the recycle-bin GNSS before this drive is
+ever repurposed.
+
+- Mount a real legacy GNSS drive (PHIVOLCS archive)
 - Run the scanner; verify RINEX/Trimble/Hatanaka files classify correctly (spot-check against known content)
 - Capture any mis-classifications as profile fixes; add a real-data regression fixture if feasible
 
 *Do before trusting excavation output for the ingestion pipeline (ING-001 handoff). See
 `memory/drive_archaeologist_test_gap.md`.*
+
+---
+
+### DA-002 · P2 · M
+**Harden scanner against corrupt FAT filesystems — lessons from first real corrupt drive (2026-07-02)**
+
+First scan of a genuinely corrupt drive (hp v210w 7.5G thumbdrive, FAT trashed by a failed USB-auth
+experiment) exposed failure modes that WILL recur on decades-old PHIVOLCS legacy drives. The scan
+succeeded only because corruption zones were mapped manually (via `find`/`df` forensics) and excluded
+by orchestrating 51 separate per-subdir scans externally. An unattended excavation run would have hung
+or produced garbage. Catalog + evidence: `~/sdc_catalog_20260702/`.
+
+Observed failure modes → required guards:
+
+1. **Bogus direntry sizes** — 941 entries claiming 100MB–3.4GB each on a 7.5GB stick (`du` said 1.1TB;
+   `statvfs`/`df` said 916MB). Any hashing/dedup/copy step would read garbage for hours or EIO-loop.
+   → Pre-scan sanity gate: warn when Σ(claimed sizes) ≫ filesystem capacity ("directory metadata
+   inconsistent with filesystem usage — probable FAT corruption"); per-file `claimed_size > fs_capacity`
+   → classify `corrupt_direntry`, never open/read.
+2. **Mojibake / undecodable filenames** (`ç▄#╦ßrl.╦d╓`, trailing-space dirnames, `.@`) — classifier
+   regexes assume decodable names; path serialization can choke on surrogates.
+   → Detect non-UTF-8-decodable / control-char names → `corrupt_direntry`; surrogateescape-safe JSONL writes.
+3. **Cross-linked duplicate direntries** (same path yielded twice in one walk) — path-keyed dedup breaks;
+   future checksum dedup would double-read. → De-dupe walk output on (dev, inode/path) per pass.
+4. **Silent read errors** — 421 unreadable entries surfaced only in stderr. → Count + report per-scan read
+   errors in the summary (visibility gate, same spirit as the RXOBV3 silent-drop fix in BRN-006).
+5. **No `--exclude` CLI option** — cannot skip a known-corrupt subtree. → Add repeatable `--exclude GLOB`.
+6. **Checksums missing entirely** — scan JSONL has no hash field, so Phase-1 MD5 dedup (design doc) is
+   unimplemented; when it lands, guards 1–3 become mandatory prerequisites, not nice-to-haves.
+
+**Addendum (2026-07-03) — full-source safety audit before a 2TB survey; write-safety CONFIRMED
+(all writes/deletes verified: output-side only, rmtree targets are mkdtemp dirs exclusively; zero
+content reads except read-only archive extraction), plus four survey-correctness gaps:**
+
+7. **Silent skip-list hides real content** (`utils/paths.py::should_skip_path`) — ALL dot-prefixed
+   entries + `$RECYCLE.BIN` / `System Volume Information` / `.Trash*` / `__MACOSX` are skipped with only
+   an aggregate `skipped_count`. Bit in practice: one rehabbed thumbdrive's ENTIRE contents lived in
+   `.Trash-1000` — a survey would have reported it empty. On ext4 drives this hides `.ssh`, `.git`,
+   `.config`, shell histories — high-value excavation material. → Make the skip-list configurable
+   (`--include-hidden`), and ALWAYS itemize skipped roots in the summary so exclusions are visible.
+8. **Symlinks are followed** (`is_dir()`/`is_file()`/`stat()`, never `follow_symlinks=False`) — a
+   symlink on the scanned drive pointing at `/` or `/home` makes the scan silently walk the HOST
+   filesystem and catalog it as drive contents. Loops self-terminate via ENAMETOOLONG→OSError (no
+   hang), but escape-the-drive is real on ext4 sources. → `is_symlink()` gate: record symlinks as
+   their own category, never traverse.
+9. **Nested-archive recursion is depth-unbounded** — archive-in-archive recurses with no cap; a zip
+   quine/bomb fills `$TMPDIR` until ENOSPC (self-limits + cleans up, but can transiently starve /tmp,
+   which is RAM-backed on tmpfs systems). Multi-GB media RARs also mean long extractions to /tmp.
+   → Depth cap (e.g. 3) + honor a size budget; document `TMPDIR` override for big scans.
+10. **Re-run truncates prior results** — without `--resume`, output opens mode `"w"`: re-running the
+    same `-o` OVERWRITES the previous survey JSONL. Checkpoint (with `--resume`) holds every path in
+    RAM and rewrites the full JSON every 1000 files (O(n²/1000) I/O — acceptable at ~10⁵ files, wrong
+    shape for 10⁶+). → Refuse to clobber an existing output without `--force`; append-only checkpoint.
+
+*Do before or alongside DA-001 — a real legacy GNSS drive is MORE likely to be corrupt than this one.*
+
+---
+
+### DA-003 · P3 · S
+**`drive-arch survey` — fast triage subcommand (no JSONL, no hashing)**
+
+Triaging the 6 thumbdrives on 2026-07-02/03 for wipe never needed a full scan — the wipe/keep call
+came from three cheap signals: total size, top-N extension histogram, and "does anything classify as
+GNSS?". The full `scan` (per-file JSONL, metadata, eventual MD5) is overkill for a 116MB photo stick.
+Rather than have operators fall back to ad-hoc `du -sh` / `find | sed` one-liners (non-portable GNU-isms,
+and — critically — `du` reported a bogus **1.1 TB** on the corrupt hp v210w, exactly the lie a shell
+fallback would inherit), fold the summary INTO the existing scanner as a lightweight mode.
+
+- Add `drive-arch survey <path>` (Click subcommand alongside `scan`): walk once via the SAME
+  `DeepScanner`/classifier, accumulate counts in memory, emit NO artifact file.
+- Output: total size + file count, top-N extension/category histogram, GNSS-classified count, and a
+  one-line verdict (`no GNSS payload — safe-to-wipe candidate (human confirms)` vs `N GNSS files — DO
+  NOT wipe, run full scan`). Rich table, human-first.
+- Reuse the classifier already trusted for `scan` — do NOT introduce a second, dumber heuristic that
+  can disagree with `scan` on the same tree. In-process only; NO `subprocess` shell-out to `du`/`find`
+  (portability + the corruption-lie reason above).
+- Sizes come from the DA-002 sanity-gated walk, so `survey` reports corrupt/oversized direntries
+  honestly instead of parroting a fake total. Verdict must surface "⚠ filesystem metadata inconsistent
+  — capacity check failed" when the gate trips.
+- Verdict must DISCLOSE exclusions: itemize skipped hidden/system roots (DA-002 #7) and symlink count —
+  "safe-to-wipe" is meaningless if `.Trash-1000` (or any dot-dir) was silently omitted from the survey.
+- Tests: `tmp_path` trees — pure-media (safe verdict), one-RINEX-present (do-not-wipe verdict), empty,
+  and a fixture with a claimed-oversize file (corruption verdict).
+
+*Small. Depends on DA-002 (needs the capacity-sanity gate so `survey` can't be fooled the way `du` was).
+Quality-of-life for the recurring "is this stick safe to blank?" task; NOT on the GNSS critical path.*
+
+---
+
+### DA-005 · P3 · L
+**Textual TUI — the drive-rehab funnel as an interface**
+
+Full design: [`tools/drive-archaeologist/docs/TUI_PLAN.md`](../../tools/drive-archaeologist/docs/TUI_PLAN.md).
+Five screens mirroring the proven workflow (drive picker -> survey verdict -> resumable scan ->
+JSONL explorer -> action scripts), Textual-based, read-only toward scanned drives, identity-gated
+targeting (device letters never trusted), command-echo pane for reproducibility. Phased: 005a
+picker+survey (M), 005b scan+reattach (M), 005c explorer+SQLite index (M/L), 005d recovery/migration
+scripts (L, gated on Phase 2/3). Scanner needs only an `on_progress` callback seam.
+
+*Depends on: DA-002/DA-003 (merged, PR #46). Plan only — not scheduled.*
 
 ---
 
