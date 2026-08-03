@@ -75,13 +75,26 @@ it costs one line and saves hunting later.
 
 ## 4. What survives what
 
-| Event | tmux session | Claude conversation |
-|---|---|---|
-| SSH drops / wifi lost | **Survives** | **Survives** |
-| Laptop closed or shut down | **Survives** | **Survives** |
-| You detach with `Ctrl-b d` | **Survives** | **Survives** |
-| You type `exit` in the shell | Ends | Survives (`--resume`) |
-| **gps3 reboots** | **Destroyed** | Survives (`--resume`) |
+| Event | tmux session | Claude conversation | Remote control |
+|---|---|---|---|
+| SSH drops / wifi lost | **Survives** | **Survives** | **Survives** |
+| Laptop closed or shut down | **Survives** | **Survives** | **Survives** |
+| You detach with `Ctrl-b d` | **Survives** | **Survives** | **Survives** |
+| You close the SSH window | **Survives** | **Survives** | **Survives** |
+| You type `exit` in the shell | Ends | Survives (`--resume`) | Ends with the process |
+| **gps3 reboots** | **Destroyed** | Survives (`--resume`) | **Destroyed** |
+
+**The remote-control column is measured, not assumed** (2026-08-03). With the
+SSH window closed and `tmux list-clients` returning **no attached clients**, the
+session still executed commands and answered normally. Verified by PID: the
+process kept its original number (415338) with an uptime matching the tmux
+session's creation, so it continued rather than restarting. A remote-controlled
+session therefore needs no terminal watching it — closing the laptop does not
+interrupt work in progress.
+
+Caveat on that test: a second SSH session from another host was still open at
+the time. The tmux session had zero attached clients either way, so the result
+holds, but a stricter test would close every session first.
 
 **The reboot row is the one that catches people.** tmux keeps nothing on disk.
 A kernel update or power event takes every session with it. Before a planned
