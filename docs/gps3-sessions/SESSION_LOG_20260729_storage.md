@@ -954,12 +954,71 @@ external compressor (nothing on stock Ubuntu can *write* `.Z`), an early-exit
 test asserting that SIGPIPE from the cut-off `gzip` is not treated as failure,
 and an integration test against the real gps3 DATAPOOL that skips off-host.
 
-### 14.6 Still to do for BRN-001
+### 14.6 Provisioning `$U` — mechanism built, one asset still missing
 
-1. **Provision `$U` from the repo** (§5 step 2). `GPSUSER/PCF` holds only stock
-   Bernese PCFs; there is no PAGENET PCF, and `GPSUSER/SCRIPT` has no
-   `pagenet_pcs.pl`. `scripts/pagenet_pcs.pl` and `scripts/run_pagenet_week.sh`
-   are in the repo and need deploying, sanitized (P1-H).
+§5 step 2 says "provision `$U` from repo gold-standard PCFs/panels/scripts".
+**The gold standard did not exist.** Checking first was worth it:
+
+- `$U/OPT`, `$U/PCF`, `$U/SCRIPT`, `$U/PAN` on gps3 are **byte-identical to the
+  `$C/USER` template** shipped with Bernese 5.4 — zero files differing. Nothing
+  PHIVOLCS-specific had ever been deployed here.
+- The repo held only `scripts/pagenet_pcs.pl` and one Jinja template. P1-H's
+  "gold-standard panels versioned in repo" was aspirational.
+
+**Built the mechanism** (`config/bernese/gpsuser/` + `scripts/provision_gpsuser.py`),
+because it is the thing readiness §4 actually requires: after a MIS reset, a
+working environment must be recoverable by re-running provisioning rather than
+by re-debugging panels by hand.
+
+Three file classes, handled deliberately differently:
+
+| Class | Treatment | Why |
+|---|---|---|
+| `OPT/**/*.INP` | Separator-sanitized; `ADDNEQ2.INP` MAXPAR sized from station count | Windows `\` are literal chars on Linux (gap #8, readiness §2.5) |
+| `SCRIPT/*` | Copied **verbatim** | A backslash in Perl is an escape, not a path separator — converting corrupts the driver |
+| `PCF/*.PCF` | Checked for dangling `WAIT`, refused if any | A WAIT on an undefined PID makes the BPE block **forever**, silently |
+
+`PAN/USER.CPU` is **generated, never versioned.** `maxjobs` must track the
+host's physical cores, so a committed copy would carry one machine's core count
+onto another — which is precisely the bug found earlier today (§14.2). The
+provisioner detects cores and RAM itself and independently arrived at
+`maxjobs=11`, matching the hand-set value.
+
+Dry-run by default; `--apply` to write. Strict: a panel with an unresolvable
+hazard aborts the whole run *before* anything is written, so `$U` is never left
+half-updated.
+
+**Applied.** `pagenet_pcs.pl` is now at `$U/SCRIPT/`, byte-identical to the gold
+copy, and a second run reports no changes.
+
+**Still blocked: `PAGENET_DLY.PCF`.** It exists only on the T420, where it drove
+the full training week. **It must be captured, not re-derived.** It is described
+as RNX2SNX modules 1–14 (PID 001→514), but that is not a truncation anyone can
+safely perform by eye: `599 DUMMY` waits on `512 514 522`, so dropping the
+R2S_RED branch (521/522) leaves 599 waiting on a PID that never runs — the exact
+dangling-WAIT hang the provisioner now refuses. The `9xx` save/cleanup tail
+needs deliberate decisions too. A re-derived PCF would be a *different* PCF from
+the validated one, and the acceptance test would then be exercising something
+nobody has ever run.
+
+To hand it over, from the T420:
+
+```bash
+cp "$U/PCF/PAGENET_DLY.PCF" <repo>/config/bernese/gpsuser/PCF/
+cp -r "$U/OPT/PGN_WK"       <repo>/config/bernese/gpsuser/OPT/   # if present
+```
+
+Expect the provisioner to **reject `PGN_WK/ADDNEQ2.INP` on first attempt** —
+readiness §2.5 records it carrying Windows separators, a dangling `WAIT=522`,
+and hardcoded sessions (`20261030/40/50`, the instructor's demo week). That
+rejection is the tool working, not a malfunction: remap the hardcoded literals,
+then re-run.
+
+### 14.7 Still to do for BRN-001
+
+1. **Capture `PAGENET_DLY.PCF` from the T420** into
+   `config/bernese/gpsuser/PCF/` — the only thing between here and an acceptance
+   test.
 2. **Add PLG2 to `PGN.STA`** (or implement task A's automatic quarantine) and
    retire `.excluded_plg2/`.
 3. **Tune `V_CLUFIN`** (P2-K) — empirical, needs a real run to measure.

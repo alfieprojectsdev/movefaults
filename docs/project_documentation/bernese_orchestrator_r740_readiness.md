@@ -200,10 +200,31 @@ RINEX-3 handling is a live constraint, not hypothetical.
 
 ## 5. Phased go-live checklist
 
-1. **Install + verify** Bernese on R740 (EXAMPLE campaign sub-mm SINEX diff) — `bernese_install` plan.
+1. ~~**Install + verify** Bernese on R740 (EXAMPLE campaign sub-mm SINEX diff)~~ — **DONE**, 0.0000 mm, 2026-07-29.
 2. **Provision `$U` from repo** gold-standard PCFs/panels/scripts (P1-H) — sanitized, no Windows paths,
    no hardcoded sessions. Patch BSW_DWLD/ADD_MON per gap #8.
-3. **Tune `USER.CPU` + clustering** for the R740 core count (P2-K/L) — confirm `lscpu`, RAM headroom.
+   > **MECHANISM BUILT 2026-08-03; ONE ASSET OUTSTANDING.**
+   > The gold standard did not exist — gps3's `$U/OPT`, `PCF`, `SCRIPT`, `PAN` were
+   > **byte-identical to the `$C/USER` template**, and the repo held only
+   > `pagenet_pcs.pl`. Now at `config/bernese/gpsuser/`, applied by
+   > `scripts/provision_gpsuser.py` (dry-run by default, `--apply` to write,
+   > strict-abort before any write so `$U` is never left half-updated).
+   > Panels are separator-sanitized with MAXPAR sized from the station count;
+   > `SCRIPT/` is copied verbatim (a Perl backslash is an escape, not a path);
+   > PCFs are refused if they carry a dangling WAIT. `PAN/USER.CPU` is
+   > **generated from detected hardware, never versioned** — a committed copy
+   > would carry one machine's core count onto another, which is exactly the
+   > `maxjobs 2` bug found on gps3. `pagenet_pcs.pl` is deployed and the run is
+   > idempotent.
+   >
+   > **Outstanding: `PCF/PAGENET_DLY.PCF` must be captured from the T420, not
+   > re-derived.** Truncating RNX2SNX at PID 514 leaves `599 DUMMY` waiting on
+   > `522` — a dangling WAIT that hangs the BPE forever, and which the
+   > provisioner will now refuse. A re-derived PCF would not be the one that was
+   > validated during the training week.
+3. **Tune `USER.CPU` + clustering** for the R740 core count (P2-K/L) — `USER.CPU`
+   **DONE 2026-08-03** (maxjobs 2 → 11 on 12 physical cores); `V_CLUFIN`
+   clustering still untuned and still the other half of the 502 bottleneck.
 4. **Wire P0 (A-E)** into the orchestrator; re-run the PAGENET week on R740 as the acceptance test
    (it must clear PLG2/PTAG/MAXPAR automatically, not by hand as we did this week).
 5. **Wire P1 (F-J)** — QC gates + resumable scheduler.
