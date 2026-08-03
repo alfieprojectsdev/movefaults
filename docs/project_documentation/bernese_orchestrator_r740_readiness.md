@@ -82,7 +82,9 @@ RINEX-3 handling is a live constraint, not hypothetical.
 | A | **Per-session pre-flight station validator** — every RINEX station has a `PGN.STA` entry (else RXOBV3 hard-aborts); run per session (intermittent stations); flag blank DOMES / RINEX2-3 mismatch / duplicate markers / too-short (<~15 km) baselines | 2.2 PLG2, 2.3 PTAG, gaps #11 | new `pre_flight()` stage |
 | B | **MAXPAR sized from station count** in all ADDNEQ2 panels (≈ N_sta×4 + margin; ~270 sta ⇒ well above the 1000 default) | gap #10 | panel templating |
 | C | **Validator targets the DATAPOOL source dir**, not pre-BPE empty `RAW/` | gap #1 | `validate_rinex_headers()` |
-| C2 | **Validator must read COMPRESSED + Hatanaka RINEX** — see the box below; blocks C outright on real data | measured 2026-08-03 | `_is_rinex_obs()` |
+| C2 | ~~**Validator must read COMPRESSED + Hatanaka RINEX**~~ **DONE 2026-08-03** — see box below | measured 2026-08-03 | `_is_rinex_obs()` |
+| A2 | ~~**Station code must survive mixed marker conventions**~~ **DONE 2026-08-03** — PAGENET puts the code in MARKER NUMBER ("BOGO CITY"/`PBOG`), IGS in MARKER NAME (`CUSV`/DOMES); taking MARKER NAME[:4] failed 9 of 72 good stations | measured 2026-08-03 | `_resolve_station_code()` |
+| A3 | ~~**Validate only what RNX_COP will stage**~~ **DONE 2026-08-03** — `rglob` descended into the hand-quarantined `.excluded_plg2/`; RNX_COP globs without recursing | measured 2026-08-03 | `_parse_rinex_headers()` |
 | D | **prepare_campaign() adds GEN/ + SESSIONS.SES** | gap #2 | `prepare_campaign()` |
 | E | **Parameterize PCF_FILE / BPE_CAMPAIGN / CPU_FILE=USER** (run PAGENET, not just RNX2SNX) | gap #3, 2.1 | `backends.run()` |
 
@@ -114,10 +116,32 @@ RINEX-3 handling is a live constraint, not hypothetical.
 > DATAPOOL** — evidence for §6's thesis that the readiness gap is the list of things
 > that only show up on real data.
 >
-> **Fix:** teach `_is_rinex_obs()` to strip a `.gz`/`.Z` suffix before matching, and
-> accept Hatanaka `.<yy>d` and `.crx`. Header parsing must then decompress
-> (`gzip` + `CRX2RNX`) or read headers without full decompression. Add fixtures in
-> the real DATAPOOL naming scheme so the suite can see this class of failure.
+> **FIXED 2026-08-03. All seven PAGENET sessions (DOY 084–090) now validate clean;
+> 179 tests pass, up from 128.**
+>
+> The fix needed **no Hatanaka decoding at all**. A CRINEX file stores the original
+> RINEX header *verbatim* after two `CRINEX VERS`/`PROG` lines and compacts only the
+> observation records below `END OF HEADER` — which this validator never reads. So
+> `crx2rnx` never runs: no RNXCMP build, no `hatanaka` package. Decompression alone
+> suffices. (RNXCMP is still required for actual processing — GSI's page, 4.1.0,
+> plain C, no dependencies.)
+>
+> Compression needed two paths, not one. IGS convention is `.Z` (UNIX compress/LZW),
+> and Python's `gzip` **cannot** read it: `BadGzipFile: Not a gzipped file
+> (b'\x1f\x9d')` — LZW magic `1f 9d` vs gzip's `1f 8b`. On gps3: 3,010 `.gz`, 20 `.Z`,
+> including real Hatanaka+LZW at `GRCC/RINEX/GFCN0100.23D.Z`. Resolution: Python `gzip`
+> for `.gz` (keeps the 3,010-file path subprocess-free), GNU `gzip -dc` for `.Z`, no
+> new dependency. Extension stripping loops right-to-left — every real name stacks two
+> extensions and both orders occur.
+>
+> **Two further defects surfaced only once the validator could see data** (tasks A2/A3
+> above): descriptive marker names shadowing the station code, and `rglob` descending
+> into the hand-quarantined `.excluded_plg2/`. Both would have blocked the acceptance
+> test; neither was visible while the scan returned nothing.
+>
+> **Still open:** PLG2 is genuinely absent from `PGN.STA`. The quarantine directory is
+> a training-week workaround, not a fix — task A should replace it with automatic
+> per-session detection.
 
 ### P1 — correctness/robustness on real data
 | # | Improvement | Evidence | Component |

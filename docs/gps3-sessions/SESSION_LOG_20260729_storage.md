@@ -814,11 +814,20 @@ already on the box, which was not obvious before checking:
 | DATAPOOL migration (07-29) | **Verified complete** — 0 diff lines old vs new, 4.1 G both |
 | `GPSDATA` volume | Own 4 TB LV, 4.5 G used — DL-012 disk pressure is **not** a near-term constraint |
 
-`PLG2`, the station that hard-aborted DOY 086 on the T420, is **absent from this
-DATAPOOL entirely** (0 files), so that specific failure will not reproduce here.
-The reference files do disagree with each other, though — `PGN.STA` 74 records,
-`PGN.CRD` 72, `PGN.ABB` 71, against 71 stations in the DOY 086 RINEX — which is
-exactly the class of discrepancy task A exists to catch.
+**Correction (made later the same day, §14.5).** An earlier reading of this
+recorded that `PLG2` — the station that hard-aborted DOY 086 on the T420 — was
+"absent from this DATAPOOL entirely (0 files)". That was wrong, and wrong in an
+instructive way: `ls | grep -i plg2` at the top level finds nothing because the
+files are **hand-quarantined in a hidden subdirectory**,
+`.excluded_plg2/plg20860.26o.gz` and `plg20880.26o.gz`. They came across in the
+migration intact. PLG2 is still **missing from `PGN.STA`**, so the underlying
+defect is unfixed; it is merely hidden behind a manual workaround applied
+during the training week.
+
+The reference files also disagree with each other — `PGN.STA` 74 records,
+`PGN.CRD` 72, `PGN.ABB` 71, against 71–72 stations per session in the RINEX.
+A `.STA` carrying more stations than any one day's data is normal and benign;
+validation against all seven sessions now passes clean (§14.5).
 
 ### 14.2 maxjobs was 2 — the R740 was using 2 of its 12 cores
 
@@ -882,13 +891,77 @@ This is also a fifth instance of the session's running theme — see §13.3. A
 check that reports success without having inspected anything is the same defect
 as an exit status that reports success without having run anything.
 
-### 14.4 Still to do for BRN-001
+### 14.5 C2 fixed — the validator now sees the real DATAPOOL
 
-1. **Fix C2** — the validator is a prerequisite for trusting any automated run.
-2. **Provision `$U` from the repo** (§5 step 2). `GPSUSER/PCF` holds only stock
+**Result: all seven PAGENET sessions (DOY 084–090) validate clean**, from a
+starting point of zero files visible. 179 tests pass, up from 128.
+
+**The fix was much smaller than expected, because of one property of CRINEX.**
+A Hatanaka file stores the original RINEX header **verbatim** after two
+`CRINEX VERS`/`CRINEX PROG` lines; only the observation records *below*
+`END OF HEADER` are compacted. Since this validator reads nothing past the
+header, `crx2rnx` never has to run. No RNXCMP build, no `hatanaka` package, no
+Hatanaka decoding anywhere in validation — **decompression alone is enough.**
+(RNXCMP is still needed for actual processing; canonical source is GSI's RNXCMP
+page, currently 4.1.0, plain C with no dependencies.)
+
+**Compression had to handle two formats, not one.** IGS convention is `.Z`
+(UNIX compress / LZW), not `.gz`. Python's `gzip` module cannot read it —
+`BadGzipFile: Not a gzipped file (b'\x1f\x9d')`, LZW magic `1f 9d` against
+gzip's `1f 8b`. On this box: 3,010 `.gz` against 20 `.Z`, including four real
+Hatanaka-plus-LZW files at `GRCC/RINEX/GFCN0100.23D.Z`. Resolution: Python
+`gzip` for `.gz` (keeping the 3,010-file path subprocess-free), GNU `gzip -dc`
+for `.Z`. No new dependency.
+
+Extension stripping loops right-to-left rather than using one regex, because
+every real name stacks two extensions and both orders occur: `PZAM0860.26d.gz`,
+`GFCN0100.23D.Z`, `CUSV..._MO.crx.gz`, `..._MO.rnx.gz`.
+
+**Two further defects surfaced only once the validator could see data at all.**
+Both would have blocked the acceptance test, and neither was visible before:
+
+1. **Descriptive marker names shadowed the station code.** PAGENET CORS write
+   `MARKER NAME = "BOGO CITY"` with the code in `MARKER NUMBER = "PBOG"`; IGS
+   fiducials do the reverse (`MARKER NAME = "CUSV"`, `MARKER NUMBER` = a 9-char
+   DOMES). Taking `MARKER NAME[:4]` yielded `BOGO`, absent from `PGN.STA`, so
+   **9 of 72 real stations were reported missing on data that processes
+   correctly**. Two naming conventions in one campaign — readiness §2.6 again.
+   `_resolve_station_code()` now prefers a bare 4-char `MARKER NUMBER`, then a
+   bare 4-char `MARKER NAME`, then the filename, and logs disagreements.
+   *A validator that fails on good data gets switched off, which costs more
+   than the check was ever worth.*
+
+2. **`rglob` descended into the hidden quarantine directory.** It picked up
+   `.excluded_plg2/`, reporting PLG2 missing from `PGN.STA` on exactly DOY 086
+   and 088 — which, pleasingly, reproduces readiness §2.2's empirical finding
+   ("present only DOY 086 + 088") from an entirely independent direction. But
+   RNX_COP globs the source directory *without* recursing, so those files will
+   never be staged. **The validator must model what will actually be
+   processed**; flagging files that cannot reach the run is the mirror image of
+   the vacuous pass, and just as effective at getting the check ignored.
+   Dot-directories are now skipped, with the reasoning recorded in the code.
+
+**PLG2 remains genuinely missing from `PGN.STA`.** The quarantine is a manual
+workaround from the training week, not a fix, and task A is meant to replace it
+with automatic per-session detection and quarantine. Skipping dot-directories
+suppresses the *symptom* in validation; it does not resolve the defect.
+
+Test coverage now spans the production filename space — the reason the previous
+128 could not see any of this. Added: parametrised recognition across all real
+encodings and their negative cases (nav/met/product files), round-trip reads for
+plain/`.gz`/`.Z`, a from-scratch LZW encoder so `.Z` is testable with no
+external compressor (nothing on stock Ubuntu can *write* `.Z`), an early-exit
+test asserting that SIGPIPE from the cut-off `gzip` is not treated as failure,
+and an integration test against the real gps3 DATAPOOL that skips off-host.
+
+### 14.6 Still to do for BRN-001
+
+1. **Provision `$U` from the repo** (§5 step 2). `GPSUSER/PCF` holds only stock
    Bernese PCFs; there is no PAGENET PCF, and `GPSUSER/SCRIPT` has no
    `pagenet_pcs.pl`. `scripts/pagenet_pcs.pl` and `scripts/run_pagenet_week.sh`
    are in the repo and need deploying, sanitized (P1-H).
+2. **Add PLG2 to `PGN.STA`** (or implement task A's automatic quarantine) and
+   retire `.excluded_plg2/`.
 3. **Tune `V_CLUFIN`** (P2-K) — empirical, needs a real run to measure.
 4. **Acceptance test**: one PAGENET session end-to-end on gps3, then the week.
    It must clear the station/MAXPAR/panel problems *automatically*, not by hand.
