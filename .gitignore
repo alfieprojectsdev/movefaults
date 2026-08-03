@@ -67,3 +67,6 @@ scripts/deploy_r740.secrets
 
 # git worktrees (multi-instance dev)
 .trees/
+
+# sudo run-script output — the scripts are committed, their logs are not
+scripts/sudo/logs/

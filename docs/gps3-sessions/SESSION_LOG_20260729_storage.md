@@ -473,3 +473,422 @@ found *before* the rebuild, which is what a surface scan is for.
 read is enabled and note its period. If it is disabled, either enable it, or
 append staggered long tests to the `-s` expressions:
 `-s (S/../.././NN|L/../../6/NN)`.
+
+> **RESOLVED 2026-08-03 — see §13.2. Do not act on the paragraph above.**
+> The premise was wrong in a way worth noticing: it assumed surface scanning
+> could only come from the controller, so an unreachable iDRAC meant an
+> unanswerable question. It came instead from **BMS, the drive firmware's own
+> Background Media Scan**, which runs below the controller and is fully visible
+> from the OS. Full-surface reads are happening roughly daily on all 16
+> members. Long self-tests were considered and **rejected** — they would
+> duplicate existing coverage. Whether PERC patrol read is enabled remains
+> unknown and no longer matters.
+
+---
+
+## 13. Mirror, surface-scan resolution, and archive prep — 2026-07-30 to 08-03
+
+Covers the tail of the 07-30 session, a four-day unattended gap, and the
+08-03 resumption. §1–12 stand as written except where noted above.
+
+### 13.1 Git mirror onto agency hardware
+
+The repository's only durable copy lived on a personal GitHub account —
+identified in `COORDINATION.md` as the project's top continuity risk, since
+nobody at PHIVOLCS can grant or recover access to it. There is now a bare
+mirror on agency-owned storage:
+
+```
+/srv/gnss-archive/git/movefaults.git        bare, ~14 MB, 50 branches at creation
+/srv/gnss-archive/git/mirror-update.sh      refresh script
+cron: 37 22 * * *                           nightly
+```
+
+The design goal is **preservation, not synchronisation**, and the difference is
+the whole point:
+
+| Setting | Value | Why |
+|---|---|---|
+| `--prune` on fetch | **omitted, deliberately** | A mirror that prunes faithfully reproduces upstream deletions. A force-push or branch deletion on GitHub would erase the same history here — the mirror would dutifully destroy the thing it exists to protect. |
+| `core.logAllRefUpdates` | `true` | Bare repos default this **off**. With it on, every ref movement is recorded in the reflog, so a clobbered ref is still recoverable locally. |
+| `gc.pruneExpire` | `never` | Unreachable objects are never garbage-collected. Anything that ever arrived stays. |
+| `git fsck` | every run | Fixity check. Catches silent corruption on the array itself. |
+
+The combined effect is an **append-only** copy: upstream can add history to it,
+but cannot take history away. The cost is that genuinely dead branches
+accumulate, which is a trivial price.
+
+Two smaller guards, both from bugs this project has already paid for:
+
+- **Mount guard.** The script refuses to run unless `/srv/gnss-archive` is a
+  real mountpoint. Without it, an unmounted array means the mirror silently
+  writes into the empty directory on the root filesystem — appearing to work
+  while backing up nothing to the wrong disk.
+- **`BatchMode=yes`, `GIT_TERMINAL_PROMPT=0`.** Under cron there is no tty; a
+  credential prompt would hang the job indefinitely instead of failing. Fail
+  fast and loudly beats hang quietly.
+
+The script is committed as `scripts/gnss_mirror_update.sh`. **The deployed copy
+at `/srv/gnss-archive/git/` is the one cron runs** — edits to the repo copy do
+not take effect until copied across.
+
+**Verified 2026-08-03 after four unattended days:** fired all four nights,
+`fsck clean` every run, branches 50 → 54. It works without supervision, which
+was the requirement.
+
+### 13.2 Surface scanning: the §12.4 gap closed, from an unexpected direction
+
+§12.4 left a genuine hole. smartd schedules only short self-tests; long tests
+were omitted on the assumption that PERC patrol read handles surface scanning;
+that assumption was never checked, and appeared uncheckable — no vendor CLI
+exists in the Ubuntu repos and iDRAC has no IP (§13.4).
+
+**The question was answerable after all, because the assumption about where
+scanning comes from was too narrow.** SAS drives run their own **Background
+Media Scan (BMS)** in firmware, below the RAID controller, and both the scan
+log and the lifetime byte counters are readable through the megaraid
+pass-through. Measured 2026-08-03 via `/home/gps3/patrol_check.sh`:
+
+```
+Status: waiting until BMS interval timer expires
+Accumulated power on time, hours:minutes 10142:56
+Number of background scans performed: 424
+
+read:  0  228  228  228  3929  1025339.394  0
+                             GB processed ^      ^ uncorrected
+```
+
+| Measure | Value |
+|---|---|
+| Lifetime read, per drive | ~1,025,300 GB ≈ **1.03 PB** |
+| Total uncorrected read errors | **0** on all 16 |
+| Background scans performed | **424** |
+| Power-on hours | 10,142 (≈423 days) |
+| Implied scan interval | **≈ one full pass per 24 h** |
+
+**The cross-check that makes this a conclusion rather than a guess.** Scan
+count and bytes-read are separate firmware counters kept for unrelated
+purposes. 424 scans × 2.4 TB = 1,017.6 TB, against a measured 1,025.3 TB —
+agreement within 0.8%. Two independent counters converge on the same fact, so
+the conclusion does not rest on trusting either number's label. `patrol_check.sh`
+now computes this ratio directly and prints it as the `SWEEPS` column.
+
+**Direct evidence the mechanism has already earned its keep.** Across all 16
+members BMS has found and repaired **~112 physical sectors** (895 logical
+entries), every one logged `[1,18,7]  Recovered via rewrite in-place` —
+RECOVERED ERROR, data retrieved via ECC and retries, then rewritten. **Zero
+reassignments, zero failures, zero uncorrected errors array-wide.** These are
+exactly the latent defects that destroy a 16-wide RAID 5 rebuild, caught during
+routine scanning while every member was healthy and full parity was available.
+The ~3.1% per-rebuild URE risk from §2 of `COORDINATION.md` is being actively
+worked down, not merely assumed away.
+
+**Read this column in physical sectors, not log entries.** These are 512e
+drives — one 4096-byte physical sector reports as **eight** consecutive
+512-byte logical entries. The distribution looked alarming at first:
+
+| Member | Logical entries | Physical sectors |
+|---|---|---|
+| **6** | 671 | ~84 |
+| 1 | 96 | 12 |
+| 8, 9 | 40 each | 5 each |
+| 15 | 24 | 3 |
+| 7 | 16 | 2 |
+| 5 | 8 | 1 |
+| 0, 2–4, 10–14 | 0 | 0 |
+
+Member 6 at seven times its nearest peer was investigated as a probable early
+failure (`scripts/sudo/inspect_member6.sh`). **It is healthy.** All 671 entries
+are rewrite-in-place; nothing was reassigned, so no spare sectors were consumed
+and the grown defect list is not growing. The defects span power-on hours 121
+to 10,127 — the drive's *entire* life at a steady ~1 physical sector every five
+days — rather than clustering recently, which is what degradation looks like.
+And 671/8 ≈ 84 matches that drive's own corrected-read-error counter of exactly
+84, an independent confirmation of the unit factor. **No replacement needed.**
+
+The instructive part is that the ranking is misleading in both directions.
+Member 0 — zero BMS entries, the apparent control — carries **228** corrected
+read errors and **3,929** correction-algorithm invocations, against member 6's
+84 and 85. Member 0 works considerably harder to read its own data; it simply
+never needed a rewrite. **Ranking drives by defect count alone selects the
+wrong suspect.** What actually indicates a failing drive is a `reassign_status`
+other than rewrite-in-place, defects concentrated in recent power-on hours, or
+any non-zero uncorrected count. Member 6 has none of the three.
+
+**Decision: do not add SMART long tests.** The `-s (S/../.././NN|L/../../6/NN)`
+change contemplated in §12.4 is **rejected** — it would duplicate a daily
+full-surface scan and add contention for no additional coverage. The smartd
+config in §9 stands unchanged.
+
+**What remains genuinely unknown:** whether PERC patrol read is enabled. BMS
+says nothing about it either way. It no longer blocks anything, since both
+defend the same failure mode and one of them is confirmed running.
+
+### 13.3 A fourth inverted-value bug, in the tool built to find the third
+
+Worth recording because of where it happened. The first run of
+`patrol_check.sh` reported **0.00 TB read and ~1,025,339 uncorrected errors per
+drive** — a fleet of unscanned, catastrophically failing disks. Both figures
+were wrong, and they were the same two numbers with their columns transposed:
+
+```
+read:  0  228  228  228  3929  1025339.394  0
+                               ^ $(NF-1)    ^ $(NF)
+                               GB processed   uncorrected errors
+```
+
+The script read `$(NF)` as gigabytes and `$(NF-1)` as uncorrected errors.
+
+Three things make this worth more than a one-line fix:
+
+1. **The output was individually plausible.** A near-zero read total is what an
+   unscanned array looks like. A huge error count is what a dying drive looks
+   like. Nothing was obviously malformed — only the *magnitude* of the error
+   count (a million errors on a drive still answering queries) gave it away.
+2. **It reached the exactly-opposite conclusion.** Not a degraded or partial
+   answer: a confident, precisely inverted one, on the specific question the
+   tool existed to settle.
+3. **This script was written to close out the third instance of this bug
+   class** (the SIGPIPE/pipefail bug in §12.1), and its header comment warns
+   about that bug — while committing a fresh variant of the same family
+   fourteen lines below the warning.
+
+The family: **a value taken from the wrong place, then trusted because it
+looked reasonable.** SIGPIPE 141 read as failure; `lsof +D` exit 1 read as
+"files open"; a trailing `[ cond ] && echo` read as the script's verdict; and
+now `$(NF)` read as gigabytes. Knowing the pattern did not prevent it.
+
+What did catch it: **going back to the raw tool output instead of iterating on
+the parsed summary.** The fix is now pinned in the script by a comment carrying
+the literal column header, so the next reader can check the field positions
+without re-deriving them.
+
+**A second misreading, same session, same shape.** With the parse fixed, the
+recovered-sector column was read in the wrong *units* — raw 512-byte log
+entries rather than 4K physical sectors — making member 6 look seven times
+worse than its peers and very nearly justifying a proactive drive replacement
+(§13.2). Not a code bug this time: the script reported exactly what it
+measured. The error was in interpretation, and it produced the same outcome as
+the parse bug — a confident conclusion, drawn from a real number, pointing the
+wrong way.
+
+What broke both: **going back to the raw per-drive output instead of iterating
+on the summary.** Worth generalising, since it is now the operating lesson of
+this whole section — *a derived number is only as good as the last time someone
+checked it against the thing it was derived from.* Both fixes are pinned in the
+script by comments carrying the literal evidence (the column header; the
+671 ÷ 8 = 84 cross-check), so the next reader can verify without re-deriving.
+
+`patrol_check.sh` was corrected to report scan count, recovered sectors in
+physical units, and the sweeps ratio, and is now in the repo at
+`scripts/patrol_check.sh`. Root-requiring run-scripts live in `scripts/sudo/`
+(`verify_patrol_check.sh`, `inspect_member6.sh`), with their logs gitignored
+and the scripts themselves committed as the record of what was run.
+
+### 13.4 iDRAC is not reachable
+
+```
+sudo ipmitool lan print 1   ->  IP Address 0.0.0.0, IP Address Source: DHCP
+                                MAC b0:7b:25:fe:2c:38
+```
+
+`/dev/ipmi0` exists and the drivers are loaded, so the BMC is alive — it simply
+has no address. **There is no out-of-band management on this machine today:** no
+remote console, no remote power cycle, no hardware event log access, no
+controller configuration. If gps3 fails to boot, it needs someone physically in
+front of it.
+
+`sudo ipmitool delloem lan get` will report whether the BMC is on the dedicated
+port or shares an onboard NIC, which determines what needs cabling.
+
+**Before it is put on the network, change the password.** Dell ships iDRAC with
+factory credentials `root`/`calvin`, and an iDRAC is a full remote console with
+power control — reachable regardless of the OS state.
+
+### 13.5 Branching policy adopted
+
+Merged to `main` 2026-07-30 (PR #58) and now in `CLAUDE.md`: all substantive
+work reaches `main` through a PR; branches live at most one week; `git pull
+--rebase` before every push; never redirect a gated git/gh operation to
+`/dev/null`; verify after every merge and retarget.
+
+Rule 2's one-week limit came from `docs/bernese-training-notes` drifting 27 days
+until neither it nor `main` held the whole project, taking a full session (PR
+#57) to reconcile. The diagnosis worth keeping: the failure was not the branch,
+it was the branch **outliving its purpose and quietly becoming a second trunk**.
+
+Commits `6c7709c` and `23d4b29` predate the policy, went directly to `main`, and
+still carry AI-attribution trailers the policy now forbids. Left alone
+deliberately — rewriting `main` to tidy history is a worse act than the
+inconsistency it would fix.
+
+### 13.6 Archive: receiving side ready, still empty
+
+`/srv/gnss-archive/legacy` is prepared and **verified empty (0 entries)** as of
+2026-08-03. The ~157 GB legacy archive still exists in exactly one place: a
+personal external drive with a pending sector. **This remains the single
+largest data-loss risk in the project.** Blocked on the push from the T420's
+DOSTB mount.
+
+`/srv/gnss-archive/verify_archive.sh` is staged for afterwards, in two modes:
+
+- **`census`** — counts files, symlinks, directories and bytes separately, to
+  be compared against the same census on the source. Separate counts because
+  this archive once lost every symlink to a FAT32 hop, silently: a file count
+  alone would not have noticed, since the symlinks were still present as
+  regular files.
+- **`manifest`** — sha256 over the destination, written to
+  `/srv/gnss-archive/manifests/` and gzipped for committing to git.
+
+**Why a census and not `rsync --stats`:** rsync exits 0 having skipped files it
+could not read, and exits 23 on a run that copied 99.99% successfully. Neither
+number describes what actually landed. Hashing is destination-only on purpose —
+the source is failing media being rescued, rsync already verifies each file in
+flight, and the manifest's real job is detecting silent corruption on the array
+years from now, which nothing currently defends against.
+
+**Commit the manifest `.gz` to git.** Fingerprints stored only beside the data
+cannot prove anything if that disk is what went wrong.
+
+Note the third exit-status bug of the set was found here, in this script, by
+running it against the empty destination before handover: a trailing
+`[ "$other" -gt 0 ] && echo …` made a *clean* census exit 1.
+
+### 13.7 Four unattended days, and the gh token
+
+The 07-30 session ended with the laptop leaving the network. Nothing was in
+flight. Verified on return 2026-08-03: mirror cron fired all four nights,
+`smartd` still active, no alerts, uptime 11 days.
+
+**Lesson recorded:** that session ran outside `tmux`, so disconnecting ended it.
+Nothing was lost because nothing was running — but the archive transfer will be
+hours of rsync from failing media, and must run inside `tmux` on both ends.
+Start `tmux` *first*, then the work inside it; a running process cannot be
+moved in afterwards.
+
+`gh`'s stored token had gone invalid over the gap (`HTTP 401: Bad credentials`).
+Git itself was unaffected — it uses SSH — so the failure surfaced only when a
+PR wrapper was called. Re-authenticated via device flow. Note that `gh` stores
+the new token **in plain text** in `~/.config/gh/hosts.yml`; that is normal `gh`
+behaviour, not a misconfiguration, but it is a second static credential on this
+box alongside `R740_PASS` in `scripts/deploy_r740.secrets` (still `gps3`, the
+same as the username, on a LAN-reachable host with sudo — should be changed).
+
+### 13.8 State at 2026-08-03
+
+| Item | State |
+|---|---|
+| smartd | Active, 16 members, staggered short tests, alert path proven |
+| Surface scanning | **Confirmed** — BMS, ~daily full pass, SWEEPS 1.01x on all 16 |
+| Drive health | 0 uncorrected errors array-wide; ~112 sectors repaired in place, none reassigned; member 6 investigated and cleared |
+| Git mirror | Nightly, 4/4 runs clean unattended, append-only by design |
+| `/srv/gnss-archive/legacy` | **Empty** — transfer not started |
+| iDRAC | No IP; no out-of-band management exists |
+| PERC patrol read | Unknown; no longer blocking |
+| Kernel | 6.8.0-136 installed, **6.8.0-111 running** — reboot pending |
+| `~/GPSDATA.old-20260729` | 4.5 GB retained; this *is* the migration rollback |
+
+Outstanding, in priority order: **deploy the `bernese-workflow` orchestrator**
+(§14 — now the active work, under time pressure); **populate the archive**
+(Tier 0) and manifest it; reboot deliberately with someone watching, which also
+first exercises the new `fstab`; configure iDRAC networking with a changed
+password.
+
+---
+
+## 14. Bernese orchestrator deployment — 2026-08-03
+
+Working against §5 of `docs/project_documentation/bernese_orchestrator_r740_readiness.md`.
+
+### 14.1 Where the deployment actually stands
+
+**Step 1 (install + verify) is done** — `BERN54` present, EXAMPLE campaign
+verified at 0.0000 mm on 07-29. Everything needed for the acceptance test is
+already on the box, which was not obvious before checking:
+
+| Asset | State |
+|---|---|
+| PAGENET RINEX | **677 files, DOY 081–090** in `$D/PGN` — wider than the 084–086 training week |
+| `PGN.*` reference set | STA, CRD, ABB, CLU, BLQ, ATL, PLD, VEL — all in `REF54/` |
+| Orchestrator P0 tasks A–E | All have code; **128 tests pass** |
+| DATAPOOL migration (07-29) | **Verified complete** — 0 diff lines old vs new, 4.1 G both |
+| `GPSDATA` volume | Own 4 TB LV, 4.5 G used — DL-012 disk pressure is **not** a near-term constraint |
+
+`PLG2`, the station that hard-aborted DOY 086 on the T420, is **absent from this
+DATAPOOL entirely** (0 files), so that specific failure will not reproduce here.
+The reference files do disagree with each other, though — `PGN.STA` 74 records,
+`PGN.CRD` 72, `PGN.ABB` 71, against 71 stations in the DOY 086 RINEX — which is
+exactly the class of discrepancy task A exists to catch.
+
+### 14.2 maxjobs was 2 — the R740 was using 2 of its 12 cores
+
+`USER.CPU` carried the **T420's** `maxjobs 2` across with the config. The 502
+GPSCLU_P bottleneck (readiness §2.4, ~40 min of every ~2 h run) was therefore
+being served by a box configured as if it were the laptop.
+
+Corrected via the repo's own `cpu_config.compute_maxjobs()` rather than by hand,
+so the change is the one the orchestrator will make in production:
+
+```
+physical cores=12  ram=62.0G  reserve=1  -> maxjobs=11
+"localhost" "…" "FAST" "11" "0" "0"      (was "2")
+```
+
+Backup at `PAN/USER.CPU.bak-<timestamp>`.
+
+**The readiness doc's core count was wrong by 2×** — it assumed 24 physical from
+the gaps memory. `lscpu`: Xeon Silver 4214R, 1 socket, **12 physical**, 2
+threads/core = 24 logical. Since maxjobs tracks physical cores (sub-solves are
+FPU-bound and gain nothing from hyperthreads sharing an FPU), setting 24 would
+have oversubscribed by 2× and plausibly run *slower* than a correct 12. Doc
+corrected in place. Also settled: the CPU carries AVX-512 (Cascade Lake), so the
+x86-64 ISA `objcopy` patch that section flagged as uncertain is **not needed**.
+
+`V_CLUFIN` clustering (P2-K) is still untuned and remains the other half of the
+502 fix.
+
+### 14.3 The validator cannot see the real DATAPOOL — new P0 blocker
+
+Pointing `validate_rinex_headers()` at the actual gps3 DATAPOOL:
+
+```
+ERROR No RINEX observation files found in /home/gps3/GPSDATA/DATAPOOL/PGN
+      for session 2026/0860 — refusing to pass validation vacuously
+```
+
+`_is_rinex_obs()` matches on `path.suffix` against `.rnx`, `.obs`, `.rxo`,
+`.<yy>o`. **Every file here is gzipped**, so the suffix is `.gz`. Decompressing
+would not save it: PAGENET files are Hatanaka `.26d` and the IGS fiducials
+`.crx`, neither of which is accepted. The real names are `PZAM0860.26d.gz`,
+`pbay0860.26o.gz`, `CUSV00THA_R_20260860000_01D_30S_MO.crx.gz`.
+
+**Why this is worse than an ordinary bug.** It surfaced loudly only because the
+call passed `require_stations=True`. Under the **default** `require_stations=False`
+the function returns a **passing** report — approving every session while having
+examined nothing, with the first symptom being RXOBV3 hard-aborting mid-BPE.
+That is the "vacuous pass" the docstring itself warns about, reached through a
+door nobody anticipated.
+
+And **the 128 tests pass**, because the fixtures use uncompressed `.YYo`/`.rnx`
+names. The gap is invisible to the suite and appears only against real data —
+which is readiness §6's thesis, demonstrated on the first contact with the
+production DATAPOOL.
+
+Filed as task **C2**. Fix: strip `.gz`/`.Z` before matching, accept `.<yy>d` and
+`.crx`, decompress (or header-read) via `gzip` + `CRX2RNX`, and add fixtures in
+the real naming scheme so the suite can catch this class.
+
+This is also a fifth instance of the session's running theme — see §13.3. A
+check that reports success without having inspected anything is the same defect
+as an exit status that reports success without having run anything.
+
+### 14.4 Still to do for BRN-001
+
+1. **Fix C2** — the validator is a prerequisite for trusting any automated run.
+2. **Provision `$U` from the repo** (§5 step 2). `GPSUSER/PCF` holds only stock
+   Bernese PCFs; there is no PAGENET PCF, and `GPSUSER/SCRIPT` has no
+   `pagenet_pcs.pl`. `scripts/pagenet_pcs.pl` and `scripts/run_pagenet_week.sh`
+   are in the repo and need deploying, sanitized (P1-H).
+3. **Tune `V_CLUFIN`** (P2-K) — empirical, needs a real run to measure.
+4. **Acceptance test**: one PAGENET session end-to-end on gps3, then the week.
+   It must clear the station/MAXPAR/panel problems *automatically*, not by hand.

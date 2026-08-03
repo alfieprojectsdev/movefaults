@@ -82,8 +82,42 @@ RINEX-3 handling is a live constraint, not hypothetical.
 | A | **Per-session pre-flight station validator** — every RINEX station has a `PGN.STA` entry (else RXOBV3 hard-aborts); run per session (intermittent stations); flag blank DOMES / RINEX2-3 mismatch / duplicate markers / too-short (<~15 km) baselines | 2.2 PLG2, 2.3 PTAG, gaps #11 | new `pre_flight()` stage |
 | B | **MAXPAR sized from station count** in all ADDNEQ2 panels (≈ N_sta×4 + margin; ~270 sta ⇒ well above the 1000 default) | gap #10 | panel templating |
 | C | **Validator targets the DATAPOOL source dir**, not pre-BPE empty `RAW/` | gap #1 | `validate_rinex_headers()` |
+| C2 | **Validator must read COMPRESSED + Hatanaka RINEX** — see the box below; blocks C outright on real data | measured 2026-08-03 | `_is_rinex_obs()` |
 | D | **prepare_campaign() adds GEN/ + SESSIONS.SES** | gap #2 | `prepare_campaign()` |
 | E | **Parameterize PCF_FILE / BPE_CAMPAIGN / CPU_FILE=USER** (run PAGENET, not just RNX2SNX) | gap #3, 2.1 | `backends.run()` |
+
+> **NEW BLOCKER — task C2, measured on gps3 2026-08-03.** Running
+> `validate_rinex_headers()` against the real gps3 DATAPOOL
+> (`$D/PGN`, 677 files, DOY 081–090) finds **zero RINEX files**:
+>
+> ```
+> ERROR No RINEX observation files found in /home/gps3/GPSDATA/DATAPOOL/PGN
+>       for session 2026/0860 — refusing to pass validation vacuously
+> ```
+>
+> `_is_rinex_obs()` tests `path.suffix` against `.rnx`, `.obs`, `.rxo` and `.<yy>o`.
+> On this box **every DATAPOOL file is gzipped**, so the suffix is `.gz` and nothing
+> matches. Decompressing would not fix it either: the PAGENET files are Hatanaka
+> `.26d` and the IGS fiducials `.crx`, neither of which is in the accepted set.
+> Real layout: `PZAM0860.26d.gz`, `pbay0860.26o.gz`, `CUSV00THA_R_20260860000_01D_30S_MO.crx.gz`.
+>
+> **Why this is worse than an ordinary bug.** `require_stations=True` turns it into a
+> loud hard failure, which is how it was caught. With the **default**
+> `require_stations=False` it returns a **passing** report — the validator would
+> silently approve every session while inspecting nothing, and the first sign of
+> trouble would be RXOBV3 hard-aborting mid-BPE. That is precisely the
+> "vacuous pass" the function's own docstring warns about, arriving through an
+> unanticipated door.
+>
+> The 128 unit tests all pass, because the fixtures use uncompressed `.YYo`/`.rnx`
+> names. **This gap is invisible to the test suite and only appears against a real
+> DATAPOOL** — evidence for §6's thesis that the readiness gap is the list of things
+> that only show up on real data.
+>
+> **Fix:** teach `_is_rinex_obs()` to strip a `.gz`/`.Z` suffix before matching, and
+> accept Hatanaka `.<yy>d` and `.crx`. Header parsing must then decompress
+> (`gzip` + `CRX2RNX`) or read headers without full decompression. Add fixtures in
+> the real DATAPOOL naming scheme so the suite can see this class of failure.
 
 ### P1 — correctness/robustness on real data
 | # | Improvement | Evidence | Component |
@@ -112,10 +146,26 @@ RINEX-3 handling is a live constraint, not hypothetical.
   which is fine, but confirm the ISA level on the actual box). Only the 2 Qt symlinks + DATAPOOL ref
   symlinks + DE421/CRX2RNX steps remain. See `bernese_install` R740 plan.
 - **Performance is the inverse story.** T420 (2 cores) made the 502 bottleneck invisible-but-tolerable
-  at ~2 h/day for ~54 stations. R740 (24 physical cores per the gaps memory — **confirm with
-  `lscpu`**) only pays off if clustering + maxjobs are tuned (P2-K/L). Untuned, R740 would run the
-  same single-core 502 solve, just on a bigger network = far worse. **The multi-core win is a config
-  task, not a free hardware win.**
+  at ~2 h/day for ~54 stations. R740 only pays off if clustering + maxjobs are tuned (P2-K/L).
+  Untuned, R740 would run the same single-core 502 solve, just on a bigger network = far worse.
+  **The multi-core win is a config task, not a free hardware win.**
+
+  > **MEASURED 2026-08-03 — the gaps memory's "24 physical cores" was wrong by 2×.**
+  > `lscpu` on the actual box: **Intel Xeon Silver 4214R, 1 socket, 12 physical cores,
+  > 2 threads/core = 24 logical**. The 24 was the *logical* count. Since P2-L sizes maxjobs
+  > by physical cores (the sub-solves are FPU-bound and gain nothing from hyperthreads
+  > sharing an FPU), the correct figure is **12, not 24** — setting 24 would have
+  > oversubscribed the FPUs by 2× and likely run *slower* than a correct 12.
+  > **`USER.CPU` maxjobs was found at `2`** — the T420's setting, carried across with the
+  > config, i.e. the R740 was running on 2 of its 12 cores. Now set to **11** via
+  > `cpu_config.compute_maxjobs(12, ram_gb=62, reserve_cores=1)`, leaving one core for the
+  > BPE server and OS. RAM is 62 GB, so the RAM ceiling (31 jobs at 2 GB each) is not
+  > binding. **`V_CLUFIN` clustering (P2-K) is still untuned** and remains the other half
+  > of the 502 fix.
+  >
+  > Also verified: the CPU reports `avx512f/bw/cd/dq/vl` (Cascade Lake), comfortably
+  > Haswell-or-newer, so **no x86-64 ISA `objcopy` patch is needed** — the condition this
+  > section flagged as uncertain is settled.
 - **Disk is the real R740 constraint** (DL-012): ~270 stations × daily campaigns × intermediate BPE
   files. Compression + retention policy needed before live — independent of orchestrator code.
 - **MIS instability risk** (the reason `hardline` exists): the MIS team reconfigures the box. The
