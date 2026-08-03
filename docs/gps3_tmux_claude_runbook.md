@@ -84,17 +84,31 @@ it costs one line and saves hunting later.
 | You type `exit` in the shell | Ends | Survives (`--resume`) | Ends with the process |
 | **gps3 reboots** | **Destroyed** | Survives (`--resume`) | **Destroyed** |
 
-**The remote-control column is measured, not assumed** (2026-08-03). With the
-SSH window closed and `tmux list-clients` returning **no attached clients**, the
-session still executed commands and answered normally. Verified by PID: the
-process kept its original number (415338) with an uptime matching the tmux
-session's creation, so it continued rather than restarting. A remote-controlled
-session therefore needs no terminal watching it — closing the laptop does not
-interrupt work in progress.
+**The remote-control column is measured, not assumed** (2026-08-03), in two
+stages:
 
-Caveat on that test: a second SSH session from another host was still open at
-the time. The tmux session had zero attached clients either way, so the result
-holds, but a stricter test would close every session first.
+1. **SSH window closed, same network.** `tmux list-clients` returned **no
+   attached clients**, yet the session still executed commands and answered
+   normally. Confirmed as continuation rather than restart by PID — the process
+   kept its original number (415338) with an uptime matching the tmux session's
+   creation time.
+2. **Reconnected from a home network, entirely outside the PHIVOLCS LAN.** The
+   same session remained drivable with no VPN and no inbound port.
+
+The second result is the operationally important one. **A long job on gps3 can
+be started at the office and supervised from home** — which is the difference
+between the archive transfer being a single unattended run and being something
+that has to be babysat on site.
+
+Why it works without any firewall change: gps3 makes an **outbound** connection.
+Nothing listens for an inbound one, so this does not expose the machine to the
+network it is reached from. The corollary is worth stating plainly: anyone with
+access to the Claude account can drive this box, with whatever privileges the
+session's user holds.
+
+Caveat on the first test: a second SSH session from another host was still open.
+The tmux session had zero attached clients either way, so the result holds, but
+it was not clean-room. The second test did not depend on it.
 
 **The reboot row is the one that catches people.** tmux keeps nothing on disk.
 A kernel update or power event takes every session with it. Before a planned
