@@ -1,9 +1,34 @@
-# gps3 Session Log — 2026-07-29: Storage Provisioning
+# gps3 Session Log — 2026-07-29 to 08-03
 
-**Session:** `dell-gps` (Claude Code running on gps3)
-**Purpose:** carve the unallocated PERC volume into LVs, migrate GPSDATA, re-verify Bernese.
+**Session:** `dell-gps` (Claude Code running on gps3, the Dell R740)
+**Started as:** carve the unallocated PERC volume into LVs, migrate GPSDATA,
+re-verify Bernese. **Grew into:** drive-health monitoring, an agency-side git
+mirror, and the Bernese orchestrator's first contact with real data.
+
 **Prior:** `~/HANDOVER.md` (updated 2026-07-29 by the T420 session)
-**Outcome:** ✅ complete — new mounts in service, BPE numerical parity preserved.
+
+## Where to start reading
+
+This log is long because it is the succession record, not a changelog. If you
+are new, read these three and skip the rest until you need it:
+
+| If you want | Read |
+|---|---|
+| What state the machine is in now | **§15** — end-of-session state and the one open blocker |
+| Why the RAID is considered safe | **§13.2** — surface scanning, settled by measurement |
+| Why the orchestrator could not read real data | **§14.3–14.5** |
+| The mistake this project keeps making | **§15.5** — five instances, one shape |
+
+Sections are chronological and append-only. Where a later finding overturns an
+earlier one, the earlier section carries a correction pointing forward rather
+than being rewritten — the wrong turns are part of the record.
+
+**Outcome (2026-08-03):** storage in service with BPE numerical parity
+preserved; all 16 RAID members monitored and confirmed surface-scanned; git
+mirrored onto agency hardware; the Bernese orchestrator validating all seven
+PAGENET sessions against the real DATAPOOL. Outstanding: the legacy archive is
+still single-copy on failing media, and `PAGENET_DLY.PCF` is still only on the
+T420.
 
 ---
 
@@ -295,7 +320,7 @@ alerts begin mailing if an MTA is ever installed.
 
 ---
 
-## 10. State at end of session
+## 10. State at end of session — 2026-07-29
 
 **Applied and verified:**
 
@@ -774,7 +799,7 @@ behaviour, not a misconfiguration, but it is a second static credential on this
 box alongside `R740_PASS` in `scripts/deploy_r740.secrets` (still `gps3`, the
 same as the username, on a LAN-reachable host with sudo — should be changed).
 
-### 13.8 State at 2026-08-03
+### 13.8 Infrastructure state
 
 | Item | State |
 |---|---|
@@ -788,11 +813,8 @@ same as the username, on a LAN-reachable host with sudo — should be changed).
 | Kernel | 6.8.0-136 installed, **6.8.0-111 running** — reboot pending |
 | `~/GPSDATA.old-20260729` | 4.5 GB retained; this *is* the migration rollback |
 
-Outstanding, in priority order: **deploy the `bernese-workflow` orchestrator**
-(§14 — now the active work, under time pressure); **populate the archive**
-(Tier 0) and manifest it; reboot deliberately with someone watching, which also
-first exercises the new `fstab`; configure iDRAC networking with a changed
-password.
+The Bernese work that followed on the same day is §14; the consolidated
+end-of-session state and handover is §15.
 
 ---
 
@@ -814,7 +836,7 @@ already on the box, which was not obvious before checking:
 | DATAPOOL migration (07-29) | **Verified complete** — 0 diff lines old vs new, 4.1 G both |
 | `GPSDATA` volume | Own 4 TB LV, 4.5 G used — DL-012 disk pressure is **not** a near-term constraint |
 
-**Correction (made later the same day, §14.5).** An earlier reading of this
+**Correction (made later the same day, §14.4).** An earlier reading of this
 recorded that `PLG2` — the station that hard-aborted DOY 086 on the T420 — was
 "absent from this DATAPOOL entirely (0 files)". That was wrong, and wrong in an
 instructive way: `ls | grep -i plg2` at the top level finds nothing because the
@@ -827,7 +849,7 @@ during the training week.
 The reference files also disagree with each other — `PGN.STA` 74 records,
 `PGN.CRD` 72, `PGN.ABB` 71, against 71–72 stations per session in the RINEX.
 A `.STA` carrying more stations than any one day's data is normal and benign;
-validation against all seven sessions now passes clean (§14.5).
+validation against all seven sessions now passes clean (§14.4).
 
 ### 14.2 maxjobs was 2 — the R740 was using 2 of its 12 cores
 
@@ -891,7 +913,7 @@ This is also a fifth instance of the session's running theme — see §13.3. A
 check that reports success without having inspected anything is the same defect
 as an exit status that reports success without having run anything.
 
-### 14.5 C2 fixed — the validator now sees the real DATAPOOL
+### 14.4 C2 fixed — the validator now sees the real DATAPOOL
 
 **Result: all seven PAGENET sessions (DOY 084–090) validate clean**, from a
 starting point of zero files visible. 179 tests pass, up from 128.
@@ -954,7 +976,7 @@ external compressor (nothing on stock Ubuntu can *write* `.Z`), an early-exit
 test asserting that SIGPIPE from the cut-off `gzip` is not treated as failure,
 and an integration test against the real gps3 DATAPOOL that skips off-host.
 
-### 14.6 Provisioning `$U` — mechanism built, one asset still missing
+### 14.5 Provisioning `$U` — mechanism built, one asset still missing
 
 §5 step 2 says "provision `$U` from repo gold-standard PCFs/panels/scripts".
 **The gold standard did not exist.** Checking first was worth it:
@@ -1014,7 +1036,7 @@ and hardcoded sessions (`20261030/40/50`, the instructor's demo week). That
 rejection is the tool working, not a malfunction: remap the hardcoded literals,
 then re-run.
 
-### 14.7 Still to do for BRN-001
+### 14.6 Still to do for BRN-001
 
 1. **Capture `PAGENET_DLY.PCF` from the T420** into
    `config/bernese/gpsuser/PCF/` — the only thing between here and an acceptance
@@ -1024,3 +1046,97 @@ then re-run.
 3. **Tune `V_CLUFIN`** (P2-K) — empirical, needs a real run to measure.
 4. **Acceptance test**: one PAGENET session end-to-end on gps3, then the week.
    It must clear the station/MAXPAR/panel problems *automatically*, not by hand.
+
+---
+
+## 15. End of session — 2026-08-03
+
+### 15.1 What changed on the machine
+
+Everything below is applied and verified, not merely written down:
+
+| Change | Verification |
+|---|---|
+| `USER.CPU` maxjobs **2 → 11** | Set via `cpu_config.compute_maxjobs()`; backup at `PAN/USER.CPU.bak-*` |
+| `pagenet_pcs.pl` deployed to `$U/SCRIPT/` | `cmp` byte-identical to gold copy; re-run reports no change |
+| `patrol_check.sh` corrected, moved into repo | Re-run: SWEEPS 1.01x, UNCORR 0 on all 16 |
+| `scripts/sudo/` convention established | Two scripts used in anger this session |
+| `.gitignore` — `scripts/sudo/logs/` | Logs excluded, scripts committed |
+
+**Nothing was changed on the array, the mirror, or the archive.** The storage
+side was read-only this session.
+
+### 15.2 Questions that were open this morning and are now closed
+
+- **Does anything scan the RAID surface?** Yes — BMS, ~daily, all 16 members,
+  confirmed by two independent counters. Long self-tests explicitly rejected.
+  (§13.2)
+- **Is member 6 failing?** No. The 671 figure was 512-byte logical entries;
+  ~84 physical sectors, flat rate across the drive's whole life, nothing
+  reassigned. (§13.2)
+- **Did the 07-29 GPSDATA migration lose anything?** No — 0 diff lines between
+  old and new DATAPOOL. (§14.1)
+- **How many cores does the R740 actually have?** 12 physical / 24 logical. The
+  readiness doc's 24 was the logical count. (§14.2)
+- **Is the objcopy ISA patch needed?** No — AVX-512 present. (§14.2)
+- **Can the orchestrator read real GNSS data?** It could not; now it can.
+  All seven PAGENET sessions validate clean. (§14.4)
+- **Does a repo gold standard for `$U` exist?** It did not; it does now. (§14.5)
+
+### 15.3 The one thing blocking progress
+
+**`PAGENET_DLY.PCF` exists only on the T420.** Until it is committed to
+`config/bernese/gpsuser/PCF/`, no acceptance test can run on gps3 — the
+orchestrator is otherwise ready, `$U` is provisioned, `maxjobs` is correct and
+the validator works against real data. Two `cp` commands on the other machine
+close it (§14.5).
+
+Do **not** re-derive it. §14.5 explains why, and the provisioner will now refuse
+a truncation that leaves a dangling WAIT.
+
+### 15.4 Delivered
+
+All work reached `main` through [PR #64](https://github.com/alfieprojectsdev/movefaults/pull/64),
+branch `docs/gps3-session-20260803`, three commits:
+
+| Commit | Contents |
+|---|---|
+| `a82be79` | §13, tmux runbook, `patrol_check.sh`, `scripts/sudo/` |
+| `ad2401c` | C2 — validator blind to real DATAPOOL; +51 tests |
+| `3f51cd7` | `$U` gold standard and provisioner; +10 tests |
+
+Test count 128 → 189, `ruff check` clean on everything touched.
+
+Also written this session: `docs/gps3_tmux_claude_runbook.md`, a from-scratch
+tmux guide for gps3 aimed at someone who has never used it — including the rule
+that costs the most when broken (**start tmux first; a running process cannot be
+moved into it afterwards**) and the fact that a reboot destroys every session
+while cron and smartd carry on regardless.
+
+Three T420 PRs (#61, #62, #63) were open and unmerged at session end. They are
+the other machine's to land.
+
+### 15.5 The running theme, for whoever reads this next
+
+This session found the same defect shape five times, and it is worth naming
+because it will recur:
+
+> **A check that reports success without having inspected anything.**
+
+- `smartd`'s `DEVICESCAN` — a green service monitoring **zero** drives (§9)
+- `slow_cmd | grep -q` under `pipefail` — success inverted to 141 by SIGPIPE (§12.1)
+- `patrol_check.sh` — columns transposed, reporting an unscanned, dying array
+  that was neither (§13.3)
+- The same script read in the wrong **units**, nearly condemning a healthy drive (§13.3)
+- `validate_rinex_headers()` — a **passing** report having read no files at all (§14.3)
+
+In every case the output was individually plausible, and in four of the five a
+passing test suite or a zero exit status actively concealed it. What broke each
+one was the same move: **go back to the raw output of the underlying tool
+instead of iterating on the summary.** The `smartctl` column header, the
+measured exit codes, `671 ÷ 8 = 84`, the actual DATAPOOL filenames.
+
+The corollary for the test suite is sharper still. The 128 tests passed
+throughout because their fixtures described a filename space that does not
+exist in production. **A suite that never sees real data cannot fail on a
+misreading of real data**, no matter how many assertions it contains.
