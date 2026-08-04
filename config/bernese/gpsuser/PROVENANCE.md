@@ -76,6 +76,24 @@ this panel is already past it. Do not "fix" it back down.
    `SESSIONS.SES`, which is the correct location — see the "looks broken but is
    not" note in `docs/GPS3_SESSION_HANDOVER_20260729.md`.
 
+   > **Verified 2026-08-04, and this file was listed under "expect the
+   > provisioner to catch these" when it did not.** Running
+   > `sanitize_panel_text()` over `MENU.INP` as of PR #64 returned
+   > `changed=True, warnings=0`: the backslashes were silently converted and the
+   > panel reported **clean**. The hardcoded `SOB` matched no hazard class —
+   > `foreign_abs_path` wants a drive letter, `hardcoded_session` wants a date
+   > stamp — so the instructor's campaign name would have reached `$U` unflagged.
+   >
+   > A `hardcoded_campaign` class was added to close this
+   > (`_HARDCODED_CAMPAIGN_RE`, matching `${P}/<literal>`). Both `MENU.INP` and
+   > **`MENU_CMP.INP`** — which this list does not mention at all — now raise 2
+   > warnings each, and the strict gate refuses the tree until they are remapped.
+   >
+   > The general point, since it recurs: a hazard listed in a provenance
+   > document is a *claim about tooling*, and it is worth running the tool to
+   > confirm it before writing the claim down. Two of the assertions in these
+   > two files were wrong in the direction of false reassurance.
+
 3. **`./DUMMY/...` relative paths** throughout `ADDNEQ2.INP` are a campaign
    placeholder, not a real directory.
 

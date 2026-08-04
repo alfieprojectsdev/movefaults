@@ -79,16 +79,98 @@ coherent; they are not the same iteration structure.
 
 ## 3. ⚠ These panels are Windows-origin and NOT sanitized
 
-Six **live** `.INP` files (not backups) carry `C:\Bernese\…` absolute paths:
+**50 live `.INP` files (not backups) carry `C:\Bernese\…` absolute paths**,
+across **200 separate lines**.
+
+> **Corrected 2026-08-04.** This section originally said "six", and listed six
+> files. The real figure was measured by running `sanitize_panel_text()` over
+> every one of the 105 `.INP` panels in this tree: **50 carry foreign absolute
+> paths, and 72 carry a hazard of some kind.** An eight-fold understatement in
+> the document written to record the hazards is worse than no document, because
+> someone remediating "six panels" would stop after six and believe the tree
+> was clean.
+>
+> Full hazard census of this tree, all 105 live panels:
+>
+> | Hazard | Instances |
+> |---|---|
+> | `hardcoded_campaign` | 820 |
+> | `foreign_abs_path` | 200 |
+> | `hardcoded_date` | 95 |
+> | **Panels affected** | **72 of 105** |
+>
+> Reproduce with:
+> ```bash
+> uv run python -c "
+> import sys; sys.path.insert(0,'services/bernese-workflow/src')
+> from bernese_workflow.panel_sanitizer import sanitize_panel_text
+> from pathlib import Path
+> for f in sorted(Path('config/bernese/gpsuser52-luzon').rglob('*.INP')):
+>     w = sanitize_panel_text(f.read_text(errors='replace')).warnings
+>     if w: print(len(w), f)
+> "
+> ```
+
+The 50 panels carrying `C:\Bernese\…`:
 
 ```
-OPT/PHI_WK/ADDNEQ2.INP        "U" "C:\Bernese\GPSUSER52"
-                              "T" "C:\Bernese\GPSTEMP"
+OPT/PHI_MO/ADDNEQ2.INP
+OPT/PHI_WK/ADDNEQ2.INP
+OPT/R2S_AMB/BASLST.INP
+OPT/R2S_AMB/GPSEST.INP
+OPT/R2S_AMB/GPSXTR.INP
+OPT/R2S_AMB/RESRMS.INP
+OPT/R2S_AMB/SATMRK.INP
 OPT/R2S_EDT/GPSEST.INP
+OPT/R2S_EDT/GPSXTR.INP
 OPT/R2S_EDT/RESRMS.INP
 OPT/R2S_EDT/SATMRK.INP
+OPT/R2S_FIN/ADDNEQ2.INP
+OPT/R2S_FIN/COMPAR.INP
+OPT/R2S_FIN/GPSEST.INP
+OPT/R2S_FIN/GPSXTR.INP
+OPT/R2S_FIN/HELMR1.INP
+OPT/R2S_GE2/COOVEL.INP
+OPT/R2S_GE2/SNGDIF.INP
+OPT/R2S_GEN/ADDNEQ2.INP
+OPT/R2S_GEN/ATX2PCV.INP
+OPT/R2S_GEN/CCPREORB.INP
+OPT/R2S_GEN/CCRINEXO.INP
 OPT/R2S_GEN/CODSPP.INP
+OPT/R2S_GEN/CODXTR.INP
+OPT/R2S_GEN/COOVEL.INP
+OPT/R2S_GEN/CRDMERGE.INP
+OPT/R2S_GEN/GPSXTR.INP
+OPT/R2S_GEN/MAUPRP.INP
+OPT/R2S_GEN/MPRXTR.INP
+OPT/R2S_GEN/ORBGEN.INP
+OPT/R2S_GEN/POLUPD.INP
+OPT/R2S_GEN/PRETAB.INP
+OPT/R2S_GEN/RESCHK.INP
+OPT/R2S_GEN/RESRMS.INP
+OPT/R2S_GEN/RNXGRA.INP
 OPT/R2S_GEN/RNXSMT.INP
+OPT/R2S_GEN/RXOBV3.INP
+OPT/R2S_GEN/SATMRK.INP
+OPT/R2S_GEN/SNGDIF.INP
+OPT/R2S_GEN/STA2ID.INP
+OPT/R2S_L12/BASLST.INP
+OPT/R2S_L12/GPSEST.INP
+OPT/R2S_L12/SATMRK.INP
+OPT/R2S_L53/BASLST.INP
+OPT/R2S_L53/GPSEST.INP
+OPT/R2S_L53/SATMRK.INP
+OPT/R2S_QIF/BASLST.INP
+OPT/R2S_QIF/GPSEST.INP
+OPT/R2S_RED/ADDNEQ2.INP
+OPT/R2S_RED/GPSXTR.INP
+```
+
+The `ENVIRONMENT` block in `OPT/PHI_WK/ADDNEQ2.INP` is representative:
+
+```
+"U" "C:\Bernese\GPSUSER52"
+"T" "C:\Bernese\GPSTEMP"
 ```
 
 This is the same defect class as `../gpsuser/OPT/PGN_WK/MENU.INP`, and it is
