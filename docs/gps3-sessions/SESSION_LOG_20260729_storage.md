@@ -1015,13 +1015,24 @@ copy, and a second run reports no changes.
 
 **Still blocked: `PAGENET_DLY.PCF`.** It exists only on the T420, where it drove
 the full training week. **It must be captured, not re-derived.** It is described
-as RNX2SNX modules 1–14 (PID 001→514), but that is not a truncation anyone can
-safely perform by eye: `599 DUMMY` waits on `512 514 522`, so dropping the
-R2S_RED branch (521/522) leaves 599 waiting on a PID that never runs — the exact
-dangling-WAIT hang the provisioner now refuses. The `9xx` save/cleanup tail
-needs deliberate decisions too. A re-derived PCF would be a *different* PCF from
-the validated one, and the acceptance test would then be exercising something
-nobody has ever run.
+as RNX2SNX modules 1–14 (PID 001→514). In stock `RNX2SNX.PCF`, `599 DUMMY` waits
+on `512 514 522`, so naively dropping the R2S_RED branch (521/522) would leave
+599 waiting on a PID that never runs.
+
+> **Corrected 2026-08-04, having now seen the real file (PR #65).** That was a
+> prediction about what a careless truncation *would* do, and the actual
+> `PAGENET_DLY.PCF` does not have the problem: its `599 DUMMY` waits on
+> `512 514`, and 521/522 are simply absent. `find_dangling_waits()` reports
+> **zero**. Whoever produced it performed the reduction properly rather than
+> cutting the file short.
+>
+> The advice to capture rather than re-derive still stands, but the honest
+> reason is weaker than the one originally given: not "a truncation leaves a
+> dangling WAIT" — this one demonstrably does not — but that the captured file
+> is the one actually validated during the training week, and the `9xx`
+> save/cleanup tail involves choices a reconstruction would have to guess at.
+> A stated hazard that turns out not to apply is worth less than it appears,
+> and worth correcting at the point it was claimed.
 
 To hand it over, from the T420:
 
@@ -1096,7 +1107,14 @@ a truncation that leaves a dangling WAIT.
 
 ### 15.4 Delivered
 
-All work reached `main` through [PR #64](https://github.com/alfieprojectsdev/movefaults/pull/64),
+> **Correction 2026-08-04.** The sentence below originally read "All work
+> reached `main`". It had not, and still has not. Everything is on the branch in
+> an **open** PR; `origin/main` was and is at `1d1082e` (PR #60). Rule 5 exists
+> for exactly this — *verify `origin/main` actually advanced*, do not infer it
+> from having pushed successfully. Caught by the T420 session, not by me, in a
+> section I wrote to be the authoritative end-of-session state.
+
+All work is queued for `main` in [PR #64](https://github.com/alfieprojectsdev/movefaults/pull/64), **still open**,
 branch `docs/gps3-session-20260803`, three commits:
 
 | Commit | Contents |
