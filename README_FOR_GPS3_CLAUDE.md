@@ -165,14 +165,47 @@ The `ANT_COD_I14.PCV` you need is on this drive at `BERN52/GPS/GEN/`.
 
 | Directory | Size | Origin |
 |---|---|---|
+| `RECOVERED_SEAGATE_W2A0W9T2_DATA0` | **~131 G (inferred)** | **omitted from the original table — see below** |
 | `RECOVERED_HD-LBU2_WD20EARS_WCAZA4430660` | 14 G | a dead Buffalo external |
 | `RECOVERED_DOSTB20150918_from_BackupPlus` | 9.0 G | rescued off the failing Backup Plus |
 | `RECOVERED_GPS_1TB_2_WD10EARS_WCAV5M032380` | 3.0 G | a dead 1 TB WD |
 
-**26 GB total, not the ~157 GB the continuity audit refers to.** That figure
-covers the whole legacy holding; what is on this drive is the portion recovered
-from dead hardware. Do not report "the archive is backed up" after copying
-these — report exactly what you copied, by directory and by census.
+> ### ⚠ Corrected 2026-08-04 — the original table was missing a directory
+>
+> This section originally listed **three** directories totalling 26 GB and stated
+> that this was "not the ~157 GB the continuity audit refers to". The user
+> identified a **fourth**, `RECOVERED_SEAGATE_W2A0W9T2_DATA0`, absent from the
+> table entirely. The arithmetic supports him:
+>
+> | | |
+> |---|---|
+> | The three originally listed | 26 G |
+> | `RESUME_NEXT.md`, **measured**: "DOSTB 157 G (RAW alone 125 G)" | 157 G |
+> | Therefore the omitted directory | **~131 G** |
+>
+> That gap is close to the 125 G of RAW the continuity audit calls out
+> separately, so `RECOVERED_SEAGATE_*` most likely holds the bulk raw
+> observations — **the most valuable and least reproducible material on the
+> drive.** The one directory left out of the transfer plan was the one that
+> mattered most.
+>
+> **Consequences for the plan:**
+> - "26 GB — minutes, not a day" understates it. ~157 G over USB 3 is roughly
+>   30–60 minutes at 50–100 MB/s; still nothing like the 6 MB/s wifi path, but
+>   not incidental. Do not start it five minutes before the drive must come off.
+> - Copying **all four** brings the on-server copy to the full 157 G the audit
+>   describes, which materially changes what can honestly be claimed afterwards.
+> - **Never enumerate these by a typed list again.** The omission happened
+>   because three names were written out by hand. `scripts/sudo/archive_transfer.sh`
+>   globs `RECOVERED_*` and reports what it finds, so a fifth directory would be
+>   picked up rather than silently skipped.
+>
+> Sizes above remain **unverified on this machine** — the 131 G is inferred from
+> subtraction, not measured. The census script reports actual figures once the
+> drive is mounted, and those supersede this table.
+
+Do not report "the archive is backed up" after copying these — report exactly
+what you copied, by directory and by census.
 
 They have never been checksummed. A `sha256sum` manifest written into
 `/srv/gnss-archive/manifests/` **and committed to git** is item 4 of the
