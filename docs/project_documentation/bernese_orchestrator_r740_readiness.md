@@ -82,8 +82,66 @@ RINEX-3 handling is a live constraint, not hypothetical.
 | A | **Per-session pre-flight station validator** — every RINEX station has a `PGN.STA` entry (else RXOBV3 hard-aborts); run per session (intermittent stations); flag blank DOMES / RINEX2-3 mismatch / duplicate markers / too-short (<~15 km) baselines | 2.2 PLG2, 2.3 PTAG, gaps #11 | new `pre_flight()` stage |
 | B | **MAXPAR sized from station count** in all ADDNEQ2 panels (≈ N_sta×4 + margin; ~270 sta ⇒ well above the 1000 default) | gap #10 | panel templating |
 | C | **Validator targets the DATAPOOL source dir**, not pre-BPE empty `RAW/` | gap #1 | `validate_rinex_headers()` |
+| C2 | ~~**Validator must read COMPRESSED + Hatanaka RINEX**~~ **DONE 2026-08-03** — see box below | measured 2026-08-03 | `_is_rinex_obs()` |
+| A2 | ~~**Station code must survive mixed marker conventions**~~ **DONE 2026-08-03** — PAGENET puts the code in MARKER NUMBER ("BOGO CITY"/`PBOG`), IGS in MARKER NAME (`CUSV`/DOMES); taking MARKER NAME[:4] failed 9 of 72 good stations | measured 2026-08-03 | `_resolve_station_code()` |
+| A3 | ~~**Validate only what RNX_COP will stage**~~ **DONE 2026-08-03** — `rglob` descended into the hand-quarantined `.excluded_plg2/`; RNX_COP globs without recursing | measured 2026-08-03 | `_parse_rinex_headers()` |
 | D | **prepare_campaign() adds GEN/ + SESSIONS.SES** | gap #2 | `prepare_campaign()` |
 | E | **Parameterize PCF_FILE / BPE_CAMPAIGN / CPU_FILE=USER** (run PAGENET, not just RNX2SNX) | gap #3, 2.1 | `backends.run()` |
+
+> **NEW BLOCKER — task C2, measured on gps3 2026-08-03.** Running
+> `validate_rinex_headers()` against the real gps3 DATAPOOL
+> (`$D/PGN`, 677 files, DOY 081–090) finds **zero RINEX files**:
+>
+> ```
+> ERROR No RINEX observation files found in /home/gps3/GPSDATA/DATAPOOL/PGN
+>       for session 2026/0860 — refusing to pass validation vacuously
+> ```
+>
+> `_is_rinex_obs()` tests `path.suffix` against `.rnx`, `.obs`, `.rxo` and `.<yy>o`.
+> On this box **every DATAPOOL file is gzipped**, so the suffix is `.gz` and nothing
+> matches. Decompressing would not fix it either: the PAGENET files are Hatanaka
+> `.26d` and the IGS fiducials `.crx`, neither of which is in the accepted set.
+> Real layout: `PZAM0860.26d.gz`, `pbay0860.26o.gz`, `CUSV00THA_R_20260860000_01D_30S_MO.crx.gz`.
+>
+> **Why this is worse than an ordinary bug.** `require_stations=True` turns it into a
+> loud hard failure, which is how it was caught. With the **default**
+> `require_stations=False` it returns a **passing** report — the validator would
+> silently approve every session while inspecting nothing, and the first sign of
+> trouble would be RXOBV3 hard-aborting mid-BPE. That is precisely the
+> "vacuous pass" the function's own docstring warns about, arriving through an
+> unanticipated door.
+>
+> The 128 unit tests all pass, because the fixtures use uncompressed `.YYo`/`.rnx`
+> names. **This gap is invisible to the test suite and only appears against a real
+> DATAPOOL** — evidence for §6's thesis that the readiness gap is the list of things
+> that only show up on real data.
+>
+> **FIXED 2026-08-03. All seven PAGENET sessions (DOY 084–090) now validate clean;
+> 179 tests pass, up from 128.**
+>
+> The fix needed **no Hatanaka decoding at all**. A CRINEX file stores the original
+> RINEX header *verbatim* after two `CRINEX VERS`/`PROG` lines and compacts only the
+> observation records below `END OF HEADER` — which this validator never reads. So
+> `crx2rnx` never runs: no RNXCMP build, no `hatanaka` package. Decompression alone
+> suffices. (RNXCMP is still required for actual processing — GSI's page, 4.1.0,
+> plain C, no dependencies.)
+>
+> Compression needed two paths, not one. IGS convention is `.Z` (UNIX compress/LZW),
+> and Python's `gzip` **cannot** read it: `BadGzipFile: Not a gzipped file
+> (b'\x1f\x9d')` — LZW magic `1f 9d` vs gzip's `1f 8b`. On gps3: 3,010 `.gz`, 20 `.Z`,
+> including real Hatanaka+LZW at `GRCC/RINEX/GFCN0100.23D.Z`. Resolution: Python `gzip`
+> for `.gz` (keeps the 3,010-file path subprocess-free), GNU `gzip -dc` for `.Z`, no
+> new dependency. Extension stripping loops right-to-left — every real name stacks two
+> extensions and both orders occur.
+>
+> **Two further defects surfaced only once the validator could see data** (tasks A2/A3
+> above): descriptive marker names shadowing the station code, and `rglob` descending
+> into the hand-quarantined `.excluded_plg2/`. Both would have blocked the acceptance
+> test; neither was visible while the scan returned nothing.
+>
+> **Still open:** PLG2 is genuinely absent from `PGN.STA`. The quarantine directory is
+> a training-week workaround, not a fix — task A should replace it with automatic
+> per-session detection.
 
 ### P1 — correctness/robustness on real data
 | # | Improvement | Evidence | Component |
@@ -112,10 +170,26 @@ RINEX-3 handling is a live constraint, not hypothetical.
   which is fine, but confirm the ISA level on the actual box). Only the 2 Qt symlinks + DATAPOOL ref
   symlinks + DE421/CRX2RNX steps remain. See `bernese_install` R740 plan.
 - **Performance is the inverse story.** T420 (2 cores) made the 502 bottleneck invisible-but-tolerable
-  at ~2 h/day for ~54 stations. R740 (24 physical cores per the gaps memory — **confirm with
-  `lscpu`**) only pays off if clustering + maxjobs are tuned (P2-K/L). Untuned, R740 would run the
-  same single-core 502 solve, just on a bigger network = far worse. **The multi-core win is a config
-  task, not a free hardware win.**
+  at ~2 h/day for ~54 stations. R740 only pays off if clustering + maxjobs are tuned (P2-K/L).
+  Untuned, R740 would run the same single-core 502 solve, just on a bigger network = far worse.
+  **The multi-core win is a config task, not a free hardware win.**
+
+  > **MEASURED 2026-08-03 — the gaps memory's "24 physical cores" was wrong by 2×.**
+  > `lscpu` on the actual box: **Intel Xeon Silver 4214R, 1 socket, 12 physical cores,
+  > 2 threads/core = 24 logical**. The 24 was the *logical* count. Since P2-L sizes maxjobs
+  > by physical cores (the sub-solves are FPU-bound and gain nothing from hyperthreads
+  > sharing an FPU), the correct figure is **12, not 24** — setting 24 would have
+  > oversubscribed the FPUs by 2× and likely run *slower* than a correct 12.
+  > **`USER.CPU` maxjobs was found at `2`** — the T420's setting, carried across with the
+  > config, i.e. the R740 was running on 2 of its 12 cores. Now set to **11** via
+  > `cpu_config.compute_maxjobs(12, ram_gb=62, reserve_cores=1)`, leaving one core for the
+  > BPE server and OS. RAM is 62 GB, so the RAM ceiling (31 jobs at 2 GB each) is not
+  > binding. **`V_CLUFIN` clustering (P2-K) is still untuned** and remains the other half
+  > of the 502 fix.
+  >
+  > Also verified: the CPU reports `avx512f/bw/cd/dq/vl` (Cascade Lake), comfortably
+  > Haswell-or-newer, so **no x86-64 ISA `objcopy` patch is needed** — the condition this
+  > section flagged as uncertain is settled.
 - **Disk is the real R740 constraint** (DL-012): ~270 stations × daily campaigns × intermediate BPE
   files. Compression + retention policy needed before live — independent of orchestrator code.
 - **MIS instability risk** (the reason `hardline` exists): the MIS team reconfigures the box. The
@@ -126,10 +200,31 @@ RINEX-3 handling is a live constraint, not hypothetical.
 
 ## 5. Phased go-live checklist
 
-1. **Install + verify** Bernese on R740 (EXAMPLE campaign sub-mm SINEX diff) — `bernese_install` plan.
+1. ~~**Install + verify** Bernese on R740 (EXAMPLE campaign sub-mm SINEX diff)~~ — **DONE**, 0.0000 mm, 2026-07-29.
 2. **Provision `$U` from repo** gold-standard PCFs/panels/scripts (P1-H) — sanitized, no Windows paths,
    no hardcoded sessions. Patch BSW_DWLD/ADD_MON per gap #8.
-3. **Tune `USER.CPU` + clustering** for the R740 core count (P2-K/L) — confirm `lscpu`, RAM headroom.
+   > **MECHANISM BUILT 2026-08-03; ONE ASSET OUTSTANDING.**
+   > The gold standard did not exist — gps3's `$U/OPT`, `PCF`, `SCRIPT`, `PAN` were
+   > **byte-identical to the `$C/USER` template**, and the repo held only
+   > `pagenet_pcs.pl`. Now at `config/bernese/gpsuser/`, applied by
+   > `scripts/provision_gpsuser.py` (dry-run by default, `--apply` to write,
+   > strict-abort before any write so `$U` is never left half-updated).
+   > Panels are separator-sanitized with MAXPAR sized from the station count;
+   > `SCRIPT/` is copied verbatim (a Perl backslash is an escape, not a path);
+   > PCFs are refused if they carry a dangling WAIT. `PAN/USER.CPU` is
+   > **generated from detected hardware, never versioned** — a committed copy
+   > would carry one machine's core count onto another, which is exactly the
+   > `maxjobs 2` bug found on gps3. `pagenet_pcs.pl` is deployed and the run is
+   > idempotent.
+   >
+   > **Outstanding: `PCF/PAGENET_DLY.PCF` must be captured from the T420, not
+   > re-derived.** Truncating RNX2SNX at PID 514 leaves `599 DUMMY` waiting on
+   > `522` — a dangling WAIT that hangs the BPE forever, and which the
+   > provisioner will now refuse. A re-derived PCF would not be the one that was
+   > validated during the training week.
+3. **Tune `USER.CPU` + clustering** for the R740 core count (P2-K/L) — `USER.CPU`
+   **DONE 2026-08-03** (maxjobs 2 → 11 on 12 physical cores); `V_CLUFIN`
+   clustering still untuned and still the other half of the 502 bottleneck.
 4. **Wire P0 (A-E)** into the orchestrator; re-run the PAGENET week on R740 as the acceptance test
    (it must clear PLG2/PTAG/MAXPAR automatically, not by hand as we did this week).
 5. **Wire P1 (F-J)** — QC gates + resumable scheduler.

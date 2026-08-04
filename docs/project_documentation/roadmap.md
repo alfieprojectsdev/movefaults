@@ -1,9 +1,15 @@
 # Project Roadmap: Phased Implementation Based on Dependency Hierarchies
 
-**Last updated:** 2026-07-01
+**Last updated:** 2026-08-03
 **Original date:** 2026-01-26
 
 > For per-deliverable status and projected dates, see [`deliverables_tracker.md`](deliverables_tracker.md).
+>
+> For detailed *designs* of features not yet scheduled — OCR of legacy log sheets,
+> ML outlier detection, QR equipment inventory, the alerting matrix — see the
+> [GNSS Automation Design Backlog](../gnss_automation_roadmap.md). It was written
+> the same day as this document from the same material; **this file is the version
+> that is maintained**, and the backlog is a menu of ideas rather than a schedule.
 
 ---
 
