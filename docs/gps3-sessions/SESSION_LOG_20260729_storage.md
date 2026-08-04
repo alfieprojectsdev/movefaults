@@ -1109,12 +1109,16 @@ a truncation that leaves a dangling WAIT.
 
 > **Correction 2026-08-04.** The sentence below originally read "All work
 > reached `main`". It had not, and still has not. Everything is on the branch in
-> an **open** PR; `origin/main` was and is at `1d1082e` (PR #60). Rule 5 exists
+> an **open** PR; at the time of writing `origin/main` was at `1d1082e`
+> (PR #60). **It merged later the same day** — see below. Rule 5 exists
 > for exactly this — *verify `origin/main` actually advanced*, do not infer it
 > from having pushed successfully. Caught by the T420 session, not by me, in a
 > section I wrote to be the authoritative end-of-session state.
 
-All work is queued for `main` in [PR #64](https://github.com/alfieprojectsdev/movefaults/pull/64), **still open**,
+All work reached `main` via [PR #64](https://github.com/alfieprojectsdev/movefaults/pull/64),
+**merged 2026-08-04 as `9623395`** — verified by confirming `origin/main` advanced
+and that each commit is an ancestor of it, not by the merge command's exit status,
+which returned 0 while printing nothing at all. Branch retired after merge.
 branch `docs/gps3-session-20260803`, three commits:
 
 | Commit | Contents |
