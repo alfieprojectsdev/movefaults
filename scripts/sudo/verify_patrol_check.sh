@@ -22,7 +22,10 @@
 # READ-ONLY. Issues 48 smartctl queries; takes about a minute.
 set -uo pipefail
 
-TARGET=/home/gps3/patrol_check.sh
+# The REPO copy — the one this PR fixes. Pointing at ~/patrol_check.sh (the
+# original location) meant the "confirm the fix" run could exercise a stale
+# pre-fix copy and cheerfully report the old, wrong numbers.
+TARGET="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/patrol_check.sh"
 LOGDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/logs"
 LOG="$LOGDIR/patrol-check-$(date +%Y%m%d-%H%M%S).log"
 

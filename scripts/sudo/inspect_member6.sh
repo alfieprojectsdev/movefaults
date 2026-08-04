@@ -50,6 +50,13 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 mkdir -p "$LOGDIR"
 
+# mktemp, not a predictable /tmp path. This script runs as root and previously
+# redirected into /tmp/.m<id>.entries with only two possible names, so any local
+# user could pre-create that path as a symlink to a root-owned file and have the
+# redirect truncate it.
+ENTRIES="$(mktemp)"
+trap 'rm -f "$ENTRIES"' EXIT
+
 {
     for id in "$SUSPECT" "$CONTROL"; do
         echo "==================================================================="
@@ -86,11 +93,11 @@ mkdir -p "$LOGDIR"
         echo
         echo "--- first and last 5 entries (check LBA clustering) ---"
         smartctl -l background -d "megaraid,$id" "$VD" 2>&1 \
-          | grep -E '\[[0-9]+,[0-9]+,[0-9]+\]' > /tmp/.m$id.entries || true
-        head -5 /tmp/.m$id.entries 2>/dev/null || true
+          | grep -E '\[[0-9]+,[0-9]+,[0-9]+\]' > "$ENTRIES" || true
+        head -5 "$ENTRIES" 2>/dev/null || true
         echo "      ..."
-        tail -5 /tmp/.m$id.entries 2>/dev/null || true
-        rm -f /tmp/.m$id.entries
+        tail -5 "$ENTRIES" 2>/dev/null || true
+        : > "$ENTRIES"
         echo
     done
 

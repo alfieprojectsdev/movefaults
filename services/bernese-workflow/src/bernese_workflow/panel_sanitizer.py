@@ -26,10 +26,13 @@ would corrupt the script.
 """
 from __future__ import annotations
 
+import logging
 import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # A double-quoted value on a panel line: SESSION_TABLE 1  "<value>"
 _QUOTED_RE = re.compile(r'"([^"]*)"')
@@ -44,6 +47,16 @@ _SESSION_STAMP_RE = re.compile(r"_(\d{7,8})\.")
 # Panel directives that carry a frozen processing date/year.
 _DATE_DIRECTIVES = ("SESSION_YEAR", "YR4_INFO", "STADAT", "ENDDAT", "SESSION_DOY")
 _DATE_DIRECTIVE_RE = re.compile(r"^(" + "|".join(_DATE_DIRECTIVES) + r")\b")
+
+# A literal campaign name under ${P}, e.g. "${P}/SOB" or "${P}/SOB/GEN/...".
+# $P is the campaign ROOT, so anything naming a campaign directly is pinned to
+# whichever campaign the panel was captured from. The real PGN_WK/MENU.INP came
+# across carrying "${P}/SOB" — the instructor's demo campaign — in both
+# ACTIVE_CAMPAIGN and SESSION_TABLE. That is a directory which does not exist on
+# the R740, and neither line matched any existing hazard class: the backslashes
+# were auto-converted and the panel then reported clean. PR #65's PROVENANCE.md
+# listed it as "expect the provisioner to catch this"; it did not.
+_HARDCODED_CAMPAIGN_RE = re.compile(r"\$\{?P\}?/([A-Za-z_][A-Za-z0-9_]*)")
 
 # PCF process line: a 3-digit PID at the start of the line.
 _PCF_PID_RE = re.compile(r"^(\d{3})\s+\S+")
@@ -140,6 +153,11 @@ def sanitize_panel_text(text: str) -> SanitizeResult:
         if _DATE_DIRECTIVE_RE.match(stripped):
             warnings.append(PanelWarning(i, "hardcoded_date", stripped))
 
+        for qm in _QUOTED_RE.finditer(stripped):
+            if _HARDCODED_CAMPAIGN_RE.search(qm.group(1)):
+                warnings.append(PanelWarning(i, "hardcoded_campaign", stripped))
+                break
+
     # splitlines() drops a trailing newline; restore it if the input had one.
     result_text = "\n".join(out_lines)
     if text.endswith("\n"):
@@ -175,6 +193,12 @@ def find_dangling_waits(pcf_text: str) -> list[DanglingWait]:
 # The ADDNEQ2 MAXPAR value line: `MAXPAR 1  "5000"`. Anchored to the line start so
 # it never matches `MSG_MAXPAR ...`. Group 2 is the current integer value.
 _MAXPAR_RE = re.compile(r'^(MAXPAR\s+\d+\s+")(\d+)(")', re.MULTILINE)
+
+
+def _current_addneq2_maxpar(text: str) -> int | None:
+    """The MAXPAR currently in the panel, or None if it has no MAXPAR line."""
+    m = _MAXPAR_RE.search(text)
+    return int(m.group(2)) if m else None
 
 
 def set_addneq2_maxpar(text: str, value: int) -> tuple[str, bool]:
@@ -213,6 +237,7 @@ def provision_opt_dir(
     *,
     n_stations: int | None = None,
     strict: bool = True,
+    dry_run: bool = False,
 ) -> ProvisionReport:
     """Provision a Bernese OPT panel tree from a repo gold-standard into ``$U/OPT``.
 
@@ -232,6 +257,13 @@ def provision_opt_dir(
     Two-pass and atomic w.r.t. the strict check: everything is sanitized and all
     warnings gathered BEFORE anything is written, so a dirty panel late in the tree
     never leaves ``$U`` half-updated (no clean files written, then a raise).
+
+    With *dry_run* the second pass is skipped entirely: the report lists what
+    WOULD be written and nothing is touched. This existed only as a caller-side
+    assumption before 2026-08-04 — ``scripts/provision_gpsuser.py`` printed
+    "DRY RUN — nothing will be written" and then wrote every panel, because it
+    had no way to ask for one. ``report.written`` is populated either way so the
+    plan can be shown; consult *dry_run* to know whether it happened.
     """
     from .backends import compute_maxpar
 
@@ -254,7 +286,22 @@ def provision_opt_dir(
         result = sanitize_panel_text(path.read_text(encoding="ascii", errors="replace"))
         out_text = result.text
         if path.name.upper() == "ADDNEQ2.INP" and n_stations is not None:
-            out_text, _ = set_addneq2_maxpar(out_text, compute_maxpar(n_stations))
+            # MAXPAR is a CEILING: raise it, never lower it. compute_maxpar is a
+            # rule of thumb (N*4 + 500, floored at 1000) and for a ~72-station
+            # network yields 1000 — which would have overwritten the "10000" the
+            # PAGENET panel carries, a value raised deliberately after a real
+            # ADDNEQ2 parameter overflow during the training week. A heuristic
+            # must not silently undo a fix someone made against observed
+            # behaviour, so the larger of the two wins.
+            wanted = compute_maxpar(n_stations)
+            current = _current_addneq2_maxpar(out_text)
+            if current is not None and current > wanted:
+                logger.info(
+                    "%s: keeping existing MAXPAR %d (computed %d would lower it)",
+                    rel, current, wanted,
+                )
+            else:
+                out_text, _ = set_addneq2_maxpar(out_text, wanted)
 
         if result.warnings:
             report.warnings[str(rel)] = result.warnings
@@ -270,6 +317,10 @@ def provision_opt_dir(
             f"refusing to provision — panels carry unresolved hazards "
             f"(remap by hand first): {offenders}"
         )
+
+    if dry_run:
+        report.written = [t for t, _, _ in planned]
+        return report
 
     # Pass 2 — commit the planned writes.
     for target, kind, payload in planned:

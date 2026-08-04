@@ -21,7 +21,9 @@ Three file classes, handled differently on purpose:
 ``PAN/USER.CPU`` is **generated**, not copied, because ``maxjobs`` must track the
 host's physical core count. See ``--maxjobs``.
 
-DRY RUN BY DEFAULT. Nothing is written without ``--apply``.
+DRY RUN BY DEFAULT. Nothing is written without ``--apply`` — verified for all
+three classes, not merely intended: until 2026-08-04 the OPT panels were written
+regardless, because ``provision_opt_dir`` had no dry-run mode to ask for.
 """
 from __future__ import annotations
 
@@ -151,23 +153,40 @@ def provision_pcfs(gold: Path, user: Path, apply: bool) -> tuple[list[str], list
 
 def provision_panels(
     gold: Path, user: Path, apply: bool, stations: int | None
-) -> tuple[list[str], list[str]]:
-    """Sanitize and copy OPT/ panels via the tested provisioner."""
+) -> tuple[list[str], list[str], list[str]]:
+    """Sanitize and copy OPT/ panels via the tested provisioner.
+
+    Returns ``(actions, warnings, errors)``. Two things here were wrong before
+    2026-08-04 and both defeated the guarantees this script advertises:
+
+    * ``strict=apply`` tied hazard checking to the write mode, so the checks were
+      OFF in dry run and ON only under ``--apply``. Backwards: a dry run is
+      exactly when you want to be told what would be refused.
+    * ``provision_opt_dir`` had no dry-run mode at all, so passing ``apply``
+      anywhere near it did not stop the writes — the "DRY RUN" banner was false
+      for every panel. Dryness is now a parameter (``dry_run``), and strictness
+      is unconditional.
+
+    A refusal is returned as an **error**, not a warning. It previously landed in
+    the warning list, so a run that provisioned nothing still exited 0 — the same
+    swallowed-status failure this project has now hit six times.
+    """
     src = gold / "OPT"
     if not src.is_dir() or not any(src.rglob("*")):
-        return [], []
+        return [], [], []
     try:
         report = provision_opt_dir(
-            src, user / "OPT", n_stations=stations, strict=apply
+            src, user / "OPT", n_stations=stations, strict=True, dry_run=not apply
         )
     except ValueError as exc:
-        return [], [str(exc)]
-    actions = [f"-> OPT/{p.relative_to(user / 'OPT')}" for p in report.written]
+        return [], [], [str(exc)]
+    verb = "->" if apply else "would write"
+    actions = [f"{verb} OPT/{p.relative_to(user / 'OPT')}" for p in report.written]
     warnings = [
         f"OPT/{rel}: " + ", ".join(f"L{w.line} {w.kind}" for w in ws)
         for rel, ws in report.warnings.items()
     ]
-    return actions, warnings
+    return actions, warnings, []
 
 
 def provision_user_cpu(
@@ -264,9 +283,12 @@ def main() -> int:
     acts, errs = provision_pcfs(args.gold, args.user, args.apply)
     all_actions += acts
     all_errors += errs
-    acts, warns = provision_panels(args.gold, args.user, args.apply, args.stations)
+    acts, warns, errs = provision_panels(
+        args.gold, args.user, args.apply, args.stations
+    )
     all_actions += acts
     all_warnings += warns
+    all_errors += errs
     acts, warns = provision_user_cpu(args.user, args.apply, args.maxjobs)
     all_actions += acts
     all_warnings += warns

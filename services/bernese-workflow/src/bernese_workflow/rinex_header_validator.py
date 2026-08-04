@@ -520,7 +520,7 @@ def validate_rinex_headers(
     *,
     year: int | None = None,
     session: str | None = None,
-    require_stations: bool = False,
+    require_stations: bool = True,
 ) -> ValidationReport:
     """Cross-check RINEX OBS headers in raw_dir against the campaign STA file.
 
@@ -535,8 +535,14 @@ def validate_rinex_headers(
         year:      4-digit year. With ``session``, restricts validation to that
                    session's files (a multi-day source holds many DOYs).
         session:   4-char Bernese session (e.g. "0870"). See ``year``.
-        require_stations: When True, a source that yields zero RINEX files is a
-                   hard error (``no_rinex_found``) instead of a vacuous pass.
+        require_stations: When True (the default), a source yielding zero RINEX
+                   files is a hard error (``no_rinex_found``) rather than a
+                   vacuous pass. Defaulted to False until 2026-08-04, which
+                   meant the *safe* behaviour had to be opted into: any caller
+                   using the defaults got a PASSING report from a scan that
+                   read nothing. Fixing `_is_rinex_obs` removed that day's
+                   instance; defaulting this to True removes the failure mode.
+                   Pass False deliberately where an empty source is legitimate.
 
     Returns:
         ValidationReport.  Call .ok to see if validation passed.

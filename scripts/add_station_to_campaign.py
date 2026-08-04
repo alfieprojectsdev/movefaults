@@ -31,17 +31,28 @@ every file it touches first.
 from __future__ import annotations
 
 import argparse
-import gzip
 import math
 import re
 import shutil
-import subprocess
 import sys
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "services" / "bernese-workflow" / "src"))
+
+from bernese_workflow.rinex_header_validator import (  # noqa: E402
+    _open_rinex_text,
+    _resolve_station_code,
+)
+
 REF_FILES = ("STA", "CRD", "VEL", "ABB", "CLU")
+
+# IERS DOMES: 5-digit site, monument letter, 3-digit point. e.g. 22015M002
+_DOMES_RE = re.compile(r"\d{5}[A-Z]\d{3}")
 
 
 @dataclass
@@ -60,34 +71,35 @@ class StationMeta:
 
     @property
     def full_name(self) -> str:
-        """`NAME DOMES` as it appears in the STATION NAME column."""
-        return f"{self.name} {self.dome}"
+        """`NAME DOMES` as it appears in the STATION NAME column.
+
+        Without a DOMES this is the bare 4-char code, matching how PGN.STA
+        already lists the DOMES-less PAGENET stations.
+        """
+        return f"{self.name} {self.dome}".strip() if self.dome else self.name
 
 
-def _open_text(path: Path):
-    """Read a RINEX file, plain or compressed. Mirrors the validator's handling.
+@contextmanager
+def _open_text(path: Path) -> Iterator[Iterable[str]]:
+    """Read a RINEX file, plain or compressed.
+
+    Delegates to the validator's implementation rather than keeping a second
+    copy. This function previously duplicated it and then diverged: the `.Z`
+    branch returned `Popen(...).stdout` and dropped the Popen, so the child
+    `gzip` was never reaped. Two implementations of one idea is how the
+    divergence happened; there is now one.
 
     A CRINEX (Hatanaka) file stores the original header verbatim after two
     CRINEX lines, so no crx2rnx is needed to read what we want here.
     """
-    s = path.suffix.lower()
-    if s == ".gz":
-        return gzip.open(path, "rt", encoding="ascii", errors="replace")
-    if s == ".z":
-        # Python has no LZW decoder; GNU gzip reads both formats.
-        return subprocess.Popen(
-            ["gzip", "-dc", str(path)],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            text=True, encoding="ascii", errors="replace",
-        ).stdout
-    return path.open(encoding="ascii", errors="replace")
+    with _open_rinex_text(path) as fh:
+        yield fh
 
 
 def read_station_meta(rinex: Path) -> StationMeta:
     """Extract station metadata from a RINEX observation header."""
     fields: dict[str, str] = {}
-    fh = _open_text(rinex)
-    try:
+    with _open_text(rinex) as fh:
         for raw in fh:
             line = raw.rstrip("\n")
             if len(line) < 61:
@@ -100,11 +112,6 @@ def read_station_meta(rinex: Path) -> StationMeta:
                 fields[label] = line[:60]
             elif label == "END OF HEADER":
                 break
-    finally:
-        try:
-            fh.close()
-        except Exception:  # noqa: BLE001 - closing a cut-off pipe can SIGPIPE
-            pass
 
     missing = [k for k in ("MARKER NAME", "REC # / TYPE / VERS", "ANT # / TYPE",
                           "APPROX POSITION XYZ") if k not in fields]
@@ -112,9 +119,39 @@ def read_station_meta(rinex: Path) -> StationMeta:
         raise ValueError(f"{rinex.name}: header missing {missing}")
 
     xyz = fields["APPROX POSITION XYZ"].split()
+
+    # Resolve the station code the SAME way the validator does. Deriving it here
+    # from MARKER NAME[:4] — as this script originally did — reintroduces the
+    # bug the validator was fixed for hours earlier on the same branch: PAGENET
+    # CORS put a descriptive site name in MARKER NAME ("BOGO CITY") and the
+    # 4-char code in MARKER NUMBER ("PBOG"), while IGS fiducials do the reverse.
+    # Getting it wrong here is worse than in the validator, because this writes
+    # to five reference files: "BOGO PBOG" would be committed as the STATION
+    # NAME, matching neither the campaign nor the RINEX filename.
+    marker_name = fields.get("MARKER NAME", "").strip()
+    marker_number = fields.get("MARKER NUMBER", "").strip()
+    code = _resolve_station_code(
+        filename_code=rinex.name[:4].upper(),
+        marker_name=marker_name,
+        marker_number=marker_number,
+        source=rinex.name,
+    )
+    # The DOMES must LOOK like a DOMES, not merely be "the other marker field".
+    # PBOG carries MARKER NAME "BOGO CITY" and MARKER NUMBER "PBOG"; taking
+    # whichever is not the code yields "BOGO CITY" as a DOMES number. Many
+    # PAGENET stations have no DOMES at all — PGN.STA lists them as a bare
+    # 4-char name — so an absent DOMES is normal and must stay empty rather
+    # than being filled with a placeholder that would widen the STATION NAME
+    # field and misalign every downstream column.
+    dome = ""
+    for candidate in (marker_number, marker_name):
+        if candidate and _DOMES_RE.fullmatch(candidate.strip()):
+            dome = candidate.strip()
+            break
+
     return StationMeta(
-        name=fields["MARKER NAME"].strip()[:4].upper(),
-        dome=fields.get("MARKER NUMBER", "").strip() or "00000M000",
+        name=code,
+        dome=dome,
         receiver=fields["REC # / TYPE / VERS"][20:40].strip(),
         receiver_serial=fields["REC # / TYPE / VERS"][:20].strip(),
         antenna=fields["ANT # / TYPE"][20:40].strip(),
@@ -321,11 +358,27 @@ def main() -> int:
             return 1
 
     crd_text = files["CRD"].read_text(encoding="ascii", errors="replace")
-    present = [e for e, p in files.items()
-               if meta.name in p.read_text(encoding="ascii", errors="replace")]
-    if present:
-        print(f"\n{meta.name} is ALREADY present in: {', '.join(present)} — nothing to do.")
+    # Anchored per-line, not a bare substring: the 4-char code also occurs
+    # inside DOMES numbers and REMARK text, which would make a false "already
+    # present" the default answer for some stations.
+    code_re = re.compile(rf"^\s*(?:\d+\s+)?{re.escape(meta.name)}(?:\s|$)", re.MULTILINE)
+    present = [e for e, path in files.items()
+               if code_re.search(path.read_text(encoding="ascii", errors="replace"))]
+
+    if present and len(present) == len(REF_FILES):
+        print(f"\n{meta.name} is present in all {len(REF_FILES)} reference files — nothing to do.")
         return 0
+    if present:
+        # A PARTIAL add is the dangerous state, not a benign one: the station is
+        # known to some files and not others, so RXOBV3 still aborts while the
+        # campaign looks half-configured. Reporting "already present" here (the
+        # pre-2026-08-04 behaviour) returned 0 and left it that way.
+        absent = [e for e in REF_FILES if e not in present]
+        print(f"\n{meta.name} is PARTIALLY present — in {', '.join(present)} "
+              f"but MISSING from {', '.join(absent)}.")
+        print("  Refusing to act: adding only the missing files could duplicate or")
+        print("  contradict the existing rows. Inspect and reconcile by hand.")
+        return 1
 
     donor, dist = nearest_station(crd_text, meta)
     print(f"\nVelocity a priori: cloned from {donor} ({dist:.1f} km away)")

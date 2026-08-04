@@ -114,6 +114,12 @@ for id in $(seq 0 $((N-1))); do
         sweeps="-"
     fi
 
+    if [ -n "$poh" ]; then
+        [ -z "${poh_min:-}" ] && poh_min="$poh" && poh_max="$poh"
+        [ "$poh" -lt "$poh_min" ] 2>/dev/null && poh_min="$poh"
+        [ "$poh" -gt "$poh_max" ] 2>/dev/null && poh_max="$poh"
+    fi
+
     [ "$rgb" != "?" ]  && total_read=$(awk -v t="$total_read" -v g="$rgb" 'BEGIN{print t+g}')
     total_rec=$((total_rec + rec))
 
@@ -126,8 +132,23 @@ printf 'combined lifetime read across all 16 members: %.2f TB\n' \
   "$(awk -v t="$total_read" 'BEGIN{print t/1000}')"
 printf 'sectors repaired by BMS, array-wide: ~%s physical (%s logical entries)\n' \
   "$((total_rec / 8))" "$total_rec"
-[ -n "${poh:-}" ] && printf 'power-on time: %s hours (%.1f days)\n' \
-  "$poh" "$(awk -v h="$poh" 'BEGIN{print h/24}')"
+# Power-on hours, reported as a RANGE across members rather than as one
+# drive's value. $poh was previously loop-scoped and never reset, so the
+# summary silently showed member 15's figure — or, if member 15's background
+# log were unreadable, member 14's, still printed as though current. A script
+# whose whole argument is that per-drive counters must cross-check should not
+# present one arbitrary drive's number as an array-wide fact.
+if [ -n "${poh_min:-}" ]; then
+    if [ "$poh_min" = "$poh_max" ]; then
+        printf 'power-on time: %s hours (%.1f days), identical across members\n' \
+          "$poh_min" "$(awk -v h="$poh_min" 'BEGIN{print h/24}')"
+    else
+        printf 'power-on time: %s-%s hours (%.1f-%.1f days) across members\n' \
+          "$poh_min" "$poh_max" \
+          "$(awk -v h="$poh_min" 'BEGIN{print h/24}')" \
+          "$(awk -v h="$poh_max" 'BEGIN{print h/24}')"
+    fi
+fi
 echo
 cat <<'EOF'
 HOW TO READ THIS

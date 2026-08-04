@@ -308,20 +308,35 @@ def test_validate_missing_from_sta(tmp_path):
 
 
 def test_validate_missing_from_raw_is_warning_not_error(tmp_path):
-    """Station in STA but no RINEX in RAW/ — expected, not a validation failure."""
+    """A station in STA with no data THIS session is a warning, not a failure.
+
+    Deliberately staged with RINEX present for a DIFFERENT station. The earlier
+    version used a completely empty RAW/, which conflated two distinct
+    conditions — "this station has no data" (routine; stations drop in and out)
+    and "there is no data at all" (a broken source path or session filter, and
+    now a hard error). Proving the first with the second meant the test would
+    have passed even if the scan were blind, which is precisely the defect this
+    module was fixed for.
+    """
     raw_dir = tmp_path / "RAW"
     raw_dir.mkdir()
-    # No RINEX files — RAW/ is empty
+    # PGOO has data; BOST is in the STA but absent from this session.
+    _write_rinex(raw_dir, "pgoo0010.24o",
+                 _rinex2_obs("PGOO", "LEICA GR50", "LEIAR20      NONE"))
 
     sta = tmp_path / "TEST.STA"
     sta.write_text(
-        _make_sta_content([{"name": "BOST", "receiver": "LEICA GR50", "antenna": "LEIAR20"}]),
+        _make_sta_content([
+            {"name": "PGOO", "receiver": "LEICA GR50", "antenna": "LEIAR20"},
+            {"name": "BOST", "receiver": "LEICA GR50", "antenna": "LEIAR20"},
+        ]),
         encoding="ascii",
     )
 
     report = validate_rinex_headers(raw_dir, sta)
     assert report.ok  # not an error
     assert "BOST" in report.missing_from_raw
+    assert not report.no_rinex_found
 
 
 def test_validate_atx_missing(tmp_path):
@@ -495,16 +510,26 @@ def test_validate_no_rinex_found_is_error_when_required(tmp_path):
     assert "No RINEX" in str(ValidationError(report))
 
 
-def test_validate_no_rinex_found_vacuous_pass_without_flag(tmp_path):
-    """Backward compat: without require_stations, an empty dir still passes (legacy)."""
+def test_validate_no_rinex_found_passes_only_when_explicitly_permitted(tmp_path):
+    """An empty source passes ONLY when a caller opts out deliberately.
+
+    require_stations defaulted to False until 2026-08-04, so the vacuous pass
+    was what you got by accident and the safe behaviour had to be requested.
+    That is now inverted: permissiveness is the thing you must ask for.
+    """
     empty = tmp_path / "RAW"
     empty.mkdir()
     sta = tmp_path / "TEST.STA"
     sta.write_text(_make_sta_content([{"name": "BOST"}]), encoding="ascii")
 
-    report = validate_rinex_headers(empty, sta)  # no require_stations
+    report = validate_rinex_headers(empty, sta, require_stations=False)
     assert report.ok
     assert not report.no_rinex_found
+
+    # ...and the default is now the safe one.
+    strict = validate_rinex_headers(empty, sta)
+    assert not strict.ok
+    assert strict.no_rinex_found
 
 
 def test_linux_bpe_validates_datapool_source_per_session(tmp_path):
