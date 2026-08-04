@@ -73,9 +73,12 @@ census() {
 }
 
 show_census() {
-    read -r f l d o b <<<"$1"
+    # $1 = "files symlinks dirs other bytes" as emitted by census()
+    local -a c
+    read -r -a c <<<"$1"
     printf '    files %-10s symlinks %-6s dirs %-8s other %-4s bytes %s (%.2f GiB)\n' \
-      "$f" "$l" "$d" "$o" "$b" "$(awk -v x="$b" 'BEGIN{print x/1073741824}')"
+      "${c[0]}" "${c[1]}" "${c[2]}" "${c[3]}" "${c[4]}" \
+      "$(awk -v x="${c[4]}" 'BEGIN{print x/1073741824}')"
 }
 
 {
@@ -124,20 +127,29 @@ for d in "${dirs[@]}"; do
 done
 
 echo "=== census: source vs destination ==="
-total_src=""; total_dst=""
 for d in "${dirs[@]}"; do
     name=$(basename "$d")
-    cs=$(census "$d")
-    cd=$(census "$DEST/$name")
+    # NB: not named `cd` — that shadows the builtin. The destination fields
+    # were previously read into `df dl dd do db`, where `do` is a bash keyword.
+    # SC1010 caught it; `bash -n` had accepted it happily.
+    # (A comment line must not begin with the linter's own name, or it is
+    #  parsed as a directive — which is how the first fix attempt failed.)
+    src_c=$(census "$d")
+    dst_c=$(census "$DEST/$name")
     echo "  $name"
-    echo "    SRC :"; show_census "$cs"
-    echo "    DEST:"; show_census "$cd"
-    read -r sf sl sd so sb <<<"$cs"
-    read -r df dl dd do db <<<"$cd"
-    if [ "$sf" -eq "$df" ] && [ "$sb" -eq "$db" ]; then
+    echo "    SRC :"; show_census "$src_c"
+    echo "    DEST:"; show_census "$dst_c"
+
+    local_s=(); local_d=()
+    read -r -a local_s <<<"$src_c"
+    read -r -a local_d <<<"$dst_c"
+    # [0] = file count, [4] = total bytes. Symlinks are reported but not
+    # compared: the source is NTFS and legitimately has none.
+    if [ "${local_s[0]}" -eq "${local_d[0]}" ] && [ "${local_s[4]}" -eq "${local_d[4]}" ]; then
         echo "    MATCH on files and bytes"
     else
-        echo "    *** MISMATCH: files $sf vs $df, bytes $sb vs $db ***"
+        echo "    *** MISMATCH: files ${local_s[0]} vs ${local_d[0]}," \
+             "bytes ${local_s[4]} vs ${local_d[4]} ***"
         rc_worst=1
     fi
     echo
@@ -157,8 +169,20 @@ else
     echo "Report exactly which directories matched and which did not."
 fi
 echo "==================================================================="
+
+# Exit from INSIDE the block so the status is the pipeline's first element.
+# Everything above runs in a subshell (the `{ } | tee` pipeline), so assigning
+# rc_worst here never reached the parent: the old `exit "${rc_worst:-0}"` after
+# the pipeline read an unset variable and returned 0 for every run, including
+# one that had just printed "*** MISMATCH ***". Caught by SC2030/SC2031,
+# not by testing — and it is the seventh instance in this
+# project of a swallowed exit status reporting success, this time in the script
+# written to stop trusting exit statuses.
+exit "$rc_worst"
 } 2>&1 | tee "$LOG"
+rc=${PIPESTATUS[0]}
 
 echo
 echo "log: $LOG"
-exit "${rc_worst:-0}"
+echo "exit: $rc"
+exit "$rc"
