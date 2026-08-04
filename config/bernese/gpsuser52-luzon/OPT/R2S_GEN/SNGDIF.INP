@@ -1,0 +1,614 @@
+
+! Some keywords for automatic output
+! --------------------------------------------------------------------
+CAMPAIGN 1  "${P}/PHIVOLCS"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${P}/PHIVOLCS\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2019"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0110"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! Environment variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "c:\Bernese\GPSUSER52"
+  "T" "c:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! --------------------------------------------------------------------
+! INPUTFILES                                                         |
+! --------------------------------------------------------------------
+! Show general files
+! ------------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! General constants
+! -----------------
+CONST 1  "${X}/GEN\CONST."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! Geodetic datum
+! --------------
+DATUM 1  "${X}/GEN\DATUM."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # DATUM.
+
+DESCR_DATUM 1  "Geodetic datum"
+
+! Satellite information
+! ---------------------
+SATELL 1  "${X}/GEN\$(SATINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # $(SATINF).$(PCV)
+
+DESCR_SATELL 1  "Satellite information"
+
+! Station name abbreviations
+! --------------------------
+ABBREV 1  "${P}/PHIVOLCS\STA\$(CRDINF).ABB"
+  ## widget = selwin; path = DIR_ABB; ext = EXT_ABB; maxfiles = 1
+  # $(CRDINF)
+
+DESCR_ABBREV 1  "Abbreviation table"
+
+! A priori coordinates
+! --------------------
+COORD 1  "${P}/PHIVOLCS\STA\$A190110.CRD"
+  ## widget = selwin; path = DIR_CRD; ext = EXT_CRD; maxfiles = 1
+  ## activeif = STRATEGY == DEFINED AND REPLACE == 1 OR STRATEGY == OBS-MAX OR STRATEGY == SHORTEST OR STRATEGY == STAR
+  ## emptyallowed = false
+  # $A$YSS+0
+
+DESCR_COORD 1  "Station coordinates"
+
+! Eccentricities
+! --------------
+ECCENT 0
+  ## widget = selwin; path = DIR_ECC; ext = EXT_ECC; maxfiles = 1
+  ## activeif = STRATEGY == DEFINED AND REPLACE == 1 OR STRATEGY == OBS-MAX OR STRATEGY == SHORTEST OR STRATEGY == STAR
+  ## emptyallowed = true
+  # 
+
+DESCR_ECCENT 1  "Site eccentricities"
+
+! Pre-defined baselines
+! ---------------------
+BASDEF 0
+  ## widget = selwin; path = DIR_BSL; ext = EXT_BSL; maxfiles = 1
+  ## activeif = STRATEGY == OBS-MAX OR STRATEGY == SHORTEST OR STRATEGY == DEFINED
+  ## emptyallowed = true
+  # 
+
+DESCR_BASDEF 1  "Predefined baselines"
+
+! Cluster definition
+! ------------------
+CLUINP 1  "${P}/PHIVOLCS\STA\$(CRDINF).CLU"
+  ## widget = selwin; path = DIR_CLU; ext = EXT_CLU; maxfiles = 1
+  ## emptyallowed = true
+  # $(CRDINF)
+
+DESCR_CLUINP 1  "Cluster definition"
+
+! Code zero-difference files
+! --------------------------
+CODEREF 0
+  ## widget = selwin; path = DIR_CZH; ext = EXT_CZH; maxfiles = 1
+  ## emptyallowed = true; activeif = MEATYP == CODE AND STRATEGY == STAR
+  ## pointer = CODEZERO
+  # 
+
+CODEREF_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CZO
+
+CODEREF_EXT_COL_2 1  "CZO"
+  ## widget = initmenu; pointer = EXT_CZO
+
+DESCR_CODEREF 1  "Reference station for STAR (C)"
+
+CODEZERO 0
+  ## widget = selwin; path = DIR_CZH; ext = EXT_CZH; maxfiles = 999
+  ## activeif = MEATYP == CODE AND STRATEGY / MANUAL
+  # ????$S+0
+
+CODEZERO_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CZO
+
+CODEZERO_EXT_COL_2 1  "CZO"
+  ## widget = initmenu; pointer = EXT_CZO
+
+MSG_CODEZERO 1  "Code: Zero-difference observation files"
+
+CODEZERO1 0
+  ## widget = selwin; path = DIR_CZH; ext = EXT_CZH; maxfiles = 1
+  ## activeif = MEATYP == CODE AND STRATEGY == MANUAL
+  # 
+
+CODEZERO1_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CZO
+
+CODEZERO1_EXT_COL_2 1  "CZO"
+  ## widget = initmenu; pointer = EXT_CZO
+
+MSG_CODEZERO1 1  "Code: First zero-difference input file"
+
+CODEZERO2 0
+  ## widget = selwin; path = DIR_CZH; ext = EXT_CZH; maxfiles = 1
+  ## activeif = MEATYP == CODE AND STRATEGY == MANUAL
+  # 
+
+CODEZERO2_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CZO
+
+CODEZERO2_EXT_COL_2 1  "CZO"
+  ## widget = initmenu; pointer = EXT_CZO
+
+MSG_CODEZERO2 1  "Code: Second zero-difference input file"
+
+! Phase zero-difference files
+! ---------------------------
+PHASEREF 0
+  ## widget = selwin; path = DIR_PZH; ext = EXT_PZH; maxfiles = 999
+  ## emptyallowed = true; activeif = MEATYP == PHASE AND STRATEGY == STAR
+  ## pointer = PHASEZERO
+  # 
+
+PHASEREF_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PZO
+
+PHASEREF_EXT_COL_2 1  "PZO"
+  ## widget = initmenu; pointer = EXT_PZO
+
+DESCR_PHASEREF 1  "Reference station for STAR (P)"
+
+PHASEZERO 18
+  "${P}/PHIVOLCS\OBS\ALAB0110.PZH"
+  "${P}/PHIVOLCS\OBS\ATIM0110.PZH"
+  "${P}/PHIVOLCS\OBS\BAKO0110.PZH"
+  "${P}/PHIVOLCS\OBS\BJFS0110.PZH"
+  "${P}/PHIVOLCS\OBS\ELNA0110.PZH"
+  "${P}/PHIVOLCS\OBS\GUNG0110.PZH"
+  "${P}/PHIVOLCS\OBS\HKSL0110.PZH"
+  "${P}/PHIVOLCS\OBS\HYDE0110.PZH"
+  "${P}/PHIVOLCS\OBS\IISC0110.PZH"
+  "${P}/PHIVOLCS\OBS\LBAN0110.PZH"
+  "${P}/PHIVOLCS\OBS\MALA0110.PZH"
+  "${P}/PHIVOLCS\OBS\MAUB0110.PZH"
+  "${P}/PHIVOLCS\OBS\PGEN0110.PZH"
+  "${P}/PHIVOLCS\OBS\PIMO0110.PZH"
+  "${P}/PHIVOLCS\OBS\PTAG0110.PZH"
+  "${P}/PHIVOLCS\OBS\SHAO0110.PZH"
+  "${P}/PHIVOLCS\OBS\SPAB0110.PZH"
+  "${P}/PHIVOLCS\OBS\XMIS0110.PZH"
+  ## widget = selwin; path = DIR_PZH; ext = EXT_PZH; maxfiles = 999
+  ## activeif = MEATYP == PHASE AND STRATEGY /= MANUAL
+  # ????$S+0
+
+PHASEZERO_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PZO
+
+PHASEZERO_EXT_COL_2 1  "PZO"
+  ## widget = initmenu; pointer = EXT_PZO
+
+MSG_PHASEZERO 1  "Phase: Zero-difference observation file"
+
+PHASEZERO1 0
+  ## widget = selwin; path = DIR_PZH; ext = EXT_PZH; maxfiles = 1
+  ## activeif = MEATYP == PHASE AND STRATEGY == MANUAL
+  # 
+
+PHASEZERO1_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PZO
+
+PHASEZERO1_EXT_COL_2 1  "PZO"
+  ## widget = initmenu; pointer = EXT_PZO
+
+MSG_PHASEZERO1 1  "Phase: First zero-difference input file"
+
+PHASEZERO2 0
+  ## widget = selwin; path = DIR_PZH; ext = EXT_PZH; maxfiles = 1
+  ## activeif = MEATYP == PHASE AND STRATEGY == MANUAL
+  # 
+
+PHASEZERO2_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PZO
+
+PHASEZERO2_EXT_COL_2 1  "PZO"
+  ## widget = initmenu; pointer = EXT_PZO
+
+MSG_PHASEZERO2 1  "Phase: Second phase zero-difference input file"
+
+! File extensions and path
+! ------------------------
+EXT_CSH 1  "CSH"
+  ## widget = initmenu; pointer = EXT_CSH
+
+DIR_CSH 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CSH
+
+EXT_CSO 1  "CSO"
+  ## widget = initmenu; pointer = EXT_CSO
+
+DIR_CSO 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CSO
+
+EXT_PSH 1  "PSH"
+  ## widget = initmenu; pointer = EXT_PSH
+
+DIR_PSH 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PSH
+
+EXT_PSO 1  "PSO"
+  ## widget = initmenu; pointer = EXT_PSO
+
+DIR_PSO 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PSO
+
+! --------------------------------------------------------------------
+! OUTPUTFILES                                                        |
+! --------------------------------------------------------------------
+! Single diff. output file (phase)
+! --------------------------------
+PHASESNG 0
+  ## widget = lineedit; path = DIR_PSH; ext = EXT_PSH; maxfiles = 1
+  ## activeif = STRATEGY == MANUAL and MEATYP == PHASE
+  # 
+
+PHASESNG_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PSO
+
+PHASESNG_EXT_COL_2 1  "PSO"
+  ## widget = initmenu; pointer = EXT_PSO
+
+DESCR_PHASESNG 1  "Single-diff. output file (P)"
+
+! Single diff. output file (code)
+! --------------------------------
+CODESNG 0
+  ## widget = lineedit; path = DIR_CSH; ext = EXT_CSH; maxfiles = 1
+  ## activeif = STRATEGY == MANUAL and MEATYP == CODE
+  # 
+
+CODESNG_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CSO
+
+CODESNG_EXT_COL_2 1  "CSO"
+  ## widget = initmenu; pointer = EXT_CSO
+
+DESCR_CODESNG 1  "Single-diff. output file (C)"
+
+! Baselines definition
+! --------------------
+BASPRT 1  "${P}/PHIVOLCS\STA\BSL190110.BSL"
+  ## widget = lineedit; path = DIR_BSL; ext = EXT_BSL
+  # BSL$YSS+0
+
+MSG_BASPRT 1  "Listing of formed baselines"
+
+! Cluster/baseline assignment
+! ---------------------------
+CLUOUT 1  "${P}/PHIVOLCS\STA\190110.CLB"
+  ## widget = lineedit; path = DIR_CLB; ext = EXT_CLB
+  ## activeif = CLUINP /= _
+  # $YSS+0
+
+MSG_CLUOUT 1  "Cluster/baseline assignment"
+
+! Program output file
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/PHIVOLCS\OUT\BSL190110.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # BSL$YSS+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error message file
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error messages"
+
+! --------------------------------------------------------------------
+! OPTIONS                                                            |
+! --------------------------------------------------------------------
+! Strategy
+! --------
+STRATEGY 1  "OBS-MAX"
+  ## widget = combobox; editable = false
+  ## cards = OBS-MAX SHORTEST STAR DEFINED MANUAL
+
+MSG_STRATEGY 1  "Processing strategy"
+
+! Replace missing stations
+! ------------------------
+REPLACE 1  "0"
+  ## widget = checkbox
+  ## activeif = STRATEGY == OBS-MAX OR STRATEGY == SHORTEST OR STRATEGY == DEFINED
+
+MSG_REPLACE 1  "Replace missing stations"
+
+! Measurement type
+! ----------------
+MEATYP 1  "PHASE"
+  ## widget = combobox; editable = false; cards = PHASE CODE
+
+MSG_MEATYP 1  "Measurement type"
+
+! Title
+! -----
+TITLE 1  "RNX2SNX_190110: Create baselines from phase data"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Create baselines from phase data
+
+MSG_TITLE 1  "Title line"
+
+! Satellite System
+! ----------------
+SATSYS 1  "GPS"
+  ## widget = combobox; editable = false; activeif STRATEGY / MANUAL
+  ## cards = ANY GPS GLONASS GALILEO GPS&GLO GPS&GAL GLO&GAL
+
+MSG_SATSYS 1  "Stations must contain observ. from a GNSS"
+
+! Interval of simultaneous obs.
+! ----------------------------
+SIMDT 1  "1.0"
+  ## widget = lineedit
+
+MSG_SIMDT 1  "Tolerance to identify observations of one epoch"
+
+! Merge ambiguities from input files
+! ----------------------------------
+AMBMRG 1  "0"
+  ## widget = checkbox
+
+MSG_AMBMRG 1  "Merge ambiguities from input files"
+
+! New ambigutity after a gap
+! ---------------------------
+AMBDT 1  "20"
+  ## widget = lineedit; check_type = integer; check_min = 0
+  ## activeif = AMBMRG = 0
+
+MSG_AMBDT 1  "Set new ambiguity after a gap in the observations larger than"
+
+! Set new ambiguity if CS
+! -----------------------
+AMBSLP 1  "0"
+  ## widget = checkbox; activeif = AMBMRG = 0
+
+MSG_AMBSLP 1  "If cycle slip flag set in input file(s)"
+
+! Maximum baseline length
+! -----------------------
+OPTMAX 1  "9000"
+  ## widget = spinbox; range = 100 10000 100
+
+MSG_OPTMAX 1  "Maximum baseline length considered"
+
+! Minimum number of observations
+! ------------------------------
+OPTMIN 1  "600"
+  ## widget = spinbox; range = 100 1000 100
+
+MSG_OPTMIN 1  "Minimum number of observations requested"
+
+! Maximum distance of fast obs. Cnt.
+! ----------------------------------
+OPTFOC 1  "1000"
+  ## widget = spinbox; range = 0 10000 100
+
+MSG_OPTFOC 1  "Maximum distance for fast observation count"
+
+! Redundant baselines
+! -------------------
+REDBAS 1  "0"
+  ## widget = checkbox
+
+MSG_REDBAS 1  "Add redundant baselines"
+
+! Minimum redundant baseline length
+! ---------------------------------
+REDMIN 1  "6000"
+  ## widget = spinbox; range = 100 10000 100; activeif = REDBAS == 1
+
+MSG_REDMIN 1  "Minimum path length between two stations"
+
+! Minimum improvement in shortest way
+! -----------------------------------
+REDIMP 1  "9000"
+  ## widget = spinbox; range = 100 10000 100; activeif = REDBAS == 1
+
+MSG_REDIMP 1  "Minimum improvement in path length"
+
+! Marginally observed satellites
+! ------------------------------
+CRTSAT 1  "25"
+  ## widget = lineedit; check_type = real; check_min = 0
+  ## activeif = REDBAS = 1
+
+MSG_CRTSAT 1  "A weakly observed satellite has less than obs."
+
+! Maxmimum number of additional baselines for marg. obs. sat.
+! -----------------------------------------------------------
+CRTBAS 1  "10"
+  ## widget = lineedit; check_type = integer; check_min = 0
+  ## activeif = REDBAS = 1 AND CRTSAT > 0
+
+MSG_CRTBAS 1  "Maximum number of additional baselines"
+
+! Bonus depending on baseline length
+! ----------------------------------
+BONMAX 1  "10"
+  ## widget = lineedit; check_min = 0; checktype = real
+
+MSG_BONMAX 1  "Bonus depending on baseline length"
+
+! Maximum baseline length 1
+! -------------------------
+BONLEN1 1  "20"
+  ## widget = spinbox; range = 0 10000 1
+  ## activeif = BONMAX > 0 AND BONMAX /= _
+
+MSG_BONLEN1 1  "Maximum baseline length 1"
+
+! Maximum baseline length 2
+! -------------------------
+BONLEN2 1  "200"
+  ## widget = spinbox; range = 0 10000 10
+  ## activeif = BONMAX > 0 AND BONMAX /= _
+
+MSG_BONLEN2 1  "Maximum baseline length 2"
+
+! Maximum baseline length 3
+! -------------------------
+BONLEN3 1  "0"
+  ## widget = spinbox; range = 0 10000 100
+  ## activeif = BONMAX > 0 AND BONMAX /= _
+
+MSG_BONLEN3 1  "Maximum baseline length 3"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CREATE SINGLE-DIFFERENCE/BASELINE FILES - SNGDIF 1: Input File Selection     #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files              > % <                                  # SHOWGEN
+#                                                                              #
+# GENERAL OPTIONS                                                              #
+#   Measurement type                    > %%%%%%%%% <                          # MEATYP
+#   Processing strategy                 > %%%%%%%%% <                          # STRATEGY
+#   Stations must contain observ. from  > %%%%%%%%% <                          # SATSYS
+#                                                                              #
+# AUTOMATED BASELINE CREATION                                                  #
+#   Zero-difference observation files   > %%%%%%%% <       > %%%%%%%% <        # PHASEZERO CODEZERO
+#   Reference station for STAR strategy > %%%%%%%% <       > %%%%%%%% <        # PHASEREF  CODEREF
+#                                                                              #
+# MANUAL BASELINE CREATION                                                     #
+#   First@ zero-difference input file   > %%%%%%%% <       > %%%%%%%% <        # PHASEZERO1 CODEZERO1
+#   Second zero-difference input file   > %%%%%%%% <       > %%%%%%%% <        # PHASEZERO2 CODEZERO2
+#   Single-difference output file       > %%%%%%%% <       > %%%%%%%% <        # PHASESNG   CODESNG
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# SNGDIF 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants       > %%%%%%%%%%%% <                                   # CONST
+#   Satellite information   > %%%%%%%%%%%% <                                   # SATELL
+#   Geodetic datum          > %%%%%%%%%%%% <                                   # DATUM
+#   Abbreviation table      > %%%%%%%%%%%% <                                   # ABBREV
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# SNGDIF 2: Filenames                                                          #
+#                                                                              #
+# INPUT FILES                                                                  #
+#   Station coordinates          > %%%%%%%% <                                  # COORD
+#   Site eccentricities          > %%%%%%%% <                                  # ECCENT
+#   Predefined baselines         > %%%%%%%% <                                  # BASDEF
+#   Cluster definition           > %%%%%%%% <                                  # CLUINP
+#                                                                              #
+# RESULT FILES                                                                 #
+#   Listing of formed baselines  > %%%%%%%% <                                  # BASPRT
+#   Cluster/baseline assignment  > %%%%%% <      (2 digits will be appended)   # CLUOUT
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output          > % < use SNGDIF.Lnn            or    > %%%%%%%% < # SYSODEF SYSOUT
+#   Error messages          > % < merged to program output  or    > %%%%%%%% < # ERRMRG SYSERR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# SNGDIF 3: Options                                                            #
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# SIMULTANEOUS OBSERVATIONS                                                    #
+#   Tolerance to identify observations of one epoch > %%%% <  seconds          # SIMDT
+#                                                                              #
+# SETTING OF NEW AMBIGUITIES                                                   #
+#   Merge ambiguities from input files              > % <                      # AMBMRG
+#   After a gap in the observations larger than     > %%%% <  minutes          # AMBDT
+#   If a cycle slip flag in one of the input files  > % <                      # AMBSLP
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL STRATEGY = OBS-MAX ###############################################
+# SNGDIF 3.1: Options for Strategy OBS-MAX                                     #
+#                                                                              #
+# SPEED UP BASELINE SELECTION ALGORITHM                                        #
+#   Minimum number of observations requested     > %%%%% <  (scaled, see help) # OPTMIN
+#   Maximum distance for fast observation count  > %%%%% <  kilometers         # OPTFOC
+#   Maximum baseline length considered           > %%%%% <  kilometers         # OPTMAX
+#                                                                              #
+# ALLOW REDUNDANT BASELINES                                                    #
+#   Add redundant baselines                      > % <                         # REDBAS
+#                                                                              #
+# ADD BONUS DEPENDING ON BASELINE LENGTH                                       #
+#   Maximum bonus for number of observations     > %%%%% <  percent            # BONMAX
+#   Direct L1/L2: Baseline length from 0 to      > %%%%% <  kilometers         # BONLEN1
+#   Wide-/Narrowlane: Baseline length from 0 to  > %%%%% <  kilometers         # BONLEN2
+#   Other: Baseline length from 0 to             > %%%%% <  kilometers         # BONLEN3
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL REDBAS = 1 #######################################################
+# SNGDIF 3.2: Options for redundant Baselines                                  #
+#                                                                              #
+# FORMING OF REDUNDANT BASELINES                                               #
+#   Minimum path length between two stations     > %%%%% <  kilometers         # REDMIN
+#   Minimum improvement in path length           > %%%%% <  kilometers         # REDIMP
+#                                                                              #
+# ADDITIONAL BASELINES FOR MARGINALLY OBSERVED SATELLITES                      #
+#   A satellite was only tracked by less than    > %%%%% <  percent of the sta.# CRTSAT
+#   Maximum number of additional baselines       > %%%%% <                     # CRTBAS
+#                                                                              #
+# END_PANEL ####################################################################

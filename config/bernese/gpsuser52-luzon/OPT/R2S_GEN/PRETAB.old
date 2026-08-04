@@ -1,0 +1,293 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 1  "" "${}"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! SOME KEYWORDS FOR AUTOMATIC OUTPUT
+! ----------------------------------
+CAMPAIGN 1  "./DUMMY"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${X}/SKL/SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "1980"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0060"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! -------------------------------------------------------------------------
+! Show general files
+! ------------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! General Constants
+! -----------------
+CONST 1  "${X}/GEN/CONST."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! Pole File
+! ---------
+POLE 1  "./DUMMY/ORB/$B800060.ERP"
+  ## widget = selwin; path = DIR_ERP; ext = EXT_ERP; maxfiles = 1
+  # $B$YSS+0
+
+DESCR_POLE 1  "Pole file"
+
+! Subdaily Pole Model
+! -------------------
+SUBMOD 1  "${X}/GEN/IERS2010XY.SUB"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_SUB; maxfiles = 1
+  # IERS2010XY
+
+DESCR_SUBMOD 1  "Subdaily pole model"
+
+! Nutation Model
+! -------------------
+NUTMOD 1  "${X}/GEN/IAU2000R06.NUT"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_NUT; maxfiles = 1
+  # IAU2000R06
+
+DESCR_NUTMOD 1  "Nutation model"
+
+! Satellite Problems
+! ------------------
+SATCRUX 1  "${X}/GEN/$(SATCRX).CRX"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_CRX; maxfiles = 1
+  ## emptyallowed = true
+  # $(SATCRX)
+
+DESCR_SATCRUX 1  "Satellite problems"
+
+! List of Input Files
+! -------------------
+PREFIL 1  "./DUMMY/ORB/$B800060.PRE"
+  ## widget = selwin; path = DIR_PRE; ext = EXT_PRE; maxfiles = 999
+  # $B$YSS+0
+
+! Extensions of the Output Files
+! ------------------------------
+PREFIL_EXT_COL_2 1  "TAB"
+  ## widget = initmenu; pointer = EXT_TAB
+
+PREFIL_PTH_COL_2 1  "./DUMMY/ORB/"
+  ## widget = initmenu; pointer = DIR_TAB
+
+MSG_PREFIL 1  "Precise Ephemeris"
+
+! Tabular Orbit
+! -------------
+TABFIL 1  "./DUMMY/ORB/$B800060.TAB"
+  ## widget = lineedit; path = DIR_TAB; ext = EXT_TAB
+  # $B$YSS+0
+
+DESCR_TABFIL 1  "Tabular file(s)"
+
+! Satellite Clock File
+! --------------------
+SATCLRS 1  "./DUMMY/ORB/$B800060.CLK"
+  ## widget = lineedit; path = DIR_CLK; ext = EXT_CLK
+  # $B$YSS+0
+
+DESCR_SATCLRS 1  "Satellite clock file"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "./DUMMY/OUT/TAB800060.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # TAB$YSS+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK/ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Reference System
+! ----------------
+SYSTEM 1  "J2000"
+  ## widget = combobox; editable = false; cards = J2000 B1950
+
+MSG_SYSTEM 1  "Reference system"
+
+! Apply OTL CMC correction
+! ------------------------
+CMCYN_O 1  "1"
+  ## widget = checkbox; activeif = OCNLOAD / _
+
+MSG_CMCYN_O 1  "Apply OTL CMC correction"
+
+! Apply ATL CMC correction
+! ------------------------
+CMCYN_A 1  "1"
+  ## widget = checkbox; activeif = ATMLOAD / _
+
+MSG_CMCYN_A 1  "Apply ATL CMC correction"
+
+! Ocean loading tables
+! --------------------
+OCNLOAD 1  "./DUMMY/STA/$(BLQINF).BLQ"
+  ## widget = selwin; path = DIR_BLQ; ext = EXT_BLQ; maxfiles = 1
+  ## emptyallowed = true
+  # $(BLQINF)
+
+DESCR_OCNLOAD 1  "Ocean loading corrections"
+
+! Atmospheric loading tables
+! --------------------------
+ATMLOAD 1  "./DUMMY/STA/$(ATLINF).ATL"
+  ## widget = selwin; path = DIR_ATL; ext = EXT_ATL; maxfiles = 1
+  ## emptyallowed = true
+  # $(ATLINF)
+
+DESCR_ATMLOAD 1  "Atmospheric loading corrections"
+
+! Remove bad satellites
+! ---------------------
+RMBAD 1  "1"
+  ## widget = checkbox
+
+MSG_RMBAD 1  "Remove bad satellites"
+
+! Use accuracy codes
+! ------------------
+USEAC 1  "1"
+  ## widget = checkbox
+
+MSG_USEAC 1  "Use accuracy codes from SP3-file"
+
+! Exclude AC 0
+! ------------
+MINAC 1  "1"
+  ## widget = checkbox; activeif = USEAC == 1
+
+MSG_MINAC 1  "Exclude sat. with accuracy code 0"
+
+! Maximum accuracy code
+! ---------------------
+MAXAC 1  "99"
+  ## widget = spinbox; range = 0 99 1; activeif = USEAC == 1
+
+MSG_MAXAC 1  "Exclude sat. with acc. code exceeding"
+
+! Title
+! -----
+TITLE 1  "RNX2SNX_800060: Orbit information"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Orbit information
+
+MSG_TITLE 1  "Title line"
+
+! Interval for Polynomials
+! ------------------------
+INTERVAL 1  "12"
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_INTERVAL 1  "Interval for polynomials"
+
+! Polynomial Degree
+! -----------------
+POLYDEGR 1  "2"
+  ## widget = spinbox; range = 0 4 1
+
+MSG_POLYDEGR 1  "Polynomial degree"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CREATE TABULAR ORBITS - PRETAB 1: Filenames                                  #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files  > % <                                              # SHOWGEN
+#                                                                              #
+# INPUT FILES                                                                  #
+#   Precise ephemeris       > %%%%%%%% <                                       # PREFIL
+#   Pole file               > %%%%%%%% <                                       # POLE
+#   Ocean loading corr      > %%%%%%%% <       (for CMC)                       # OCNLOAD
+#   Atmospheric loading corr> %%%%%%%% <       (for CMC)                       # ATMLOAD
+#                                                                              #
+# RESULT FILES                                                                 #
+#   Tabular file(s)         > %%%%%%%% <    (blank: same name as input file(s))# TABFIL
+#   Satellite clock file    > %%%%%%%% <                                       # SATCLRS
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output          > % < use PRETAB.Lnn            or    > %%%%%%%% < # SYSODEF SYSOUT
+#   Error messages          > % < merged to program output  or    > %%%%%%%% < # ERRMRG SYSERR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# PRETAB 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants       > %%%%%%%%%%%% <                                   # CONST
+#   Subdaily pole model     > %%%%%%%%%%%% <                                   # SUBMOD
+#   Nutation model          > %%%%%%%%%%%% <                                   # NUTMOD
+#   Satellite problems      > %%%%%%%%%%%% <                                   # SATCRUX
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# PRETAB 2: General Options                                                    #
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# GENERAL OPTIONS                                                              #
+#   Reference system                      > %%%%%% <                           # SYSTEM
+#   Apply CMC correction            OTL:  > % <                                # CMCYN_O
+#                                   ATL:  > % <                                # CMCYN_A
+#                                                                              #
+# SATELLITE OPTIONS                                                            #
+#   Remove bad satellites                 > % <                                # RMBAD
+#   Use accuracy codes from SP3-file      > % <                                # USEAC
+#   Exclude sat. with accuracy code 0     > % <                                # MINAC
+#   Exclude sat. with acc. code exceeding > %% <                               # MAXAC
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SATCLRS /= _ #####################################################
+# PRETAB 3: Options for Clocks                                                 #
+#                                                                              #
+# OPTIONS FOR CLOCKS                                                           #
+#   Interval for polynomials              > %%%% <  hours                      # INTERVAL
+#   Polynomial degree                     > %% <                               # POLYDEGR
+#                                                                              #
+# END_PANEL ####################################################################

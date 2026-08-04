@@ -1,0 +1,35 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 1  "" "${}"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! Station Name Abbreviations
+! --------------------------
+ABBREV 1  "./DUMMY/STA/$(CRDINF).ABB"
+  ## widget = lineedit; path = DIR_ABB; ext = EXT_ABB
+  # $(CRDINF)
+
+! List of stations
+! ----------------
+STANAM 0
+
+! Program Output File for BPE
+! ---------------------------
+SYSODEF 1  "1"
+  ## widget = checkbox
+
+SYSOUT 1  "./DUMMY/OUT/STA2ID.L00"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # STA2ID
+
+! Error Message File for BPE output
+! ---------------------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+SYSERR 1  "${U}/WORK/ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR

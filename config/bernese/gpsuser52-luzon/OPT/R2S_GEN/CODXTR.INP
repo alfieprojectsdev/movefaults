@@ -1,0 +1,237 @@
+
+! Some keywords for automatic output
+! ----------------------------------
+CAMPAIGN 1  "${P}/PHIVOLCS"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${P}/PHIVOLCS\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2019"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0110"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "c:\Bernese\GPSUSER52"
+  "T" "c:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! List of INPUT FILES (CODSPP program output)
+! -----------------------------
+RADIO_1 1  "0"
+  ## widget = radiobutton; group = DUMMY; radiokeys = FILLST
+
+MSG_RADIO_1 1  "Input file CODSPP.L??"
+
+RADIO_2 1  "1"
+  ## widget = radiobutton; group = DUMMY; radiokeys = OUTPUT
+
+MSG_RADIO_2 1  "Input file CODSPP.OUT"
+
+FILLST 0
+  ## widget = selwin; path = DIR_OUT; ext = NO_EXT; emptyallowed = true
+  # 
+
+MSG_FILLST 1  "Program input file"
+
+FILLST_TXT_COL_1 1  "Input files"
+
+OUTPUT 2
+  "${P}/PHIVOLCS\OUT\SPP0110001.OUT"
+  "${P}/PHIVOLCS\OUT\SPP0110002.OUT"
+  ## widget = selwin; path = DIR_OUT; ext = EXT_OUT; emptyallowed = true
+  # SPP$S+0???
+
+MSG_OUTPUT 1  "Program input file"
+
+OUTPUT_TXT_COL_1 1  "Input files"
+
+! Broadcast clock input
+! ---------------------
+CLKINP 0
+  ## widget = selwin; path = DIR_CLK; ext = EXT_CLK; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+MSG_CLKINP 1  "Satellite clocks"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/PHIVOLCS\OUT\SPP190110.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # SPP$YSS+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Do rms check
+! ------------
+RMS_OPT 1  "1"
+  ## widget = checkbox
+
+MSG_RMS_OPT 1  "Bad station detection"
+
+! Broadcast clock output
+! ----------------------
+CLKOUT 0
+  ## widget = lineedit; path = DIR_CLK; ext = EXT_CLK
+  ## activeif = CLKINP /= _
+  # 
+
+MSG_CLKOUT 1  "Satellite clocks"
+
+! Good file list
+! --------------
+FIL_OK 0
+  ## widget = lineedit; activeif = RMS_OPT == 1; path = DIR_LST
+  ## ext = EXT_LST
+  # 
+
+DESCR_FIL_OK 1  "List of good files"
+
+! Bad file list
+! -------------
+FILBAD 1  "${P}/PHIVOLCS\OUT\SPP190110.DEL"
+  ## widget = lineedit; activeif = RMS_OPT == 1; path = DIR_DEL
+  ## ext = EXT_DEL
+  # SPP$YSS+0
+
+DESCR_FILBAD 1  "List of bad files"
+
+DELPHS 1  "1"
+  ## widget = checkbox; activeif = RMS_OPT == 1 AND FILBAD / _
+
+MSG_DELPHS 1  "Add phase files to the deletion list"
+
+! Max. RMS allowed for "good file list"
+! -------------------------------------
+RMSMAX 1  "999"
+  ## widget = lineedit; activeif = RMS_OPT == 1; check_type = real
+  ## check_min = 0.0
+
+MSG_RMSMAX 1  "RMS limit for a good station"
+
+! Max. OUT lines allowed for "good file list"
+! -------------------------------------------
+LINOUT 1  "10"
+  ## widget = lineedit; activeif = RMS_OPT == 1; check_type = integer
+  ## check_min = 0
+
+MSG_LINOUT 1  "OUT lines for a good station"
+
+! Title
+! -----
+TITLE 1  "RNX2SNX_190110: Extraction from CODSPP"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Extraction from CODSPP
+
+MSG_TITLE 1  "Title line"
+
+DIRCZH 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CZH
+
+EXTCZH 1  "CZH"
+  ## widget = initmenu; pointer = EXT_CZH
+
+DIRCZO 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CZO
+
+EXTCZO 1  "CZO"
+  ## widget = initmenu; pointer = EXT_CZO
+
+DIRPZH 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PZH
+
+EXTPZH 1  "PZH"
+  ## widget = initmenu; pointer = EXT_PZH
+
+DIRPZO 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PZO
+
+EXTPZO 1  "PZO"
+  ## widget = initmenu; pointer = EXT_PZO
+
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# EXTRACT CODSPP PROGRAM OUTPUT - CODXTR 1: Extraction                         #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files  > % <                                              # SHOWGEN
+#                                                                              #
+# INPUT FILES                                                                  #
+#   > % <                   > %%%%%%%%%%%% <                                   # RADIO_1 FILLST
+#   > % <                   > %%%%%%%% <                                       # RADIO_2 OUTPUT
+#   Satellite clocks        > %%%%%%%% <                                       # CLKINP
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output          > % < use CODXTR.Lnn            or    > %%%%%%%% < # SYSODEF SYSOUT
+#   Error messages          > % < merged to program output  or    > %%%%%%%% < # ERRMRG SYSERR
+#                                                                              #
+# RESULT FILE                                                                  #
+#   Satellite clocks        > %%%%%%%% <                                       # CLKOUT
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# CODXTR 1.1: General Files                                                    #
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CODXTR 2: Options                                                            #
+#                                                                              #
+# TITLE  > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <  # TITLE
+#                                                                              #
+# BAD STATION DETECTION                        > % <                           # RMS_OPT
+#   RMS limit for a good station               > %%%%% < meters                # RMSMAX
+#   Limit for number of OUT lines per station  > %%%%% <                       # LINOUT
+#   List of good files                         > %%%%%%%% <                    # FIL_OK
+#   List of bad files (deletion list)          > %%%%%%%% <                    # FILBAD
+#   Add phase files to the deletion list       > % <                           # DELPHS
+#                                                                              #
+# END_PANEL ####################################################################

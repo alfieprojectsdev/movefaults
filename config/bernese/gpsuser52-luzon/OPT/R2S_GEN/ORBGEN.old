@@ -1,0 +1,790 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 1  "" "${}"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! SOME KEYWORDS FOR AUTOMATIC OUTPUT
+! ----------------------------------
+CAMPAIGN 1  "./DUMMY"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${X}/SKL/SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "1980"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0060"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! -------------------------------------------------------------------------
+! Setup Springer model instead of usual RPR model
+! -----------------------------------------------
+ITIM 1  "0"
+  ## widget = checkbox
+
+MSG_ITIM 1  "Setup Springer model instead of usual RPR model"
+
+! Input Tabular Files
+! -------------------
+RADIO_T 1  "1"
+  ## widget = radiobutton; group = GENUPD
+
+MSG_RADIO_T 1  "Start with tabular orbits"
+
+TABFIL 1  "./DUMMY/ORB/$B800060.TAB"
+  ## widget = selwin; activeif = RADIO_T = 1; path = DIR_TAB; ext = EXT_TAB
+  # $B$YSS+0
+
+MSG_TABFIL 1  "Start with tabular orbits"
+
+! Input Precise Files
+! -------------------
+RADIO_P 1  "0"
+  ## widget = radiobutton; group = GENUPD
+
+MSG_RADIO_P 1  "Start with precise orbits"
+
+PREFIL 0
+  ## widget = selwin; activeif = RADIO_P = 1; path = DIR_PRE; ext = EXT_PRE
+  # 
+
+MSG_PREFIL 1  "Start with precise orbits"
+
+! Extension of the ERP Files
+! --------------------------
+PREFIL_EXT_COL_2 1  "ERP"
+  ## widget = initmenu; pointer = EXT_ERP
+
+! Extension of the ERP Files
+! --------------------------
+PREFIL_PTH_COL_2 1  "./DUMMY/ORB/"
+  ## widget = initmenu; pointer = DIR_ERP
+
+! Update Modus
+! ------------
+NEWOLD 1  "NEW"
+  ## widget = combobox; editable = false; cards = NEW OLD
+
+MSG_NEWOLD 1  "SELECTION OF ORBITAL ELEMENTS"
+
+! System for dynamical parameters
+! -------------------------------
+SYSDYX 1  "0"
+  ## widget = radiobutton; group = SYSORB
+
+MSG_SYSDYX 1  "System DYX"
+
+SYSD2X 1  "1"
+  ## widget = radiobutton; group = SYSORB; activeif = RPROUT = _
+
+MSG_SYSD2X 1  "System D2X"
+
+SYSRSW 1  "0"
+  ## widget = radiobutton; group = SYSORB
+
+MSG_SYSRSW 1  "System RSW"
+
+SYSDSW 1  "0"
+  ## widget = radiobutton; group = SYSORB
+
+MSG_SYSDSW 1  "System DSW"
+
+! Estimated Parameters
+! --------------------
+PARD0 1  "1"
+  ## widget = checkbox; activeif = SYSDYX == 1 OR SYSDSW == 1 OR SYSD2X == 1
+
+MSG_PARD0 1  "D0 (direct)"
+
+PARDP 1  "1"
+  ## widget = checkbox; activeif = SYSDYX == 1
+
+MSG_PARDP 1  "Periodic D1 terms (cos, sin)"
+
+PARDP2 1  "1"
+  ## widget = checkbox; activeif = SYSD2X == 1
+
+MSG_PARDP 1  "Periodic D2 terms (cos, sin)"
+
+PARY0 1  "1"
+  ## widget = checkbox; activeif = SYSDYX == 1 OR SYSD2X == 1
+
+MSG_PARY0 1  "Y0 (y-bias)"
+
+PARYP 1  "1"
+  ## widget = checkbox; activeif = SYSDYX == 1
+
+MSG_PARYP 1  "Periodic Y1 terms (cos, sin)"
+
+PARYP2 1  "1"
+  ## widget = checkbox; activeif = SYSD2X == 1
+
+MSG_PARYP 1  "Periodic D4 terms (cos, sin)"
+
+PARX0 1  "1"
+  ## widget = checkbox; activeif = SYSDYX == 1 OR SYSD2X == 1
+
+MSG_PARX0 1  "X0"
+
+PARXP 1  "1"
+  ## widget = checkbox; activeif = SYSDYX == 1 OR SYSD2X == 1
+
+MSG_PARXP 1  "Periodic X1/X1 terms (cos, sin)"
+
+PARR0 1  "0"
+  ## widget = checkbox; activeif = SYSRSW == 1
+
+MSG_PARR0 1  "R (radial)"
+
+PARRP 1  "0"
+  ## widget = checkbox; activeif = SYSRSW == 1 OR SYSDSW == 1
+
+MSG_PARRP 1  "Periodic R terms (cos, sin)"
+
+PARS0 1  "0"
+  ## widget = checkbox; activeif = SYSRSW == 1 OR SYSDSW == 1
+
+MSG_PARS0 1  "S0 (along-track)"
+
+PARSP 1  "0"
+  ## widget = checkbox; activeif = SYSRSW == 1 OR SYSDSW == 1
+
+MSG_PARSP 1  "Periodic S terms (cos, sin)"
+
+PARW0 1  "0"
+  ## widget = checkbox; activeif = SYSRSW == 1 OR SYSDSW == 1
+
+MSG_PARW0 1  "W0 (cross-track)"
+
+PARWP 1  "0"
+  ## widget = checkbox; activeif = SYSRSW == 1 OR SYSDSW == 1
+
+MSG_PARWP 1  "Periodic W terms (cos, sin)"
+
+! Setup stochastic parameters
+! ---------------------------
+STOCH_NUMBER 1  "ALL"
+  ## widget = combobox; editable = false; cards = NONE ALL SATCRUX MANUAL
+  ## activeif = RPROUT = _
+
+MSG_STOCH_NUMBER 1  "Satellite number for stochastic pulses"
+
+STOCH_MANUAL 0
+  ## widget = lineedit; activeif = STOCH_NUMBER = MANUAL AND RPROUT = _
+  # 
+
+MSG_STOCH_MANUAL 1  "Manual satellite selection for stochastic pulses"
+
+STOCH_INTER 1  "02 00 00"
+  ## widget = lineedit; check_type = time
+  ## activeif = STOCH_NUMBER / NONE AND STOCH_NUMBER / SATCRUX  AND RPROUT = _
+
+MSG_STOCH_INTER 1  "Interval for stochastic pulses"
+
+! Earth Radiation Pressure
+! ------------------------
+ERPMODFL 1  "None"
+  ## widget = combobox; editable = false; cards = None Analytical Numerical
+
+MSG_ERPMODFL 1  "Earth Radiation Pressure"
+
+! Antenna Thrust
+! --------------
+ANTTHRFL 1  "0"
+  ## widget = checkbox
+
+MSG_ANTTHRFL 1  "Navigation Antenna Thrust"
+
+! Show general files
+! ------------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! General Constants
+! -----------------
+CONST 1  "${X}/GEN/CONST."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! Pole File
+! ---------
+POLE 1  "./DUMMY/ORB/$B800060.ERP"
+  ## widget = selwin; path = DIR_ERP; ext = EXT_ERP; maxfiles = 1
+  # $B$YSS+0
+
+DESCR_POLE 1  "Pole file"
+
+! Albedo reflectivity
+! -------------------
+ALBREFL 0
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+MSG_ALBREFL 1  "Albedo reflectivity"
+
+! Albedo emissivity
+! -----------------
+ALBEMIS 0
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+MSG_ALBEMIS 1  "Albedo emissivity"
+
+! Ocean loading tables
+! --------------------
+OCNLOAD 1  "./DUMMY/STA/$(BLQINF).BLQ"
+  ## widget = selwin; path = DIR_BLQ; ext = EXT_BLQ; maxfiles = 1
+  ## emptyallowed = true; activeif = RADIO_P == 1 OR RADIO_T == 1
+  # $(BLQINF)
+
+DESCR_OCNLOAD 1  "Ocean loading corrections"
+
+! Atmospheric loading tables
+! --------------------------
+ATMLOAD 1  "./DUMMY/STA/$(ATLINF).ATL"
+  ## widget = selwin; path = DIR_ATL; ext = EXT_ATL; maxfiles = 1
+  ## emptyallowed = true; activeif = RADIO_P == 1 OR RADIO_T == 1
+  # $(ATLINF)
+
+DESCR_ATMLOAD 1  "Atmospheric loading corrections"
+
+! Subdaily Pole Model
+! -------------------
+SUBMOD 1  "${X}/GEN/IERS2010XY.SUB"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_SUB; maxfiles = 1
+  # IERS2010XY
+
+DESCR_SUBMOD 1  "Subdaily pole model"
+
+! Nutation Model
+! -------------------
+NUTMOD 1  "${X}/GEN/IAU2000R06.NUT"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_NUT; maxfiles = 1
+  # IAU2000R06
+
+DESCR_NUTMOD 1  "Nutation model"
+
+! Earth Potential
+! ---------------
+POTCOE 1  "${X}/GEN/EGM2008_SMALL."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # EGM2008_SMALL.
+
+DESCR_POTCOE 1  "Coeff. of Earth potential"
+
+! Satellite Problems
+! ------------------
+SATCRUX 1  "${X}/GEN/$(SATCRX).CRX"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_CRX; maxfiles = 1
+  # $(SATCRX)
+
+DESCR_SATCRUX 1  "Satellite problems"
+
+! Satellite Information
+! ---------------------
+SATELL 1  "${X}/GEN/$(SATINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # $(SATINF).$(PCV)
+
+DESCR_SATELL 1  "Satellite information"
+
+! Planetary Ephemeris
+! -------------------
+JPLEPH 1  "${X}/GEN/DE405.EPH"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_EPH; maxfiles = 1
+  ## emptyallowed = true
+  # DE405
+
+DESCR_JPLEPH 1  "Planetary ephemeris file"
+
+! Solid Earth Tides File
+! -----------------------
+SETIDES 1  "${X}/GEN/TIDE2000.TPO"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_TPO; maxfiles = 1
+  ## emptyallowed = true
+  # TIDE2000
+
+DESCR_SETIDES 1  "Solid Earth tides file"
+
+! Ocean Tides File
+! ----------------
+OTIDES 1  "${X}/GEN/OT_FES2004.TID"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_TID; maxfiles = 1
+  ## emptyallowed = true
+  # OT_FES2004
+
+DESCR_OTIDES 1  "Ocean tides file"
+
+! Correction GPS-UTC
+! ------------------
+GPSUTC 1  "${X}/GEN/GPSUTC."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  ## emptyallowed = true
+  # GPSUTC.
+
+DESCR_GPSUTC 1  "Correction GPS-UTC"
+
+! First Orbit Elements File
+! -------------------------
+RADIO_E 1  "0"
+  ## widget = radiobutton; group = GENUPD
+
+MSG_RADIO_E 1  "Update standard orbits"
+
+IMPORB 0
+  ## widget = selwin; activeif = RADIO_E = 1; path = DIR_ELE; ext = EXT_ELE
+  ## maxfiles = 1; emptyallowed = true
+  # 
+
+DESCR_IMPORB 1  "Orbital elements, file 1"
+
+! Second Orbit Elements File
+! --------------------------
+IMPORB2 0
+  ## widget = selwin; activeif = RADIO_E = 1; path = DIR_ELE; ext = EXT_ELE
+  ## maxfiles = 1; emptyallowed = true
+  # 
+
+DESCR_IMPORB2 1  "Orbital elements, file 2"
+
+! Standard Orbit File
+! -------------------
+STDOUT 1  "./DUMMY/ORB/$B800060.STD"
+  ## widget = lineedit; path = DIR_STD; ext = EXT_STD
+  # $B$YSS+0
+
+DESCR_STDOUT 1  "Standard orbits"
+
+! Radiation Pressure File
+! -----------------------
+RPROUT 0
+  ## widget = lineedit; path = DIR_RPR; ext = EXT_RPR
+  # 
+
+DESCR_RPROUT 1  "Radiation pressure coeff."
+
+! File with Residuals
+! -------------------
+RESIDRS 0
+  ## widget = lineedit; path = DIR_RES; ext = EXT_RES
+  ## activeif = RADIO_T == 1 OR RADIO_P == 1
+  # 
+
+DESCR_RESIDRS 1  "Residual file"
+
+! Summary File
+! ------------
+SUMFIL 0
+  ## widget = lineedit; path = DIR_LST; ext = EXT_LST
+  ## activeif = RADIO_T == 1 OR RADIO_P == 1
+  # 
+
+DESCR_SUMFIL 1  "Summary file"
+
+SUMACC 1  "./DUMMY/OUT/ORB800060.LST"
+  ## widget = lineedit; path = DIR_LST; ext = EXT_LST
+  ## activeif = RADIO_T == 1 OR RADIO_P == 1
+  # ORB$YSS+0
+
+DESCR_SUMACC 1  "Summary file for IGS-ACC"
+
+! Plot file of residuals
+! ----------------------
+RESPLOT 0
+  ## widget = lineedit; path = DIR_RES; ext = EXT_PLT
+  ## activeif = RADIO_T == 1 OR RADIO_P == 1
+  # 
+
+DESCR_RESPLOT 1  "Residual plot file"
+
+! Scratch Files
+! -------------
+AUXFIL 1  "${U}/WORK/ORBGEN.SCR"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SCR; emptyallowed = false
+  # ORBGEN$J
+
+DESCR_AUXFIL 1  "Scratch file"
+
+TABAUX 1  "${U}/WORK/ORBGEN.SC2"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SC2; emptyallowed = false
+  # ORBGEN$J
+
+DESCR_TABAUX 1  "Scratch file"
+
+DELETE_FILES 2
+  "AUXFIL"
+  "TABAUX"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "./DUMMY/OUT/ORB800060.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # ORB$YSS+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK/ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Print Residuals
+! ---------------
+PRTRESID 1  "NO"
+  ## widget = combobox; editable = true; cards = NO LAST ALL
+  ## activeif = RADIO_T == 1 OR RADIO_P == 1
+
+MSG_PRTRESID 1  "PRINT RESIDUALS"
+
+! Number of Iterations
+! --------------------
+NUMITER 1  "4"
+  ## widget = spinbox; range = 1 40 1; check_type = integer; check_min = 1
+  ## activeif = RADIO_T == 1 OR RADIO_P == 1
+
+MSG_NUMITER 1  "Number of iterations"
+
+! Polynomial Degree (max of range corresponds to MAXQ1 in ORBGEN.f)
+! -----------------
+POLDEGR 1  "10"
+  ## widget = spinbox; range = 1 20 1; check_type = integer; check_min = 1
+
+MSG_POLDEGR 1  "EQUATION OF MOTION: Polynomial degree"
+
+! Interval Length
+! ---------------
+LENINTER 1  "01 00 00"
+  ## widget = lineedit; emptyallowed = false; check_type = time
+
+MSG_LENINTER 1  "EQUATION OF MOTION: Length of interval"
+
+! Polynomial Degree (Variational Eq.)
+! (max of range corresponds to MAXQ1 in ORBGEN.f)
+! -----------------------------------
+VARPOLDG 1  "12"
+  ## widget = spinbox; range = 1 20 1; check_type = integer; check_min = 1
+
+MSG_VARPOLDG 1  "VARIATIONAL EQUATIONS: Polynomial degree"
+
+! Interval Length (Variational Eq.)
+! ---------------------------------
+VARLNINT 1  "06 00 00"
+  ## widget = lineedit; emptyallowed = false; check_type = time
+
+MSG_VARLNINT 1  "VARIATIONAL EQUATIONS: Length of interval"
+
+! Additional Variational Eq.
+! --------------------------
+ADDVAR 1  "0"
+  ## widget = spinbox; range = 0 1 1; check_type = integer; check_min = 0
+
+MSG_ADDVAR 1  "VARIATIONAL EQUATIONS: Additional sets"
+
+! Use extended RPR format
+! -----------------------
+RPRFRM 1  "0"
+  ## widget = checkbox
+
+MSG_RPRFRM 1  "Use extended RPR Format"
+
+! Degree of Earth Potential Model
+! -------------------------------
+MXPOTDEG 1  "12"
+  ## widget = spinbox; range = 2 150 1; check_type = integer; check_min = 2
+
+MSG_MXPOTDEG 1  "Earth potential degree"
+
+! Time Frame
+! ----------
+TIMFRAME 1  "GPS"
+  ## widget = combobox; editable = false; cards = GPS UTC
+
+MSG_TIMFRAME 1  "Time frame"
+
+! Apply CMC correction for OTL
+! ----------------------------
+CMCYN_O 1  "0"
+  ## widget = checkbox; activeif = RADIO_P == 1 AND OCNLOAD / _
+
+MSG_CMCYN_O 1  "Apply CMC correction for OTL"
+
+! Apply CMC correction for ATL
+! ----------------------------
+CMCYN_A 1  "0"
+  ## widget = checkbox; activeif = RADIO_P == 1 AND ATMLOAD / _
+
+MSG_CMCYN_A 1  "Apply CMC correction for ATL"
+
+! Apply Antenna Offsets
+! ---------------------
+ANTOFF 1  "0"
+  ## widget = checkbox
+
+MSG_ANTOFF 1  "Apply antenna offset"
+
+! Degree of Ocean Tides Model
+! ---------------------------
+MXOCTI 1  "8"
+  ## widget = spinbox; range = 2 150 1
+
+MSG_MXOCTI 1  "Ocean tides degree"
+
+! Arc(s) Definition
+! -----------------
+NUMARCS 1  "1"
+  ## widget = lineedit; check_type = integer; check_min = 1
+
+MSG_NUMARCS 1  "Number of arcs within the time window"
+
+! Arc(s) Definition
+! -----------------
+ARCINT 0
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_ARCINT 1  "LENGTH OF TIME INTERVAL"
+
+RADIO_1 1  "1"
+  ## widget = radiobutton; group = DUMMY
+  ## radiokeys = SESSION_YEAR SESSION_STRG
+
+MSG_RADIO_1 1  "Obs. window defined by year and session identifier"
+
+RADIO_2 1  "0"
+  ## widget = radiobutton; group = DUMMY
+
+MSG_RADIO_2 1  "Obs. window defined by start and end times"
+
+SESSION_YEAR 1  "1980"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $Y+-
+
+MSG_SESSION_YEAR 1  "Year for sessions def. the time window"
+
+SESSION_STRG 1  "0060"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $S+-
+
+MSG_SESSION_STRG 1  "Sessions defining the time window"
+
+STADAT 1  "1980 01 06"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_STADAT 1  "Start of time window (year month day)"
+
+STATIM 1  "00 00 00"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND STADAT / _; check_type = time
+
+MSG_STATIM 1  "Start of time window (hour min. sec.)"
+
+ENDDAT 1  "1980 01 06"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_ENDDAT 1  "End of time window (year month day)"
+
+ENDTIM 1  "23 59 59"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND ENDDAT / _; check_type = time
+
+MSG_ENDTIM 1  "End of time window (hour min. sec.)"
+
+! Title
+! -----
+TITLE 1  "RNX2SNX_800060: Generate GNSS standard orbit"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Generate GNSS standard orbit
+
+MSG_TITLE 1  "Title line"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CREATE/UPDATE STANDARD ORBITS - ORBGEN 1: Input Files                        #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files             > % <                                   # SHOWGEN
+#                                                                              #
+# INPUT FILES                                                                  #
+# > % < Start with tabular orbits      > %%%%%%%% <                            # RADIO_T TABFIL
+# > % < Start with precise orbits      > %%%%%%%% <                            # RADIO_P PREFIL
+# > % < Update standard orbit                                                  # RADIO_E
+#          Orbital elements, file 1    > %%%%%%%% <                            # IMPORB
+#          Orbital elements, file 2    > %%%%%%%% <                            # IMPORB2
+#   Pole file                          > %%%%%%%% <                            # POLE
+#   Ocean loading corrections          > %%%%%%%% <       (for CMC)            # OCNLOAD
+#   Atmospheric loading corrections    > %%%%%%%% <       (for CMC)            # ATMLOAD
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# ORBGEN 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants        > %%%%%%%%%%%% <                                  # CONST
+#   Satellite problems       > %%%%%%%%%%%% <                                  # SATCRUX
+#   Satellite information    > %%%%%%%%%%%% <                                  # SATELL
+#   Planetary ephemeris file > %%%%%%%%%%%% <                                  # JPLEPH
+#   Subdaily pole model      > %%%%%%%%%%%% <                                  # SUBMOD
+#   Nutation model           > %%%%%%%%%%%% <                                  # NUTMOD
+#   Coeff. of Earth potential> %%%%%%%%%%%% <                                  # POTCOE
+#   Solid Earth tides file   > %%%%%%%%%%%% <                                  # SETIDES
+#   Ocean tides file         > %%%%%%%%%%%% <                                  # OTIDES
+#   GPS-UTC seconds          > %%%%%%%%%%%% <                                  # GPSUTC
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign        > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <  # CAMPAIGN
+#   Selected session           year> %%%% <  session> %%%% <                   # YR4_INFO SES_INFO
+#   Session table            > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <  # SESSION_TABLE
+#                                                                              #
+# TEMPORARY FILES                                                              #
+#   Scratch files            > %%%%%%%%%%%% <            > %%%%%%%%%%%% <      # AUXFIL  TABAUX
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ORBGEN 2: Result and Output Files                                            #
+#                                                                              #
+#                                                                              #
+# RESULT FILES                                                                 #
+#   Standard orbits          > %%%%%%%% <                                      # STDOUT
+#   Radiation pressure coeff.> %%%%%%%% <                                      # RPROUT
+#   Residual file            > %%%%%%%% <                                      # RESIDRS
+#                                                                              #
+# OUTPUT FILES                                                                 #
+#   Summary file             > %%%%%%%% <                                      # SUMFIL
+#   Summary file for IGS-ACC > %%%%%%%% <                                      # SUMACC
+#   Plot file of residuals   > %%%%%%%% <                                      # RESPLOT
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output           > % < use ORBGEN.Lnn            or > %%%%%%%% <   # SYSODEF SYSOUT
+#   Error messages           > % < merged to program output  or > %%%%%%%% <   # ERRMRG SYSERR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ORBGEN 3.1: Options                                                          #
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# TIME FRAME, POTENTIAL AND TIDAL CORRECTIONS                                  #
+#   Time frame                   > %%%% <                                      # TIMFRAME
+#   Earth potential degree       > %%%% <                                      # MXPOTDEG
+#   Ocean tides max degree       > %%%% <                                      # MXOCTI
+#   Apply CMC correction   OTL:  > % <              ATL: > % <                 # CMCYN_O CMCYN_A
+#   Apply antenna offset         > % <                                         # ANTOFF
+#                                                                              #
+# SYSTEM FOR DYNAMICAL ORBIT PARAMETERS                                        #
+#   DYX Sun-oriented (constant + D1, Y1, X1) - old CODE model   > % <          # SYSDYX
+#   D2X Sun-oriented (constant + D2, D4, X1) - new CODE model   > % <          # SYSD2X
+#   RSW (radial, along-track, cross-track) - LEO + SLR          > % <          # SYSRSW
+#   DRSW (Direct, radial, along-track, cross-track) - LEO + SLR > % <          # SYSDSW
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ORBGEN 3.2: Options                                                          #
+#                                                                              #
+# PRINT RESIDUALS           > %%%%%% <                                         # PRTRESID
+#                                                                              #
+# NUMERICAL INTEGRATION                                                        #
+#   Number of iterations    > %%% <                                            # NUMITER
+#                                                                              #
+# EQUATION OF MOTION                                                           #
+#   Polynomial degree       > %%% <                                            # POLDEGR
+#   Length of interval      > %%%%%%%% <  (hh mm ss)                           # LENINTER
+#                                                                              #
+# VARIATIONAL EQUATIONS                                                        #
+#   Polynomial degree       > %%% <                                            # VARPOLDG
+#   Length of interval      > %%%%%%%% <  (hh mm ss)                           # VARLNINT
+#   Additional sets         > %%% <                                            # ADDVAR
+#   Use extended RPR Format > % <                                              # RPRFRM
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL RADIO_E = 0 ######################################################
+# ORBGEN 4: Parameter Selection                                                #
+#                                                                              #
+# DYNAMICAL ORBIT PARAMETERS                                                   #
+#   Apart from six osculating elements, estimate the following parameters:     #
+#                                                                              #
+#   D0 (direct)       > % <          Periodic D1 terms (cos, sin)     > % <    # PARD0 PARDP
+#                                    Periodic D2 terms (cos, sin)     > % <    # PARDP2
+#                                    Periodic D4 terms (cos, sin)     > % <    # PARYP2
+#   Y0 (y-bias)       > % <          Periodic Y1 terms (cos, sin)     > % <    # PARY0 PARYP
+#   X0                > % <          Periodic X1 terms (cos, sin)     > % <    # PARX0 PARXP
+#                                                                              #
+#   R (radial)        > % <          Periodic R1 terms (cos, sin)     > % <    # PARR0 PARRP
+#   S (along-track)   > % <          Periodic S1 terms (cos, sin)     > % <    # PARS0 PARSP
+#   W (out-of-plane)  > % <          Periodic W1 terms (cos, sin)     > % <    # PARW0 PARWP 
+#                                                                              #
+# STOCHASTIC PULSES IN (R, S, W)-DIRECTIONS                                    #
+#   Satellite selection                                 > %%%%%%%% <           # STOCH_NUMBER
+#   List of satellites                                  > %%%%%%%%%%%%%%%%%%% <# STOCH_MANUAL
+#   Parameter spacing                                   > %%%%%%%% <(hh mm ss) # STOCH_INTER
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL RADIO_E = 0 ######################################################
+# ORBGEN 5: Orbital Arc Definition                                             #
+#                                                                              #
+# ORBITAL ARC DEFINITION                                                       #
+#   Number of arcs within the time window         > %%% <                      # NUMARCS
+#                                                                              #
+#   Time window to be covered by the standard orbits                           #
+#                                                                              #
+#   > % < Defined by Year and Session identifier                               # RADIO_1
+#         Year > %%%% <     Session > %%%% <                                   # SESSION_YEAR SESSION_STRG
+#                                                                              #
+#                                                                              #
+#   > % < Defined by Start and End times                                       # RADIO_2
+#                 yyyy mm dd     hh mm ss           yyyy mm dd     hh mm ss    #
+#         Start > %%%%%%%%%% < > %%%%%%%% <   End > %%%%%%%%%% < > %%%%%%%% <  # STADAT STATIM ENDDAT ENDTIM
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL RADIO_E = 1 ######################################################
+# ORBGEN 6: Selection of Orbital Elements                                      #
+#                                                                              #
+# SELECTION OF ORBITAL ELEMENTS   > %%%% <                                     # NEWOLD
+#                                                                              #
+# LENGTH OF TIME INTERVAL         > %%%% < days                                # ARCINT
+#                                                                              #
+# END_PANEL ####################################################################

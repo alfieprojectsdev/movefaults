@@ -1,0 +1,279 @@
+
+! Some keywords for automatic output
+! ----------------------------------
+CAMPAIGN 1  "./DUMMY"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${X}/SKL/SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "1980"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0060"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! -------------------------------------------------------------------------
+! Environment Variables
+! ---------------------
+ENVIRONMENT 1  "" "${}"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! -------------------------------------------------------------------------
+! General Constants
+! -----------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+CONST 1  "${X}/GEN/CONST."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! GPSEST/ADDNEQ Input Files
+! -------------------------
+RADIO_1 1  "0"
+  ## widget = radiobutton; group = DUMMY; radiokeys = JOBGPS
+
+MSG_RADIO_1 1  "GPSEST/ADDNEQ2 output files"
+
+RADIO_3 1  "1"
+  ## widget = radiobutton; group = DUMMY; radiokeys = OUTPUT
+
+MSG_RADIO_3 1  "GPSEST/ADDNEQ2 output files"
+
+JOBGPS 0
+  ## widget = selwin; path = DIR_OUT; ext = NO_EXT; maxfiles = 999
+  ## emptyallowed = true
+  # 
+
+MSG_JOBGPS 1  "GPSEST job output files"
+
+JOBGPS_TXT_COL_1 1  "GPSEST job output files"
+
+OUTPUT 0
+  ## widget = selwin; path = DIR_OUT; ext = EXT_OUT; maxfiles = 999
+  ## emptyallowed = true
+  # 
+
+MSG_OUTPUT 1  "GPSEST/ADDNEQ output files"
+
+OUTPUT_TXT_COL_1 1  "GPSEST/ADDNEQ output files"
+
+! Title
+! -----
+TITLE 1  "RNX2SNX_800060: Extraction from ambiguity resolution"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Extraction from ambiguity resolution
+
+MSG_TITLE 1  "Title line"
+
+! Output Summary
+! --------------
+GPSOUT 0
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_SUM; maxfiles = -1
+  # 
+
+MSG_GPSOUT 1  "Output summary"
+
+! Coordinate Summary
+! ------------------
+CRDOUT 0
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_SUM; maxfiles = -1
+  # 
+
+MSG_CRDOUT 1  "Coordinate summary"
+
+! Kinematic Summary
+! -----------------
+KINOUT 0
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_SUM; maxfiles = -1
+  # 
+
+MSG_KINOUT 1  "Kinematic summary"
+
+! Ionosphere Summary
+! ------------------
+GIMOUT 0
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_SUM; maxfiles = -1
+  # 
+
+MSG_GIMOUT 1  "GIM summary"
+
+! Clock Summary
+! -------------
+CLKOUT 0
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_SUM; maxfiles = -1
+  # 
+
+MSG_CLKOUT 1  "Clock summary: clock differences"
+
+CLKBSL 0
+  ## widget = selwin; path = DIR_BSL; ext = EXT_BSL; maxfiles = 1
+  ## activeif = CLKOUT / _ OR CLKDEV / _
+  # 
+
+MSG_CLKBSL 1  "Pairs of clocks for clock summary"
+
+! Clock Summary: Allan deviation
+! -------------
+CLKDEV 0
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_SUM; maxfiles = -1
+  # 
+
+MSG_CLKDEV 1  "Clock summary: Allan deviation"
+
+! QIF Summary
+! -----------
+QIFOUT 0
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_SUM; maxfiles = -1
+  # 
+
+MSG_QIFOUT 1  "Ambiguity res. summary"
+
+! Ambiguity Summary
+! -----------------
+AMBOUT 0
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_SUM; maxfiles = -1
+  # 
+
+MSG_AMBOUT 1  "Ambiguity fractionals"
+
+! Campaign Summary
+! ----------------
+CAMPFM 0
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_SUM; maxfiles = -1
+  # 
+
+MSG_CAMPFM 1  "Campaign summary"
+
+! Weekly Summary
+! --------------
+WEEKFM 0
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_SUM; maxfiles = -1
+  # 
+
+MSG_WEEKFM 1  "Weekly summary"
+
+! Pole Summary
+! ------------
+POLOUT 0
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_SUM; maxfiles = -1
+  # 
+
+MSG_POLOUT 1  "Pole output"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "./DUMMY/OUT/XTR800060.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # XTR$YSS+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK/ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Which Pole Parameter Sets
+! -------------------------
+IMEAN 1  "ALL"
+  ## widget = combobox; editable = FALSE; cards = ALL 1 2 3
+  ## activeif = POLOUT / _
+
+MSG_IMEAN 1  "Pole parameter sets"
+
+! Ambiguity resolution summary detail level
+! -----------------------------------------
+AMBLOD 1  "EACH&ALL"
+  ## widget = combobox; activeif = QIFOUT / _; editable = false
+  ## cards = ALL EACH&ALL GPS GLONASS GALILEO
+
+MSG_AMBLOD 1  "Ambiguity resolution: GNSS"
+
+! Ambiguity resolution characterization
+! -------------------------------------
+AMBID 0
+  ## widget = combobox; cards = WL NL QIF L5 L3 L12 L1 L2
+  ## activeif = QIFOUT / _; check_strlen = 3
+  # 
+
+MSG_AMBID 1  "Ambiguity resolution: #AR_ID"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# EXTRACT GPSEST/ADDNEQ2 PROGRAM OUTPUT - GPSXTR 1: Extractions                #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files  > % <                                              # SHOWGEN
+#                                                                              #
+# INPUT FILENAMES                                                              #
+#   > % <                   > %%%%%%%%%%%% <      (GPSEST.Lxx/ADDNEQ2.Lxx)     # RADIO_1 JOBGPS
+#   > % <                   > %%%%%%%% <          (GPSEST/ADDNEQ2 output)      # RADIO_3 OUTPUT
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output          > % < use GPSXTR.Lnn            or    > %%%%%%%% < # SYSODEF SYSOUT
+#   Error messages          > % < merged to program output  or    > %%%%%%%% < # ERRMRG SYSERR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1  #####################################################
+# GPSXTR 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants       > %%%%%%%%%%%% <                                   # CONST
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# GPSXTR 2: Output Files                                                       #
+#                                                                              #
+# TITLE   > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% < # TITLE
+#                                                                              #
+# OUTPUT FILES                                                                 #
+#   Output summary          > %%%%%%%% <                                       # GPSOUT
+#   Coordinate summary      > %%%%%%%% <                                       # CRDOUT
+#   Kinematic summary       > %%%%%%%% <                                       # KINOUT
+#   GIM summary             > %%%%%%%% <                                       # GIMOUT
+#   Clock summary           > %%%%%%%% <     Baseline> %%%%%%%% <              # CLKOUT CLKBSL
+#   Clock Allan deviation   > %%%%%%%% <                                       # CLKDEV
+#   Ambiguity resolution    > %%%%%%%% <     GNSS> %%%%%%%% <  ID> %%% <       # QIFOUT AMBLOD AMBID
+#   Ambiguity fractionals   > %%%%%%%% <                                       # AMBOUT
+#   Campaign summary        > %%%%%%%% <                                       # CAMPFM
+#   Weekly summary          > %%%%%%%% <                                       # WEEKFM
+#   Pole output             > %%%%%%%% <     Pole parameter sets> %%%% <       # POLOUT IMEAN
+#                                                                              #
+# END_PANEL ####################################################################

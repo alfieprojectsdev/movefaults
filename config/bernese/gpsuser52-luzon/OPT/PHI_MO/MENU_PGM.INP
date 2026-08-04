@@ -1,0 +1,945 @@
+
+! Command to Run the Fortran Program
+! ----------------------------------
+CMD_PATH 1  "${XG}"
+  ## widget = lineedit; emptyallowed = false
+
+MSG_CMD_PATH 1  "Default program path to the executables"
+
+CMD_FOREGROUND 1  "1"
+  ## widget = radiobutton; group = CMD
+
+MSG_CMD_FOREGROUND 1  "Run Fortran programs in foreground"
+
+CMD_BACKGROUND 1  "0"
+  ## widget = radiobutton; group = CMD
+
+MSG_CMD_BACKGROUND 1  "Run Fortran programs in background"
+
+CMD_USE_CPUFILE 1  "0"
+  ## widget = radiobutton; group = CMD
+
+MSG_CMD_USE_CPUFILE 1  "Use selected CPU file to run Fortran programs"
+
+! CPU File
+! --------
+CPU_FILE 0
+  ## widget = selwin; path = PTH_CPU; ext = EXT_CPU; maxfiles = 1
+  ## activeif = CMD_USE_CPUFILE == 1
+  # UNIX
+
+MSG_CPU_FILE 1  "CPU control file"
+
+CMD_CPUNAME 0
+  ## widget = lineedit; activeif = CMD_USE_CPUFILE == 1
+
+MSG_CMD_CPUNAME 1  "CPU name"
+
+CMD_LOGFILE 0
+  ## widget = lineedit; path = PTH_SCR; ext = NO_EXT
+  ## activeif = CMD_USE_CPUFILE == 1
+  # 
+
+MSG_CMD_LOGFILE 1  "Log File"
+
+MAXJOBNUM 1  "99"
+  ## widget = combobox; cards = 99 999; check_type = integer; check_min = 0
+  ## check_max = 999
+
+MSG_MAXJOBNUM 1  "Maximum program output file number"
+
+! List of Programs with special path to the executable
+! ----------------------------------------------------
+SPECIAL_PATH 1  "" ""
+  ## widget = uniline; numlines = 20
+
+MSG_SPECIAL_PATH 1  "Programs executed from special paths"
+
+! Names of Programs/Input Files
+! -----------------------------
+USER1_INP 0
+  ## widget = lineedit; path = PTH_INP; ext = EXT_INP
+
+MSG_USER1_INP 1  "USER1"
+
+USER2_INP 0
+  ## widget = lineedit; path = PTH_INP; ext = EXT_INP
+
+MSG_USER2_INP 1  "USER2"
+
+USER3_INP 0
+  ## widget = lineedit; path = PTH_INP; ext = EXT_INP
+
+MSG_USER3_INP 1  "USER3"
+
+USER4_INP 0
+  ## widget = lineedit; path = PTH_INP; ext = EXT_INP
+
+MSG_USER4_INP 1  "USER4"
+
+USER5_INP 0
+  ## widget = lineedit; path = PTH_INP; ext = EXT_INP
+
+MSG_USER5_INP 1  "USER5"
+
+USER6_INP 0
+  ## widget = lineedit; path = PTH_INP; ext = EXT_INP
+
+MSG_USER6_INP 1  "USER6"
+
+USER7_INP 0
+  ## widget = lineedit; path = PTH_INP; ext = EXT_INP
+
+MSG_USER7_INP 1  "USER7"
+
+USER8_INP 0
+  ## widget = lineedit; path = PTH_INP; ext = EXT_INP
+
+MSG_USER8_INP 1  "USER8"
+
+USER9_INP 0
+  ## widget = lineedit; path = PTH_INP; ext = EXT_INP
+
+MSG_USER9_INP 1  "USER9"
+
+USER10_INP 0
+  ## widget = lineedit; path = PTH_INP; ext = EXT_INP
+
+MSG_USER10_INP 1  "USER10"
+
+! Configure
+! ---------
+CHNGEN_INP 1  "${U}/PAN\CHNGEN.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CHNGEN
+
+MSG_CHNGEN_INP 1  "Program input file: Change general options"
+
+UPDPAN_INP 1  "${U}/PAN\UPDPAN.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # UPDPAN
+
+MSG_UPDPAN_INP 1  "Program input file: Update program input files"
+
+! Campaign
+! --------
+NEWCAMP_INP 1  "${U}/PAN\NEWCAMP.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # NEWCAMP
+
+MSG_NEWCAMP_INP 1  "Program input file: Create new campaign"
+
+! Station files
+! -------------
+EDITCRD_INP 1  "${U}/PAN\EDITCRD.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITCRD
+
+MSG_EDITCRD_INP 1  "Program input file: Create/update station coordinates"
+
+EDITVEL_INP 1  "${U}/PAN\EDITVEL.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITVEL
+
+MSG_EDITVEL_INP 1  "Program input file: Create/update station velocities"
+
+EDITECC_INP 1  "${U}/PAN\EDITECC.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITECC
+
+MSG_EDITECC_INP 1  "Program input file: Create/update station eccentricities"
+
+EDSTACRX_INP 1  "${U}/PAN\EDITSTA.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITSTA
+
+MSG_EDSTACRX_INP 1  "Program input file: Create/update station information file"
+
+EDITFIX_INP 1  "${U}/PAN\EDITFIX.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITFIX
+
+MSG_EDITFIX_INP 1  "Program input file: Create/update station selection list"
+
+EDITSIG_INP 1  "${U}/PAN\EDITSIG.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITSIG
+
+MSG_EDITSIG_INP 1  "Program input file: Create/update station sigma file"
+
+EDITSOS_INP 1  "${U}/PAN\EDITSOS.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITSOS
+
+MSG_EDITSOS_INP 1  "Program input file: Create/update station observation sigma factors"
+
+ABBREV_INP 1  "${U}/PAN\EDITABB.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITABB
+
+MSG_ABBREV_INP 1  "Program input file: Create/update station abbreviation table"
+
+EDITBSL_INP 1  "${U}/PAN\EDITBSL.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITBSL
+
+MSG_EDITBSL_INP 1  "Program input file: Create/update baseline definition file"
+
+EDITCLU_INP 1  "${U}/PAN\EDITCLU.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITCLU
+
+MSG_EDITCLU_INP 1  "Program input file: Create/update cluster definition file"
+
+EDITPLD_INP 1  "${U}/PAN\EDITPLD.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITPLD
+
+MSG_EDITPLD_INP 1  "Program input file: Create/update tectonic plate assignment"
+
+! RINEX to Bernese
+! ----------------
+RXOBV3_INP 1  "${U}/PAN\RXOBV3.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RXOBV3
+
+MSG_RXOBV3_INP 1  "Program input file: Transfer RINEX observation files to Bernese format"
+
+RXNBV3_INP 1  "${U}/PAN\RXNBV3.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RXNBV3
+
+MSG_RXNBV3_INP 1  "Program input file: Transfer RINEX navig. files to Bernese format"
+
+RXMBV3_INP 1  "${U}/PAN\RXMBV3.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RXMBV3
+
+MSG_RXMBV3_INP 1  "Program input file: Transfer RINEX meteo files to Bernese format"
+
+RXNPRE_INP 1  "${U}/PAN\RXNPRE.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RXNPRE
+
+MSG_RXNPRE_INP 1  "Program input file: Transfer RINEX navig. files to precise orbits"
+
+! Bernese to RINEX
+! ----------------
+BV3RXO_INP 1  "${U}/PAN\BV3RXO.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # BV3RXO
+
+MSG_BV3RXO_INP 1  "Program input file: Transfer Bernese observation files to RINEX"
+
+BV3RXN_INP 1  "${U}/PAN\BV3RXN.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # BV3RXN
+
+MSG_BV3RXN_INP 1  "Program input file: Transfer Bernese navigation files to RINEX"
+
+! Cut/concatenate RINEX
+! ---------------------
+CCRINEXO_INP 1  "${U}/PAN\CCRINEXO.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CCRINEXO
+
+MSG_CCRINEXO_INP 1  "Program input file: Concatenate RINEX observation files"
+
+CCRINEXN_INP 1  "${U}/PAN\CCRINEXN.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CCRINEXN
+
+MSG_CCRINEXN_INP 1  "Program input file: Concatenate GPS RINEX navigation files"
+
+CCRINEXG_INP 1  "${U}/PAN\CCRINEXG.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CCRINEXG
+
+MSG_CCRINEXG_INP 1  "Program input file: Concatenate GLONASS RINEX navigation files"
+
+! RINEX utilities
+! ---------------
+RNXGRA_INP 1  "${U}/PAN\RNXGRA.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RNXGRA
+
+MSG_RNXGRA_INP 1  "Program input file: Create observation statistics"
+
+RNXSMT_INP 1  "${U}/PAN\RNXSMT.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RNXSMT
+
+MSG_RNXSMT_INP 1  "Program input file: Clean/smooth observation files"
+
+RNXCLK_INP 1  "${U}/PAN\RNXCLK.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RNXCLK
+
+MSG_RNXCLK_INP 1  "Program input file: Extract satellite clock from clock RINEX files"
+
+! Orbit, Broadcast
+! ----------------
+BRDTST_INP 1  "${U}/PAN\BRDTST.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # BRDTST
+
+MSG_BRDTST_INP 1  "Program input file: Check broadcast orbits"
+
+BRDTAB_INP 1  "${U}/PAN\BRDTAB.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # BRDTAB
+
+MSG_BRDTAB_INP 1  "Program input file: Create tabular orbits from broadcast ephemerides"
+
+SATCLK_INP 1  "${U}/PAN\SATCLK.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # SATCLK
+
+MSG_SATCLK_INP 1  "Program input file: Extract satellite clocks"
+
+! Orbit, create standard orbit
+! ----------------------------
+PRETAB_INP 1  "${U}/PAN\PRETAB.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # PRETAB
+
+MSG_PRETAB_INP 1  "Program input file: Create tabular orbits"
+
+ORBGEN_INP 1  "${U}/PAN\ORBGEN.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # ORBGEN
+
+MSG_ORBGEN_INP 1  "Program input file: Create/update standard orbits"
+
+DEFXTR_INP 1  "${U}/PAN\DEFXTR.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # DEFXTR
+
+MSG_DEFXTR_INP 1  "Program input file: Extract ORBGEN program output"
+
+! Standard to precise
+! -------------------
+STDPRE_INP 1  "${U}/PAN\STDPRE.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # STDPRE
+
+MSG_STDPRE_INP 1  "Program input file: Convert standard to precise orbits"
+
+PREWEI_INP 1  "${U}/PAN\PREWEI.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # PREWEI
+
+MSG_PREWEI_INP 1  "Program input file: Set accuracy codes in precise orbits"
+
+CCPREORB_INP 1  "${U}/PAN\CCPREORB.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CCPREORB
+
+MSG_CCPREORB_INP 1  "Program input file: Concatenate/merge precise orbit files"
+
+! Compare orbits
+! --------------
+STDDIF_INP 1  "${U}/PAN\STDDIF.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # STDDIF
+
+MSG_STDDIF_INP 1  "Program input file: Compare standard orbits"
+
+ORBCMP_INP 1  "${U}/PAN\ORBCMP.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # ORBCMP
+
+MSG_ORBCMP_INP 1  "Program input file: Compare precise orbits"
+
+STDELE_INP 1  "${U}/PAN\STDELE.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # STDELE
+
+MSG_STDELE_INP 1  "Program input file: Compare osculating elements"
+
+! EOPs utilities
+! --------------
+POLUPD_INP 1  "${U}/PAN\POLUPD.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # POLUPD
+
+MSG_POLUPD_INP 1  "Program input file: Convert IERS pole files to Bernese format"
+
+POLXTR_INP 1  "${U}/PAN\POLXTR.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # POLXTR
+
+MSG_POLXTR_INP 1  "Program input file: Concatenate IERS pole files"
+
+! Processing
+! ----------
+CODSPP_INP 1  "${U}/PAN\CODSPP.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CODSPP
+
+MSG_CODSPP_INP 1  "Program input file: Code-based clock synchronization"
+
+SNGDIF_INP 1  "${U}/PAN\SNGDIF.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # SNGDIF
+
+MSG_SNGDIF_INP 1  "Program input file: Create single-difference/baseline files"
+
+MAUPRP_INP 1  "${U}/PAN\MAUPRP.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # MAUPRP
+
+MSG_MAUPRP_INP 1  "Program input file: Phase preprocessing"
+
+GPSEST_INP 1  "${U}/PAN\GPSEST.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # GPSEST
+
+MSG_GPSEST_INP 1  "Program input file: Parameter estimation"
+
+ADDNEQ2_INP 1  "${U}/PAN\ADDNEQ2.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # ADDNEQ2
+
+MSG_ADDNEQ2_INP 1  "Program input file: Combine normal equation systems"
+
+! Processing extractions
+! ----------------------
+CODXTR_INP 1  "${U}/PAN\CODXTR.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CODXTR
+
+MSG_CODXTR_INP 1  "Program input file: Extract CODSPP program output"
+
+MPRXTR_INP 1  "${U}/PAN\MPRXTR.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # MPRXTR
+
+MSG_MPRXTR_INP 1  "Program input file: Extract MAUPRP program output"
+
+GPSXTR_INP 1  "${U}/PAN\GPSXTR.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # GPSXTR
+
+MSG_GPSXTR_INP 1  "Program input file: Extract GPSEST/ADDNEQ2 program output"
+
+! Service: Simulate
+! -----------------
+GPSSIM_INP 1  "${U}/PAN\GPSSIM.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # GPSSIM
+
+MSG_GPSSIM_INP 1  "Program input file: Generate simulated observation data"
+
+! Service: Station information files
+! ----------------------------------
+STA2STA_INP 1  "${U}/PAN\STA2STA.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # STA2STA
+
+MSG_STA2STA_INP 1  "Program input file: Convert station information files"
+
+STAMERGE_INP 1  "${U}/PAN\STAMERGE.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # STAMERGE
+
+MSG_STAMERGE_INP 1  "Program input file: Merge station information files"
+
+RNX2STA_INP 1  "${U}/PAN\RNX2STA.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RNX2STA
+
+MSG_RNX2STA_INP 1  "Program input file: Extract station information from RINEX headers"
+
+SNX2STA_INP 1  "${U}/PAN\SNX2STA.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # SNX2STA
+
+MSG_SNX2STA_INP 1  "Program input file: Extract station information from SINEX file"
+
+! Service: Observation files
+! --------------------------
+CHGHED_INP 1  "${U}/PAN\CHGHED.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CHGHED
+
+MSG_CHGHED_INP 1  "Program input file: Change header of observation files"
+
+SATMRK_INP 1  "${U}/PAN\SATMRK.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # SATMRK
+
+MSG_SATMRK_INP 1  "Program input file: Mark/delete observations"
+
+OBSSPL_INP 1  "${U}/PAN\OBSSPL.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # OBSSPL
+
+MSG_OBSSPL_INP 1  "Program input file: Split observation files"
+
+SATGRA_INP 1  "${U}/PAN\SATGRA.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # SATGRA
+
+MSG_SATGRA_INP 1  "Program input file: Create pseudo-graphics of the observations"
+
+! Service: Residuals
+! ------------------
+REDISP_INP 1  "${U}/PAN\REDISP.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # REDISP
+
+MSG_REDISP_INP 1  "Program input file: Display residual file"
+
+RESRMS_INP 1  "${U}/PAN\RESRMS.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RESRMS
+
+MSG_RESRMS_INP 1  "Program input file: Create residual statistics"
+
+! Service: Coordinates
+! --------------------
+FODITS_INP 1  "${U}/PAN\FODITS.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # FODITS
+
+MSG_FODITS_INP 1  "Program input file: Analysis of time series"
+
+HELMERT_INP 1  "${U}/PAN\HELMR1.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # HELMR1
+
+MSG_HELMERT_INP 1  "Program input file: Helmert transformation"
+
+COMPAR_INP 1  "${U}/PAN\COMPAR.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # COMPAR
+
+MSG_COMPAR_INP 1  "Program input file: Coordinate comparison"
+
+VELDIF_INP 1  "${U}/PAN\VELDIF.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # VELDIF
+
+MSG_VELDIF_INP 1  "Program input file: Velocity comparison"
+
+NUVELO_INP 1  "${U}/PAN\NUVELO.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # NUVELO
+
+MSG_NUVELO_INP 1  "Program input file: Compute NUVEL velocities"
+
+COOVEL_INP 1  "${U}/PAN\COOVEL.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # COOVEL
+
+MSG_COOVEL_INP 1  "Program input file: Extrapolate coordinates"
+
+COOSYS_INP 1  "${U}/PAN\COOSYS.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # COOSYS
+
+MSG_COOSYS_INP 1  "Program input file: Coordinate transformation"
+
+ETRS89_INP 1  "${U}/PAN\ETRS89.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # ETRS89
+
+MSG_ETRS89_INP 1  "Program input file: Transform coordinates to ETRS89 frame"
+
+CRDMRG_INP 1  "${U}/PAN\CRDMERGE.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CRDMERGE
+
+MSG_CRDMRG_INP 1  "Program input file: Merge coordinate/velocity files"
+
+GRDS1S2_INP 1  "${U}/PAN\GRDS1S2.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # GRDS1S2
+
+MSG_GRDS1S2_INP 1  "Program input file: Extract atmospheric tidal loading coefficients"
+
+! Service: Clock tools
+! --------------------
+CCRNXC_INP 1  "${U}/PAN\CCRNXC.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CCRNXC
+
+MSG_CCRNXC_INP 1  "Program input file: Combine/manipulate clock RINEX files"
+
+CLKEST_INP 1  "${U}/PAN\CLKEST.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CLKEST
+
+MSG_CLKEST_INP 1  "Program input file: Epoch-wise clock interpolation"
+
+! Service: Ionosphere
+! -------------------
+IONEST_INP 1  "${U}/PAN\IONEST.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # IONEST
+
+MSG_IONEST_INP 1  "Program input file: Local ionosphere model estimation"
+
+! Service: LEO
+! ------------
+LEOAUX_INP 1  "${U}/PAN\LEOAUX.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # LEOAUX
+
+MSG_LEOAUX_INP 1  "Program input file: Prepare LEO auxiliary information"
+
+KINPRE_INP 1  "${U}/PAN\KINPRE.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # KINPRE
+
+MSG_KINPRE_INP 1  "Program input file: Convert kinematic positions to precise orbits"
+
+! Service: SLR
+! ------------
+IRV2STV_INP 1  "${U}/PAN\IRV2STV.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # IRV2STV
+
+MSG_IRV2STV_INP 1  "Program input file: Convert IRV or PRE files to state vectors"
+
+CPFSP3_INP 1  "${U}/PAN\CPFSP3.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CPFSP3
+
+MSG_CPFSP3_INP 1  "Program input file: Convert CPF to precise orbit files"
+
+SP3CPF_INP 1  "${U}/PAN\SP3CPF.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # SP3CPF
+
+MSG_SP3CPF_INP 1  "Program input file: Convert precise orbits to CPF files"
+
+SNX2SLR_INP 1  "${U}/PAN\SNX2SLR.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # SNX2SLR
+
+MSG_SNX2SLR_INP 1  "Program input file: Prepare SLR data handling file"
+
+QLRINEXO_INP 1  "${U}/PAN\QLRINEXO.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # QLRINEXO
+
+MSG_QLRINEXO_INP 1  "Program input file: Convert SLR normal point files (old format) to RINEX"
+
+CRD2RNXO_INP 1  "${U}/PAN\CRD2RNXO.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # CRD2RNXO
+
+MSG_CRD2RNXO_INP 1  "Program input file: Convert SLR normal point files (new format) to RINEX"
+
+QLRSUM_INP 1  "${U}/PAN\QLRSUM.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # QLRSUM
+
+MSG_QLRSUM_INP 1  "Program input file: Create SLR quick-look residual statistics"
+
+! Service: Automated processing
+! -----------------------------
+BASLST_INP 1  "${U}/PAN\BASLST.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # BASLST
+
+MSG_BASLST_INP 1  "Program input file: Select baselines"
+
+MKCLUS_INP 1  "${U}/PAN\MKCLUS.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # MKCLUS
+
+MSG_MKCLUS_INP 1  "Program input file: Form clusters of observation files"
+
+RESCHK_INP 1  "${U}/PAN\RESCHK.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RESCHK
+
+MSG_RESCHK_INP 1  "Program input file: Detect misbehaving stations/satellites"
+
+! Conversions: SINEX
+! ------------------
+SNX2NQ0_INP 1  "${U}/PAN\SNX2NQ0.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # SNX2NQ0
+
+MSG_SNX2NQ0_INP 1  "Program input file: Transfer SINEX files to normal equation files"
+
+TROTRO_INP 1  "${U}/PAN\TROTRO.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # TROTRO
+
+MSG_TROTRO_INP 1  "Program input file: Manipulate troposphere SINEX files"
+
+! Conversion: ANTEX
+! -----------------
+ATX2PCV_INP 1  "${U}/PAN\ATX2PCV.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # ATX2PCV
+
+MSG_ATX2PCV_INP 1  "Program input file: Convert ANTEX to Bernese format"
+
+! Conversion: observation files
+! -----------------------------
+OBSFMT_INP 1  "${U}/PAN\OBSFMT.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # OBSFMT
+
+MSG_OBSFMT_INP 1  "Program input file: Convert observation files (binary to ASCII)"
+
+FMTOBS_INP 1  "${U}/PAN\FMTOBS.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # FMTOBS
+
+MSG_FMTOBS_INP 1  "Program input file: Convert observation files (ASCII to binary)"
+
+! Conversion: residual files
+! --------------------------
+RESFMT_INP 1  "${U}/PAN\RESFMT.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RESFMT
+
+MSG_RESFMT_INP 1  "Program input file: Convert residual files (binary to ASCII)"
+
+FMTRES_INP 1  "${U}/PAN\FMTRES.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # FMTRES
+
+MSG_FMTRES_INP 1  "Program input file: Convert residual files (ASCII to binary)"
+
+! Conversion: orbit files
+! -----------------------
+FMTSTD_INP 1  "${U}/PAN\FMTSTD.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # FMTSTD
+
+MSG_FMTSTD_INP 1  "Program input file: Convert STD and RPR files (ASCII to binary)"
+
+STDFMT_INP 1  "${U}/PAN\STDFMT.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # STDFMT
+
+MSG_STDFMT_INP 1  "Program input file: Convert STD and RPR files (binary to ASCII)"
+
+! Conversion: NEQ-files
+! ---------------------
+NEQ2ASC_INP 1  "${U}/PAN\NEQ2ASC.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # NEQ2ASC
+
+MSG_NEQ2ASC_INP 1  "Program input file: Convert normal equation files (binary/ASCII)"
+
+! BPE
+! ---
+EDITPCF_INP 1  "${U}/PAN\EDITPCF.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # EDITPCF
+
+MSG_EDITPCF_INP 1  "Program input file: Edit process control file (PCF)"
+
+RUNBPE_INP 1  "${U}/PAN\RUNBPE.INP"
+  ## widget = lineedit; emptyallowed = false; path = PTH_INP; ext = EXT_INP
+  # RUNBPE
+
+MSG_RUNBPE_INP 1  "Program input file: Start BPE processing"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# PROGRAM NAMES - MENU_PGM 1: Options                                          #
+#                                                                              #
+# AUTOMATIC GENERATION OF PROGRAM OUTPUT FILE NAMES                            #
+#   Maximum program output file number        > %%% <                          # MAXJOBNUM
+#                                                                              #
+# OPTIONS TO RUN THE FORTRAN PROGRAMS                                          #
+#   Default program path to the executables   > %%%%%%%% <                     # CMD_PATH
+#                                                                              #
+#   Run Fortran programs in foreground > % <                                   # CMD_FOREGROUND
+#   Run Fortran programs in background > % <                                   # CMD_BACKGROUND
+#   Use CPU File to Run programs       > % <  > %%%%%%%% <                     # CMD_USE_CPUFILE CPU_FILE
+#                                             > %%%%%%%%%%%% <        CPU Name # CMD_CPUNAME
+#                                             > %%%%%%%%%%%% <        Log File # CMD_LOGFILE
+#                                                                              #
+#   Special path for individual programs                                       #
+#     > Program_ Path_to_program_executable_______________________   <         # SPECIAL_PATH
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# MENU_PGM 2.1: Menu - Configure                                               #
+#                                                                              #
+# CONFIGURE                                                                    #
+#   CHNGEN   > %%%%%%%% <    : Change general options                          # CHNGEN_INP
+#   UPDPAN   > %%%%%%%% <    : Update program input files                      # UPDPAN_INP
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# MENU_PGM 2.2: Menu - Campaign                                                #
+#                                                                              #
+# CAMPAIGN                                                                     #
+#   NEWCAMP  > %%%%%%%% <    : Create new campaign                             # NEWCAMP_INP
+#   COORD    > %%%%%%%% <    : Create/update station coordinates               # EDITCRD_INP
+#   VELOCITY > %%%%%%%% <    : Create/update station velocities                # EDITVEL_INP
+#   ECCENT   > %%%%%%%% <    : Create/update station eccentricities            # EDITECC_INP
+#   STAINFO  > %%%%%%%% <    : Create/update station information file          # EDSTACRX_INP
+#   STALIST  > %%%%%%%% <    : Create/update station selection list            # EDITFIX_INP
+#   SIGMA    > %%%%%%%% <    : Create/update station sigma file                # EDITSIG_INP
+#   STAWEIGHT> %%%%%%%% <    : Create/update station observation sigma factors # EDITSOS_INP
+#   ABBREV   > %%%%%%%% <    : Create/update station abbreviation table        # ABBREV_INP
+#   BASELINE > %%%%%%%% <    : Create/update baseline definition file          # EDITBSL_INP
+#   CLUSTER  > %%%%%%%% <    : Create/update cluster definition file           # EDITCLU_INP
+#   PLATE    > %%%%%%%% <    : Create/update tectonic plate assignment         # EDITPLD_INP
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# MENU_PGM 2.3: Menu - RINEX                                                   #
+#                                                                              #
+# RINEX PROGRAMS                                                               #
+#   RXOBV3   > %%%%%%%% <    : Transfer RINEX observ. files to Bernese format  # RXOBV3_INP
+#   RXNBV3   > %%%%%%%% <    : Transfer RINEX navig. files to Bernese format   # RXNBV3_INP
+#   RXMBV3   > %%%%%%%% <    : Transfer RINEX meteo files to Bernese format    # RXMBV3_INP
+#   RXNPRE   > %%%%%%%% <    : Transfer RINEX navig. files to precise orbits   # RXNPRE_INP
+#   BV3RXO   > %%%%%%%% <    : Transfer Bernese observation files to RINEX     # BV3RXO_INP
+#   BV3RXN   > %%%%%%%% <    : Transfer Bernese navigation files to RINEX      # BV3RXN_INP
+#   CCRINEXO > %%%%%%%% <    : Concatenate RINEX observation files             # CCRINEXO_INP
+#   CCRINEXN > %%%%%%%% <    : Concatenate GPS RINEX navigation files          # CCRINEXN_INP
+#   CCRINEXG > %%%%%%%% <    : Concatenate GLONASS RINEX navigation files      # CCRINEXG_INP
+#   RNXGRA   > %%%%%%%% <    : Create observation statistics                   # RNXGRA_INP
+#   RNXSMT   > %%%%%%%% <    : Clean/smooth observation files                  # RNXSMT_INP
+#   RNXCLK   > %%%%%%%% <    : Extract satellite clock from clock RINEX files  # RNXCLK_INP
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# MENU_PGM 2.4: Menu - Orbits/EOP                                              #
+#                                                                              #
+# ORBIT AND EOP PROGRAMS                                                       #
+#   BRDTST   > %%%%%%%% <    : Check broadcast orbits                          # BRDTST_INP
+#   BRDTAB   > %%%%%%%% <    : Create tabular orbits from broadcast ephemerides# BRDTAB_INP
+#   SATCLK   > %%%%%%%% <    : Extract satellite clocks                        # SATCLK_INP
+#   PRETAB   > %%%%%%%% <    : Create tabular orbits                           # PRETAB_INP
+#   ORBGEN   > %%%%%%%% <    : Create/update standard orbits                   # ORBGEN_INP
+#   DEFXTR   > %%%%%%%% <    : Extract ORBGEN program output                   # DEFXTR_INP
+#   STDPRE   > %%%%%%%% <    : Convert standard to precise orbits              # STDPRE_INP
+#   PREWEI   > %%%%%%%% <    : Set accuracy codes in precise orbits            # PREWEI_INP
+#   CCPREORB > %%%%%%%% <    : Concatenate/merge precise orbit files           # CCPREORB_INP
+#   STDDIF   > %%%%%%%% <    : Compare standard orbits                         # STDDIF_INP
+#   ORBCMP   > %%%%%%%% <    : Compare precise orbits                          # ORBCMP_INP
+#   STDELE   > %%%%%%%% <    : Compare osculating elements                     # STDELE_INP
+#   POLUPD   > %%%%%%%% <    : Convert IERS pole files to Bernese format       # POLUPD_INP
+#   POLXTR   > %%%%%%%% <    : Concatenate IERS pole files                     # POLXTR_INP
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# MENU_PGM 2.5: Menu - Processing                                              #
+#                                                                              #
+# PROCESSING PROGRAMS                                                          #
+#   CODSPP   > %%%%%%%% <    : Code-based clock synchronization                # CODSPP_INP
+#   SNGDIF   > %%%%%%%% <    : Create single-difference/baseline files         # SNGDIF_INP
+#   MAUPRP   > %%%%%%%% <    : Phase preprocessing                             # MAUPRP_INP
+#   GPSEST   > %%%%%%%% <    : Parameter estimation                            # GPSEST_INP
+#   ADDNEQ2  > %%%%%%%% <    : Combine normal equation systems                 # ADDNEQ2_INP
+#   CODXTR   > %%%%%%%% <    : Extract CODSPP program output                   # CODXTR_INP
+#   MPRXTR   > %%%%%%%% <    : Extract MAUPRP program output                   # MPRXTR_INP
+#   GPSXTR   > %%%%%%%% <    : Extract GPSEST/ADDNEQ2 program output           # GPSXTR_INP
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# MENU_PGM 2.6: Menu - Service                                                 #
+#                                                                              #
+# SERVICE PROGRAMS                                                             #
+#   GPSSIM   > %%%%%%%% <    : Generate simulated observation data             # GPSSIM_INP
+#   STA2STA  > %%%%%%%% <    : Convert station information files               # STA2STA_INP
+#   STAMERGE > %%%%%%%% <    : Merge station information files                 # STAMERGE_INP
+#   RNX2STA  > %%%%%%%% <    : Extract station information from RINEX headers  # RNX2STA_INP
+#   SNX2STA  > %%%%%%%% <    : Extract station information from SINEX file     # SNX2STA_INP
+#   CHGHED   > %%%%%%%% <    : Change header of observation files              # CHGHED_INP
+#   SATMRK   > %%%%%%%% <    : Mark/delete observations                        # SATMRK_INP
+#   OBSSPL   > %%%%%%%% <    : Split observation files                         # OBSSPL_INP
+#   SATGRA   > %%%%%%%% <    : Create pseudo-graphics of the observations      # SATGRA_INP
+#   REDISP   > %%%%%%%% <    : Display residual file                           # REDISP_INP
+#   RESRMS   > %%%%%%%% <    : Create residual statistics                      # RESRMS_INP
+#   FODITS   > %%%%%%%% <    : Analysis of time series                         # FODITS_INP
+#   HELMER   > %%%%%%%% <    : Helmert transformation                          # HELMERT_INP
+#   COMPAR   > %%%%%%%% <    : Coordinate comparison                           # COMPAR_INP
+#   VELDIF   > %%%%%%%% <    : Velocity comparison                             # VELDIF_INP
+#   NUVELO   > %%%%%%%% <    : Compute NUVEL velocities                        # NUVELO_INP
+#   COOVEL   > %%%%%%%% <    : Extrapolate coordinates                         # COOVEL_INP
+#   COOSYS   > %%%%%%%% <    : Coordinate transformation                       # COOSYS_INP
+#   ETRS89   > %%%%%%%% <    : Transform coordinates to ETRS89 frame           # ETRS89_INP
+#   CRDMERGE > %%%%%%%% <    : Merge coordinate/velocity files                 # CRDMRG_INP
+#   GRDS1S2  > %%%%%%%% <    : Extract atmospheric tidal loading coefficients  # GRDS1S2_INP
+#   CCRNXC   > %%%%%%%% <    : Combine/manipulate clock RINEX files            # CCRNXC_INP
+#   CLKEST   > %%%%%%%% <    : Epoch-wise clock interpolation                  # CLKEST_INP
+#   IONEST   > %%%%%%%% <    : Local ionosphere model estimation               # IONEST_INP
+#   LEOAUX   > %%%%%%%% <    : Prepare LEO auxiliary information               # LEOAUX_INP
+#   KINPRE   > %%%%%%%% <    : Convert kinematic positions to precise orbits   # KINPRE_INP
+#   IRV2STV  > %%%%%%%% <    : Convert IRV or PRE files to state vectors       # IRV2STV_INP
+#   CPFSP3   > %%%%%%%% <    : Convert CPF to precise orbit files              # CPFSP3_INP
+#   SP3CPF   > %%%%%%%% <    : Convert precise orbits to CPF files             # SP3CPF_INP
+#   SNX2SLR  > %%%%%%%% <    : Prepare SLR data handling file                  # SNX2SLR_INP
+#   QLRINEXO > %%%%%%%% <    : Convert normal point files (old format) to RINEX# QLRINEXO_INP
+#   CRD2RNXO > %%%%%%%% <    : Convert normal point files (new format) to RINEX# CRD2RNXO_INP
+#   QLRSUM   > %%%%%%%% <    : Create SLR quick-look residual statistics       # QLRSUM_INP
+#   BASLST   > %%%%%%%% <    : Select baselines                                # BASLST_INP
+#   MKCLUS   > %%%%%%%% <    : Form clusters of observation files              # MKCLUS_INP
+#   RESCHK   > %%%%%%%% <    : Detect misbehaving stations/satellites          # RESCHK_INP
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# MENU_PGM 2.7: Menu - Conversion                                              #
+#                                                                              #
+# CONVERSION PROGRAMS                                                          #
+#   SNX2NQ0  > %%%%%%%% <    : Transfer SINEX files to normal equation files   # SNX2NQ0_INP
+#   TROTRO   > %%%%%%%% <    : Manipulate troposphere SINEX files              # TROTRO_INP
+#   ATX2PCV  > %%%%%%%% <    : Convert ANTEX to Bernese format                 # ATX2PCV_INP
+#   OBSFMT   > %%%%%%%% <    : Convert observation files (binary to ASCII)     # OBSFMT_INP
+#   FMTOBS   > %%%%%%%% <    : Convert observation files (ASCII to binary)     # FMTOBS_INP
+#   RESFMT   > %%%%%%%% <    : Convert residual files (binary to ASCII)        # RESFMT_INP
+#   FMTRES   > %%%%%%%% <    : Convert residual files (ASCII to binary)        # FMTRES_INP
+#   STDFMT   > %%%%%%%% <    : Convert STD and RPR files (binary to ASCII)     # STDFMT_INP
+#   FMTSTD   > %%%%%%%% <    : Convert STD and RPR files (ASCII to binary)     # FMTSTD_INP
+#   NEQ2ASC  > %%%%%%%% <    : Convert normal equation files (binary/ASCII)    # NEQ2ASC_INP
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# MENU_PGM 2.8: Menu - BPE                                                     #
+#                                                                              #
+# BERNESE PROCESSING ENGINE                                                    #
+#   PCFILE   > %%%%%%%% <    : Edit process control file (PCF)                 # EDITPCF_INP
+#   RUNBPE   > %%%%%%%% <    : Start BPE processing                            # RUNBPE_INP
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# MENU_PGM 3: Menu - User                                                      #
+#                                                                              #
+# ADDITIONAL USER PROGRAMS                                                     #
+#   USER1    > %%%%%%%% <                                                      # USER1_INP
+#   USER2    > %%%%%%%% <                                                      # USER2_INP
+#   USER3    > %%%%%%%% <                                                      # USER3_INP
+#   USER4    > %%%%%%%% <                                                      # USER4_INP
+#   USER5    > %%%%%%%% <                                                      # USER5_INP
+#   USER6    > %%%%%%%% <                                                      # USER6_INP
+#   USER7    > %%%%%%%% <                                                      # USER7_INP
+#   USER8    > %%%%%%%% <                                                      # USER8_INP
+#   USER9    > %%%%%%%% <                                                      # USER9_INP
+#   USER10   > %%%%%%%% <                                                      # USER10_INP
+#                                                                              #
+# END_PANEL ####################################################################

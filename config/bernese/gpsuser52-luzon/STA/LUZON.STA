@@ -1,0 +1,542 @@
+STATION INFORMATION FILE                                         13-JUL-20 17:04
+--------------------------------------------------------------------------------
+
+FORMAT VERSION: 1.01
+TECHNIQUE:      GNSS
+
+TYPE 001: RENAMING OF STATIONS
+------------------------------
+
+STATION NAME          FLG          FROM                   TO         OLD STATION NAME      REMARK
+****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ************************
+ABUY ABUY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ABUY*                 From ABUY0020.19O
+AGUS AGUS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  AGUS*                 From AGUS0020.19O
+AIRA 21742S001        001  1998 02 28 00 00 00                       AIRA*                 IGS.SNX
+ALAB ALAB             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ALAB*                 From ALAB0220.17O
+ALBU ALBU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ALBU*                 From ALBU0020.19O
+ALCA ALCA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ALCA*                 From ALCA0020.19O
+ALCO ALCO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ALCO*                 From ALCO1590.22O
+ALIC 50137M001        001  1994 05 15 00 00 00                       ALIC*                 IGS.SNX
+ANGT ANGT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ANGT*                 From ANGT1540.18O
+ANTP ANTP             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ANTP*                 From ANTP0010.20O
+APAR APAR             001  1980 01 06 00 00 00  2099 12 31 00 00 00  APAR*                 From APAR0220.17O
+AROY AROY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  AROY*                 From AROY0020.19O
+ATIM ATIM             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ATIM*                 From ATIM1540.18O
+AURA AURA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  AURA*                 From AURA1540.18O
+BACO BACO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BACO*                 From BACO0020.19O
+BAGU BAGU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BAGU*                 From BAGU0600.10O
+BALA BALA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BALA*                 From BALA0220.17O
+BALU BALU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BALU*                 From BALU0020.19O
+BASC BASC             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BASC*                 From BASC0220.17O
+BATC BATC             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BATC*                 From BATC2800.14O
+BATO BATO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BATO*                 From BATO0020.19O
+BILI BILI             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BILI*                 From BILI0020.19O
+BLNA BLNA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BLNA*                 From BLNA0220.17O
+BLN2 BLN2             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BLN2*                 From BLN21920.19O
+BOAC BOAC             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BOAC*                 From BOAC0020.19O
+BONT BONT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BONT*                 From BONT1090.10O
+BOST BOST             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BOST*                 From BOST0660.21O
+BRGC BRGC             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BRGC*                 From BRGC1540.18O
+BSLN BSLN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BSLN*                 From BSLN1510.19O
+BTNG 23105M002        001  2012 10 22 11 00 00                       BTNG*                 IGS.SNX
+BTU2 BTU2             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BTU2*                 From BTU23620.21O
+BTUN BTUN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BTUN*                 From BTUN2130.15O
+BUGS BUGS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BUGS*                 From BUGS3010.15O
+BULA BULA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BULA*                 From BULA0020.19O
+BURN BURN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BURN*                 From BURN1460.14O
+BYBY BYBY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  BYBY*                 From BYBY0020.19O
+CABN CABN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  CABN*                 From CABN1540.18O
+CABU CABU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  CABU*                 From CABU0450.20O
+CACA CACA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  CACA*                 From CACA1540.18O
+CAC2 CAC2             001  1980 01 06 00 00 00  2099 12 31 00 00 00  CAC2*                 From CAC22440.21O
+CALU CALU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  CALU*                 From CALU0020.19O
+CATA CATA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  CATA*                 From CATA0020.19O
+CDOC CDOC             001  1980 01 06 00 00 00  2099 12 31 00 00 00  CDOC*                 From CDOC1510.19O
+CLAV CLAV             001  1980 01 06 00 00 00  2099 12 31 00 00 00  CLAV*                 From CLAV0220.17O
+CLYN CLYN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  CLYN*                 From CLYN2190.14O
+CMGN CMGN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  CMGN*                 From CMGN2770.14O
+CNTA CNTA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  CNTA*                 From CNTA0010.19O
+CUSV 21904S001        001  2008 05 12 00 00 00                       CUSV*                 IGS.SNX
+DAEJ 23902M002        001  1999 03 19 00 00 00                       DAEJ*                 IGS.SNX
+DARW 50134M001        001  1994 03 24 00 00 00                       DARW*                 IGS.SNX
+DIMA DIMA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  DIMA*                 From DIMA0020.19O
+DGOS DGOS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  DGOS*                 From DGOS3620.21O
+DNGT DNGT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  DNGT*                 From DNGT3440.19O
+ELNA ELNA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ELNA*                 From ELNA0220.17O
+GUAM 50501M002        001  1980 01 06 00 00 00  2099 12 31 00 00 00  GUAM*                 From GUAM0640.24O
+GUES GUES             001  1980 01 06 00 00 00  2099 12 31 00 00 00  GUES*                 From GUES0020.19O
+GUMA GUMA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  GUMA*                 From GUMA0220.17O
+GUNG GUNG             001  1980 01 06 00 00 00  2099 12 31 00 00 00  GUNG*                 From GUNG0220.17O
+GUUG 82301M001        001  2003 08 27 00 00 00                       GUUG*                 IGS.SNX
+HINU HINU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  HINU*                 From HINU0020.19O
+IBAZ IBAZ             001  1980 01 06 00 00 00  2099 12 31 00 00 00  IBAZ*                 From IBAZ0220.17O
+INFA INFA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  INFA*                 From INFA1540.18O
+INOP INOP             001  1980 01 06 00 00 00  2099 12 31 00 00 00  INOP*                 From INOP1420.18O
+ISAB ISAB             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ISAB*                 From ISAB2080.19O
+ITBA ITBA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ITBA*                 From ITBA2440.13O
+JALA JALA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  JALA*                 From JALA0450.20O
+JARO JARO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  JARO*                 From JARO0020.19O
+JOSE JOSE             001  1980 01 06 00 00 00  2099 12 31 00 00 00  JOSE*                 From JOSE0020.19O
+LABO LABO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LABO*                 From LABO1540.18O
+LAGW LAGW             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LAGW*                 From LAGW0220.17O
+LAPS LAPS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LAPS*                 From LAPS0010.15O
+LBAN LBAN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LBAN*                 From LBAN0220.17O
+LGYE LGYE             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LGYE*                 From LGYE0220.17O
+LLOR LLOR             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LLOR*                 From LLOR0800.19O
+LLOY LLOY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LLOY*                 From LLOY3620.21O
+LLPS LLPS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LLPS*                 From LLPS1780.19O
+LUCB LUCB             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LUCB*                 From LUCB0220.17O
+MABN MABN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MABN*                 From MABN0220.17O
+MAGU MAGU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MAGU*                 From MAGU1940.20O
+MALA MALA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MALA*                 From MALA1540.18O
+MALG MALG             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MALG*                 From MALG1540.18O
+MALS MALS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MALS*                 From MALS2830.14O
+MALY MALY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MALY*                 From MALY0010.20O
+MAMB MAMB             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MAMB*                 From MAMB0020.19O
+MAR2 MAR2             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MAR2*                 From MAR20010.20O
+MARK MARK             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MARK*                 From MARK0010.20O
+MARL MARL             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MARL*                 From MARL0020.13O
+MASM MASM             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MASM*                 From MASM1940.20O
+MAUB MAUB             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MAUB*                 From MAUB0220.17O
+MCIL 21789S001        001  2002 12 08 00 00 00                       MCIL*                 IGS.SNX
+MILA MILA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MILA*                 From MILA2250.19O
+MLBY MLBY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MLBY*                 From MLBY3500.21O
+MLPA MLPA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MLPA*                 From MLPA3240.21O
+MNAY MNAY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MNAY*                 From MNAY3100.17O
+MSBT MSBT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MSBT*                 From MSBT0020.19O
+MUNT MUNT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MUNT*                 From MUNT0010.18O
+MUNZ MUNZ             001  1980 01 06 00 00 00  2099 12 31 00 00 00  MUNZ*                 From MUNZ0220.17O
+NAUJ NAUJ             001  1980 01 06 00 00 00  2099 12 31 00 00 00  NAUJ*                 From NAUJ0020.19O
+NCPC NCPC             001  1980 01 06 00 00 00  2099 12 31 00 00 00  NCPC*                 From NCPC3620.21O
+NTUS 22601M001        001  1997 06 26 03 00 00                       NTUS*                 IGS.SNX
+ORAS ORAS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ORAS*                 From ORAS0800.19O
+ORMO ORMO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ORMO*                 From ORMO0020.19O
+PAGP PAGP             001  1980 01 06 00 00 00  2099 12 31 00 00 00  PAGP*                 From PAGP0220.17O
+PALA PALA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  PALA*                 From PALA0020.19O
+PALM PALM             001  1980 01 06 00 00 00  2099 12 31 00 00 00  PALM*                 From PALM0020.19O
+PALO PALO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  PALO*                 From PALO0800.19O
+PAND PAND             001  1980 01 06 00 00 00  2099 12 31 00 00 00  PAND*                 From PAND1520.22O
+PERT 50133M001        001  1993 08 18 00 00 00                       PERT*                 IGS.SNX
+PIBU PIBU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  PIBU*                 From PIBU0010.20O
+PIMO 22003M001        001  1998 07 01 00 00 00                       PIMO*                 IGS.SNX
+PLWN PLWN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  PLWN*                 From PLWN0020.19O
+PMPL PMPL             001  1980 01 06 00 00 00  2099 12 31 00 00 00  PMPL*                 From PMPL1780.22O
+PNBO PNBO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  PNBO*                 From PNBO1510.19O
+PNGM 51006M001        001  2002 05 06 00 00 00                       PNGM*                 IGS.SNX
+POLI POLI             001  1980 01 06 00 00 00  2099 12 31 00 00 00  POLI*                 From POLI0220.17O
+POTR POTR             001  1980 01 06 00 00 00  2099 12 31 00 00 00  POTR*                 From POTR0010.19O
+PTAG 22006M005        001  2008 09 23 00 00 00                       PTAG*                 IGS.SNX
+PTBN PTBN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  PTBN*                 From PTBN0220.17O
+PUER PUER             001  1980 01 06 00 00 00  2099 12 31 00 00 00  PUER*                 From PUER0020.19O
+RCSS RCSS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  RCSS*                 From RCSS1780.19O
+ROXA ROXA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  ROXA*                 From ROXA0020.19O
+S01R S01R             001  1980 01 06 00 00 00  2099 12 31 00 00 00  S01R*                 From S01R0020.19O
+SABL SABL             001  1980 01 06 00 00 00  2099 12 31 00 00 00  SABL*                 From SABL0020.19O
+SAPN SAPN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  SAPN*                 From SAPN1540.18O
+SINI SINI             001  1980 01 06 00 00 00  2099 12 31 00 00 00  SINI*                 From SINI0220.17O
+SJDB SJDB             001  1980 01 06 00 00 00  2099 12 31 00 00 00  SJDB*                 From SJDB0010.20O
+SNFO SNFO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  SNFO*                 From SNFO0020.19O
+SOGO SOGO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  SOGO*                 From SOGO0020.19O
+SOLA SOLA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  SOLA*                 From SOLA0220.17O
+SPAB SPAB             001  1980 01 06 00 00 00  2099 12 31 00 00 00  SPAB*                 From SPAB0220.17O
+SPLY SPLY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  SPLY*                 From SPLY1780.19O
+STNA STNA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  STNA*                 From STNA1540.18O
+SULT SULT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  SULT*                 From SULT0800.19O
+TACB TACB             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TACB*                 From TACB0020.19O
+TALI TALI             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TALI*                 From TALI0450.20O
+TANY TANY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TANY*                 From TANY0220.17O
+TAW2 TAW2             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TAW2*                 From TAW23620.21O
+TAWI TAWI             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TAWI*                 From TAWI1510.19O
+TCDR TCDR             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TCDR*                 From TCDR2460.19O
+TCGN TCGN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TCGN*                 From TCGN2130.15O
+TCSS TCSS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TCSS*                 From TCSS1780.19O
+TGDN TGDN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TGDN*                 From TGDN0220.17O
+TRIN TRIN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIN*                 From TRIN2010.22O
+TNDG TNDG             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TNDG*                 From TNDG2130.15O
+TNML 23604S001        001  2001 06 07 00 00 00                       TNML*                 IGS.SNX
+TUAO TUAO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TUAO*                 From TUAO1010.14O
+URDT URDT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  URDT*                 From URDT0210.17O
+VICT VICT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  VICT*                 From VICT0800.19O
+VIGN VIGN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  VIGN*                 From VIGN0220.17O
+VNHS VNHS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  VNHS*                 From VNHS0010.20O
+VRAC VRAC             001  1980 01 06 00 00 00  2099 12 31 00 00 00  VRAC*                 From VRAC3310.19O
+
+
+TYPE 002: STATION INFORMATION
+-----------------------------
+
+STATION NAME          FLG          FROM                   TO         RECEIVER TYPE         RECEIVER SERIAL NBR   REC #   ANTENNA TYPE          ANTENNA SERIAL NBR    ANT #    NORTH      EAST      UP      DESCRIPTION             REMARK
+****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ********************  ******  ********************  ********************  ******  ***.****  ***.****  ***.****  **********************  ************************
+ABUY ABUY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220360675            999999  TRM41249.00     NONE  60162549              999999    0.0000    0.0000    0.0000                          From ABUY0020.19O
+AGUS AGUS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220320212            999999  TRM41249.00     NONE  12325483              999999    0.0000    0.0000    0.0000                          From AGUS0020.19O
+AIRA 21742S001        001  1998 02 28 00 00 00  2003 02 18 14 59 00  TRIMBLE 4000SSI                             999999  TRM23903.00     DOME                        999999    0.0000    0.0000    0.0000  Aira, Japan             IGS.SNX
+AIRA 21742S001        001  2003 02 19 09 04 00  2012 07 25 00 00 00  TRIMBLE 5700                                999999  TRM29659.00     DOME                        999999    0.0000    0.0000    0.0000  Aira, Japan             IGS.SNX
+AIRA 21742S001        001  2012 07 25 00 00 00  2012 08 01 01 00 00  TRIMBLE NETR9                               999999  TRM29659.00     DOME                        999999    0.0000    0.0000    0.0000  Aira, Japan             IGS.SNX
+AIRA 21742S001        001  2012 08 01 01 00 00  2021 01 25 00 30 00  TRIMBLE NETR9                               999999  TRM59800.00     SCIS                        999999    0.0000    0.0000    0.0000  Aira, Japan             IGS.SNX
+AIRA 21742S001        001  2021 01 25 01 00 00                       TRIMBLE ALLOY                               999999  TRM59800.00     SCIS                        999999    0.0000    0.0000    0.0000  Aira, Japan             IGS.SNX
+ALAB ALAB             001  1980 01 06 00 00 00  2018 10 22 23 59 59  TRIMBLE NETR9         5302K41545            999999  TRM57971.00     NONE  5000113752            999999    0.0000    0.0000    0.0000                          From ALAB0320.14O
+ALAB ALAB             001  2018 10 23 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5116K75185            999999  TRM57971.00     NONE  5000113752            999999    0.0000    0.0000    0.0000                          From ALAB2960.18O
+ALBU ALBU             001  1980 01 06 00 00 00  2021 11 23 23 59 59  TRIMBLE NETRS         4724134753            999999  TRM41249.00     NONE  60225094              999999    0.0000    0.0000    0.0000                          From ALBU0020.19O
+ALBU ALBU             001  2021 11 24 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220360675            999999  TRM41249.00     NONE  60225094              999999    0.0000    0.0000    0.0000                          From ALBU3280.21O
+ALCA ALCA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220320634            999999  TRM41249.00     NONE  12481397              999999    0.0000    0.0000    0.0000                          From ALCA0020.19O
+ALCO ALCO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1871732               999999  LEIAR20         LEIM                        999999    0.0000    0.0000    0.0000                          From ALCO1590.22O
+ALIC 50137M001        001  1994 05 15 00 00 00  2000 01 14 01 50 00  AOA ICS-4000Z                               999999  AOAD/M_T        AUST                        999999    0.0000    0.0000    0.0070  Alice Springs, Austral  IGS.SNX
+ALIC 50137M001        001  2000 01 14 02 00 00  2000 01 24 01 00 00  AOA SNR-12 ACT                              999999  AOAD/M_T        AUST                        999999    0.0000    0.0000    0.0070  Alice Springs, Austral  IGS.SNX
+ALIC 50137M001        001  2000 01 24 02 15 00  2003 06 15 03 30 00  AOA ICS-4000Z ACT                           999999  AOAD/M_T        AUST                        999999    0.0000    0.0000    0.0070  Alice Springs, Austral  IGS.SNX
+ALIC 50137M001        001  2003 06 15 03 30 00  2003 10 22 23 59 00  AOA ICS-4000Z ACT                           999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0070  Alice Springs, Austral  IGS.SNX
+ALIC 50137M001        001  2003 10 23 00 00 00  2008 04 15 23 59 00  ASHTECH UZ-12                               999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0070  Alice Springs, Austral  IGS.SNX
+ALIC 50137M001        001  2008 04 16 00 00 00  2011 07 20 00 00 00  LEICA GRX1200GGPRO                          999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0070  Alice Springs, Austral  IGS.SNX
+ALIC 50137M001        001  2011 07 20 00 00 00  2016 02 04 00 00 00  LEICA GRX1200GGPRO                          999999  LEIAR25.R3      NONE                        999999    0.0000    0.0000    0.0015  Alice Springs, Austral  IGS.SNX
+ALIC 50137M001        001  2016 02 04 00 00 00  2020 12 10 00 00 00  LEICA GR25                                  999999  LEIAR25.R3      NONE                        999999    0.0000    0.0000    0.0015  Alice Springs, Austral  IGS.SNX
+ALIC 50137M001        001  2020 12 10 00 00 00  2024 04 22 00 47 00  SEPT POLARX5                                999999  LEIAR25.R3      NONE                        999999    0.0000    0.0000    0.0015  Alice Springs,Austral   IGS.SNX
+ALIC 50137M001        001  2024 04 22 00 47 00                       SEPT POLARX5                                999999  TWIVC6050       NONE                        999999    0.0000    0.0000    0.0250  Alice Springs,Austral   IGS.SNX
+ANGT ANGT             001  1980 01 06 00 00 00  2017 05 17 23 59 59  LEICA MC500           0060112               999999  LEIAT504        NONE  238                   999999    0.0000    0.0000    0.0000                          From ANGT2860.14O
+ANGT ANGT             001  2017 05 18 00 00 00  2099 12 31 00 00 00  LEICA GRX1200+GNSS    495172                999999  LEIAT504        NONE  238                   999999    0.0000    0.0000    0.0000                          From ANGT1370.17O
+ANTP ANTP             001  1980 01 06 00 00 00  2017 05 16 23 59 59  LEICA MC500           0060125               999999  LEIAT504        NONE  403                   999999    0.0000    0.0000    0.0000                          From ANTP2820.14O
+ANTP ANTP             001  2017 05 17 00 00 00  2024 07 18 23 59 59  LEICA GRX1200+GNSS    495172                999999  LEIAT504        NONE  403                   999999    0.0000    0.0000    0.0000                          From ANTP1380.17O
+ANTP ANTP             001  2024 07 19 00 00 00  2099 12 31 00 00 00  LEICA GRX1200GGPRO    356276                999999  LEIAT504        NONE  403                   999999    0.0000    0.0000    0.0000                          From ANTP2010.24O
+APAR APAR             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GRX1200PRO      465447                999999  LEIAX1202GG     NONE  08150012              999999    0.0000    0.0000    0.0000                          From APAR2760.14O
+ATIM ATIM             001  1980 01 06 00 00 00  2018 04 18 23 59 59  LEICA GRX1200GGPRO    356272                999999  LEIAT504        NONE  1280                  999999    0.0000    0.0000    0.0000                          From ATIM2760.14O
+ATIM ATIM             001  2018 04 19 00 00 00  2024 11 04 23 59 59  LEICA GRX1200GGPRO    356271                999999  LEIAT504        NONE  1280                  999999    0.0000    0.0000    0.0000                          From ATIM1090.18O
+ATIM ATIM             001  2024 11 05 00 00 00  2025 11 12 23 59 59  LEICA GRX1200+GNSS    495159                999999  LEIAT504        NONE  1280                  999999    0.0000    0.0000    0.0000                          From ATIM3090.24O
+ATIM ATIM             001  2025 11 13 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5023K68057            999999  TRM57971.00     NONE  1441116129            999999    0.0000    0.0000    0.0000                          From ATIM3170.25O
+AROY AROY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR8         4852K33881            999999  TRM57971.00     NONE  31182858              999999    0.0000    0.0000    0.0000                          From AROY0020.19O
+AURA AURA             001  1980 01 06 00 00 00  2015 10 21 23 59 59  TRIMBLE 5700          0220353628            999999  TRM41249.00     NONE  12694095              999999    0.0000    0.0000    0.0000                          From AURA2830.14O
+AURA AURA             001  2015 10 22 00 00 00  2018 04 18 23 59 59  TRIMBLE NETRS         4614207135            999999  TRM41249.00     NONE  12694095              999999    0.0000    0.0000    0.0000                          From AURA2950.15O
+AURA AURA             001  2018 04 19 00 00 00  2018 10 15 23 59 59  LEICA GRX1200GGPRO    356272                999999  TRM41249.00     NONE  12694095              999999    0.0000    0.0000    0.0000                          From AURA1090.18O
+AURA AURA             001  2018 10 16 00 00 00  2022 05 18 23 59 59  LEICA GRX1200+GNSS    495159                999999  TRM41249.00     NONE  12694095              999999    0.0000    0.0000    0.0000                          From AURA2890.18O
+AURA AURA             001  2022 05 19 00 00 00  2024 11 11 23 59 59  LEICA GRX1200PRO      465446                999999  TRM41249.00     NONE  12694095              999999    0.0000    0.0000    0.0000                          From AURA2890.18O
+AURA AURA             001  2024 11 12 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5717R50154            999999  TRM57971.00     NONE  1441116488            999999    0.0000    0.0000    0.0000                          From AURA3170.24O
+BACO BACO             001  1980 01 06 00 00 00  2017 02 19 23 59 59  TRIMBLE NETRS         4450241606            999999  TPSCR.G3        NONE  3830692               999999    0.0000    0.0000    0.0000                          From BACO1820.14O
+BACO BACO             001  2017 02 20 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220338784            999999  TPSCR.G3        NONE  3830692               999999    0.0000    0.0000    0.0000                          From BACO0020.19O
+BAGU BAGU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETRS         4720132686            999999  TRM41249.00     NONE  60207764              999999    0.0000    0.0000    0.0000                          From BAGU0600.10O
+BALA BALA             001  1980 01 06 00 00 00  2018 04 15 23 59 59  TRIMBLE NETRS         4646125539            999999  TRM57971.00     NONE  1441021567            999999    0.0000    0.0000    0.0000                          From BALA1060.14O
+BALA BALA             001  2018 04 16 00 00 00  2019 10 01 23 59 59  LEICA GRX1200+GNSS    495186                999999  TRM57971.00     NONE  1441021567            999999    0.0000    0.0000    0.0000                          From BALA1060.18O
+BALA BALA             001  2019 10 02 00 00 00  2024 11 09 23 59 59  LEICA GRX1200GGPRO    356265                999999  TRM57971.00     NONE  1441021567            999999    0.0000    0.0000    0.0000                          From BALA2750.19O
+BALA BALA             001  2024 11 10 00 00 00  2025 11 15 23 59 59  TRIMBLE NETR9         5117K75250            999999  TRM57971.00     NONE  1441021567            999999    0.0000    0.0000    0.0000                          From BALA3150.24O
+BALA BALA             001  2025 11 16 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5117K75250            999999  TRM57971.00     NONE  1441116603            999999    0.0000    0.0000    0.0000                          From BALA3200.25O
+BALU BALU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR8         4906K34368            999999  TRM57971.00     NONE  31182850              999999    0.0000    0.0000    0.0000                          From BALU0020.19O
+BASC BASC             001  1980 01 06 00 00 00  2018 04 16 23 59 59  TRIMBLE NETR9         5117K75246            999999  TRM57971.00     NONE  1441116488            999999    0.0000    0.0000    0.0000                          From BASC0010.13O
+BASC BASC             001  2018 04 17 00 00 00  2024 11 03 23 59 59  TRIMBLE NETR9         5717R50154            999999  TRM57971.00     NONE  1441116488            999999    0.0000    0.0000    0.0000                          From BASC1070.18O
+BASC BASC             001  2024 11 04 00 00 00  2099 12 31 00 00 00  TRIMBLE ALLOY         6307R40132            999999  TRM115000.00    NONE  62193G0021            999999    0.0000    0.0000    0.0000                          From BASC3090.24O
+BATC BATC             001  2014 10 07 00 00 00  2015 03 29 23 59 59  TRIMBLE 5700          0220353627            999999  TRM41249.00     NONE  12346408              999999    0.0000    0.0000    0.0000                          From BATC2800.14O
+BATO BATO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220353698            999999  TRM41249.00     NONE  60069123              999999    0.0000    0.0000    0.0000                          From BATO0020.19O
+BILI BILI             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220332734            999999  TRM41249.00     NONE  12532310              999999    0.0000    0.0000    0.0000                          From BILI0020.19O
+BLNA BLNA             001  1980 01 06 00 00 00  2019 05 29 23 59 59  LEICA GRX1200GGPRO    356265                999999  LEIAX1202GG     NONE  07310013              999999    0.0000    0.0000    0.0000                          From BLNA2850.14O
+BLNA BLNA             001  2019 05 30 00 00 00  2021 06 28 23 59 59  LEICA GRX1200+GNSS    495180                999999  LEIAX1203+GNSS  NONE  09480037              999999    0.0000    0.0000    0.0000                          From BLNA1500.19O
+BLNA BLNA             001  2021 06 29 00 00 00  2022 12 05 23 59 59  LEICA GRX1200+GNSS    495180                999999  TRM115000.00    NONE  1430767448            999999    0.0000    0.0000    0.0000                          From BLNA1800.21O
+BLNA BLNA             001  2022 12 06 00 00 00  2023 11 29 23 59 59  LEICA GRX1200+GNSS    495180                999999  TRM41249.00     NONE  12421198              999999    0.0000    0.0000    0.0000                          From BLNA3400.22O
+BLNA BLNA             001  2023 11 30 00 00 00  2024 11 08 23 59 59  LEICA GRX1200+GNSS    495186                999999  TRM57971.00     NONE  1312118465            999999    0.0000    0.0000    0.0000                          From BLNA3400.22O
+BLN2 BLN2             001  2024 11 09 00 00 00  2026 04 15 23 59 59  LEICA GRX1200+GNSS    495189                999999  TRM57971.00     NONE  1312118465            999999    0.0000    0.0000    0.0000                          From BLN21920.19O
+BLN2 BLN2             001  2026 04 16 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5302K41639            999999  TRM57971.00     NONE  1312118465            999999    0.0000    0.0000    0.0000                          From BLN21920.19O
+BOAC BOAC             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220284693            999999  TRM41249.00     NONE  12560237              999999    0.0000    0.0000    0.0000                          From BOAC0020.19O
+BONT BONT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GRX1200PRO      465452                999999  LEIAX1202GG     NONE  08140077              999999    0.0000    0.0000    0.0000                          From BONT1090.10O
+BOST BOST             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1871361               999999  LEIAR20         LEIM  23035019              999999    0.0000    0.0000    0.0000                          From BOST0660.21O
+BRGC BRGC             001  1980 01 06 00 00 00  2018 09 15 23 59 59  LEICA GRX1200PRO      465457                999999  LEIAX1202GG     NONE  09400089              999999    0.0000    0.0000    0.0000                          From BRGC2870.14O
+BRGC BRGC             001  2018 10 18 00 00 00  2022 08 27 23 59 59  LEICA GRX1200+GNSS    495182                999999  LEIAX1202GG     NONE  09400089              999999    0.0000    0.0000    0.0000                          From BRGC2910.18O
+BRGC BRGC             001  2022 10 31 00 00 00  2022 11 02 23 59 59  TRIMBLE NETR9         5117K75246            999999  LEIAX1202GG     NONE  09400089              999999    0.0000    0.0000    0.0000                          From BRGC3040.22O
+BRGC BRGC             001  2022 12 02 00 00 00  2025 11 10 23 59 59  TRIMBLE NETR9         5117K75238            999999  TRM57971.00     NONE  1441100472            999999    0.0000    0.0000    0.0000                          From BRGC3360.22O
+BRGC BRGC             001  2025 11 11 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5302K41639            999999  TRM57971.00     NONE  1441100472            999999    0.0000    0.0000    0.0000                          From BRGC3150.25O
+BSLN BSLN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1832403               999999  LEIAR20         LEIM  20331004              999999    0.0000    0.0000    0.0000                          From BSLN3250.18O
+BTNG 23105M002        001  2012 10 22 11 00 00  2023 11 21 00 00 00  TRIMBLE NETR9                               999999  TRM59900.00     SCIS                        999999    0.0000    0.0000    0.0000  Bitung,Indonesia        IGS.SNX
+BTNG 23105M002        001  2023 11 21 00 00 00                       SEPT POLARX5                                999999  TRM59900.00     SCIS                        999999    0.0000    0.0000    0.0000  Bitung,Indonesia        IGS.SNX
+BTU2 BTU2             001  2021 05 27 00 00 00  2099 12 31 00 00 00  LEICA GR50            1871357               999999  LEIAR20         LEIM  23035009              999999    0.0000    0.0000    0.0000                          From BTU23620.21O
+BTUN BTUN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220298287            999999  TRM29659.00     NONE                        999999    0.0000    0.0000    0.0000                          From BTUN0610.14O
+BTUN BTUN             001  2016 08 26 00 00 00  2017 04 17 23 59 59  TRIMBLE 5700          0220306511            999999  TRM29659.00     NONE                        999999    0.0000    0.0000    0.0000                          From BTUN2390.16O
+BTUN BTUN             001  2017 04 18 00 00 00  2019 08 19 23 59 59  TRIMBLE NETR8         4921K35183            999999  TRM29659.00     NONE                        999999    0.0000    0.0000    0.0000                          From BTUN1080.17O
+BTUN BTUN             001  2019 08 20 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220345797            999999  TRM29659.00     NONE                        999999    0.0000    0.0000    0.0000                          From BTUN2320.19O
+BUGS BUGS             001  2014 12 03 00 00 00  2015 11 11 23 59 59  LEICA GRX1200PRO      465455                999999  LEIAX1203+GNSS  NONE  09480037              999999    0.0000    0.0000    0.0000                          From BUGS3010.15O
+BULA BULA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETRS         4503244041            999999  TRM57971.00     NONE  14410274              999999    0.0000    0.0000    0.0000                          From BULA0020.19O
+BURN BURN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETRS         4718131978            999999  TRM41249.00     NONE  60220748              999999    0.0000    0.0000    0.0000                          From BURN1460.14O
+BYBY BYBY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220316599            999999  TRM41249.00     NONE  60080737              999999    0.0000    0.0000    0.0000                          From BYBY0020.19O
+CABN CABN             001  1980 01 06 00 00 00  2017 05 15 23 59 59  LEICA MC500           0060224               999999  LEIAT504        NONE  932                   999999    0.0000    0.0000    0.0000                          From CABN1000.14O
+CABN CABN             001  2017 05 16 00 00 00  2099 12 31 00 00 00  LEICA GRX1200+GNSS    495159                999999  LEIAT504        NONE  932                   999999    0.0000    0.0000    0.0000                          From CABN1670.17O
+CABU CABU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5826R50183            999999  TRM115000.00    NONE  30767461              999999    0.0000    0.0000    0.0000                          From CABU0450.20O
+CAC2 CAC2             001  2021 08 29 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5823R50451            999999  TRM115000.00    NONE  1430767444            999999    0.0000    0.0000    0.0000                          From CAC22440.21O
+CACA CACA             001  1980 01 06 00 00 00  2015 05 07 23 59 59  LEICA GRX1200PRO      465454                999999  LEIAT504GG      NONE                        999999    0.0000    0.0000    0.0000                          From CACA2850.14O
+CACA CACA             001  2015 05 08 00 00 00  2020 04 05 23 59 59  LEICA GRX1200PRO      465454                999999  LEIAT504        NONE  923                   999999    0.0000    0.0000    0.0000                          From CACA1280.15O
+CACA CACA             001  2020 04 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5925R51436            999999  LEIAT504        NONE  923                   999999    0.0000    0.0000    0.0000                          From CACA0970.20O
+CALU CALU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220360646            999999  TRM41249.00     NONE  12652352              999999    0.0000    0.0000    0.0000                          From CALU0020.19O
+CATA CATA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR8         4843K33405            999999  TRM57971.00     NONE                        999999    0.0000    0.0000    0.0000                          From CATA0020.19O
+CDOC CDOC             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5539R50102            999999  TRM57971.00     NONE  1551011899            999999    0.0000    0.0000    0.0000                          From CDOC1100.17O
+CLAV CLAV             001  1980 01 06 00 00 00  2019 05 27 23 59 59  LEICA GRX1200PRO      465456                999999  LEIAX1203+GNSS  NONE  09490111              999999    0.0000    0.0000    0.0000                          From CLAV2800.14O
+CLAV CLAV             001  2019 05 28 00 00 00  2022 07 29 23 59 59  LEICA GRX1200+GNSS    495174                999999  LEIAX1203+GNSS  NONE  09490111              999999    0.0000    0.0000    0.0000                          From CLAV1480.19O
+CLAV CLAV             001  2022 07 30 00 00 00  2022 12 01 23 59 59  TRIMBLE NETR9         5117K75246            999999  LEIAX1203+GNSS  NONE  09490111              999999    0.0000    0.0000    0.0000                          From CLAV2110.22O
+CLAV CLAV             001  2022 12 02 00 00 00  2024 11 05 23 59 59  LEICA GRX1200PRO      465447                999999  LEIAT504        NONE  1298                  999999    0.0000    0.0000    0.0000                          From CLAV3360.22O
+CLAV CLAV             001  2024 11 06 00 00 00  2099 12 31 00 00 00  TRIMBLE ALLOY         6232R40011            999999  TRM115000.00    NONE  62193G0141            999999    0.0000    0.0000    0.0000                          From CLAV3110.24O
+CLYN CLYN             001  2014 08 07 00 00 00  2014 10 05 23 59 59  TRIMBLE NETR9         5117K75249            999999  TRM57971.00     NONE  41116562              999999    0.0000    0.0000    0.0000                          From CLYN2190.14O
+CLYN CLYN             001  2014 10 06 00 00 00  2015 09 08 23 59 59  TRIMBLE NETR9         5117K75249            999999  TRM41249.00     NONE  12421198              999999    0.0000    0.0000    0.0000                          From CLYN2790.14O
+CLYN CLYN             001  2015 09 09 00 00 00  2016 05 26 23 59 59  TRIMBLE NETR9         5508R50082            999999  TRM55971.00     NONE  00113692              999999    0.0000    0.0000    0.0000                          From CLYN2520.15O
+CMGN CMGN             001  2014 10 04 00 00 00  2016 05 26 23 59 59  TRIMBLE NETR9         5117K75250            999999  TRM57971.00     NONE  41116603              999999    0.0000    0.0000    0.0000                          From CMGN2770.14O
+CNTA CNTA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5503R50025            999999  TRM57971.00     NONE  1312118449            999999    0.0000    0.0000    0.0000                          From CNTA0010.19O
+CUSV 21904S001        001  2008 05 12 00 00 00  2015 06 15 00 00 00  TRIMBLE NETRS                               999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000  Patumwan, Thailand      IGS.SNX
+CUSV 21904S001        001  2015 09 03 05 00 00                       JAVAD TRE_3 DELTA                           999999  JAVRINGANT_DM   NONE                        999999    0.0000    0.0000    0.0000  Patumwan, Thailand      IGS.SNX
+DAEJ 23902M002        001  1999 03 19 00 00 00  2005 05 02 00 00 00  TRIMBLE 4000SSI                             999999  TRM29659.00     DOME                        999999    0.0000    0.0000    0.0000  Daejeon, Republic of K  IGS.SNX
+DAEJ 23902M002        001  2005 05 02 00 00 00  2010 09 14 19 00 00  TRIMBLE NETRS                               999999  TRM29659.00     DOME                        999999    0.0000    0.0000    0.0000  Daejeon, Republic of K  IGS.SNX
+DAEJ 23902M002        001  2010 09 15 00 00 00  2010 11 22 23 59 00  TRIMBLE NETRS                               999999  TRM59800.00     DOME                        999999    0.0000    0.0000    0.0000  Daejeon, Republic of K  IGS.SNX
+DAEJ 23902M002        001  2010 11 23 00 00 00  2011 01 12 12 00 00  TRIMBLE NETRS                               999999  TRM59800.00     NONE                        999999    0.0000    0.0000    0.0000  Daejeon, Republic of K  IGS.SNX
+DAEJ 23902M002        001  2011 01 12 12 00 00  2014 11 05 00 59 00  TRIMBLE NETRS                               999999  TRM59800.00     SCIS                        999999    0.0000    0.0000    0.0000  Daejeon, Republic of K  IGS.SNX
+DAEJ 23902M002        001  2014 11 05 01 00 00                       TRIMBLE NETR9                               999999  TRM59800.00     SCIS                        999999    0.0000    0.0000    0.0000  Daejeon, Republic of K  IGS.SNX
+DARW 50134M001        001  1994 03 24 00 00 00  1996 07 01 00 00 00  AOA ICS-4000Z                               999999  AOAD/M_T        AUST                        999999    0.0000    0.0000    0.0000  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  1996 07 01 00 00 00  1999 11 25 00 30 00  AOA ICS-4000Z                               999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0000  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  1999 11 25 01 00 00  2001 10 19 00 00 00  AOA ICS-4000Z ACT                           999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0000  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  2001 10 19 00 00 00  2001 10 27 23 28 00  AOA ICS-4000Z ACT                           999999  ASH701945C_M    NONE                        999999    0.0000    0.0000    0.0035  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  2001 10 28 05 00 00  2001 12 14 00 00 00  ASHTECH Z-XII3                              999999  ASH701945C_M    NONE                        999999    0.0000    0.0000    0.0035  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  2001 12 14 00 00 00  2003 03 17 23 59 00  ASHTECH Z-XII3                              999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0035  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  2003 03 18 00 00 00  2003 04 04 01 00 00  ASHTECH UZ-12                               999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0035  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  2003 04 04 01 00 00  2004 07 14 01 00 00  ASHTECH UZ-12                               999999  ASH700936D_M    NONE                        999999    0.0000    0.0000    0.0025  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  2004 07 14 01 00 00  2004 07 16 01 30 00  ASHTECH Z-XII3                              999999  ASH700936D_M    NONE                        999999    0.0000    0.0000    0.0025  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  2004 07 16 01 30 00  2008 02 24 23 59 00  ASHTECH UZ-12                               999999  ASH700936D_M    NONE                        999999    0.0000    0.0000    0.0025  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  2008 02 25 00 00 00  2016 10 20 05 30 00  LEICA GRX1200GGPRO                          999999  ASH700936D_M    NONE                        999999    0.0000    0.0000    0.0025  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  2016 10 20 05 30 00  2017 07 05 00 00 00  SEPT POLARX5                                999999  ASH700936D_M    NONE                        999999    0.0000    0.0000    0.0025  Darwin, Australia       IGS.SNX
+DARW 50134M001        001  2017 07 05 00 00 00                       SEPT POLARX5                                999999  JAVRINGANT_DM   NONE                        999999    0.0000    0.0000    0.0000  Darwin, Australia       IGS.SNX
+DIMA DIMA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR8         4906K34377            999999  TRM57971.00     NONE  31051229              999999    0.0000    0.0000    0.0000                          From DIMA0020.19O
+DGOS DGOS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1871359               999999  LEIAR20         LEIM  23035052              999999    0.0000    0.0000    0.0000                          From DGOS3620.21O
+DNGT DNGT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1832833               999999  LEIAR20         LEIM  22100041              999999    0.0000    0.0000    0.0000                          From DNGT3440.19O
+ELNA ELNA             001  1980 01 06 00 00 00  2018 10 18 23 59 59  TRIMBLE NETR9         5121K76072            999999  TRM57971.00     NONE  1441021526            999999    0.0000    0.0000    0.0000                          From ELNA3300.14O
+ELNA ELNA             001  2018 10 19 00 00 00  2024 11 05 23 59 59  TRIMBLE NETR9         5116K75196            999999  TRM57971.00     NONE  1441021526            999999    0.0000    0.0000    0.0000                          From ELNA2920.18O
+ELNA ELNA             001  2024 11 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5117K75241            999999  TRM57971.00     NONE  1440929209            999999    0.0000    0.0000    0.0000                          From ELNA2920.18O
+GUAM 50501M002        001  1980 01 06 00 00 00  2024 03 04 23 59 59  SEPT POLARX5          3025501               999999  JAVRINGANT_DM   SCIS  00842                 999999    0.0000    0.0000    0.6229                          From GUAM0640.24O
+GUAM 50501M002        001  2024 03 05 00 00 00  2099 12 31 00 00 00  SEPT POLARX5          3025501               999999  JAVRINGANT_DM   SCIS  00842                 999999    0.0000    0.0000    0.6229                          From GUAM0650.24O
+GUES GUES             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1832418               999999  LEIAR20         LEIM  20331003              999999    0.0000    0.0000    0.0000                          From GUES0020.19O
+GUMA GUMA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GRX1200GGPRO    356273                999999  LEIAT504        NONE  1190                  999999    0.0000    0.0000    0.0000                          From GUMA2760.14O
+GUNG GUNG             001  1980 01 06 00 00 00  2022 05 23 23 59 59  LEICA GRX1200PRO      465458                999999  LEIAT504        NONE  922                   999999    0.0000    0.0000    0.0000                          From GUNG1230.15O
+GUNG GUNG             001  2022 12 01 00 00 00  2025 11 10 23 59 59  LEICA GRX1200+GNSS    495175                999999  LEIAT504        NONE  933                   999999    0.0000    0.0000    0.0000                          From GUNG3350.23O
+GUNG GUNG             001  2025 11 11 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5306K41885            999999  TRM57971.00     NONE  5000115473            999999    0.0000    0.0000    0.0000                          From GUNG3150.25O
+GUUG 82301M001        001  2003 08 27 00 00 00  2008 02 07 00 00 00  TRIMBLE 4700                                999999  ASH701945E_M    UNAV                        999999    0.0000    0.0000    0.0000  Mangilao, United State  IGS.SNX
+GUUG 82301M001        001  2008 02 07 00 00 00  2011 06 26 00 00 00  TRIMBLE NETR5                               999999  ASH701945E_M    NONE                        999999    0.0000    0.0000    0.0000  Mangilao, United State  IGS.SNX
+GUUG 82301M001        001  2011 06 26 00 00 00  2019 04 10 00 30 00  TRIMBLE NETR5                               999999  TRM55971.00     NONE                        999999    0.0000    0.0000    0.0000  Mangilao, United State  IGS.SNX
+GUUG 82301M001        001  2019 04 10 00 30 00  2019 06 10 00 00 00  LEICA GR50                                  999999  TRM55971.00     NONE                        999999    0.0000    0.0000    0.0000  Mangilao, United State  IGS.SNX
+GUUG 82301M001        001  2019 06 10 01 07 00  2021 09 22 23 30 00  LEICA GR50                                  999999  SEPCHOKE_B3E6   SPKE                        999999    0.0000    0.0000    0.0032  Mangilao, United State  IGS.SNX
+GUUG 82301M001        001  2021 09 23 00 11 00                       TRIMBLE ALLOY                               999999  LEIAR20         LEIM                        999999    0.0000    0.0000    0.0000  Mangilao, United State  IGS.SNX
+HINU HINU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220368044            999999  TRM41249.00     NONE  60165530              999999    0.0000    0.0000    0.0000                          From HINU0020.19O
+IBAZ IBAZ             001  1980 01 06 00 00 00  2016 10 18 23 59 59  LEICA GRX1200PRO      465451                999999  LEIAS10         NONE  11161086              999999    0.0000    0.0000    0.0000                          From IBAZ2850.14O
+IBAZ IBAZ             001  2016 10 19 00 00 00  2099 12 31 00 00 00  LEICA GRX1200PRO      465451                999999  LEIAS10         NONE  09480042              999999    0.0000    0.0000    0.0000                          From IBAZ2930.16O
+INFA INFA             001  1980 01 06 00 00 00  2016 06 02 23 59 59  TRIMBLE NETR9         5251K40870            999999  TRM57971.00     NONE  00113692              999999    0.0000    0.0000    0.0000                          From INFA0910.14O
+INFA INFA             001  2016 06 03 00 00 00  2019 05 27 23 59 59  TRIMBLE NETR9         5116K75179            999999  TRM57971.00     NONE  1441116438            999999    0.0000    0.0000    0.0000                          From INFA2880.16O
+INFA INFA             001  2019 05 28 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5023K67999            999999  TRM57971.00     NONE  1441116438            999999    0.0000    0.0000    0.0000                          From INFA1480.19O
+INOP INOP             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220353727            999999  TRM41249.00     NONE  12475176              999999    0.0000    0.0000    0.0000                          From INOP1420.18O
+ISAB ISAB             001  1980 01 06 00 00 00  2014 12 31 23 59 59  TRIMBLE 5700          0220379407            999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From ISAB1490.14O
+ISAB ISAB             001  2015 01 01 00 00 00  2016 12 31 23 59 59  TRIMBLE NETRS         4723133177            999999  TRM41249.00     NONE  60207764              999999    0.0000    0.0000    0.0000                          From ISAB0480.15O
+ISAB ISAB             001  2017 01 01 00 00 00  2017 12 31 23 59 59  TRIMBLE NETRS         4723133177            999999  TRM41249.00     NONE  12237127              999999    0.0000    0.0000    0.0000                          From ISAB0010.17O
+ISAB ISAB             001  2019 01 01 00 00 00  2021 11 24 23 59 59  TRIMBLE NETRS         4450241606            999999  TRM41249.00     NONE  12237127              999999    0.0000    0.0000    0.0000                          From ISAB2080.19O
+ISAB ISAB             001  2021 11 25 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220305456            999999  TRM41249.00     NONE  12237127              999999    0.0000    0.0000    0.0000                          From ISAB3290.21O
+ITBA ITBA             001  2013 09 01 00 00 00  2016 03 07 23 59 59  TRIMBLE NETR9         5116K75179            999999  TRM57971.00     NONE  1441101264            999999    0.0000    0.0000    0.0000                          From ITBA2440.13O
+JALA JALA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5816R50281            999999  TRM115000.00    NONE  30767448              999999    0.0000    0.0000    0.0000                          From JALA0450.20O
+JARO JARO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700                                999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From JARO0020.19O
+JOSE JOSE             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR8         4918K35113            999999  TRM57971.00     NONE  1440918033            999999    0.0000    0.0000    0.0000                          From JOSE0020.19O
+LABO LABO             001  1980 01 06 00 00 00  2022 11 29 23 59 59  LEICA GRX1200GGPRO    356276                999999  LEIAT504        NONE  762                   999999    0.0000    0.0000    0.0000                          From LABO3290.14O
+LABO LABO             001  2022 11 30 00 00 00  2024 11 05 23 59 59  LEICA GRX1200GGPRO    356276                999999  LEIAT504        NONE  771                   999999    0.0000    0.0000    0.0000                          From LABO3340.22O
+LABO LABO             001  2024 11 06 00 00 00  2025 06 08 23 59 59  LEICA GRX1200+GNSS    495180                999999  LEIAT504        NONE  771                   999999    0.0000    0.0000    0.0000                          From LABO3110.24O
+LABO LABO             001  2025 06 09 00 00 00  2099 12 31 00 00 00  LEICA GRX1200+GNSS    495180                999999  TRM29659.00     NONE  0220309866            999999    0.0000    0.0000    0.0000                          From LABO1600.25O
+LAGW LAGW             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GRX1200GGPRO    356267                999999  LEIAS10         NONE  09480004              999999    0.0000    0.0000    0.0000                          From LAGW2820.14O
+LAPS LAPS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETRS         4720132686            999999  TRM41249.00     NONE  60207727              999999    0.0000    0.0000    0.0000                          From LAPS0010.15O
+LBAN LBAN             001  1980 01 06 00 00 00  2017 05 13 23 59 59  TRIMBLE NETRS         4635120783            999999  TRM41249.00     NONE  60261341              999999    0.0000    0.0000    0.0000                          From LBAN2820.14O
+LBAN LBAN             001  2017 05 14 00 00 00  2018 04 24 23 59 59  TRIMBLE NETRS         4611206509            999999  TRM41249.00     NONE  60261341              999999    0.0000    0.0000    0.0000                          From LBAN1340.17O
+LBAN LBAN             001  2018 04 25 00 00 00  2019 05 24 23 59 59  TRIMBLE NETR9         5117K75246            999999  TRM41249.00     NONE  60261341              999999    0.0000    0.0000    0.0000                          From LBAN1150.18O
+LBAN LBAN             001  2019 05 25 00 00 00  2022 12 02 23 59 59  TRIMBLE NETR9         5117K75246            999999  TRM57971.00     NONE  1551011931            999999    0.0000    0.0000    0.0000                          From LBAN1450.19O
+LBAN LBAN             001  2022 12 03 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5023K67923            999999  TRM57971.00     NONE  1551011931            999999    0.0000    0.0000    0.0000                          From LBAN3370.22O
+LGYE LGYE             001  1980 01 06 00 00 00  2017 05 15 23 59 59  TRIMBLE NETRS         4407131433            999999  TRM55971.00     NONE  60167868              999999    0.0000    0.0000    0.0000                          From LGYE2220.14O
+LGYE LGYE             001  2017 05 16 00 00 00  2019 05 20 23 59 59  TRIMBLE NETRS         4702127047            999999  TRM55971.00     NONE  60167868              999999    0.0000    0.0000    0.0000                          From LGYE2440.17O
+LGYE LGYE             001  2019 05 21 00 00 00  2025 11 09 23 59 59  TRIMBLE NETR9         5117K75249            999999  TRM55971.00     NONE  60167868              999999    0.0000    0.0000    0.0000                          From LGYE1410.19O
+LGYE LGYE             001  2025 11 10 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5116K75196            999999  TRM55971.00     NONE  60167868              999999    0.0000    0.0000    0.0000                          From LGYE3140.25O
+LLOR LLOR             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220345795            999999  TRM41249.00     NONE  12481340              999999    0.0000    0.0000    0.0000                          From LLOR0800.19O
+LLOY LLOY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1871433               999999  LEIAR20         LEIM  24019007              999999    0.0000    0.0000    0.0000                          From LLOY3620.21O
+LLPS LLPS             001  1980 01 06 00 00 00  2017 03 20 23 59 59  TRIMBLE 5700          0220305456            999999  TRM29659.00     NONE  0220301571            999999    0.0000    0.0000    0.0000                          From LLPS3100.14O
+LLPS LLPS             001  2017 03 21 00 00 00  2019 02 24 23 59 59  TRIMBLE 5700          0220270389            999999  TRM29659.00     NONE  0220301571            999999    0.0000    0.0000    0.0000                          From LLPS0800.17O
+LLPS LLPS             001  2019 02 25 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          4814149941            999999  TRM29659.00     NONE  0220301571            999999    0.0000    0.0000    0.0000                          From LLPS0610.19O
+LUCB LUCB             001  1980 01 06 00 00 00  2015 10 22 23 59 59  LEICA MC500           0060214               999999  LEIAT504        NONE  315                   999999    0.0000    0.0000    0.0000                          From LUCB2840.14O
+LUCB LUCB             001  2015 10 23 00 00 00  2099 12 31 00 00 00  LEICA GRX1200+GNSS    495174                999999  LEIAT504        NONE  315                   999999    0.0000    0.0000    0.0000                          From LUCB2960.15O
+MABN MABN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GRX1200GGPRO    356266                999999  LEIAS10         NONE  11161090              999999    0.0000    0.0000    0.0000                          From MABN2860.14O
+MAGU MAGU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1832839               999999  LEIAR20         LEIM  22100042              999999    0.0000    0.0000    0.0000                          From MAGU1940.20O
+MALA MALA             001  1980 01 06 00 00 00  2017 05 10 23 59 59  LEICA GRX1200GGPRO    356268                999999  LEIAT504        NONE  933                   999999    0.0000    0.0000    0.0000                          From MALA3290.14O
+MALA MALA             001  2017 05 11 00 00 00  2018 04 23 23 59 59  LEICA MC500           0060230               999999  LEIAT504        NONE  933                   999999    0.0000    0.0000    0.0000                          From MALA1310.17O
+MALA MALA             001  2018 04 24 00 00 00  2099 12 31 00 00 00  LEICA GRX1200GGPRO    356268                999999  LEIAT504        NONE  933                   999999    0.0000    0.0000    0.0000                          From MALA1140.18O
+MALG MALG             001  1980 01 06 00 00 00  2015 09 07 23 59 59  LEICA GRX1200PRO      465445                999999  LEIAX1202GG     NONE  07300136              999999    0.0000    0.0000    0.0000                          From MALG1010.14O
+MALG MALG             001  2015 09 08 00 00 00  2099 12 31 00 00 00  LEICA GRX1200GGPRO    356270                999999  LEIAX1202GG     NONE  09480042              999999    0.0000    0.0000    0.0000                          From MALG2510.15O
+MALS MALS             001  2014 10 10 00 00 00  2016 10 04 23 59 59  LEICA MC500           60122                 999999  LEIAT504        NONE  407                   999999    0.0000    0.0000    0.0000                          From MALS2830.14O
+MALY MALY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5504R50013            999999  TRM57971.00     NONE                        999999    0.0000    0.0000    0.0000                          From MALY0010.20O
+MAMB MAMB             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR8         4918K35106            999999  TRM55971.00     NONE                        999999    0.0000    0.0000    0.0000                          From MAMB0020.19O
+MAR2 MAR2             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5504R50014            999999  TRM57971.00     NONE  1312118455            999999    0.0000    0.0000    0.0000                          From MAR20010.20O
+MARK MARK             001  1980 01 06 00 00 00  2018 04 15 23 59 59  LEICA MC500                                 999999  LEIAT504        NONE  761                   999999    0.0000    0.0000    0.0000                          From MARK2820.14O
+MARK MARK             001  2018 04 16 00 00 00  2019 05 30 23 59 59  LEICA GRX1200+GNSS    495187                999999  LEIAT504        NONE  761                   999999    0.0000    0.0000    0.0000                          From MARK1060.18O
+MARK MARK             001  2019 05 31 00 00 00  2099 12 31 00 00 00  LEICA GRX1200GGPRO    356272                999999  LEIAT504        NONE  761                   999999    0.0000    0.0000    0.0000                          From MARK1510.19O
+MARL MARL             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          4935400803            999999  TRM55971.00     NONE                        999999    0.0000    0.0000    0.0000                          From MARL0020.13O
+MASM MASM             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1832832               999999  LEIAR20         LEIM  22100026              999999    0.0000    0.0000    0.0000                          From MASM1940.20O
+MAUB MAUB             001  1980 01 06 00 00 00  2015 05 07 23 59 59  LEICA MC500           0060113               999999  LEIAT504        NONE  1103                  999999    0.0000    0.0000    0.0000                          From MAUB2760.14O
+MAUB MAUB             001  2015 05 08 00 00 00  2024 11 03 23 59 59  LEICA GRX1200GGPRO    356279                999999  LEIAT504        NONE  1103                  999999    0.0000    0.0000    0.0000                          From MAUB2940.15O
+MAUB MAUB             001  2024 11 04 00 00 00  2099 12 31 00 00 00  LEICA GRX1200+GNSS    495182                999999  LEIAT504        NONE  1103                  999999    0.0000    0.0000    0.0000                          From MAUB3090.24O
+MCIL 21789S001        001  2002 12 08 00 00 00  2008 08 25 00 00 00  TRIMBLE 5700                                999999  TRM29659.00     DOME                        999999    0.0000    0.0000    0.0000  Ogasawara, Japan        IGS.SNX
+MCIL 21789S001        001  2008 08 25 00 00 00  2013 01 17 00 00 00  TRIMBLE NETRS                               999999  TRM29659.00     DOME                        999999    0.0000    0.0000    0.0000  Ogasawara, Japan        IGS.SNX
+MCIL 21789S001        001  2013 01 17 00 00 00  2015 02 26 10 00 00  TRIMBLE NETR9                               999999  TRM59800.80     DOME                        999999    0.0000    0.0000    0.0000  Ogasawara, Japan        IGS.SNX
+MCIL 21789S001        001  2015 02 26 10 00 00  2021 03 14 04 15 00  TRIMBLE NETR9                               999999  TRM59800.80     SCIS                        999999    0.0000    0.0000    0.0000  Ogasawara, Japan        IGS.SNX
+MCIL 21789S001        001  2021 03 14 04 20 00                       TRIMBLE ALLOY                               999999  TRM59800.80     SCIS                        999999    0.0000    0.0000    0.0000  Ogasawara, Japan        IGS.SNX
+MILA MILA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220284637            999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From MILA2250.19O
+MLPA MLPA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5823R50457            999999  TRM57971.00     NONE  1441021516            999999    0.0000    0.0000    0.0000                          From MLBY3240.21O
+MLBY MLBY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1871443               999999  LEIAR20         LEIM  24015025              999999    0.0000    0.0000    0.0000                          From MLBY3500.21O
+MNAY MNAY             001  1980 01 06 00 00 00  2015 07 19 23 59 59  TRIMBLE 5700          04935400802           999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From MNAY0780.13O
+MNAY MNAY             001  2015 07 20 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220380777            999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From MNAY2010.15O
+MSBT MSBT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220279495            999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From MSBT0020.19O
+MUNT MUNT             001  1980 01 06 00 00 00  2014 10 13 23 59 59  TRIMBLE NETRS                               999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From MUNT0980.14O
+MUNT MUNT             001  2014 10 14 00 00 00  2015 10 18 23 59 59  LEICA MC500                                 999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From MUNT2870.14O
+MUNT MUNT             001  2015 10 19 00 00 00  2099 12 31 00 00 00  TRIMBLE NETRS                               999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From MUNT2920.15O
+MUNZ MUNZ             001  1980 01 06 00 00 00  2015 10 22 23 59 59  LEICA MC500           0060225               999999  LEIAS10         NONE  09480046              999999    0.0000    0.0000    0.0000                          From MUNZ2750.14O
+MUNZ MUNZ             001  2015 10 23 00 00 00  2016 05 28 23 59 59  LEICA MC500           0060113               999999  LEIAS10         NONE  09480046              999999    0.0000    0.0000    0.0000                          From MUNZ2960.15O
+MUNZ MUNZ             001  2016 05 29 00 00 00  2025 11 14 23 59 59  LEICA GRX1200PRO      465455                999999  LEIAS10         NONE  09480046              999999    0.0000    0.0000    0.0000                          From MUNZ1500.16O
+MUNZ MUNZ             001  2025 11 15 00 00 00  2099 12 31 00 00 00  LEICA GRX1200PRO      465455                999999  LEIAX1202GG     NONE  07310013              999999    0.0000    0.0000    0.0000                          From MUNZ3190.25O
+NAUJ NAUJ             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETRS         4422234412            999999  TRM41249.00     NONE  12346408              999999    0.0000    0.0000    0.0000                          From NAUJ0020.19O
+NCPC NCPC             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1871442               999999  LEIAR20         LEIM  24015026              999999    0.0000    0.0000    0.0000                          From NCPC3620.21O
+NTUS 22601M001        001  1997 06 26 03 00 00  1999 09 02 00 00 00  ROGUE SNR-8000                              999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0776  Singapore, Singapore    IGS.SNX
+NTUS 22601M001        001  1999 10 28 06 00 00  2006 11 03 00 00 00  AOA SNR-12 ACT                              999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0776  Singapore, Singapore    IGS.SNX
+NTUS 22601M001        001  2007 05 16 00 00 00  2018 04 18 02 35 00  LEICA GRX1200GGPRO                          999999  LEIAT504GG      NONE                        999999    0.0000    0.0000    0.0776  Singapore, Singapore    IGS.SNX
+NTUS 22601M001        001  2018 04 18 02 50 00                       LEICA GR50                                  999999  LEIAR20         LEIM                        999999    0.0000    0.0000    0.0776  Singapore, Singapore    IGS.SNX
+ORAS ORAS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220316027            999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From ORAS0800.19O
+ORMO ORMO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220345809            999999  TRM41249.00     NONE  12560394              999999    0.0000    0.0000    0.0000                          From ORMO0020.19O
+PAGP PAGP             001  1980 01 06 00 00 00  2017 09 25 23 59 59  TRIMBLE NETRS         4407131429            999999  TRM41249.00     NONE  12421023              999999    0.0000    0.0000    0.0000                          From PAGP3200.13O
+PAGP PAGP             001  2017 09 26 00 00 00  2018 04 19 23 59 59  LEICA MC500           0060121               999999  TRM41249.00     NONE  12421023              999999    0.0000    0.0000    0.0000                          From PAGP2690.17O
+PAGP PAGP             001  2018 04 20 00 00 00  2018 10 17 23 59 59  TRIMBLE NETRS         4612261951            999999  TRM41249.00     NONE  12421023              999999    0.0000    0.0000    0.0000                          From PAGP1100.18O
+PAGP PAGP             001  2018 10 18 00 00 00  2024 11 05 23 59 59  LEICA GRX1200GGPRO    356267                999999  TRM41249.00     NONE  12421023              999999    0.0000    0.0000    0.0000                          From PAGP2910.18O
+PAGP PAGP             001  2024 11 06 00 00 00  2099 12 31 00 00 00  LEICA GRX1200GGPRO    356267                999999  LEIAS10         NONE  111610086             999999    0.0000    0.0000    0.0000                          From PAGP3110.24O
+PALA PALA             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR8         4852K33855            999999  TRM57971.00     NONE  40947196              999999    0.0000    0.0000    0.0000                          From PALA0020.19O
+PALM PALM             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220316019            999999  TRM41249.00     NONE  60207764              999999    0.0000    0.0000    0.0000                          From PALM0020.19O
+PALO PALO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220320211            999999  TRM41249.00     NONE  12560414              999999    0.0000    0.0000    0.0000                          From PALO0800.19O
+PAND PAND             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1871708               999999  LEIAR20         LEIM  24305062              999999    0.0000    0.0000    0.0000                          From PAND1520.22O
+PERT 50133M001        001  1993 08 18 00 00 00  1993 09 18 23 59 00  ROGUE SNR-8100                              999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0568  Perth,Australia         IGS.SNX
+PERT 50133M001        001  1993 09 19 00 00 00  2001 06 06 00 00 00  ROGUE SNR-8100                              999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0595  Perth,Australia         IGS.SNX
+PERT 50133M001        001  2001 06 07 00 00 00  2003 06 04 00 00 00  ASHTECH Z-XII3                              999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0595  Perth,Australia         IGS.SNX
+PERT 50133M001        001  2003 06 05 00 00 00  2007 11 30 08 00 00  ASHTECH UZ-12                               999999  ASH701945C_M    NONE                        999999    0.0000    0.0000    0.0595  Perth,Australia         IGS.SNX
+PERT 50133M001        001  2007 12 03 08 00 00  2008 01 09 07 00 00  ASHTECH Z-XII3                              999999  ASH701945C_M    NONE                        999999    0.0000    0.0000    0.0595  Perth,Australia         IGS.SNX
+PERT 50133M001        001  2008 01 09 07 00 00  2012 01 05 00 00 00  ASHTECH UZ-12                               999999  ASH701945C_M    NONE                        999999    0.0000    0.0000    0.0595  Perth,Australia         IGS.SNX
+PERT 50133M001        001  2012 10 23 05 30 00  2022 02 14 02 19 00  TRIMBLE NETR9                               999999  TRM59800.00     NONE                        999999    0.0000    0.0000    0.0595  Perth,Australia         IGS.SNX
+PERT 50133M001        001  2022 02 14 02 19 00                       TRIMBLE ALLOY                               999999  TRM59800.00     NONE                        999999    0.0000    0.0000    0.0595  Perth,Australia         IGS.SNX
+PIBU PIBU             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5503R50021            999999  TRM57971.00     NONE  1312118482            999999    0.0000    0.0000    0.0000                          From PIBU2870.15O
+PIMO 22003M001        001  1998 07 01 00 00 00  2001 09 06 00 00 00  ROGUE SNR-8000                              999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    0.0792  Quezon City, Philippin  IGS.SNX
+PIMO 22003M001        001  2001 09 06 00 00 00  2008 05 16 05 00 00  ASHTECH Z-XII3                              999999  ASH701945C_M    NONE                        999999    0.0000    0.0000    0.0792  Quezon City, Philippin  IGS.SNX
+PIMO 22003M001        001  2008 05 24 00 00 00  2014 01 15 01 30 00  ASHTECH UZ-12                               999999  ASH701945C_M    NONE                        999999    0.0000    0.0000    0.0792  Quezon City, Philippin  IGS.SNX
+PIMO 22003M001        001  2014 01 15 18 06 00  2023 11 08 00 00 00  JAVAD TRE_G3TH DELTA                        999999  ASH701945C_M    NONE                        999999    0.0000    0.0000    0.0792  Quezon City,Philippin   IGS.SNX
+PIMO 22003M001        001  2023 11 08 00 44 00                       SEPT POLARX5                                999999  ASH701945C_M    NONE                        999999    0.0000    0.0000    0.0792  Quezon City,Philippin   IGS.SNX
+PLWN PLWN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220320186            999999  TRM41249.00     NONE  12332678              999999    0.0000    0.0000    0.0000                          From PLWN0020.19O
+PMPL PMPL             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1871719               999999  LEIAR20         LEIM                        999999    0.0000    0.0000    0.0000                          From PMPL1780.22O
+PNBO PNBO             001  1980 01 06 00 00 00  2017 05 29 23 59 59  TRIMBLE 5700          4912167254            999999  TRM57971.00     NONE  1441027910            999999    0.0000    0.0000    0.0000                          From PNBO0780.14O
+PNBO PNBO             001  2017 05 30 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0440105326            999999  TRM57971.00     NONE  1441027910            999999    0.0000    0.0000    0.0000                          From PNBO1500.17O
+PNGM 51006M001        001  2002 05 06 00 00 00  2012 09 07 02 00 00  ASHTECH UZ-12                               999999  ASH701945C_M    SCIS                        999999    0.0000    0.0000    0.0000  Lombrum, Papua New Gui  IGS.SNX
+PNGM 51006M001        001  2012 09 08 00 00 00  2023 03 23 03 16 00  TRIMBLE NETR9                               999999  TRM59800.00     NONE                        999999    0.0000    0.0000    0.0011  Lombrum,Papua New Gui   IGS.SNX
+PNGM 51006M001        001  2023 03 23 03 16 00  2024 11 28 04 18 00  TRIMBLE NETR9                               999999  JAVRINGANT_DM   NONE                        999999    0.0000    0.0000    0.0005  Lombrum,Papua New Gui   IGS.SNX
+PNGM 51006M001        001  2024 11 28 04 18 00                       SEPT POLARX5                                999999  JAVRINGANT_DM   NONE                        999999    0.0000    0.0000    0.0005  Lombrum,Papua New Gui   IGS.SNX
+POLI POLI             001  1980 01 06 00 00 00  2018 10 15 23 59 59  TRIMBLE NETR9         5251K41008            999999  TRM57971.00     NONE  5000113709            999999    0.0000    0.0000    0.0000                          From POLI0700.14O
+POLI POLI             001  2018 10 16 00 00 00  2023 01 24 23 59 59  TRIMBLE NETR9         5116K75192            999999  TRM57971.00     NONE  5000113709            999999    0.0000    0.0000    0.0000                          From POLI2890.18O
+POLI POLI             001  2023 01 25 00 00 00  2025 11 16 23 59 59  TRIMBLE NETR9         5023K68028            999999  TRM57971.00     NONE  5000113709            999999    0.0000    0.0000    0.0000                          From POLI0250.23O
+POLI POLI             001  2025 11 17 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5023K67923            999999  TRM57971.00     NONE  5000113709            999999    0.0000    0.0000    0.0000                          From POLI3210.25O
+POTR POTR             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5503R50022            999999  TRM57971.00     NONE  1312118449            999999    0.0000    0.0000    0.0000                          From POTR0010.19O
+PTAG 22006M005        001  2008 09 23 00 00 00  2016 03 07 07 43 00  LEICA GRX1200GGPRO                          999999  LEIAT504GG      LEIS                        999999    0.0000    0.0000    0.0000  Taguig City, Philippin  IGS.SNX
+PTAG 22006M005        001  2016 03 08 06 06 00  2016 08 11 07 53 00  LEICA GR25                                  999999  LEIAT504GG      LEIS                        999999    0.0000    0.0000    0.0000  Taguig City, Philippin  IGS.SNX
+PTAG 22006M005        001  2016 08 11 08 19 00  2017 01 25 00 42 00  LEICA GR50                                  999999  LEIAT504GG      LEIS                        999999    0.0000    0.0000    0.0000  Taguig City, Philippin  IGS.SNX
+PTAG 22006M005        001  2017 01 27 06 47 00                       LEICA GR50                                  999999  LEIAR25.R4      LEIT                        999999    0.0000    0.0000    0.0000  Taguig City, Philippin  IGS.SNX
+PTBN PTBN             001  1980 01 06 00 00 00  2015 10 28 23 59 59  LEICA MC500           0060116               999999  LEIAS10         NONE  09480016              999999    0.0000    0.0000    0.0000                          From PTBN2830.14O
+PTBN PTBN             001  2015 10 29 00 00 00  2016 10 20 23 59 59  LEICA MC500           0060158               999999  LEIAS10         NONE  09480016              999999    0.0000    0.0000    0.0000                          From PTBN2950.15O
+PTBN PTBN             001  2016 10 21 00 00 00  2021 06 22 23 59 59  LEICA GRX1200PRO      465445                999999  LEIAX1202GG     NONE  07300136              999999    0.0000    0.0000    0.0000                          From PTBN1490.16O
+PTBN PTBN             001  2021 06 23 00 00 00  2022 12 07 23 59 59  LEICA GRX1200PRO      465445                999999  LEIAS10         NONE  09480016              999999    0.0000    0.0000    0.0000                          From PTBN1490.16O
+PTBN PTBN             001  2022 12 08 00 00 00  2099 12 31 00 00 00  LEICA GRX1200+GNSS    495174                999999  LEIAS10         NONE  09480016              999999    0.0000    0.0000    0.0000                          From PTBN3420.22O
+PUER PUER             001  1980 01 06 00 00 00  2016 10 11 23 59 59  TRIMBLE 5700          0220358872            999999  TRM39105.00     NONE                        999999    0.0000    0.0000    0.0000                          From PUER1810.14O
+PUER PUER             001  2016 10 12 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220285262            999999  TRM39105.00     NONE                        999999    0.0000    0.0000    0.0000                          From PUER0010.19O
+RCSS RCSS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5705R51304            999999  TRM115000.00    NONE  1440905498            999999    0.0000    0.0000    0.0000                          From RCSS2140.17O
+ROXA ROXA             001  1980 01 06 00 00 00  2016 12 31 23 59 59  TRIMBLE NETRS         4605204661            999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From ROXA1820.14O
+ROXA ROXA             001  2017 01 01 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220340246            999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From ROXA0020.19O
+S01R S01R             001  2002 01 01 00 00 00  2004 06 17 23 59 59  TRIMBLE 4000SSI       12384                 999999  TRM29659.00     NONE  108547                999999    0.0000    0.0000    0.0300                          From S01R0010.02O
+S01R S01R             001  2004 06 18 00 00 00  2009 10 28 23 59 59  LEICA MC500           60230                 999999  LEIAT504        NONE  708                   999999    0.0000    0.0000    0.0300                          From S01R1700.04O
+S01R S01R             001  2009 10 29 00 00 00  2015 09 17 23 59 59  LEICA GRX1200+GNSS    495179                999999  LEIAR25         LEIT  09120019              999999    0.0000    0.0000    0.0300                          From S01R3020.09O
+S01R S01R             001  2015 09 18 00 00 00  2016 03 01 23 59 59  LEICA GRX1200+GNSS    5509R50005            999999  LEIAR25         LEIT  09120019              999999    0.0000    0.0000    0.0300                          From S01R2610.15O
+S01R S01R             001  2016 03 02 00 00 00  2016 09 16 23 59 59  LEICA GRX1200+GNSS    5548R50570            999999  LEIAR25         LEIT  09120019              999999    0.0000    0.0000    0.0300                          From S01R0620.16O
+S01R S01R             001  2016 09 17 00 00 00  2017 07 31 23 59 59  TRIMBLE NETR9         5548R50570            999999  LEIAR25         LEIT  09120019              999999    0.0000    0.0000    0.0300                          From S01R2610.16O
+S01R S01R             001  2017 08 01 00 00 00  2017 11 15 23 59 59  LEICA GRX1200+GNSS    5548R50570            999999  LEIAR25         LEIT  09120019              999999    0.0000    0.0000    0.0300                          From S01R2130.17O
+S01R S01R             001  2017 11 16 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5548R50570            999999  LEIAR25         LEIT  09120019              999999    0.0000    0.0000    0.0300                          From S01R3200.17O
+S01R S01R             001  2017 11 16 00 00 00  2025 04 14 23 59 59  TRIMBLE NETR9         5548R50570            999999  LEIAR25         LEIT  09120019              999999    0.0000    0.0000    0.0300                          From S01R3200.17O
+S01R S01R             001  2017 11 16 00 00 00  2025 04 14 23 59 59  TRIMBLE NETR9         5548R50570            999999  LEIAR25         LEIT  09120019              999999    0.0000    0.0000    0.0300                          From S01R3200.17O
+S01R S01R             001  2025 04 15 00 00 00  2099 12 31 00 00 00  TRIMBLE ALLOY         6318R40040            999999  LEIAR25         LEIT  09120019              999999    0.0000    0.0000    0.0300                          From S01R1050.25O
+SABL SABL             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR8         4918K35144            999999  TRM55971.00     NONE                        999999    0.0000    0.0000    0.0000                          From SABL0020.19O
+SAPN SAPN             001  1980 01 06 00 00 00  2018 10 21 23 59 59  TRIMBLE NETR9         5235K51814            999999  TRM57971.00     NONE  1441021247            999999    0.0000    0.0000    0.0000                          From SAPN1320.17O
+SAPN SAPN             001  2018 10 22 00 00 00  2019 05 19 23 59 59  TRIMBLE NETR9         5117K75249            999999  TRM57971.00     NONE  1441021247            999999    0.0000    0.0000    0.0000                          From SAPN2950.18O
+SAPN SAPN             001  2019 05 20 00 00 00  2024 07 24 23 59 59  TRIMBLE NETR9         5116K75212            999999  TRM57971.00     NONE  1441021247            999999    0.0000    0.0000    0.0000                          From SAPN1520.19O
+SAPN SAPN             001  2024 07 25 00 00 00  2025 11 09 23 59 59  TRIMBLE NETR9         5116K75196            999999  TRM57971.00     NONE  1441021247            999999    0.0000    0.0000    0.0000                          From SAPN1520.19O
+SAPN SAPN             001  2025 11 10 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5302K41545            999999  TRM57971.00     NONE  1441021247            999999    0.0000    0.0000    0.0000                          From SAPN3140.25O
+SINI SINI             001  1980 01 06 00 00 00  2015 10 27 23 59 59  LEICA MC500           0060228               999999  LEIAT504        NONE  925                   999999    0.0000    0.0000    0.0000                          From SINI1060.14O
+SINI SINI             001  2015 10 28 00 00 00  2019 08 27 23 59 59  LEICA GRX1200+GNSS    495175                999999  LEIAT504        NONE  925                   999999    0.0000    0.0000    0.0000                          From SINI3010.15O
+SINI SINI             001  2019 08 28 00 00 00  2099 12 31 00 00 00  LEICA GRX1200PRO      465456                999999  LEIAT504        NONE  925                   999999    0.0000    0.0000    0.0000                          From SINI2400.19O
+SJDB SJDB             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1832831               999999  LEIAR20         LEIM  22100014              999999    0.0000    0.0000    0.0000                          From SJDB0010.20O
+SNFO SNFO             001  1980 01 06 00 00 00  2021 11 23 23 59 59  TRIMBLE NETRS         4720132686            999999  TRM41249.00     NONE  60220748              999999    0.0000    0.0000    0.0000                          From SNFO0020.19O
+SNFO SNFO             001  2021 11 23 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220345797            999999  TRM41249.00     NONE  60220748              999999    0.0000    0.0000    0.0000                          From SNFO3280.21O
+SOGO SOGO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220359170            999999  TRM41249.00     NONE  12482236              999999    0.0000    0.0000    0.0000                          From SOGO0020.19O
+SOLA SOLA             001  1980 01 06 00 00 00  2018 04 15 23 59 59  TRIMBLE NETRS         4616261998            999999  TRM41249.00     NONE  12693753              999999    0.0000    0.0000    0.0000                          From SOLA3010.15O
+SOLA SOLA             001  2018 04 16 00 00 00  2018 10 15 23 59 59  TRIMBLE NETRS         4912167698            999999  TRM41249.00     NONE  12693753              999999    0.0000    0.0000    0.0000                          From SOLA1060.18O
+SOLA SOLA             001  2018 10 16 00 00 00  2019 05 20 00 00 00  TRIMBLE NETRS         4912167698            999999  TRM41249.00     NONE  12693753              999999    0.0000    0.0000    0.0000                          From SOLA2890.18O
+SOLA SOLA             001  2019 05 21 00 00 00  2099 12 31 00 00 00  LEICA GRX1200+GNSS    495189                999999  TRM41249.00     NONE  12693753              999999    0.0000    0.0000    0.0000                          From SOLA1410.19O
+SPAB SPAB             001  1980 01 06 00 00 00  2015 10 22 23 59 59  LEICA MC500           0060227               999999  LEIAT504        NONE  928                   999999    0.0000    0.0000    0.0000                          From SPAB2810.14O
+SPAB SPAB             001  2015 05 22 00 00 00  2015 10 22 23 59 59  LEICA MC500           0060230               999999  LEIAT504        NONE  928                   999999    0.0000    0.0000    0.0000                          From SPAB1420.15O
+SPAB SPAB             001  2015 10 23 00 00 00  2018 10 22 23 59 59  LEICA GRX1200+GNSS    495189                999999  LEIAT504        NONE  928                   999999    0.0000    0.0000    0.0000                          From SPAB2960.15O
+SPAB SPAB             001  2018 10 23 00 00 00  2025 11 13 23 59 59  LEICA GRX1200GGPRO    356270                999999  LEIAT504        NONE  928                   999999    0.0000    0.0000    0.0000                          From SPAB2960.18O
+SPAB SPAB             001  2025 11 14 00 00 00  2099 12 31 00 00 00  LEICA GRX1200+GNSS    495175                999999  LEIAT504        NONE  928                   999999    0.0000    0.0000    0.0000                          From SPAB3180.25O
+SPLY SPLY             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1832406               999999  LEIAR20         LEIM  20331009              999999    0.0000    0.0000    0.0000                          From SPLY2260.18O
+STNA STNA             001  1980 01 06 00 00 00  2017 05 10 23 59 59  TRIMBLE NETRS         4552261597            999999  TRM41249.00     NONE  12470880              999999    0.0000    0.0000    0.0000                          From STNA3190.13O
+STNA STNA             001  2017 05 11 00 00 00  2018 04 18 23 59 59  TRIMBLE NETRS         4619207660            999999  TRM41249.00     NONE  12470880              999999    0.0000    0.0000    0.0000                          From STNA1310.17O
+STNA STNA             001  2018 04 19 00 00 00  2019 05 26 23 59 59  TRIMBLE NETRS         4552261597            999999  TRM41249.00     NONE  12470880              999999    0.0000    0.0000    0.0000                          From STNA1090.18O
+STNA STNA             001  2019 05 27 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5117K75238            999999  TRM57971.00     NONE  1441100472            999999    0.0000    0.0000    0.0000                          From STNA1470.19O
+SULT SULT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220340233            999999  TRM41249.00     NONE                        999999    0.0000    0.0000    0.0000                          From SULT0800.19O
+TACB TACB             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETRS         4720132679            999999  TRM41249.00     NONE  60220467              999999    0.0000    0.0000    0.0000                          From TACB0020.19O
+TALI TALI             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5820R50129            999999  TRM115000.00    NONE  30767447              999999    0.0000    0.0000    0.0000                          From TALI0450.20O
+TANY TANY             001  1980 01 06 00 00 00  2014 10 01 23 59 59  LEICA GRX1200PRO      465454                999999  LEIAX1202GG     NONE  08160036              999999    0.0000    0.0000    0.0000                          From TANY1100.14O
+TANY TANY             001  2014 10 02 00 00 00  2015 10 27 23 59 59  LEICA MC500           0060155               999999  LEIAX1202GG     NONE  08160036              999999    0.0000    0.0000    0.0000                          From TANY2750.14O
+TANY TANY             001  2015 10 28 00 00 00  2099 12 31 00 00 00  LEICA GRX1200+GNSS    495179                999999  LEIAX1202GG     NONE  08160036              999999    0.0000    0.0000    0.0000                          From TANY3010.15O
+TAW2 TAW2             001  2021 11 10 00 00 00  2099 12 31 00 00 00  LEICA GR50            1871447               999999  LEIAR20         LEIM  24015001              999999    0.0000    0.0000    0.0000                          From TAW23620.21O
+TAWI TAWI             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          4912167239            999999  TRM57971.00     NONE  1441027979            999999    0.0000    0.0000    0.0000                          From TAWI2940.15O
+TCDR TCDR             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETRS         4720132679            999999  TRM41249.00     NONE  60220467              999999    0.0000    0.0000    0.0000                          From TCDR2460.19O
+TCGN TCGN             001  1980 01 06 00 00 00  2016 08 25 23 59 59  TRIMBLE 5700          0220306511            999999  TRM29659.00     NONE                        999999    0.0000    0.0000    0.0000                          From TCGN2660.14O
+TCGN TCGN             001  2016 08 26 00 00 00  2016 08 29 23 59 59  TRIMBLE 5700          4814149941            999999  TRM29659.00     NONE                        999999    0.0000    0.0000    0.0000                          From TCGN2390.16O
+TCGN TCGN             001  2017 04 18 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5548R50599            999999  TRM29659.00     NONE                        999999    0.0000    0.0000    0.0000                          From TCGN1080.17O
+TCSS TCSS             001  1980 01 06 00 00 00  2017 03 20 23 59 59  TRIMBLE 5700          0220270389            999999  TRM29659.00     NONE  0220307704            999999    0.0000    0.0000    0.0000                          From TCSS2460.14O
+TCSS TCSS             001  2017 03 21 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          4912167255            999999  TRM29659.00     NONE  0220307704            999999    0.0000    0.0000    0.0000                          From TCSS0800.17O
+TGDN TGDN             001  1980 01 06 00 00 00  2019 05 29 23 59 59  LEICA GRX1200PRO      465446                999999  LEIAX1202GG     NONE  08140082              999999    0.0000    0.0000    0.0000                          From TGDN3370.13O
+TGDN TGDN             001  2021 06 28 00 00 00  2023 11 28 23 59 59  TRIMBLE NETR9         5820R50129            999999  LEIAX1202GG     NONE  08140082              999999    0.0000    0.0000    0.0000                          From TGDN1790.21O
+TGDN TGDN             001  2023 11 29 00 00 00  2099 12 31 00 00 00  LEICA GRX1200PRO      465456                999999  LEIAX1202GG     NONE  08140082              999999    0.0000    0.0000    0.0000                          From TGDN3340.23O
+TNDG TNDG             001  1980 01 06 00 00 00  2016 04 19 23 59 59  TRIMBLE 5700          0440105326            999999  TRM29659.00     NONE                        999999    0.0000    0.0000    0.0000                          From TNDG3200.14O
+TNDG TNDG             001  2017 04 19 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5539R50073            999999  TRM29659.00     NONE                        999999    0.0000    0.0000    0.0000                          From TNDG1090.17O
+TNML 23604S001        001  2001 06 07 00 00 00  2002 07 25 01 00 00  AOA BENCHMARK ACT                           999999  AOAD/M_T        DOME                        999999    0.0000    0.0000    1.5770  Hsinchu, Taiwan         IGS.SNX
+TNML 23604S001        001  2002 07 25 01 00 00  2019 07 17 00 00 00  AOA BENCHMARK ACT                           999999  AOAD/M_T        NONE                        999999    0.0000    0.0000    1.5770  Hsinchu, Taiwan         IGS.SNX
+TNML 23604S001        001  2019 07 17 00 00 00                       TRIMBLE NETR9                               999999  TRM115000.00    NONE                        999999    0.0000    0.0000    1.5770  Hsinchu, Taiwan         IGS.SNX
+TRIN TRIN             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1871707               999999  LEIAR20         LEIM  24344042              999999    0.0000    0.0000    0.0000                          From TRIN2020.22O
+TUAO TUAO             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GRX1200GGPRO    356270                999999  LEIAX1202       NONE  09480042              999999    0.0000    0.0000    0.0000                          From TUAO1010.14O
+URDT URDT             001  1980 01 06 00 00 00  2016 05 24 23 59 59  LEICA MC500           0060238               999999  LEIAT504        NONE  1219                  999999    0.0000    0.0000    0.0000                          From URDT2840.14O
+URDT URDT             001  2016 05 25 00 00 00  2099 12 31 00 00 00  LEICA GRX1200+GNSS    495182                999999  LEIAT504        NONE  1219                  999999    0.0000    0.0000    0.0000                          From URDT1450.16O
+VICT VICT             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE 5700          0220340233            999999  TRM41249.00     NONE  12532385              999999    0.0000    0.0000    0.0000                          From VICT0800.19O
+VIGN VIGN             001  1980 01 06 00 00 00  2015 04 27 23 59 59  TRIMBLE 5700          0220353625            999999  TRM41249.00     NONE  12421200              999999    0.0000    0.0000    0.0000                          From VIGN2810.14O
+VIGN VIGN             001  2015 04 28 00 00 00  2015 10 25 23 59 59  TRIMBLE 5700          0220353826            999999  TRM41249.00     NONE  12421200              999999    0.0000    0.0000    0.0000                          From VIGN1180.15O
+VIGN VIGN             001  2015 10 26 00 00 00  2016 05 31 23 59 59  TRIMBLE 5700          0220353625            999999  TRM41249.00     NONE  12421200              999999    0.0000    0.0000    0.0000                          From VIGN2990.15O
+VIGN VIGN             001  2016 06 01 00 00 00  2017 05 13 23 59 59  TRIMBLE NETRS         4702127047            999999  TRM41249.00     NONE  12421200              999999    0.0000    0.0000    0.0000                          From VIGN2450.16O
+VIGN VIGN             001  2017 05 14 00 00 00  2024 11 06 23 59 59  TRIMBLE NETR9         5117K75250            999999  TRM41249.00     NONE  12421200              999999    0.0000    0.0000    0.0000                          From VIGN1340.17O
+VIGN VIGN             001  2024 11 07 00 00 00  2099 12 31 00 00 00  TRIMBLE ALLOY         6232R40040            999999  TRM115000.00    NONE  62193G0151            999999    0.0000    0.0000    0.0000                          From VIGN3120.24O
+VNHS VNHS             001  1980 01 06 00 00 00  2099 12 31 00 00 00  TRIMBLE NETR9         5503R50022            999999  TRM57971.00     NONE  1312118449            999999    0.0000    0.0000    0.0000                          From VNHS0010.20O
+VRAC VRAC             001  1980 01 06 00 00 00  2099 12 31 00 00 00  LEICA GR50            1832830               999999  LEIAR20         LEIM  22100013              999999    0.0000    0.0000    0.0000                          From VRAC3310.19O
+
+
+TYPE 003: HANDLING OF STATION PROBLEMS
+--------------------------------------
+
+STATION NAME          FLG          FROM                   TO         REMARK
+****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ************************************************************
+
+
+TYPE 004: STATION COORDINATES AND VELOCITIES (ADDNEQ)
+-----------------------------------------------------
+                                            RELATIVE CONSTR. POSITION     RELATIVE CONSTR. VELOCITY
+STATION NAME 1        STATION NAME 2        NORTH     EAST      UP        NORTH     EAST      UP
+****************      ****************      **.*****  **.*****  **.*****  **.*****  **.*****  **.*****
+
+
+TYPE 005: HANDLING STATION TYPES
+--------------------------------
+
+STATION NAME          FLG  FROM                 TO                   MARKER TYPE           REMARK
+****************      ***  YYYY MM DD HH MM SS  YYYY MM DD HH MM SS  ********************  ************************
+
+
+
+
