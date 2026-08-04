@@ -1162,3 +1162,94 @@ The corollary for the test suite is sharper still. The 128 tests passed
 throughout because their fixtures described a filename space that does not
 exist in production. **A suite that never sees real data cannot fail on a
 misreading of real data**, no matter how many assertions it contains.
+
+---
+
+## 16. The archive transfers — 2026-08-04
+
+The DOSTB20150918 drive was carried from the T420 and attached to the R740's
+USB bus, which removed the 6 MB/s wifi bottleneck that had kept
+`/srv/gnss-archive/legacy` empty since §13.6. Both in-scope paths were copied
+and verified the same day.
+
+### 16.1 What landed
+
+| Set | Files | Bytes | Result |
+|---|---|---|---|
+| `RECOVERED_*` (4 directories) | 162,328 | 155.71 GiB | **MATCH** |
+| `processing_files/` | 67,553 | 21.55 GiB | **MATCH** |
+| └ `GPSDATA/CAMPAIGN/LUZON/SOL/` | 1,944 | 0.39 GiB | **MATCH** |
+| **Total** | **229,881** | **177.26 GiB** | |
+
+Files, symlinks, directories and bytes were counted independently on both sides
+for every directory. Zero symlinks throughout — the source is NTFS, and that is
+a property of the source rather than a transfer fault. All rsync invocations
+exited 0, but the censuses are what decided the outcome; rsync exits 0 having
+skipped unreadable files and 23 on a run that copied 99.99%.
+
+**The legacy archive now exists in two places on independent hardware.** That
+was the project's Tier 0 item and it is closed.
+
+### 16.2 The handover's directory table was missing 131 GB
+
+`README_FOR_GPS3_CLAUDE.md` listed **three** `RECOVERED_*` directories totalling
+26 GB and stated this was "not the ~157 GB the continuity audit refers to". The
+user identified a fourth, `RECOVERED_SEAGATE_W2A0W9T2_DATA0`. Measured on
+mounting: **131 G**, bringing the total to exactly the 157 G the audit records,
+and holding 139,509 of the 162,328 files — **86% of the archive**.
+
+The omission happened because three directory names were written out by hand.
+Both transfer scripts glob `RECOVERED_*` and report what they find, so a fifth
+directory would be copied rather than silently skipped. The measured 162,328
+files also corroborates the audit's independent "~155k files" figure.
+
+*A typed list cannot notice what it omits.*
+
+### 16.3 The LUZON solution series is older than its documentation implied
+
+§3 of the handover describes `GPSDATA/CAMPAIGN/LUZON/SOL/` as "the comparison
+target — `F1_*` dailies, `WK_2413`/`WK_2414`", naming two recent weeks. Measured:
+
+- **725 weekly** combines, GPS weeks **1573 → 2414** = **2010-02-28 to 2026-04-12**
+- **166 monthly** combines
+- **421 MB** total
+
+Sixteen years of results in 0.39 GiB, against **one month** of raw input
+(DOY 121–151 of 2025, 25 stations). **The SOL series cannot be regenerated from
+this tree** — the observations for fifteen of those sixteen years are on staff
+machines and remain uncaptured. `processed_transfer.sh` therefore copies that
+subtree first and alone, so an interrupted run still secures it.
+
+Rough sizing for the uncaptured remainder: 22 GB bought one month of full
+campaign data, so ~192 months ≈ **4 TB**. `/srv/gnss-archive` has 20 T with
+177 GiB used, so capacity is not the constraint — logistics and provenance are.
+
+### 16.4 Still not "backed up"
+
+Both scripts refuse to print that phrase, and the reason stands: **there is no
+fixity.** No checksum manifest exists for either copy, so silent corruption on
+the array is undetectable. Continuity-audit item 4, and cheap now that the data
+is local:
+
+```bash
+/srv/gnss-archive/verify_archive.sh manifest
+```
+
+It reads every byte of 177 GiB. The resulting `.gz` belongs in git — fingerprints
+stored only beside the data cannot prove anything if that disk is what failed.
+
+### 16.5 A defect in the first script, found by using it
+
+`archive_transfer.sh` wrapped everything in `{ … } | tee`, including rsync's
+`--info=progress2` output, which emits a carriage-return update per file. The
+157 GB run produced an **11.2 MB log** with the structured results buried in
+progress spam. `processed_transfer.sh` sends progress to the terminal and
+structured lines to the log; `archive_transfer.sh` should be brought into line
+before its next use.
+
+Separately, shellcheck on `archive_transfer.sh` before that run caught the bug
+that would have mattered: `rc_worst` was assigned inside the `| tee` subshell,
+so `exit "${rc_worst:-0}"` read an unset variable and returned 0 for every run —
+including one that had just printed `*** MISMATCH ***`. Seventh instance of the
+pattern in §15.5, in the script written because rsync's exit code cannot be
+trusted.
