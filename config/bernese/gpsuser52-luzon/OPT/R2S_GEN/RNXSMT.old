@@ -1,0 +1,500 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "c:\Bernese\GPSUSER52"
+  "T" "c:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! SOME KEYWORDS FOR AUTOMATIC OUTPUT
+! ----------------------------------
+CAMPAIGN 1  "${P}/PHIVOLCS"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${P}/PHIVOLCS\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2019"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0110"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! -------------------------------------------------------------------------
+! Show general files
+! ------------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! General Constants
+! -----------------
+CONST 1  "${X}/GEN\CONST."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! Satellite Information
+! ---------------------
+SATELL 1  "${X}/GEN\$(SATINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # $(SATINF).$(PCV)
+
+DESCR_SATELL 1  "Satellite information"
+
+! Observation selection for Galileo and SBAS
+! ------------------------------------------
+!GEOSFILE     0
+!  ## widget = selwin; path = PTH_GEN; maxfiles = 1; emptyallowed = true
+!  ## activeif = ESTDCB / P1-C1
+!
+!DESCR_GEOSFILE 1  "Galileo satellite-specific observation type selection"
+! Observation selection by new RECEIVER file
+! ------------------------------------------
+OBSSEL 0
+  ## widget = selwin; path = PTH_GEN; maxfiles = 1; emptyallowed = true
+  ## activeif = ESTDCB / P1-C1
+  # 
+
+DESCR_OBSSEL 1  "Receiver-specific observation type priority"
+
+! Print RINEX observation statistics and selection results
+! --------------------------------------------------------
+PRTOSTAT 1  "0"
+  ## widget = checkbox; activeif = ESTDCB / P1-C1 AND OBSSEL / _
+
+MSG_PRTOSTAT 1  "Print observation statistics"
+
+! Stochastic IONO values for P1-P2 DCB estimation
+! -----------------------------------------------
+SIPFILE 0
+  ## widget = selwin; path = DIR_ION; maxfiles = 1
+  ## activeif = ESTDCB == P1-P2; emptyallowed = true
+  # 
+
+DESCR_SIPFILE 1  "Stochastic IONO values for P1-P2 DCB estimation"
+
+! Satellite Problems
+! ------------------
+SATCRUX 1  "${X}/GEN\$(SATCRX).CRX"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_CRX; maxfiles = 1
+  ## emptyallowed = true
+  # $(SATCRX)
+
+DESCR_SATCRUX 1  "Satellite problems"
+
+! Rinex input file
+! ----------------
+RNXFIL 10
+  "${P}/PHIVOLCS\RAW\BAKO0110.19O"
+  "${P}/PHIVOLCS\RAW\BJFS0110.19O"
+  "${P}/PHIVOLCS\RAW\HKSL0110.19O"
+  "${P}/PHIVOLCS\RAW\HYDE0110.19O"
+  "${P}/PHIVOLCS\RAW\IISC0110.19O"
+  "${P}/PHIVOLCS\RAW\PGEN0110.19O"
+  "${P}/PHIVOLCS\RAW\PIMO0110.19O"
+  "${P}/PHIVOLCS\RAW\PTAG0110.19O"
+  "${P}/PHIVOLCS\RAW\SHAO0110.19O"
+  "${P}/PHIVOLCS\RAW\XMIS0110.19O"
+  ## widget = selwin; path = DIR_RXO; ext = EXT_RXO; maxfiles = 999
+  # ????$S+0
+
+MSG_RNXFIL 1  "Original RINEX observation files"
+
+RNXFIL_PTH_COL_2 1  "${P}/PHIVOLCS\RAW\"
+  ## widget = initmenu; pointer = DIR_SMT
+
+RNXFIL_EXT_COL_2 1  "SMT"
+  ## widget = initmenu; pointer = EXT_SMT
+
+RNXFIL_PTH_COL_3 1  "${P}/PHIVOLCS\ORB\"
+  ## widget = initmenu; pointer = DIR_DCB
+
+RNXFIL_EXT_COL_3 1  "DCB"
+  ## widget = initmenu; pointer = EXT_DCB
+
+! Plot File
+! ---------
+PLTFLG 1  "0"
+
+DEVICE 0
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/PHIVOLCS\OUT\SMT$(CLUSTER).OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # SMT$(CLUSTER)
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error messages"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error messages"
+
+! Direct estimation of differential code bias values
+! --------------------------------------------------
+ESTDCB 1  "NO"
+  ## widget = combobox; editable = false; cards = NO P1-C1
+
+MSG_ESTDCB 1  "Estimate DCB values"
+
+! Title
+! -----
+TITLE 1  "RNX2SNX_190110_$(CCC): Preprocess RINEX files"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0_$(CCC): Preprocess RINEX files
+
+MSG_TITLE 1  "Title line"
+
+! Maximum number of records in a RINEX file
+! -----------------------------------------
+MAXREC 1  "3000"
+  ## widget = spinbox; range = 3000 120000 1000; check_type = integer
+
+MSG_MAXREC 1  "Maximum number of records in a RINEX file"
+
+! Sampling Interval for RINEX Data
+! --------------------------------
+SAMPL 1  "30.0"
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_SAMPL 1  "Sampling interval for RINEX data"
+
+! Skip observations flagged with S1/S2=0.000
+! ------------------------------------------
+RMSTON 1  "1"
+  ## widget = checkbox
+
+MSG_RMSTON 1  "Skip observations flagged with S1/S2=0.000"
+
+! Use C2 if P2 unavailable
+! ------------------------
+USEC2 1  "0"
+  ## widget = checkbox
+
+MSG_USEC2 1  "Use C2 if P2 unavailable"
+
+! Use Obs. Window
+! ---------------
+USEWIN 1  "1"
+  ## widget = checkbox
+
+MSG_USEWIN 1  "Use observation window"
+
+! Observation Window
+! ------------------
+RADIO_1 1  "1"
+  ## widget = radiobutton; group = DUMMY
+  ## radiokeys = SESSION_YEAR SESSION_STRG
+
+MSG_RADIO_1 1  "Defined by year and session identifier"
+
+RADIO_2 1  "0"
+  ## widget = radiobutton; group = DUMMY
+
+MSG_RADIO_2 1  "Defined by start and end times"
+
+SESSION_YEAR 1  "2019"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $Y+-
+
+MSG_SESSION_YEAR 1  "Year for sessions def. the time window"
+
+SESSION_STRG 3
+  "0100"
+  "0110"
+  "0120"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $S+-
+
+MSG_SESSION_STRG 1  "Sessions defining the time window"
+
+STADAT 1  "2019 01 11"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_STADAT 1  "Start of time window (year month day)"
+
+STATIM 1  "00 00 00"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND STADAT / _; check_type = time
+
+MSG_STATIM 1  "Start of time window (hour min. sec.)"
+
+ENDDAT 1  "2019 01 11"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_ENDDAT 1  "End of time window (year month day)"
+
+ENDTIM 1  "23 59 59"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND ENDDAT / _; check_type = time
+
+MSG_ENDTIM 1  "End of time window (hour min. sec.)"
+
+! What to do in case of event flag
+! --------------------------------
+EPOFLAG 1  "SKIP"
+  ## widget = combobox; editable = false; cards = WARNING SKIP ERROR
+
+MSG_EPOFLAG 1  "What to do in case of event flag"
+
+! Maximum Gap Before Starting a New Arc
+! -------------------------------------
+GAPARC 1  "180.0"
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_GAPARC 1  "Maximum gap before starting a new arc"
+
+! Maximum Gap for Cycle Slip Correction
+! -------------------------------------
+GAPL4 1  "180.0"
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_GAPL4 1  "Maximum gap for cycle slip correction"
+
+! RMS of Melbourne Wuebbena
+! -------------------------
+RMSL5 1  "0.60"
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_RMSL5 1  "RMS of a clean arc for Melbourne-Wuebbena"
+
+! RMS of L4 for Fit and Cycle Slip Corr.
+! --------------------------------------
+RMSL4 0
+  ## widget = lineedit; check_type = real; check_min = 0
+  # 
+
+MSG_RMSL4 1  "RMS of L4 for fit and cycle slip correction"
+
+! RMS of L3-P3
+! ------------
+RMSL3 1  "2.0"
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_RMSL3 1  "RMS of an arc in ionosphere free LC (L3-P3)"
+
+! Size of Detectable Cycle Slips
+! ------------------------------
+SLPMIN 1  "1.0"
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_SLPMIN 1  "Minimum size of detectable cycle slips"
+
+! Size of Detectable Outliers
+! ---------------------------
+SLPOUT 1  "5.0"
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_SLPOUT 1  "Minimum size of detectable outliers"
+
+!
+! Define a clock event
+! --------------------------------
+CLKEVT 1  "50.0"
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_CLKEVT 1  "Minimum size of a clock event"
+
+! Tolerance for a ms-jump
+! --------------------------------
+CYCEVT 1  "0.001"
+  ## widget = lineedit; check_type = real; check_min = 0
+  ## activeif = CLKEVT / _
+
+MSG_CYCEVT 1  "Tolerance for the ms-jump detection"
+
+! Maximum number of clock events per file
+! ---------------------------------------
+MAXEVT 1  "10"
+  ## widget = spinbox; range = 1 10000 10; activeif = CLKEVT / _
+
+MSG_MAXEVT 1  "Maximum number of events with unknown size"
+
+! Minimum Number of Observations in an Arc
+! ----------------------------------------
+MINOBS 1  "10"
+  ## widget = spinbox; range = 1 99 1
+
+MSG_MINOBS 1  "Minimum number of observations per arc"
+
+! Number of L4 Observations for Fit
+! ---------------------------------
+MINL4 1  "10"
+  ## widget = spinbox; range = 1 99 1
+
+MSG_MINL4 1  "Number of L4 observations for fit"
+
+! Fixs Cycle Slips in Code Observations
+! -------------------------------------
+FIXSLP 1  "0"
+  ## widget = checkbox
+
+MSG_FIXSLP 1  "Fix cycle slips in code observations"
+
+! Use Smoothed Code (else use raw code)
+! -------------------------------------
+FLGCOD 1  "1"
+  ## widget = checkbox
+
+MSG_FLGCOD 1  "Use smoothed code instead of raw code)"
+
+! Preprocess phase observations
+! -----------------------------
+FLGPHS 1  "0"
+  ## widget = checkbox
+
+MSG_FLGPHS 1  "Preprocess phase observations"
+
+! Print Option
+! ------------
+PRTFLG 1  "SUM"
+  ## widget = combobox; editable = false; cards = SUM ALL
+
+MSG_PRTFLG 1  "Output detail"
+
+! GLONASS frequency estimation
+! ----------------------------
+GLOFRQ 1  "0"
+  ## widget = checkbox
+
+MSG_GLOFRQ 1  "Verify GLONASS frequency number"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CLEAN/SMOOTH OBSERVATION FILES - RNXSMT 1: Filenames                         #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files             > % <                                   # SHOWGEN
+#                                                                              #
+# INPUT FILES                                                                  #
+#   Original RINEX observation files   > %%%%%%%% <                            # RNXFIL
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output          > % < use RNXSMT.Lnn            or    > %%%%%%%% < # SYSODEF SYSOUT
+#   Error messages          > % < merged to program output  or    > %%%%%%%% < # ERRMRG SYSERR
+#                                                                              #
+# DIRECT ESTIMATION OF DIFFERENTIAL CODE BIAS VALUES              > %%%%% <    # ESTDCB
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# RNXSMT 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants          > %%%%%%%%%%%% <                                # CONST
+#   Satellite information      > %%%%%%%%%%%% <                                # SATELL
+#   Satellite problems         > %%%%%%%%%%%% <                                # SATCRUX
+#   Observation types priority > %%%%%%%%%%%% <    Print selection > % <       # OBSSEL PRTOSTAT
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL ESTDCB = NO #######################################################
+# RNXSMT 2.1: Options                                                          #
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# OBSERVATION ARC DEFINITION                                                   #
+#   Maximum number of records in a RINEX file  > %%%%%% <                      # MAXREC
+#   Sampling interval for RINEX data           > %%%%% <seconds                # SAMPL
+#   Use observation window                     > % <                           # USEWIN
+#   Skip observations with S1 and S2=0.000     > % <                           # RMSTON
+#   Use C2 if P2 unavailable                   > % <                           # USEC2
+#   Maximum gap in data to start a new arc     > %%%%% <seconds                # GAPARC
+#   Minimum number of observations per arc     > %%% <                         # MINOBS
+#                                                                              #
+# EVENT FLAG HANDLING                                                          #
+#   What to do in case of event flags          > %%%%%%%% <                    # EPOFLAG
+#                                                                              #
+# DETECT CLOCK EVENTS                                                          #
+#   Minimum size of a clock event              > %%%%% <nanoseconds            # CLKEVT
+#   Tolerance for ms-jump detection            > %%%%% <milliseconds           # CYCEVT
+#   Maximum number of events with unknown size > %%%%% <                       # MAXEVT
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL ESTDCB = NO AND USEWIN = 1 ########################################
+# RNXSMT 2.2: Observation Window                                               #
+#                                                                              #
+# OBSERVATION WINDOW                                                           #
+#                                                                              #
+#   > % < Defined by Year and Session identifier                               # RADIO_1
+#         Year  > %%%% <   Session > %%%% <                                    # SESSION_YEAR SESSION_STRG
+#                                                                              #
+#                                                                              #
+#   > % < Defined by Start and End times                                       # RADIO_2
+#                 yyyy mm dd     hh mm ss           yyyy mm dd     hh mm ss    #
+#         Start > %%%%%%%%%% < > %%%%%%%% <   End > %%%%%%%%%% < > %%%%%%%% <  # STADAT STATIM ENDDAT ENDTIM
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL ESTDCB = NO #######################################################
+# RNXSMT 3: Screening Options                                                  #
+#                                                                              #
+# MELBOURNE-WUEBBENA LINEAR COMBINATION: SCREENING, CYCLE SLIP DETECTION       #
+#   RMS of a clean arc for Melbourne-Wuebbena  > %%%%% <L5 cycles              # RMSL5
+#   Minimum size of detectable cycle slips     > %%%%% <L5 cycles              # SLPMIN
+#   Minimum size of detectable outliers        > %%%%% <L5 cycles              # SLPOUT
+#                                                                              #
+# GEOMETRY-FREE LINEAR COMBINATION: CYCLE SLIP CORRECTION                      #
+#   Maximum gap for cycle slip correction      > %%%%% <seconds                # GAPL4
+#   Number of L4 observations for fit          > %%% <                         # MINL4
+#   RMS of L4 for fit and cycle slip correction> %%%%% <meters                 # RMSL4
+#   Fix cycle slips in code observations       > % <                           # FIXSLP
+#                                                                              #
+# IONOSPHERE-FREE LINEAR COMBINATION: OUTLIER DETECTION                        #
+#   RMS of an arc in ionosphere free LC (L3-P3)> %%%%% <meters                 # RMSL3
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL ESTDCB = NO #######################################################
+# RNXSMT 4: Output Options                                                     #
+#                                                                              #
+# OUTPUT OPTIONS                                                               #
+#   Preprocess phase observations              > % <                           # FLGPHS
+#   Use smoothed instead of raw code           > % <                           # FLGCOD
+#   Output detail                              > %%%% <                        # PRTFLG
+#                                                                              #
+# SPECIAL OPTION                                                               #
+#   Verify GLONASS frequency number            > % <                           # GLOFRQ
+# END_PANEL ####################################################################

@@ -1,0 +1,177 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "c:\Bernese\GPSUSER52"
+  "T" "c:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! Some keywords for automatic output
+! ----------------------------------
+CAMPAIGN 1  "${P}/PHIVOLCS"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${P}/PHIVOLCS\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2019"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0110"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! Coordinate File Names (input)
+! -----------------------------
+CRDINP 1  "${P}/PHIVOLCS\STA\$(REFINF)_R.CRD"
+  ## widget = selwin; path = DIR_CRD; ext = EXT_CRD; maxfiles = 1
+  # $(REFINF)_R
+
+DESCR_CRDINP 1  "Input coordinate file"
+
+! Epoch of Ref. Coord. (output)
+! -----------------------------
+CRDOUT 1  "${P}/PHIVOLCS\STA\REF190110.CRD"
+  ## widget = lineedit; path = DIR_CRD; ext = EXT_CRD; maxfiles = 1
+  # REF$YSS+0
+
+DESCR_CRDOUT 1  "Output coordinate file"
+
+! Velocity according to Ref.Coo.
+! ------------------------------
+VELOCI 1  "${P}/PHIVOLCS\STA\$(REFINF)_R.VEL"
+  ## widget = selwin; path = DIR_VEL; ext = EXT_VEL; maxfiles = 1
+  # $(REFINF)_R
+
+DESCR_VELOCI 1  "Input velocity file"
+
+! PSD corrections for ITRF2014
+! ----------------------------
+PSDDAT 1  "${P}/PHIVOLCS\STA\$(REFPSD).PSD"
+  ## widget = selwin; path = DIR_PSD; ext = EXT_PSD; maxfiles = 1
+  ## emptyallowed = true
+  # $(REFPSD)
+
+DESCR_PSDDAT 1  "PSD corrections (ITRF14)"
+
+! Station list without PSD corrections (output)
+! ---------------------------------------------
+NOPSD 0
+  ## widget = lineedit; path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+DESCR_NOPSD 1  "Stations without PSD corrections"
+
+! Reference Epoch
+! ---------------
+REFDAT 1  "2019 01 11"
+  ## widget = lineedit; check_type = date
+  # $YMD_STR+0
+
+MSG_REFDAT 1  "Reference epoch: date"
+
+! Reference Epoch
+! ---------------
+REFTIM 1  "00 00 00"
+  ## widget = lineedit; check_type = time
+
+MSG_REFTIM 1  "Reference epoch: time"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/PHIVOLCS\OUT\COOVEL2.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # COOVEL2
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Local Geodetic Datum
+! --------------------
+DATUM 1  "${X}/GEN\DATUM."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # DATUM.
+
+DESCR_DATUM 1  "Geodetic datum"
+
+! Title: new entry
+! ----------------
+TITLE 1  "RNX2SNX_190110: Extrapolate coordinates"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Extrapolate coordinates
+
+MSG_TITLE 1  "Title line"
+
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# EXTRAPOLATE COORDINATES - COOVEL 1: Filenames                                #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files            > % <                                    # SHOWGEN
+#                                                                              #
+# INPUT FILES                                                                  #
+#   Input coordinate file             > %%%%%%%% <                             # CRDINP
+#   Input velocity file               > %%%%%%%% <                             # VELOCI
+#   PSD correction (ITRF14)           > %%%%%%%% <                             # PSDDAT
+#                                                                              #
+# REFERENCE EPOCH                       yyyy mm dd      hh mm ss               #
+#                                     > %%%%%%%%%% <  > %%%%%%%% <             # REFDAT REFTIM
+#                                                                              #
+# RESULT FILE                                                                  #
+#   Output coordinate file            > %%%%%%%% <                             # CRDOUT
+#   Stations without PSD corrections  > %%%%%%%% <                             # NOPSD
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output          > % < use COOVEL.Lnn            or    > %%%%%%%% < # SYSODEF SYSOUT
+#   Error messages          > % < merged to program output  or    > %%%%%%%% < # ERRMRG SYSERR
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# COOVEL 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   Geodetic datum      > %%%%%%%%%%%% <                                       # DATUM
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# END_PANEL ####################################################################

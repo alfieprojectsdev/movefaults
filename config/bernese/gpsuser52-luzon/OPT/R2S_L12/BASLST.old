@@ -1,0 +1,283 @@
+
+! Some keywords for automatic output
+! ----------------------------------
+CAMPAIGN 1  "./DUMMY"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${X}/SKL/SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "1980"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0060"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! Environment variables
+! ---------------------
+ENVIRONMENT 1  "" "${}"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! --------------------------------------------------------------------
+! Input files, general files
+! --------------------------------------------------------------------
+! General constants
+! -----------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! General constants
+! -----------------
+CONST 1  "${X}/GEN/CONST."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! Local geodetic datum
+! --------------------
+DATUM 1  "${X}/GEN/DATUM."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # DATUM.
+
+DESCR_DATUM 1  "Geodetic datum"
+
+! Abbreviation table
+! ------------------
+ABBREV 1  "./DUMMY/STA/$(CRDINF).ABB"
+  ## widget = selwin; path = DIR_ABB; ext = EXT_ABB; maxfiles = 1
+  # $(CRDINF)
+
+DESCR_ABBREV 1  "Abbreviation table"
+
+! --------------------------------------------------------------------
+! Input files
+! --------------------------------------------------------------------
+! Measurement type
+! ----------------
+MEATYP 1  "PHASE"
+  ## widget = combobox; cards = CODE PHASE; editable = false
+
+MSG_MEATYP 1  "Measurement type"
+
+! Single difference files (code)
+! ------------------------------
+CSHFIL 0
+  ## widget = selwin; path = DIR_CSH; ext = EXT_CSH; emptyallowed = false
+  ## activeif = MEATYP = CODE
+  # 
+
+CSHFIL_TXT_COL_1 1  "Code single difference files"
+
+MSG_CSHFIL 1  "Code single differences"
+
+! Single difference files (phase)
+! -------------------------------
+PSHFIL 0
+  ## widget = selwin; path = DIR_PSH; ext = EXT_PSH; emptyallowed = false
+  ## activeif = MEATYP = PHASE
+  # ????$S+0
+
+PSHFIL_TXT_COL_1 1  "Phase single difference files"
+
+MSG_PSHFIL 1  "Phase single differences"
+
+! Coordinates
+! -----------
+COORD 1  "./DUMMY/STA/$A800060.CRD"
+  ## widget = selwin; path = DIR_CRD; ext = EXT_CRD; maxfiles = 1
+  # $A$YSS+0
+
+DESCR_COORD 1  "Station coordinates"
+
+! Summary of a previous AR step
+! -----------------------------
+ARSUM 0
+  ## widget = selwin; path = DIR_SUM; ext = EXT_SUM; maxfiles = 1
+  ## activeif = MEATYP = PHASE; emptyallowed = true
+  # 
+
+DESCR_ARSUM 1  "Ambiguity resolution summary"
+
+! --------------------------------------------------------------------
+! Output files
+! --------------------------------------------------------------------
+! File with accepted baselines
+! ----------------------------
+SELBSL 1  "./DUMMY/STA/L12800060.SEL"
+  ## widget = lineedit; path = DIR_BSL; ext = NO_EXT
+  # L12$YSS+0.SEL
+
+DESCR_SELBSL 1  "List with accepted baselines"
+
+! File with rejected baselines
+! ----------------------------
+NOTBSL 0
+  ## widget = lineedit; path = DIR_BSL; ext = NO_EXT
+  # 
+
+DESCR_NOTBSL 1  "List with rejected baselines"
+
+! Program output file
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "./DUMMY/OUT/L12800060.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # L12$YSS+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error message file
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK/ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! --------------------------------------------------------------------
+! Options
+! --------------------------------------------------------------------
+! Title
+! -----
+TITLE 1  "RNX2SNX_800060: Direct L1/L2 Ambiguity Resolution"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Direct L1/L2 Ambiguity Resolution
+
+MSG_TITLE 1  "Title line"
+
+! Satellite system
+! ----------------
+SATSYS 1  "ANY_SYSTEM"
+  ## widget = combobox; cards = ANY_SYSTEM GPS_ONLY GPS+GLONASS
+  ## editable = false
+
+MSG_SATSYS 1  "Baselines with observations from"
+
+! Baseline length
+! ---------------
+MAXLEN 1  "20"
+  ## widget = spinbox; range = 0 15000 100
+
+MSG_MAXLEN 1  "Maximum baseline length"
+
+MINLEN 1  "0"
+  ## widget = spinbox; range = 0 15000 100
+
+MSG_MINLEN 1  "Minimum baseline length"
+
+! Resolved ambiguities
+! --------------------
+MAXAR 1  "100"
+  ## widget = spinbox; range = 0 100 1
+  ## activeif = ARSUM /= _ AND MEATYP = PHASE
+
+MSG_MAXAR 1  "Maximum percentage of resolved ambiguities"
+
+MINAR 1  "0"
+  ## widget = spinbox; range = 0 100 1
+  ## activeif = ARSUM /= _ AND MEATYP = PHASE
+
+MSG_MINAR 1  "Minimum percentage of resolved ambiguities"
+
+! Receiver name
+! -------------
+RECVR 0
+  ## widget = lineedit
+  # 
+
+MSG_RECVR 1  "Receiver name pattern to be included"
+
+! Receiver name pattern to be excluded
+! ------------------------------------
+EXCLU 0
+  ## widget = lineedit
+  # 
+
+MSG_EXCLU 1  "Receiver name pattern to be excluded"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# SELECT BASELINES - BASLST 1: Input Files                                     #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files       > % <                                         # SHOWGEN
+#                                                                              #
+# INPUT FILES                                                                  #
+#   Measurement type             > %%%%%% <                                    # MEATYP
+#   Code@ single differences     > %%%%%%%% <                                  # CSHFIL
+#   Phase single differences     > %%%%%%%% <                                  # PSHFIL
+#   Station coordinates          > %%%%%%%% <                                  # COORD
+#   Ambiguity resolution summary > %%%%%%%% <                                  # ARSUM
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# BASLST 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants       > %%%%%%%%%%%% <                                   # CONST
+#   Geodetic datum          > %%%%%%%%%%%% <                                   # DATUM
+#   Abbreviation table      > %%%%%%%%%%%% <                                   # ABBREV
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# BASLST 2: Output Files                                                       #
+#                                                                              #
+# RESULT FILES                                                                 #
+#   List with accepted baselines  > %%%%%%%%%%%% <                             # SELBSL
+#   List with rejected baselines  > %%%%%%%%%%%% <                             # NOTBSL
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output     > % < use BASLST.Lnn                 or  > %%%%%%%% <   # SYSODEF SYSOUT
+#   Error messages     > % < merged to program output       or  > %%%%%%%% <   # ERRMRG SYSERR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# BASLST 3: Options                                                            #
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# BASELINE SELECTION OPTIONS                                                   #
+#   Baselines with observations from          > %%%%%%%%%%% <                  # SATSYS
+#                                                                              #
+#   Maximum baseline length                   > %%%%% <  kilometers            # MAXLEN
+#   Minimum baseline length                   > %%%%% <  kilometers            # MINLEN
+#                                                                              #
+#   Maximum percentage of resolved ambiguities> %% <  %                        # MAXAR
+#   Minimum percentage of resolved ambiguities> %% <  %                        # MINAR
+#                                                                              #
+#   Receiver name pattern to be included      > %%%%%%%%%%%%%%%%%%%% <         # RECVR
+#   Receiver name pattern to be excluded      > %%%%%%%%%%%%%%%%%%%% <         # EXCLU
+#                                                                              #
+# END_PANEL ####################################################################

@@ -1,0 +1,387 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "c:\Bernese\GPSUSER52"
+  "T" "c:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+CAMPAIGN 1  "${P}/PHIVOLCS"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+SESSION_TABLE 1  "${P}/PHIVOLCS\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2019"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0110"
+  ## widget = comment
+  # $S+0
+
+! Show general files
+! ------------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! GPS-UTC file
+! -------------
+GPSUTC 1  "${X}/GEN\GPSUTC."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  ## emptyallowed = false
+  # GPSUTC.
+
+DESCR_GPSUTC 1  "Difference GPS-UTC"
+
+! Title
+! -----
+TITLE 1  "RNX2SNX_190110: Preparing orbit information"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Preparing orbit information
+
+MSG_TITLE 1  "Title line"
+
+! -------------------------------------------------------------------
+! Files
+! -------------------------------------------------------------------
+! List of Input Files
+! -------------------
+RADIO_C 1  "1"
+  ## widget = radiobutton; group = INPUT; radiokeys = CONCAT
+
+MSG_RADIO_C 1  "Concatenate files"
+
+CONCAT 1  "${P}/PHIVOLCS\ORB\$B20355.PRE"
+  ## widget = selwin; path = DIR_OPR; ext = EXT_PRE; emptyallowed = false
+  ## maxfiles = 999
+  # $B$WD+0
+
+CONCAT_TXT_COL_1 1  "Input precise orbit files"
+
+MSG_CONCAT 1  "Input precise orbit files"
+
+RADIO_M 1  "0"
+  ## widget = radiobutton; group = INPUT; radiokeys = MERGE1 MERGE2
+
+MSG_RADIO_M 1  "Merge files"
+
+MERGE1 1  "${P}/PHIVOLCS\ORB\IGS190110.PRE"
+  ## widget = selwin; path = DIR_OPR; ext = EXT_PRE; emptyallowed = false
+  ## maxfiles = 1
+  # IGS$YSS+0
+
+DESCR_MERGE1 1  "First file"
+
+MERGE2 1  "${P}/PHIVOLCS\ORB\IGL190110.PRE"
+  ## widget = selwin; path = DIR_OPR; ext = EXT_PRE; emptyallowed = false
+  ## maxfiles = 1
+  # IGL$YSS+0
+
+DESCR_MERGE2 1  "Second file"
+
+ACZERO 1  "0"
+  ## widget = checkbox; activeif = RADIO_M == 1
+
+MSG_ACZERO 1  "Indicate sat merged into first file with accuracy code zero"
+
+PREDPRIO 1  "0"
+  ## widget = checkbox; activeif = RADIO_M == 1
+
+MSG_PREDPRIO 1  "Consider prediction flags"
+
+ACCPRIO 1  "0"
+  ## widget = checkbox; activeif = RADIO_M == 1
+
+MSG_ACCPRIO 1  "Satellite with good accuracy code has priority"
+
+SAMPL 1  "900"
+  ## widget = lineedit; activeif = RADIO_C == 1
+
+MSG_SAMPL 1  "Sampling rate (seconds)"
+
+FORMAT 1  "SP3C"
+  ## widget = combobox; editable = false; cards = ASIS SP3 SP3C
+
+MSG_FORMAT 1  "Output format"
+
+POSVEL 1  "-VEL"
+  ## widget = combobox; editable = false; cards = ASIS -VEL +VEL
+
+MSG_POSVEL 1  "Writing of velocity"
+
+CHAR4 1  "TEMP"
+  ## widget = lineedit; emptyallowed = false
+
+MSG_CHAR4 1  "First four characters"
+
+REFEPO 1  "2019 01 11"
+  ## widget = lineedit
+  # $YMD_STR+0
+
+MSG_REFEPO 1  "Reference epoch for output files"
+
+FILSEQ 1  "0"
+  ## widget = initmenu; pointer = SESSION_CHAR
+
+MSG_FILSEQ 1  "Session character"
+
+DEVOUT 1  "${P}/PHIVOLCS\ORB\"
+  ## widget = initmenu; pointer = DIR_PRE
+
+DESCR_DEVOUT 1  "Output path"
+
+EXTOUT 1  "PRE"
+  ## widget = initmenu; pointer = EXT_PRE
+
+! Program Output File
+! -------------------
+SYSODEF 1  "1"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/PHIVOLCS\OUT\CCPREORB.L27"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # CCPREORB
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Scratch File
+! ------------
+AUXFIL 1  "${U}/WORK\CCPREORB.SCR"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SCR; emptyallowed = false
+  # CCPREORB$J
+
+DESCR_AUXFIL 1  "Scratch file"
+
+DELETE_FILES 1  "AUXFIL"
+
+! ILRS Benchmark orbit output
+! ---------------------------
+SHOWILRS 1  "0"
+  ## widget = checkbox
+
+MSG_SHOWILRS 1  "Activate ILRS output"
+
+BENCH 1  "0"
+  ## widget = checkbox
+
+MSG_BENCH 1  "Generate orbit for ILRS benchmark"
+
+ORBILRS 0
+  ## widget = lineedit; path = DIR_PRE; ext = NO_EXT; maxfiles = 1
+  ## activeif = BENCH = 1
+  # 
+
+DESCR_ORBILRS 1  "ILRS Benchmark orbit output file"
+
+! -------------------------------------------------------------------
+! Options and Comments
+! -------------------------------------------------------------------
+! Comment Lines
+! -------------
+COMMENT1 1  "LINE 1"
+  ## widget = lineedit
+
+MSG_COMMENT1 1  "Comments line 1"
+
+COMMENT2 1  "LINE 2"
+  ## widget = lineedit
+
+MSG_COMMENT2 1  "Comments line 2"
+
+COMMENT3 1  "LINE 3"
+  ## widget = lineedit
+
+MSG_COMMENT3 1  "Comments line 3"
+
+COMMENT4 1  "LINE 4"
+  ## widget = lineedit
+
+MSG_COMMENT4 1  "Comments line 4"
+
+! -------------------------------------------------------------------
+! Time Window
+! -------------------------------------------------------------------
+! Use window
+USEWIN 1  "1"
+  ## widget = checkbox
+
+MSG_USEWIN 1  "Use time window"
+
+! Epoch Window
+! ------------
+RADIO_1 1  "1"
+  ## widget = radiobutton; group = WINDOW
+  ## radiokeys = SESSION_YEAR SESSION_STRG
+
+MSG_RADIO_1 1  "Defined by year and session identifier"
+
+RADIO_2 1  "0"
+  ## widget = radiobutton; group = WINDOW
+
+MSG_RADIO_2 1  "Defined by start and end times"
+
+SESSION_YEAR 1  "2019"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $Y+-
+
+MSG_SESSION_YEAR 1  "Year for sessions def. the time window"
+
+SESSION_STRG 3
+  "0100"
+  "0110"
+  "0120"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $S+-
+
+MSG_SESSION_STRG 1  "Sessions defining the time window"
+
+STADAT 1  "2019 01 11"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_STADAT 1  "Start of time window (year month day)"
+
+STATIM 1  "00 00 00"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND STADAT / _; check_type = time
+
+MSG_STATIM 1  "Start of time window (hour min. sec.)"
+
+ENDDAT 1  "2019 01 11"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_ENDDAT 1  "End of time window (year month day)"
+
+ENDTIM 1  "23 59 59"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND ENDDAT / _; check_type = time
+
+MSG_ENDTIM 1  "End of time window (hour min. sec.)"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CONCATENATE/MERGE PRECISE ORBIT FILES - CCPREORB 1: Input Files              #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files  > % <                                              # SHOWGEN
+#                                                                              #
+# INPUT FILES                                                                  #
+#   > % < Concatenate files                                                    # RADIO_C
+#         Input precise orbit files  > %%%%%%%% <                              # CONCAT
+#   > % < Merge files                                                          # RADIO_M
+#         First@ file                > %%%%%%%% <                              # MERGE1
+#         Second file                > %%%%%%%% <                              # MERGE2
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# CCPREORB 1.1: General Files                                                  #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   GPS-UTC time difference > %%%%%%%%%%%% <                                   # GPSUTC
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# TEMPORARY FILES                                                              #
+#   Scratch file            > %%%%%%%%%% <                                     # AUXFIL
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CCPREORB 2: Output Files                                                     #
+#                                                                              #
+# OUTPUT FILES                                                                 #
+#   First four characters            > %%%% <                                  # CHAR4
+#                                      YYYY MM DD                              #
+#   Reference epoch for output files > %%%%%%%%%% < (blank: AUTO)              # REFEPO
+#   Session character                > % <          (use Set/Compute Date)     # FILSEQ
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output          > % < use CCPREORB.Lnn          or    > %%%%%%%% < # SYSODEF SYSOUT
+#   Error messages          > % < merged to program output  or    > %%%%%%%% < # ERRMRG SYSERR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWILRS = 1 #####################################################
+# CCPREORB 2.1: ILRS-specific Output                                           #
+#                                                                              #
+# ORBIT FOR ILRS BENCHMARK                     > % <                           # BENCH
+#   Orbit output file                          > %%%%%%%%%%%% <                # ORBILRS
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CCPREORB 3: Options and Comments                                             #
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# GENERAL OPTIONS                                                              #
+#   Use time window                                               > % <        # USEWIN
+#   Sampling rate (seconds)                                       > %%%%% <    # SAMPL
+#   Output format                                                 > %%%%% <    # FORMAT
+#   Writing of velocity                                           > %%%%% <    # POSVEL
+#                                                                              #
+# MERGE OPTIONS                                                                #
+#   Consider prediction flags                                     > % <        # PREDPRIO
+#   Satellite with good accuracy code has priority                > % <        # ACCPRIO
+#   Indicate sat merged into first file with accuracy code zero   > % <        # ACZERO
+#                                                                              #
+# COMMENTS                                                                     #
+#   Comments    > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <  # COMMENT1
+#               > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <  # COMMENT2
+#               > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <  # COMMENT3
+#               > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <  # COMMENT4
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL USEWIN = 1 #######################################################
+# CCPREORB 4: Observation Window                                               #
+#                                                                              #
+# OBSERVATION WINDOW                                                           #
+#                                                                              #
+#   > % < Defined by Year and Session identifier                               # RADIO_1
+#         Year > %%%% <     Session > %%%% <                                   # SESSION_YEAR SESSION_STRG
+#                                                                              #
+#                                                                              #
+#   > % < Defined by Start and End times                                       # RADIO_2
+#                 yyyy mm dd     hh mm ss           yyyy mm dd     hh mm ss    #
+#         Start > %%%%%%%%%% < > %%%%%%%% <   End > %%%%%%%%%% < > %%%%%%%% <  # STADAT STATIM ENDDAT ENDTIM
+#                                                                              #
+# END_PANEL ####################################################################

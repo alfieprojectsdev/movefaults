@@ -1,0 +1,369 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "c:\Bernese\GPSUSER52"
+  "T" "c:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! SOME KEYWORDS FOR AUTOMATIC OUTPUT
+! ----------------------------------
+CAMPAIGN 1  "${P}/PHIVOLCS"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${P}/PHIVOLCS\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2019"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0110"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! -------------------------------------------------------------------------
+! Show general files
+! ------------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! Constants
+! ---------
+CONST 1  "${X}/GEN\CONST."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! Local Geodetic Datum
+! --------------------
+DATUM 1  "${X}/GEN\DATUM."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # DATUM.
+
+DESCR_DATUM 1  "Geodetic datum"
+
+! Coordinate and Velocity Files
+! -----------------------------
+COORD1 1  "${P}/PHIVOLCS\STA\$A190110.CRD"
+  ## widget = selwin; path = DIR_CRD; ext = EXT_CRD; maxfiles = 1
+  # $A$YSS+0
+
+DESCR_COORD1 1  "First coordinate file"
+
+VELAPR 0
+  ## widget = selwin; path = DIR_VEL; ext = EXT_VEL; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_VELAPR 1  "Velocities for first file"
+
+! PSD corrections for ITRF2014
+! ----------------------------
+PSDDAT 0
+  ## widget = selwin; path = DIR_PSD; ext = EXT_PSD; maxfiles = 1
+  ## emptyallowed = true; activeif = VELAPR / _
+  # 
+
+DESCR_PSDDAT 1  "PSD corrections (ITRF14)"
+
+! What to do with the other stations
+! ----------------------------------
+PSDSTA 1  "USE"
+  ## widget = combobox; editable = false; cards = USE MARK EXCLUDE
+  ## activeif = PSDDAT / _ AND VELAPR / _
+
+MSG_OTHSTA 1  "Handling of stations with PSD corrections"
+
+COORD2 1  "${P}/PHIVOLCS\STA\$E190110.CRD"
+  ## widget = selwin; path = DIR_CRD; ext = EXT_CRD; maxfiles = 1
+  # $E$YSS+0
+
+DESCR_COORD2 1  "Second coordinate file"
+
+! Transformed Coordinates
+! -----------------------
+COORDRS 0
+  ## widget = lineedit; path = DIR_CRD; ext = EXT_CRD
+  # 
+
+DESCR_COORDRS 1  "Coordinates"
+
+! Output station fix file
+! -----------------------
+OKSTA 1  "${P}/PHIVOLCS\STA\REF190110.FIX"
+  ## widget = lineedit; path = DIR_FIX; ext = EXT_FIX
+  # REF$YSS+0
+
+DESCR_OKSTA 1  "File with list of stations"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/PHIVOLCS\OUT\HLM190110.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # HLM$YSS+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Scratch File
+! ------------
+AUXFIL 1  "${U}/WORK\HELMR1.SCR"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SCR; emptyallowed = false
+  # HELMR1$J
+
+DESCR_AUXFIL 1  "Scratch file"
+
+DELETE_FILES 1  "AUXFIL"
+
+! List of Used Stations
+! ---------------------
+USESTA 1  "${P}/PHIVOLCS\STA\REF190110.FIX"
+  ## widget = selwin; path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  ## emptyallowed = true
+  # REF$YSS+0
+
+DESCR_USESTA 1  "File with list of stations"
+
+! What to do with the other stations
+! ----------------------------------
+OTHSTA 1  "MARK"
+  ## widget = combobox; editable = false; cards = MARK EXCLUDE
+  ## activeif = USESTA / _
+
+MSG_OTHSTA 1  "other stations"
+
+! Station selection
+! -----------------
+RADIO_1 1  "1"
+  ## widget = radiobutton; group = STASELECT
+
+MSG_RADIO_1 1  "Automatic station selection"
+
+RADIO_2 1  "0"
+  ## widget = radiobutton; group = STASELECT
+
+MSG_RADIO_2 1  "Manual station selection"
+
+STASELHLP 1  ""
+  ## widget = uniline; menuaux = MENUAUX; action = HELMERT
+  ## menuauxkeys = DATUM COORD1 COORD2 USESTA OTHSTA
+  ## updateifsave = RADIO_2 = 1
+
+STASELECT 1  "" "" "" ""
+  ## widget = uniline; menuaux = MENUAUX; action = HELMERT
+  ## menuauxkeys = DATUM COORD1 COORD2 USESTA OTHSTA
+  ## updateifsave = RADIO_2 = 1; updateifchanged = STASELHLP
+  ## editable.1 = false; editable.2 = false; editable.3 = false
+  ## editable = false; numlines = 25
+
+MSG_STASELECT 1  "Station name / Flags / selection"
+
+! Type of Residuals
+! -----------------
+RESIDTYPE 1  "NEU"
+  ## widget = combobox; editable = false; cards = NEU XYZ
+
+MSG_RESIDTYPE 1  "System of transformation, local or geocentric"
+
+! Unit of Residuals
+RESIDUNIT 1  "MM"
+  ## widget = combobox; editable = false; cards = MM M
+
+MSG_RESIDUNIT 1  "Unit of residuals"
+
+! Computed Parameters
+! -------------------
+HLM_1 1  "1"
+  ## widget = checkbox
+
+MSG_HLM_1 1  "Parameters to be computed: shift 1"
+
+HLM_2 1  "1"
+  ## widget = checkbox
+
+MSG_HLM_2 1  "Parameters to be computed: shift 2"
+
+HLM_3 1  "1"
+  ## widget = checkbox
+
+MSG_HLM_3 1  "Parameters to be computed: shift 3"
+
+HLM_4 1  "0"
+  ## widget = checkbox
+
+MSG_HLM_4 1  "Parameters to be computed: rot 1"
+
+HLM_5 1  "0"
+  ## widget = checkbox
+
+MSG_HLM_5 1  "Parameters to be computed: rot 2"
+
+HLM_6 1  "0"
+  ## widget = checkbox
+
+MSG_HLM_6 1  "Parameters to be computed: rot 3"
+
+HLM_7 1  "0"
+  ## widget = checkbox
+
+MSG_HLM_7 1  "Parameters to be computed: scale"
+
+! Outlier rejection
+! -----------------
+REJECT 1  "1"
+  ## widget = checkbox
+
+MSG_REJECT 1  "Enable outlier rejection"
+
+NLIMIT 1  "10"
+  ## widget = lineedit; activeif = REJECT = 1; check_type = real
+  ## check_min = 0
+
+MSG_NLIMIT 1  "Outlier criteria north component"
+
+ELIMIT 1  "10"
+  ## widget = lineedit; activeif = REJECT = 1; check_type = real
+  ## check_min = 0
+
+MSG_ELIMIT 1  "Outlier criteria east component"
+
+ULIMIT 1  "30"
+  ## widget = lineedit; activeif = REJECT = 1; check_type = real
+  ## check_min = 0
+
+MSG_ULIMIT 1  "Outlier criteria up component"
+
+! List of outliers
+! ----------------
+LISTFIL 1  "${P}/PHIVOLCS\OUT\HLM190110.LST"
+  ## widget = lineedit; path = DIR_LST; ext = EXT_LST; activeif = REJECT = 1
+  # HLM$YSS+0
+
+DESCR_LISTFIL 1  "List of rejected stations"
+
+! Title: new entry
+! ----------------
+TITLE 1  "RNX2SNX_190110: Verification of fiducial stations"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Verification of fiducial stations
+
+MSG_TITLE 1  "Title line"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# HELMERT TRANSFORMATION - HELMR1 1: Input/Output Files                        #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files     > % <                                           # SHOWGEN
+#                                                                              #
+# INPUT FILES                                                                  #
+#   First coordinate file      > %%%%%%%% <                                    # COORD1
+#   Velocities for first file  > %%%%%%%% <    (blank: no veloc. applied)      # VELAPR
+#   PSD correction (ITRF14)    > %%%%%%%% <    stations with PSD > %%%%%%%% <  # PSDDAT PSDSTA
+#   Second coordinate file     > %%%%%%%% <                                    # COORD2
+#   File with list of stations > %%%%%%%% <    other stations    > %%%%%%%% <  # USESTA OTHSTA
+#                                                                              #
+# RESULT FILES                                                                 #
+#   Coordinates                > %%%%%%%% <                                    # COORDRS
+#   File with list of stations > %%%%%%%% <                                    # OKSTA
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output             > % < use HELMR1.Lnn           or > %%%%%%%% <  # SYSODEF SYSOUT
+#   Error messages             > % < merged to program output or > %%%%%%%% <  # ERRMRG SYSERR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# HELMR1 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants       > %%%%%%%%%%%% <                                   # CONST
+#   Geodetic datum          > %%%%%%%%%%%% <                                   # DATUM
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# TEMPORARY FILES                                                              #
+#   Scratch file            > %%%%%%%%%%%% <                                   # AUXFIL
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# HELMR1 2: Options for Helmert Transformation                                 #
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# STATION SELECTION                                                            #
+#    > % < Automatic station selection (all stations or selection from file)   # RADIO_1
+#    > % < Manual station selection                                            # RADIO_2
+#                                                                              #
+# HELMERT TRANSFORMATION                                                       #
+#   System of transformation, LOCAL (N,E,U) or GEOCENTRIC (X,Y,Z)  > %%%% <    # RESIDTYPE
+#   Unit of residuals (meter or millimeter)                        > %%%% <    # RESIDUNIT
+#                                                                              #
+#   Parameters to be computed  shift 1  > % <   rot 1   > % <                  # HLM_1  HLM_4
+#                              shift 2  > % <   rot 2   > % <                  # HLM_2  HLM_5
+#                              shift 3  > % <   rot 3   > % <                  # HLM_3  HLM_6
+#                              scale @  > % <                                  # HLM_7
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL RADIO_2 = 1 ######################################################
+# HELMR1 2.1: Manual Station Selection                                         #
+#                                                                              #
+# MANUAL STATION SELECTION                                                     #
+#     Selection: blank = use for transformation                                #
+#     @@@@@@@@@@ @@@@M = residuals only                                        #
+#     @@@@@@@@@@ @@@@E = not used                                              #
+#   > Station_name____ Flg1 Flg2 Selection   <                                 # STASELECT
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# HELMR1 3: Outlier Rejection                                                  #
+#                                                                              #
+# OUTLIER REJECTION                                                            #
+#   Enable outlier rejection             > % <                                 # REJECT
+#   Outlier criteria    north component  > %%%%%%%% <  millimeters             # NLIMIT
+#                       east@ component  > %%%%%%%% <  millimeters             # ELIMIT
+#                       up@@@ component  > %%%%%%%% <  millimeters             # ULIMIT
+#   List of rejected stations            > %%%%%%%% <                          # LISTFIL
+#                                                                              #
+# END_PANEL ####################################################################

@@ -1,0 +1,330 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "c:\Bernese\GPSUSER52"
+  "T" "c:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! Some title information
+! ----------------------
+CAMPAIGN 1  "${P}/PHIVOLCS"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+SESSION_TABLE 1  "${P}/PHIVOLCS\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2019"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0110"
+  ## widget = comment
+  # $S+0
+
+! List of RINEX Input Files
+! --------------------------
+OBSFIL 9
+  "${P}/PHIVOLCS\RAW\ALAB0110.19o"
+  "${P}/PHIVOLCS\RAW\ATIM0110.19o"
+  "${P}/PHIVOLCS\RAW\CACA0110.19o"
+  "${P}/PHIVOLCS\RAW\ELNA0110.19o"
+  "${P}/PHIVOLCS\RAW\GUNG0110.19o"
+  "${P}/PHIVOLCS\RAW\LBAN0110.19o"
+  "${P}/PHIVOLCS\RAW\MALA0110.19o"
+  "${P}/PHIVOLCS\RAW\MAUB0110.19o"
+  "${P}/PHIVOLCS\RAW\SPAB0110.19o"
+  ## widget = selwin; path = DIR_RXO; ext = EXT_RXO; maxfiles = 999
+  ## emptyallowed = true
+  # ????$S+0
+
+OBSFIL_TXT_COL_1 1  "RINEX observation files"
+
+MSG_OBSFIL 1  "Original RINEX observation files"
+
+SMTFIL 0
+  ## widget = selwin; path = DIR_SMT; ext = EXT_SMT; maxfiles = 999
+  ## emptyallowed = true
+  # 
+
+SMTFIL_TXT_COL_1 1  "Smoothed RINEX files"
+
+MSG_SMTFIL 1  "Smoothed RINEX observation files"
+
+! Measurement Type
+! ----------------
+MEATYP 1  "PHASE"
+  ## widget = combobox; editable = false; cards = PHASE CODE
+
+MSG_MEATYP 1  "Measurement type"
+
+! Frequencies
+! -----------
+FREQ 1  "BOTH"
+  ## widget = combobox; editable = false; cards = L1 L2 BOTH
+
+MSG_FREQ 1  "Frequencies"
+
+! Minimum s/n-ratio
+! -----------------
+MINSIG 1  "0"
+  ## widget = spinbox; range = 0 9 1
+
+MSG_MINSIG 1  "Minimum s/n ratio requested"
+
+! Display cycle slip flags
+! ------------------------
+CYCGRA 1  "0"
+  ## widget = checkbox; activeif = MEATYP = PHASE
+
+MSG_CYCGRA 1  "Print cycle slip flags"
+
+! Station Name Translation Table
+! ------------------------------
+STAINFO 1  "${P}/PHIVOLCS\STA\$(CRDINF).STA"
+  ## widget = selwin; path = DIR_STA; ext = EXT_STA; maxfiles = 1
+  ## emptyallowed = true
+  # $(CRDINF)
+
+MSG_STAINFO 1  "Station information"
+
+! Stop if Station Name not found in Translation Table
+! ---------------------------------------------------
+STNMSTOP 1  "0"
+  ## widget = checkbox; activeif = STAINFO /= _
+
+MSG_STNMSTOP 1  "Stop if station name not found"
+
+! Use station information file flags
+! ----------------------------------
+USEFLG 1  "0"
+  ## widget = checkbox; activeif = STAINFO /= _
+
+MSG_USEFLG 1  "Consider flags in sta-info file"
+
+! Flag to use in STAINFO: type 001
+! --------------------------------
+FLG001 1  "999"
+  ## widget = lineedit; activeif = STAINFO /= _ AND USEFLG = 1
+
+MSG_FLG001 1  "Flag to be used"
+
+! Output Files
+! ------------
+SUMMARY 1  "${P}/PHIVOLCS\OUT\GRA190110.SMC"
+  ## widget = lineedit; path = DIR_SMC; ext = EXT_SMC
+  # GRA$YSS+0
+
+MSG_SUMMARY 1  "Summary file"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/PHIVOLCS\OUT\GRA190110.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # GRA$YSS+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Program run title line
+! ----------------------
+TITLE 1  "RNX2SNX_190110: Summary on RINEX file content"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Summary on RINEX file content
+
+MSG_TITLE 1  "Title line"
+
+! Tolerance of observations
+! -------------------------
+IOBTOL 1  "2"
+  ## widget = spinbox; range = 0 99 1; check_type = integer; check_min = 0
+  ## check_max = 99
+
+MSG_IOBTOL 1  "Epochs allowed per character"
+
+! Get a list of files?
+! --------------------
+GETLST 1  "1"
+  ## widget = checkbox
+
+MSG_GETLST 1  "Get a list of RINEX files"
+
+! Get a list of good files?
+! -------------------------
+LSTFILE 0
+  ## widget = lineedit; path = DIR_LST; ext = EXT_LST
+  # 
+
+MSG_LSTFILE 1  "File with the list of selected RINEX files"
+
+! Get a list of bad files?
+! ------------------------
+DELFILE 1  "${P}/PHIVOLCS\OUT\GRA190110.DEL"
+  ## widget = lineedit; path = DIR_DEL; ext = EXT_DEL
+  # GRA$YSS+0
+
+MSG_DELFILE 1  "File with the list of unselected RINEX files"
+
+! Max # of stations in list
+! -------------------------
+MAXSTA 1  "200"
+  ## widget = spinbox; range = 1 9999 10; check_type = integer
+  ## check_min = 1; check_max = 9999
+
+MSG_MAXSTA 1  "Maximum number of selected files (station)"
+
+! Count only observations from satellites of selected systems
+! -----------------------------------------------------------
+OBSSYS 1  "ALL"
+  ## widget = combobox; editable = false; cards = ALL GPS GLO GAL
+
+MSG_OBSSYS 1  "Count only observations from satellites of selected systems"
+
+! Min # of observations per station
+! ---------------------------------
+MINOBS 1  "200"
+  ## widget = spinbox; range = 1 9999 10; check_type = integer
+  ## check_min = 1
+
+MSG_MINOBS 1  "Minimum number of observations per file"
+
+! Max. # of bad obs. per station allowed
+! --------------------------------------
+MAXBAD 1  "10"
+  ## widget = spinbox; range = 1 100 1; check_type = integer; check_min = 1
+  ## check_max = 9999
+
+MSG_MAXBAD 1  "Maximum number of bad epochs per file allowed"
+
+! Defines what a bad obs. is
+! --------------------------
+BADOBS 1  "3"
+  ## widget = spinbox; range = 0 15 1; check_type = integer; check_min = 0
+
+MSG_BADOBS 1  "Maximum number of observation to define a bad epoch"
+
+! Normalize limits for non-daily session processing
+! -------------------------------------------------
+ADJDAY 1  "1"
+  ## widget = checkbox
+
+MSG_ADJDAY 1  "Normalize limits for non-daily session processing"
+
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CREATE OBSERVATION STATISTICS - RNXGRA 1: Filenames                          #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files  > % <                                              # SHOWGEN
+#                                                                              #
+# INPUT FILES                                                                  #
+#   Original RINEX observation files           > %%%%%%%% <                    # OBSFIL
+#   Smoothed RINEX observation files           > %%%%%%%% <                    # SMTFIL
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output       > % < use RNXGRA.Lnn            or    > %%%%%%%% <    # SYSODEF SYSOUT
+#   Error messages       > % < merged to program output  or    > %%%%%%%% <    # ERRMRG SYSERR
+#                                                                              #
+# OUTPUT FILE                                                                  #
+#   Summary file         > %%%%%%%% <                                          # SUMMARY
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# RNXGRA 1.1: General Files                                                    #
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# RNXGRA 2: Options                                                            #
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# OBSERVATION SELECTION                                                        #
+#   Measurement type                > %%%%%% <                                 # MEATYP
+#   Frequencies                     > %%%%%% <                                 # FREQ
+#   Minimum s/n ratio requested     > %% <                                     # MINSIG
+#   Print cycle slip flags          > % <                                      # CYCGRA
+#                                                                              #
+# MAXIMUM NUMBER OF MISSING EPOCHS                                             #
+#   Allowed per character           > %% <    (1 chr = 20 minutes)             # IOBTOL
+#                                                                              #
+# STATION NAME TRANSLATION                                                     #
+#   Station information file        > %%%%%%%% <                               # STAINFO
+#   Stop if station name not found  > % <                                      # STNMSTOP
+#                                                                              #
+# LIST OF RINEX FILES                                                          #
+#   Get a list of RINEX files       > % <                                      # GETLST
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL STAINFO / _ AND USEFLG == 999 ####################################
+# RNXGRA 2.1: Select Flags from Station Information File to be Used            #
+#                                                                              #
+# ATTENTION!!!!    THIS IS DUMMY AT THE MOMENT!!!!                             #
+# To make the flag handling active, please modify SR GTSTAFLG.f90              #
+#                                                                              #
+#   Consider flags in sta-info file > % <                                      # USEFLG
+#            Flags to be used       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <    # FLG001
+#                                     Flag 999: Any flag will be considered    #
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL GETLST == 1 ######################################################
+# RNXGRA 3: Options for RINEX File Selection                                   #
+#                                                                              #
+# FILENAMES                                                                    #
+#   File with the list of selected@@ RINEX files         > %%%%%%%% <          # LSTFILE
+#   File with the list of unselected RINEX files         > %%%%%%%% <          # DELFILE
+#                                                                              #
+# FILE SELECTION OPTIONS                                                       #
+#   Maximum number of selected files (station)           > %%%% <              # MAXSTA
+#   Count only observations from satellites of           > %%%% <  system(s)   # OBSSYS
+#   Minimum number of observations per file              > %%%% <              # MINOBS
+#   Maximum number of bad epochs per file allowed        > %%%% <              # MAXBAD
+#   Maximum number of observations to define a bad epoch > %%%% <              # BADOBS
+#   Normalize limits for non-daily session processing    > % <                 # ADJDAY
+#      (assuming that the given values refer to one day)                       #
+#                                                                              #
+# END_PANEL ####################################################################

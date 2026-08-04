@@ -1,0 +1,437 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 1  "" "${}"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! SOME KEYWORDS FOR AUTOMATIC OUTPUT
+! ----------------------------------
+CAMPAIGN 1  "./DUMMY"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${X}/SKL/SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "1980"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0060"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! Show general files
+! ------------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! General Constants
+! -----------------
+CONST 1  "${X}/GEN/CONST."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! Satellite Information File
+! --------------------------
+SATELL 1  "${X}/GEN/$(SATINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # $(SATINF).$(PCV)
+
+DESCR_SATELL 1  "Satellite information"
+
+! What to do in this run?
+! -----------------------
+WHATTODO 1  "INITIALIZE"
+  ## widget = combobox; editable = false
+  ## cards = EDIT_FILE MARK_MANUAL SYNCHRONIZE INITIALIZE
+
+MSG_WHATTODO 1  "Desired task"
+
+! Reset ambiguities
+! -----------------
+RESAMB 1  "ALL"
+  ## widget = combobox; editable = false; cards = L1 L2 L1&L2 L5 ALL
+  ## activeif = WHATTODO == INITIALIZE
+
+MSG_RESAMB 1  "Re-initialize ambiguities, frequency"
+
+! Reset ambiguities
+! -----------------
+AMBSYS 1  "ALL_GNSS"
+  ## widget = combobox; editable = false
+  ## cards = ALL_GNSS GPS GLONASS GALILEO SBAS
+  ## activeif = WHATTODO == INITIALIZE
+
+MSG_AMBSYS 1  "Re-initialize ambiguities, system"
+
+! Select obs type
+! ---------------
+OBSTYPE 1  "GNSS"
+  ## widget = combobox; editable = false; cards = GNSS Range
+
+MSG_OBSTYPE 1  "Select obs type"
+
+! Zero diff., Code
+! ----------------
+CZHFIL 0
+  ## widget = selwin; path = DIR_CZH; ext = EXT_CZH; maxfiles = 999
+  ## emptyallowed = true
+  ## activeif = WHATTODO /= INITIALIZE AND OBSTYPE = GNSS
+  # ????$S+0
+
+MSG_CZHFIL 1  "Zero diff. code"
+
+CZHFIL_TXT_COL_1 1  "Code Header Files"
+
+CZHFIL_PTH_COL_2 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_CZO
+
+CZHFIL_EXT_COL_2 1  "CZO"
+  ## widget = initmenu; pointer = EXT_CZO
+
+CZHFIL_TXT_COL_2 1  "Code Observation Files"
+
+CZHFIL_PTH_COL_3 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_PZH
+
+CZHFIL_EXT_COL_3 1  "PZH"
+  ## widget = initmenu; pointer = EXT_PZH
+
+CZHFIL_TXT_COL_3 1  "Phase Header Files"
+
+CZHFIL_PTH_COL_4 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_PZO
+
+CZHFIL_EXT_COL_4 1  "PZO"
+  ## widget = initmenu; pointer = EXT_PZO
+
+CZHFIL_TXT_COL_4 1  "Phase Observation Files"
+
+! Zero diff., Phase
+! -----------------
+PZHFIL 0
+  ## widget = selwin; path = DIR_PZH; ext = EXT_PZH; maxfiles = 999
+  ## emptyallowed = true; activeif = OBSTYPE = GNSS
+  # 
+
+MSG_PZHFIL 1  "Zero diff. phase"
+
+PZHFIL_PTH_COL_2 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_PZO
+
+PZHFIL_EXT_COL_2 1  "PZO"
+  ## widget = initmenu; pointer = EXT_PZO
+
+PZHFIL_PTH_COL_3 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_CZH
+
+PZHFIL_EXT_COL_3 1  "CZH"
+  ## widget = initmenu; pointer = EXT_CZH
+
+PZHFIL_PTH_COL_4 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_CZO
+
+PZHFIL_EXT_COL_4 1  "CZO"
+  ## widget = initmenu; pointer = EXT_CZO
+
+! Zero diff., Code=Phase
+! ----------------------
+BOTHZERO 1  "1"
+  ## widget = checkbox
+  ## activeif = CZHFIL /= _ OR PZHFIL /= _ AND WHATTODO / SYNCHRONIZE AND WHATTODO / INITIALIZE AND OBSTYPE = GNSS
+
+MSG_BOTHZERO 1  "Zero diff. both"
+
+! Single diff., Code
+! ------------------
+CSHFIL 0
+  ## widget = selwin; path = DIR_CSH; ext = EXT_CSH; maxfiles = 999
+  ## emptyallowed = true
+  ## activeif = WHATTODO /= INITIALIZE AND OBSTYPE = GNSS
+  # 
+
+MSG_CSHFIL 1  "Single diff. code"
+
+CSHFIL_TXT_COL_1 1  "Code Single Difference Files"
+
+CSHFIL_PTH_COL_2 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_CSO
+
+CSHFIL_EXT_COL_2 1  "CSO"
+  ## widget = initmenu; pointer = EXT_CSO
+
+CSHFIL_TXT_COL_2 1  "Code Single Difference Files"
+
+CSHFIL_PTH_COL_3 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_PSH
+
+CSHFIL_EXT_COL_3 1  "PSH"
+  ## widget = initmenu; pointer = EXT_PSH
+
+CSHFIL_TXT_COL_3 1  "Phase Single Difference Files"
+
+CSHFIL_PTH_COL_4 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_PSO
+
+CSHFIL_EXT_COL_4 1  "PSO"
+  ## widget = initmenu; pointer = EXT_PSO
+
+CSHFIL_TXT_COL_4 1  "Phase Single Difference Files"
+
+! Single diff., Phase
+! -------------------
+PSHFIL 0
+  ## widget = selwin; path = DIR_PSH; ext = EXT_PSH; maxfiles = 999
+  ## emptyallowed = true; activeif = OBSTYPE = GNSS
+  # ????$S+0
+
+MSG_PSHFIL 1  "Single diff. phase"
+
+PSHFIL_PTH_COL_2 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_PSO
+
+PSHFIL_EXT_COL_2 1  "PSO"
+  ## widget = initmenu; pointer = EXT_PSO
+
+PSHFIL_PTH_COL_3 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_CSH
+
+PSHFIL_EXT_COL_3 1  "CSH"
+  ## widget = initmenu; pointer = EXT_CSH
+
+PSHFIL_PTH_COL_4 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_CSO
+
+PSHFIL_EXT_COL_4 1  "CSO"
+  ## widget = initmenu; pointer = EXT_CSO
+
+! Single diff., Code=Phase
+! ------------------------
+BOTHSING 1  "0"
+  ## widget = checkbox
+  ## activeif = CSHFIL /= _ OR PSHFIL /= _ AND WHATTODO / SYNCHRONIZE AND WHATTODO / INITIALIZE AND OBSTYPE = GNSS
+
+MSG_BOTHSING 1  "Single diff. both"
+
+! Range obs
+! ---------
+RZHFIL 0
+  ## widget = selwin; path = DIR_RZH; ext = EXT_RZH; maxfiles = 999
+  ## emptyallowed = true; activeif = OBSTYPE = Range
+  # 
+
+MSG_RZHFIL 1  "Range obs"
+
+RZHFIL_TXT_COL_1 1  "Range Header Files"
+
+RZHFIL_PTH_COL_2 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_RZO
+
+RZHFIL_EXT_COL_2 1  "RZO"
+  ## widget = initmenu; pointer = EXT_RZO
+
+RZHFIL_TXT_COL_2 1  "Range Observation Files"
+
+! Scratch File
+! ------------
+AUXFIL 1  "${U}/WORK/SATMRK.SCR"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SCR; emptyallowed = false
+  # SATMRK$J
+
+DESCR_AUXFIL 1  "Scratch file"
+
+DELETE_FILES 1  "AUXFIL"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "./DUMMY/OUT/AMB800060.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # AMB$YSS+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK/ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error messages"
+
+! Title: new entry
+! ----------------
+TITLE 1  "RNX2SNX_800060: Re-init all resolved ambiguities"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Re-init all resolved ambiguities
+
+MSG_TITLE 1  "Title line"
+
+! Type of Change
+! --------------
+TYPCHG 1  "MARK"
+  ## widget = combobox; activeif = WHATTODO = MARK_MANUAL; editable = false
+  ## cards = MARK RESET ELIMINATE
+
+MSG_TYPCHG 1  "Type of change"
+
+! Frequency
+! ---------
+FREQ 1  "L1&L2"
+  ## widget = combobox; activeif = WHATTODO = MARK_MANUAL; editable = false
+  ## cards = L1 L2 L1&L2
+
+MSG_FREQ 1  "Frequency"
+
+! Edit Information File
+! ---------------------
+EDITFILE 0
+  ## widget = selwin; path = DIR_EDT; ext = EXT_EDT; maxfiles = 1
+  ## emptyallowed = true; activeif = WHATTODO = EDIT_FILE
+  # 
+
+DESCR_EDITFILE 1  "Edit information file"
+
+SATNUM 1  "ALL"
+  ## widget = selwin; activeif = WHATTODO = MARK_MANUAL; pointer = SATLST
+
+MSG_SATNUM 1  "Satellite(s)"
+
+! SELECTION LIST: Satellite list
+! -------------------------------
+SATLST 0
+  ## widget = selwin; menuaux = MENUAUX; action = SATLST
+  ## menuauxkeys = CONST CZHFIL PZHFIL CSHFIL PSHFIL
+
+MSG_SATLST 1  "Satellite list"
+
+! From to Observation number or Observation Window
+! ------------------------------------------------
+RADIO_21 1  "0"
+  ## widget = radiobutton; activeif = WHATTODO = MARK_MANUAL; group = TIMINF
+
+MSG_RADIO_21 1  "From epoch selection"
+
+NUMFROM 0
+  ## widget = lineedit; activeif = RADIO_21 = 1 AND WHATTODO = MARK_MANUAL
+
+MSG_NUMFROM 1  "From epoch"
+
+NUMTO 0
+  ## widget = lineedit; activeif = RADIO_21 = 1 AND WHATTODO = MARK_MANUAL
+
+MSG_NUMTO 1  "To epoch"
+
+RADIO_22 1  "1"
+  ## widget = radiobutton; activeif = WHATTODO = MARK_MANUAL; group = TIMINF
+
+MSG_RADIO_22 1  "Observation window"
+
+STADAT 1  "1980 01 06"
+  ## widget = lineedit; check_type = date
+  ## activeif = RADIO_22 = 1 AND WHATTODO = MARK_MANUAL
+  # $YMD_STR+0
+
+MSG_STADAT 1  "Start of time window (year month day)"
+
+STATIM 1  "00 00 00"
+  ## widget = lineedit; emptyallowed = false; check_type = time
+  ## activeif = RADIO_22 = 1 AND STADAT / _ AND WHATTODO = MARK_MANUAL
+
+MSG_STATIM 1  "Start of time window (hour min. sec.)"
+
+ENDDAT 1  "1980 01 06"
+  ## widget = lineedit; check_type = date
+  ## activeif = RADIO_22 = 1 AND WHATTODO = MARK_MANUAL
+  # $YMD_STR+0
+
+MSG_ENDDAT 1  "End of time window (year month day)"
+
+ENDTIM 1  "23 59 59"
+  ## widget = lineedit; emptyallowed = false; check_type = time
+  ## activeif = RADIO_22 = 1 AND ENDDAT / _ AND WHATTODO = MARK_MANUAL
+
+MSG_ENDTIM 1  "End of time window (hour min. sec.)"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# MARK/DELETE OBSERVATIONS - SATMRK 1: Filenames                               #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files    > % <                                            # SHOWGEN
+#                                                                              #
+# OPTIONS                                                                      #
+#   Desired task              > %%%%%%%%%%%% <                                 # WHATTODO
+#   Re-initialize ambiguities > %%%%%% <  for > %%%%%%%% <                     # RESAMB AMBSYS
+#                                                                              #
+# OBSERVATION FILES                                                            #
+#   Observation type  > %%%%%%%%% <                                            # OBSTYPE
+#   Zero diff.@@ code > %%%%%%%% <      phase > %%%%%%%% <       both > % <    # CZHFIL    PZHFIL  BOTHZERO
+#   Single diff. code > %%%%%%%% <      phase > %%%%%%%% <       both > % <    # CSHFIL    PSHFIL  BOTHSING
+#   Range             > %%%%%%%% <                                             # RZHFIL
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output    > % < use SATMRK.Lnn            or          > %%%%%%%% < # SYSODEF SYSOUT
+#   Error messages    > % < merged to program output  or          > %%%%%%%% < # ERRMRG SYSERR
+#                                                                              #
+#  TITLE  > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% < # TITLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# SATMRK 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants       > %%%%%%%%%%%% <                                   # CONST
+#   Satellite information   > %%%%%%%%%%%% <                                   # SATELL
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# TEMPORARY FILES                                                              #
+#   Scratch file            > %%%%%%%%%%%% <                                   # AUXFIL
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL WHATTODO / SYNCHRONIZE AND WHATTODO / INITIALIZE #################
+#  SATMRK 2: Manual and File Selection                                         #
+#                                                                              #
+#  FILE SELECTION                                                              #
+#    Edit information file       > %%%%%%%% <                                  # EDITFILE
+#                                                                              #
+#  MANUAL SELECTION                                                            #
+#    Type of change     > %%%%%%%%%% <                                         # TYPCHG
+#    Frequency          > %%%%%% <                                             # FREQ
+#    Satellite(s)       > %%%%%%%%%% <      (ALL: all satellites)              # SATNUM
+#     > % < From epoch  > %%%% <      (blank: first observation number)        # RADIO_21 NUMFROM
+#           to@@ epoch  > %%%% <      (blank: last  observation number)        # NUMTO
+#       or                                                                     #
+#     > % < Observation window                                                 # RADIO_22
+#                   yyyy mm dd     hh mm ss         yyyy mm dd     hh mm ss    #
+#           Start > %%%%%%%%%% < > %%%%%%%% < End > %%%%%%%%%% < > %%%%%%%% <  # STADAT STATIM ENDDAT ENDTIM
+#                                                                              #
+# END_PANEL ####################################################################

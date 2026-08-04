@@ -1,0 +1,105 @@
+#
+
+PID  SCRIPT    OPT_DIR   PARAMETERS
+001  R2S_COP   PGN_GEN   CPU=ANY
+002  ATX2PCV   PGN_GEN   CPU=ANY; WAIT=001
+003  COOVEL    PGN_GEN   CPU=ANY; WAIT=001
+004  COOVEL    PGN_GE2   CPU=ANY; WAIT=001
+005  CRDMERGE  PGN_GEN   CPU=ANY; WAIT=003 004
+011  RNX_COP   NO_OPT    CPU=ANY; WAIT=001
+099  DUMMY     NO_OPT    CPU=ANY; WAIT=001 005 011
+101  POLUPD    PGN_GEN   CPU=ANY; WAIT=001
+111  ORBMRG    PGN_GEN   CPU=ANY; WAIT=001
+112  ORBGEN    PGN_GEN   CPU=ANY; WAIT=101 111
+113  SATCLK    PGN_GEN   CPU=ANY; WAIT=111
+199  DUMMY     NO_OPT    CPU=ANY; WAIT=112 113
+201  RNXGRA    PGN_GEN   CPU=ANY; WAIT=099
+211  RNXSMTAP  PGN_GEN   CPU=ANY; WAIT=201
+212  RNXSMT_P  PGN_GEN   CPU=ANY; WAIT=211; PARALLEL=211
+221  RXOBV3AP  PGN_GEN   CPU=ANY; WAIT=212
+222  RXOBV3_P  PGN_GEN   CPU=ANY; WAIT=221; PARALLEL=221
+231  CODSPPAP  PGN_GEN   CPU=ANY; WAIT=199 222
+232  CODSPP_P  PGN_GEN   CPU=ANY; WAIT=231; PARALLEL=231
+233  CODXTR    PGN_GEN   CPU=ANY; WAIT=232
+299  DUMMY     NO_OPT    CPU=ANY; WAIT=233
+301  INIT_BSL  NO_OPT    CPU=ANY; WAIT=299
+302  SNGDIF    PGN_GEN   CPU=ANY; WAIT=301
+303  SNGDIF    PGN_GE2   CPU=ANY; WAIT=302
+311  MAUPRPAP  PGN_GEN   CPU=ANY; WAIT=302
+312  MAUPRP_P  PGN_GEN   CPU=ANY; WAIT=311; PARALLEL=311
+313  MPRXTR    PGN_GEN   CPU=ANY; WAIT=312
+321  GPSEDTAP  PGN_EDT   CPU=ANY; WAIT=313; PARAM2=V_FLT
+322  GPSEDT_P  PGN_EDT   CPU=ANY; WAIT=321; PARALLEL=321
+323  GPSXTR    PGN_EDT   CPU=ANY; WAIT=322
+331  RES_SUM   PGN_GEN   CPU=ANY; WAIT=322; NEXTJOB=301
+341  ADDNEQ2   PGN_GEN   CPU=ANY; WAIT=331
+342  GPSXTR    PGN_GEN   CPU=ANY; WAIT=341
+399  DUMMY     NO_OPT    CPU=ANY; WAIT=303 323 342
+401  SATMRK    PGN_GEN   CPU=ANY; WAIT=399
+411  GNSAMBAP  PGN_AMB   CPU=ANY; WAIT=401
+412  GNSAMB_P  PGN_AMB   CPU=ANY; WAIT=411; PARALLEL=411
+421  GNSL53AP  PGN_L53   CPU=ANY; WAIT=412
+422  GNSL53_P  PGN_L53   CPU=ANY; WAIT=421; PARALLEL=421
+431  GNSQIFAP  PGN_QIF   CPU=ANY; WAIT=422
+432  GNSQIF_P  PGN_QIF   CPU=ANY; WAIT=431; PARALLEL=431
+441  GNSL12AP  PGN_L12   CPU=ANY; WAIT=432
+442  GNSL12_P  PGN_L12   CPU=ANY; WAIT=441; PARALLEL=441
+443  AMBXTR    PGN_AMB   CPU=ANY; WAIT=442
+499  DUMMY     NO_OPT    CPU=ANY; WAIT=443
+501  GPSCLUAP  PGN_FIN   CPU=ANY; WAIT=499; PARAM2=V_FIN
+502  GPSCLU_P  PGN_FIN   CPU=ANY; WAIT=501; PARALLEL=501
+511  ADDNEQ2   PGN_FIN   CPU=ANY; WAIT=502
+512  GPSXTR    PGN_FIN   CPU=ANY; WAIT=511
+513  HELMCHK   PGN_FIN   CPU=ANY; WAIT=511; NEXTJOB=511
+514  COMPARF   PGN_FIN   CPU=ANY; WAIT=513
+599  DUMMY     NO_OPT    CPU=ANY; WAIT=512 514
+VARIABLE         DEFAULT           PARAMETERS
+V_ATLINF       = ;                 DESCRIPTION=_ATL file name, CMC corrections
+V_BLQINF       = PGN;              DESCRIPTION=_BLQ file name, CMC corrections
+V_BSWDIR       = ${D}/BSW54;       DESCRIPTION=Directory with basic Bernese files
+V_CRDINF       = PGN;              DESCRIPTION=Merged CRD/VEL filename
+V_CRXINF       = ;                 DESCRIPTION=_Accepted station inform.inconsistencies
+V_HOIFIL       = HOI_$YYYSS+0;     DESCRIPTION=_Ionosphere model for higher order iono
+V_HOURLY       = ;                 DESCRIPTION=Number of hourly sessions proc. together
+V_MYATX        = ;                 DESCRIPTION=ANTEX file for update (name incl. ext)
+V_OBSSEL       = OBSERV;           DESCRIPTION=Observation selection file
+V_ORB          = COD0OPSFIN;       DESCRIPTION=Orbit/ERP, CLK, bias information
+V_ORBDIR       = ${D}/COD0OPSFIN;  DESCRIPTION=Directory with orbit products
+V_OSBFIL       = IAR_$YYYSS+0;     DESCRIPTION=_OSB-file with GNSS satellite biases
+V_PCV          = I20;              DESCRIPTION=Antenna phase center (PCV) model
+V_PCVINF       = ANTENNA;          DESCRIPTION=PCV information file
+V_REFDIR       = ${D}/REF54;       DESCRIPTION=Directory with basic Bernese files
+V_REFINF       = IGS20;            DESCRIPTION=Master/reference CRD/VEL filename
+V_REFPSD       = IGS20;            DESCRIPTION=PSD corrections (ITRF2014 or higher)
+V_SATINF       = SATELLIT;         DESCRIPTION=Satellite information file
+V_SATSYS       = GRE;              DESCRIPTION=Select the GNSS (max. supported: GRECJ)
+V_SNXINF       = SINEX_RNX2SNX;    DESCRIPTION=SINEX header file
+V_STAINF       = PGN;              DESCRIPTION=_Station information file
+V_APR          = APR;              DESCRIPTION=A priori information
+V_NUTMOD       = IAU2000R06;       DESCRIPTION=Nutation model
+V_SUBMOD       = DESAI2016;        DESCRIPTION=Subdaily pole model
+V_MEANPL       = IERS2010_v1.2.0;  DESCRIPTION=Mean pole model
+V_STOCH_NUMBER = Orbit_midnight;   DESCRIPTION=_Stochastic pulses
+V_SATCRX       = SAT_$Y+0;         DESCRIPTION=Satellite problem file
+V_RNXDIR       = ${D}/PGN;         DESCRIPTION=Directory with the RINEX files
+V_RNXSEL       = ;                 DESCRIPTION=Station selection file (blank: all)
+V_CLU          = 10;               DESCRIPTION=Files per parallel processing cluster
+V_FLT          = FLT;              DESCRIPTION=
+V_SAMPL        = 180;              DESCRIPTION=
+V_CLUEDT       = 5;                DESCRIPTION=
+V_GNSSAR       = GRE;              DESCRIPTION=
+V_BL_AMB       = 6000;             DESCRIPTION=
+V_BL_QIF       = 2000;             DESCRIPTION=
+V_BL_L53       = 200;              DESCRIPTION=
+V_BL_L12       = 20;               DESCRIPTION=
+V_FIN          = FIN;              DESCRIPTION=
+V_CLUFIN       = A;                DESCRIPTION=
+V_MINUS        = -6;               DESCRIPTION=
+V_PLUS         = +0;               DESCRIPTION=Session range end
+V_WK           = WK_;              DESCRIPTION=Weekly combined solution
+V_MO           = MO_;              DESCRIPTION=Monthly combined solution
+V_RESULT       = ${S}/SOB/$Y+0;    DESCRIPTION=Directory name for the results
+V_SAV          = Y;                DESCRIPTION=Save results (Y/N)?
+V_SAVOBS       = Y;                DESCRIPTION=Save observation files (Y/N)?
+V_RED          = RED;              DESCRIPTION=_Size-reduced NEQ information
+V_DEL          = Y;                DESCRIPTION=Delete result files in the campaign (Y/N)?

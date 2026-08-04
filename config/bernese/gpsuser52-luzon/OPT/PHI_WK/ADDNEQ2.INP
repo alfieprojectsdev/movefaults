@@ -1,0 +1,3784 @@
+
+! Some keywords for automatic output
+! ----------------------------------
+CAMPAIGN 1  "${P}/SAMR_LYT"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${P}/SAMR_LYT\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2019"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "2560"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! Environment variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "C:\Bernese\GPSUSER52"
+  "T" "C:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! =========================================================================
+! ADDNEQ2 1: Input Files
+! =========================================================================
+! Show all general files
+! ----------------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! Normal equations
+! ----------------
+INPFILE 3
+  "${P}/SAMR_LYT\SOL\$E192550.NQ0"
+  "${P}/SAMR_LYT\SOL\$E192560.NQ0"
+  "${P}/SAMR_LYT\SOL\$E192570.NQ0"
+  ## widget = selwin; path = DIR_NEQ; ext = EXT_NEQ
+  # $E$YSS~~
+
+MSG_INPFILE 1  "Normal equations"
+
+INPFILE_TXT_COL_1 1  "Name"
+
+! Variance rescaling factors
+! --------------------------
+COVCOMI 0
+  ## widget = selwin; path = DIR_WGT; ext = EXT_WGT; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_COVCOMI 1  "Variance rescaling factors"
+
+! Station coordinates
+! -------------------
+COORD 3
+  "${P}/SAMR_LYT\STA\$E192550.CRD"
+  "${P}/SAMR_LYT\STA\$E192560.CRD"
+  "${P}/SAMR_LYT\STA\$E192570.CRD"
+  ## widget = selwin; path = DIR_CRD; ext = EXT_CRD; maxfiles = 1
+  # $E$YSS~~
+
+DESCR_COORD 1  "Station coordinates"
+
+! Station velocities
+! ------------------
+VELAPR 0
+  ## widget = selwin; path = DIR_VEL; ext = EXT_VEL; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_VELAPR 1  "Station velocities"
+
+! Station information
+! -------------------
+STAINFO 1  "${P}/SAMR_LYT\STA\$(CRDINF).STA"
+  ## widget = selwin; path = DIR_STA; ext = EXT_STA; maxfiles = 1
+  ## emptyallowed = true
+  # $(CRDINF)
+
+DESCR_STAINFO 1  "Station information"
+
+! Troposphere estimates
+! ---------------------
+TROPEST 0
+  ## widget = selwin; path = DIR_TRP; ext = EXT_TRP; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_TROPEST 1  "Troposphere estimates"
+
+! Ionosphere master file
+! ----------------------
+IONOS 0
+  ## widget = selwin; path = DIR_ION; ext = EXT_ION; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_IONOS 1  "Ionosphere master file"
+
+! Differential code biases
+! ------------------------
+DCBINP 0
+  ## widget = selwin; path = DIR_DCB; ext = EXT_DCB; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_DCBINP 1  "Differential code biases"
+
+! Inter-system biases
+! -------------------
+ISBINP 0
+  ## widget = selwin; path = DIR_ISB; ext = EXT_ISB; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_ISBINP 1  "Inter-system biases"
+
+! Range biases (a priori)
+! -----------------------
+RGBINP 0
+  ## widget = selwin; path = DIR_RGB; ext = EXT_RGB; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_RGBINP 1  "SLR biases, CoM"
+
+! Earth rotation parameters
+! -------------------------
+POLE 0
+  ## widget = selwin; path = DIR_ERP; ext = EXT_ERP; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_POLE 1  "Earth rotation parameters"
+
+! Satellite Clock File, input
+! --------------------
+SATCLK 0
+  ## widget = selwin; path = DIR_CLK; ext = EXT_CLK; maxfiles = 1
+  ## emptyallowed = true; activeif = RXCLKIN = _
+  # 
+
+DESCR_SATCLK 1  "GNSS satellite clocks"
+
+! Clock RINEX File
+! ----------------
+RXCLKIN 0
+  ## widget = selwin; path = DIR_RXC; ext = EXT_RXC; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_RXCLKIN 1  "Clock RINEX file"
+
+! Geocenter coordinates
+! ---------------------
+GCCINP 0
+  ## widget = selwin; path = DIR_GCC; ext = EXT_GCC; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_GCCINP 1  "Geocenter coordinates"
+
+! Covariances (Coords)
+! --------------------
+COVARRS 0
+  ## widget = lineedit; path = DIR_COV; ext = EXT_COV
+  # 
+
+DESCR_COVARRS 1  "Var-covar w.r.t. coord."
+
+! Covariances (All)
+! -----------------
+COVTTRS 0
+  ## widget = lineedit; path = DIR_COV; ext = EXT_COV
+  # 
+
+DESCR_COVTTRS 1  "Full var-covar matrix"
+
+! Parameter estimates
+! -------------------
+PARAMIN 0
+  ## widget = selwin; path = DIR_EST; ext = EXT_EST; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_PARAMIN 1  "Parameter estimates"
+
+! =========================================================================
+! ADDNEQ2 1.1: General Files
+! =========================================================================
+! General constants
+! -----------------
+CONST 1  "${X}/GEN\CONST."
+  ## widget = selwin; path = PTH_GEN; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! Geodetic datum
+! --------------
+DATUM 1  "${X}/GEN\DATUM."
+  ## widget = selwin; path = PTH_GEN; maxfiles = 1
+  # DATUM.
+
+DESCR_DATUM 1  "Geodetic datum"
+
+! Phase center variations
+! -----------------------
+PHASECC 1  "${X}/GEN\$(PCVINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; maxfiles = 1; emptyallowed = true
+  # $(PCVINF).$(PCV)
+
+DESCR_PHASECC 1  "Phase center variations"
+
+! Satellite information
+! ---------------------
+SATELL 1  "${X}/GEN\$(SATINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; maxfiles = 1; emptyallowed = true
+  # $(SATINF).$(PCV)
+
+DESCR_SATELL 1  "Satellite information"
+
+! Receiver information
+! --------------------
+RECEIVR 1  "${X}/GEN\$(RECINF)"
+  ## widget = selwin; path = PTH_GEN; maxfiles = 1
+  # $(RECINF)
+
+DESCR_RECEIVR 1  "Receiver information"
+
+! Satellite problems
+! ------------------
+SATCRUX 1  "${X}/GEN\SAT_2019.CRX"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_CRX; maxfiles = 1
+  ## emptyallowed = true
+  # SAT_$Y+0
+
+DESCR_SATCRUX 1  "Satellite problems"
+
+! Subdaily pole model
+! -------------------
+SUBMOD 1  "${X}/GEN\IERS2010XY.SUB"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_SUB; maxfiles = 1
+  ## emptyallowed = true
+  # IERS2010XY
+
+DESCR_SUBMOD 1  "Subdaily pole model"
+
+! Nutation Model
+! -------------------
+NUTMOD 1  "${X}/GEN\IAU2000R06.NUT"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_NUT; maxfiles = 1
+  ## emptyallowed = true
+  # IAU2000R06
+
+DESCR_NUTMOD 1  "Nutation model"
+
+! Sinex header file
+! -----------------
+SINEXIN 1  "${X}/GEN\$(SNXINF)"
+  ## widget = selwin; path = PTH_GEN; maxfiles = 1; emptyallowed = true
+  # $(SNXINF)
+
+DESCR_SINEXIN 1  "SINEX general input file"
+
+! IONEX control file
+! ------------------
+IONEXCF 1  "${X}/GEN\IONEX."
+  ## widget = selwin; path = PTH_GEN; maxfiles = 1; emptyallowed = true
+  # IONEX.
+
+DESCR_IONEXCF 1  "IONEX control file"
+
+! Scratch file
+! ------------
+AUXFIL 1  "${U}/WORK\ADDNEQ2.SCR"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SCR; emptyallowed = false
+  # ADDNEQ2$J
+
+DESCR_AUXFIL 1  "Scratch file"
+
+DELETE_FILES 1  "AUXFIL"
+
+! =========================================================================
+! ADDNEQ2 2: Output Files
+! =========================================================================
+! Program output
+! --------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/SAMR_LYT\OUT\$L2070.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # $L$W+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error messages
+! --------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Normal equations
+! ----------------
+NEQOUT 1  "${P}/SAMR_LYT\SOL\$L2070.NQ0"
+  ## widget = lineedit; path = DIR_NEQ; ext = EXT_NEQ
+  # $L$W+0
+
+DESCR_NEQOUT 1  "Resulting normal equations"
+
+! Sinex
+! -----
+SNXCONT 1  "NEQ"
+  ## widget = combobox; activeif = SINEXRS /= _; cards = COV NEQ
+  ## editable = false
+
+MSG_SNXCONT 1  "Content of SINEX"
+
+SINEXRS 1  "${P}/SAMR_LYT\SOL\$L2070.SNX"
+  ## widget = lineedit; path = DIR_SNX; ext = EXT_SNX
+  # $L$W+0
+
+DESCR_SINEXRS 1  "SINEX"
+
+! Station coordinates
+! -------------------
+COORDRS 1  "${P}/SAMR_LYT\STA\$L2070.CRD"
+  ## widget = lineedit; path = DIR_CRD; ext = EXT_CRD
+  # $L$W+0
+
+DESCR_COORDRS 1  "Station coordinate results"
+
+! Velocities
+! ----------
+VELORS 0
+  ## widget = lineedit; path = DIR_VEL; ext = EXT_VEL
+  # 
+
+DESCR_VELORS 1  "Station velocity results"
+
+! Troposphere estimates
+! ---------------------
+TROPSAV 0
+  ## widget = lineedit; path = DIR_TRP; ext = EXT_TRP
+  # 
+
+DESCR_TROPSAV 1  "Troposphere estimates"
+
+! Troposphere SINEX
+! -----------------
+TROPSNX 0
+  ## widget = lineedit; path = DIR_TRO; ext = EXT_TRO
+  # 
+
+DESCR_TROPSNX 1  "Troposphere estimates (SINEX)"
+
+! Ionosphere models
+! -----------------
+IONOSRS 0
+  ## widget = lineedit; path = DIR_ION; ext = EXT_ION
+  # 
+
+DESCR_IONOSRS 1  "Ionosphere models"
+
+! IONEX
+! -----
+IONEXRS 0
+  ## widget = lineedit; path = DIR_INX; ext = EXT_INX
+  # 
+
+DESCR_IONEXRS 1  "IONEX"
+
+! Code biases
+! -----------
+DCBOUT 0
+  ## widget = lineedit; path = DIR_DCB; ext = EXT_DCB
+  # 
+
+DESCR_DCBOUT 1  "Code bias results"
+
+! Inter-system biases
+! -------------------
+ISBOUT 0
+  ## widget = lineedit; path = DIR_ISB; ext = EXT_ISB
+  # 
+
+DESCR_ISBOUT 1  "Inter-system biases (output)"
+
+! Range biases
+! ------------
+RGBOUT 0
+  ## widget = lineedit; path = DIR_RGB; ext = EXT_RGB
+  # 
+
+DESCR_RGBOUT 1  "SLR biases, CoM (output)"
+
+! BIAS SINEX
+! ----------
+BIASSNX 0
+  ## widget = lineedit; path = DIR_BIA; ext = EXT_BIA
+  # 
+
+MSG_BIASSNX 1  "BIAS SINEX"
+
+! Orbital elements
+! ----------------
+ELEFILE 0
+  ## widget = lineedit; path = DIR_ELE; ext = EXT_ELE
+  # 
+
+DESCR_ELEFILE 1  "Orbital elements"
+
+! Bernese ERP file
+! ----------------
+POLERS 0
+  ## widget = lineedit; path = DIR_ERP; ext = EXT_ERP
+  # 
+
+DESCR_POLERS 1  "Bernese ERP file"
+
+! IERS ERP file
+! -------------
+IERSPOL 0
+  ## widget = lineedit; path = DIR_IEP; ext = EXT_IEP
+  # 
+
+DESCR_IERSPOL 1  "IERS ERP file"
+
+! Geocenter coordinates
+! ---------------------
+GCCOUT 0
+  ## widget = lineedit; path = DIR_GCC; ext = EXT_GCC
+  # 
+
+DESCR_GCCOUT 1  "Geocenter coordinates"
+
+! Station residuals
+! -----------------
+PLOTRS 0
+  ## widget = lineedit; path = DIR_PLT; ext = EXT_PLT
+  # 
+
+DESCR_PLOTRS 1  "Station residuals"
+
+PLOT_ALL 0
+  ## widget = lineedit; path = DIR_PLT; ext = EXT_PLT
+  # 
+
+DESCR_PLOT_ALL 1  "All parameter residuals"
+
+! Weekly summary file
+! -------------------
+WEKSUM 0
+  ## widget = lineedit; path = DIR_SUM; ext = EXT_SUM
+  # 
+
+DESCR_WEKSUM 1  "Weekly summary file"
+
+! Variance rescaling factors (output)
+! -----------------------------------
+COVCOMO 0
+  ## widget = lineedit; path = DIR_WGT; ext = EXT_WGT; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_COVCOMO 1  "Variance rescaling factors"
+
+! PCV antenna models (output)
+! Phase center models
+! Phase center variations (grid)
+! ---------------------------
+PHASRSG 0
+  ## widget = lineedit; path = DIR_PHG; ext = EXT_PHG; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_PHASRSG 1  "Antenna model results"
+
+! Satellite Clock File, output
+! --------------------
+CLKSAV 0
+  ## widget = lineedit; path = DIR_CLK; ext = EXT_CLK
+  # 
+
+DESCR_CLKSAV 1  "Satellite clock file"
+
+! Clock RINEX File, output
+! ----------------
+CLKRNX 0
+  ## widget = lineedit; path = DIR_RXC; ext = EXT_RXC
+  # 
+
+DESCR_CLKRNX 1  "clock RINEX file"
+
+! Parameter estimates
+! -------------------
+PARAMRS 0
+  ## widget = lineedit; path = DIR_EST; ext = EXT_EST
+  # 
+
+DESCR_PARAMRS 1  "Parameter estimate results"
+
+! =========================================================================
+! ADDNEQ2 3.1: Options
+! =========================================================================
+! Title
+! -----
+TITLE 0
+  ## widget = lineedit
+  # 
+
+MSG_TITLE 1  "Title line"
+
+! Maximum number of parameters in combined NEQ
+! --------------------------------------------
+MAXPAR 1  "5000"
+  ## widget = spinbox; range = 500 20000 500; check_type = integer
+
+MSG_MAXPAR 1  "Maximum number of parameters in combined NEQ"
+
+! A priori sigma of unit weight
+! -----------------------------
+SIGMA0 1  "0.0010"
+  ## widget = lineedit; emptyallowed = false; check_type = real
+  ## check_min = 1e-20
+
+MSG_SIGMA0 1  "A priori sigma of unit weight"
+
+! Compute no inversion
+! ---------------------
+NOINV 1  "0"
+  ## widget = checkbox
+
+MSG_NOINV 1  "Compute no solution"
+
+! Compute and compare individual solutions
+! ----------------------------------------
+INDVSOL 1  "YES"
+  ## widget = combobox; editable = false
+  ## cards = NO YES HELMERT HLM_TRA HLM_ROT HLM_ALL; activeif = NOINV = 0
+
+MSG_INDVSOL 1  "Compute and compare individual solutions"
+
+! Reference epoch for the coordinates
+! -----------------------------------
+TIMREF 0
+  ## widget = lineedit; activeif = CRD_NINT == 1 AND NOINV = 0
+  ## check_type = date
+  # 
+
+MSG_TIMREF 1  "Reference epoch for station coordinates"
+
+! Estimate velocities
+! -------------------
+CRD_NINT 1  "0"
+  ## widget = checkbox
+
+MSG_CRD_NINT 1  "Set up station velocities"
+
+! Estimate geocenter coordinates
+! ------------------------------
+SETUP_GCC 1  "0"
+  ## widget = checkbox
+
+MSG_SETUP_GCC 1  "Set up Geocenter coordinates"
+
+! =========================================================================
+! ADDNEQ2 3.2: Options
+! =========================================================================
+! Provide extended output w.r.t. estimated parameters
+! ---------------------------------------------------
+PRT_EXT 1  "0"
+  ## widget = checkbox
+
+MSG_PRT_EXT 1  "Provide extended output w.r.t. estimated parameters"
+
+! Notify station inconsistencies between NEQs
+! -------------------------------------------
+PRT_SIC 1  "1"
+  ## widget = checkbox
+
+MSG_PRT_SIC 1  "Notify station inconsistencies between NEQs"
+
+! Notify changes due to station information file
+! ----------------------------------------------
+CRXWARN 1  "1"
+  ## widget = checkbox; activeif = STAINFO / _
+
+MSG_CRXWARN 1  "Notify changes due to station info file"
+
+! Print detailed list of all parameter manipulations
+! --------------------------------------------------
+PRT_PAR 1  "0"
+  ## widget = checkbox
+
+MSG_PRT_PAR 1  "Print detailed list of all parameter manipulations"
+
+! Regularize a priori constraint matrix
+! -------------------------------------
+SNXREG 1  "NO"
+  ## widget = combobox; cards = NO YES
+  ## activeif = SINEXRS /= _ AND NOINV = 0
+
+MSG_SNXREG 1  "Regularize a priori constraint matrix"
+
+! Sort stations according to DOMES code
+! -------------------------------------
+STASORT 1  "0"
+  ## widget = checkbox; activeif = SINEXRS /= _
+
+MSG_STASORT 1  "Sort stations according to DOMES code"
+
+! Include ADDNEQ1-style statistics block
+! --------------------------------------
+HEUREF 1  "0"
+  ## widget = checkbox; activeif = SINEXRS /= _
+
+MSG_HEUREF 1  "Include ADDNEQ1-style statistics block"
+
+! Do not write non-calibrated antenna/radome codes
+! ------------------------------------------------
+ANTRED 1  "0"
+  ## widget = checkbox; activeif = SINEXRS /= _
+
+MSG_ANTRED 1  "Do not write non-calibrated antenna/radome codes"
+
+! Transform ERP parameter to offset/drift representation
+! ------------------------------------------------------
+ERPREP 1  "0"
+  ## widget = checkbox; activeif = SINEXRS /= _
+
+MSG_ERPREP 1  "Transform ERP to offset/drift representation"
+
+! Truncate all NEQ station names after position 14
+! ------------------------------------------------
+NO_ABC 1  "NO"
+  ## widget = combobox; cards = NO YES; editable = true
+
+MSG_NO_ABC 1  "Truncate all NEQ station names after position 14"
+
+! Keep input NEQs in alphabetical order
+! -------------------------------------
+NOCHRONO 1  "0"
+  ## widget = checkbox
+
+MSG_NOCHRONO 1  "Keep input NEQs in alphabetical order"
+
+! Write coordinates/velocities as ... in var-covar files
+! ------------------------------------------------------
+COVMODE 1  "CRD/VEL"
+  ## widget = combobox; cards = CRD/VEL CRD/CRD; editable = false
+  ## activeif = COVARRS / _ OR COVTTRS / _ AND CRD_NINT = 1
+
+MSG_COVMODE 1  "Write coordinates and velocities in var-covar files as"
+
+! Eliminate station parameters in case of equipement changes
+! ----------------------------------------------------------
+CRXREC 1  "NEVER"
+  ## widget = combobox; cards = NEVER TYPE TYPE_OR_NUMBER; editable = false
+  ## activeif = STAINFO / _
+
+MSG_CRXREC 1  "Remove station in case of receiver change"
+
+CRXANT 1  "NEVER"
+  ## widget = combobox; editable = false
+  ## cards = NEVER TYPE TYPE_OR_ECCENT TYPE_OR_ECCENT_OR_NUMBER
+  ## activeif = STAINFO / _
+
+MSG_CRXANT 1  "Remove station in case of antenna change"
+
+! Correct step2 tide bug
+! ----------------------
+STEP2 1  "0"
+  ## widget = checkbox
+
+MSG_STEP2 1  "Correct step2 tide bug"
+
+STEP2A 0
+  ## widget = lineedit; emptyallowed = true; check_type = date
+  ## activeif = STEP2 == 1
+
+MSG_STEP2A 1  "Step2 tide bug start MJD"
+
+STEP2B 0
+  ## widget = lineedit; emptyallowed = true; check_type = date
+  ## activeif = STEP2 == 1
+
+MSG_STEP2B 1  "Step2 tide bug end MJD"
+
+! =========================================================================
+! ADDNEQ2 4: Comparison of Individual Solutions
+! =========================================================================
+! Minimum number of solutions for each station
+! --------------------------------------------
+MINSOL 1  "0"
+  ## widget = spinbox; range = 0 9999 1; check_type = integer
+
+MSG_MINSOL 1  "Minimum number of solutions for each station"
+
+! Maximum tolerated residual
+! --------------------------
+BADSOL_N 1  "15"
+  ## widget = lineedit; emptyallowed = true; check_type = real
+  ## check_min = 0
+
+MSG_BADSOL_N 1  "Maximum tolerated residual: North"
+
+BADSOL_E 1  "15"
+  ## widget = lineedit; emptyallowed = true: check_type = real
+  ## check_min = 0
+
+MSG_BADSOL_E 1  "Maximum tolerated residual: East"
+
+BADSOL_U 1  "30"
+  ## widget = lineedit; emptyallowed = true; check_type = real
+  ## check_min = 0
+
+MSG_BADSOL_U 1  "Maximum tolerated residual: Up"
+
+! Maximum tolerated root-mean-square error
+! ----------------------------------------
+BADSOLRN 1  "10"
+  ## widget = lineedit; emptyallowed = true; check_type = real
+  ## check_min = 0
+
+MSG_BADSOLRN 1  "Maximum tolerated RMS error: North"
+
+BADSOLRE 1  "10"
+  ## widget = lineedit; emptyallowed = true; check_type = real
+  ## check_min = 0
+
+MSG_BADSOLRE 1  "Maximum tolerated RMS error: East"
+
+BADSOLRU 1  "20"
+  ## widget = lineedit; emptyallowed = true; check_type = real
+  ## check_min = 0
+
+MSG_BADSOLRU 1  "Maximum tolerated RMS error: Up"
+
+! =========================================================================
+! ADDNEQ2 5: Datum Definition for Coordinates
+! =========================================================================
+! Datum definition type
+! ---------------------
+RADIO2_4 1  "0"
+  ## widget = radiobutton; group = DUMMY
+
+MSG_RADIO2_4 1  "Free network solution"
+
+RADIO2_3 1  "1"
+  ## widget = radiobutton; group = DUMMY
+  ## radiokeys = FREESTA C_TRA C_ROT C_SCL
+
+MSG_RADIO2_3 1  "Minimum constraint solution"
+
+RADIO2_2 1  "0"
+  ## widget = radiobutton; group = DUMMY; radiokeys = SIGSTA
+
+MSG_RADIO2_2 1  "Coordinates constrained"
+
+RADIO2_1 1  "0"
+  ## widget = radiobutton; group = DUMMY; radiokeys = FIXSTA
+
+MSG_RADIO2_1 1  "Coordinates fixed"
+
+FREESTA 1  "FROM_FILE"
+  ## widget = combobox; editable = false
+  ## cards = ALL MANUAL FROM_FILE WITH_FLAG
+
+MSG_FREESTA 1  "Minimum constraint solution"
+
+SIGSTA 1  "MANUAL"
+  ## widget = combobox; editable = false
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG
+
+MSG_SIGSTA 1  "Coordinates constrained"
+
+FIXSTA 1  "MANUAL"
+  ## widget = combobox; editable = false
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG
+
+MSG_FIXSTA 1  "Coordinates fixed"
+
+! Minimum constraint conditions
+! -----------------------------
+C_TRA 1  "YES"
+  ## widget = combobox; cards = YES NO
+
+MSG_C_TRA 1  "Translation"
+
+C_ROT 1  "NO"
+  ## widget = combobox; cards = YES NO
+
+MSG_C_ROT 1  "Rotation"
+
+C_SCL 1  "NO"
+  ## widget = combobox; cards = YES NO
+
+MSG_C_SCL 1  "Scale"
+
+! A priori sigmas
+! ---------------
+C_SIGMAN 1  "0.001"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = SIGSTA /= FROM_FILE AND RADIO2_2 = 1
+
+MSG_C_SIGMAN 1  "North"
+
+C_SIGMAE 1  "0.001"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = SIGSTA /= FROM_FILE AND RADIO2_2 = 1
+
+MSG_C_SIGMAE 1  "East"
+
+C_SIGMAU 1  "0.001"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = SIGSTA /= FROM_FILE AND RADIO2_2 = 1
+
+MSG_C_SIGMAU 1  "Up"
+
+! =========================================================================
+! ADDNEQ2 5.1: Datum Definition for Coordinates
+! =========================================================================
+! Stations considered for minimum constraint conditions
+! -----------------------------------------------------
+FREESTA_L 0
+  ## widget = selwin; activeif = FREESTA == MANUAL AND RADIO2_3 == 1
+  ## pointer = STALST
+  # 
+
+MSG_FREESTA_L 1  "Manual selection"
+
+FREESTA_F 1  "${P}/SAMR_LYT\STA\REF192560.FIX"
+  ## widget = selwin; activeif = FREESTA == FROM_FILE AND RADIO2_3 == 1
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # REF$YSS+0
+
+MSG_FREESTA_F 1  "List of stations from file"
+
+FREESTA_G 0
+  ## widget = lineedit; activeif = FREESTA == WITH_FLAG AND RADIO2_3 == 1
+  # 
+
+MSG_FREESTA_G 1  "Stations with specific flags in CRD file"
+
+! Station coordinates to be constrained
+! -------------------------------------
+STATION4 0
+  ## widget = selwin; activeif = SIGSTA == MANUAL AND RADIO2_2 == 1
+  ## pointer = STALST
+
+MSG_STATION4 1  "Manual selection"
+
+STAFILE4 0
+  ## widget = selwin; activeif = SIGSTA == FROM_FILE AND RADIO2_2 == 1
+  ## path = DIR_SIG; ext = EXT_SIG; maxfiles = 1
+  # 
+
+MSG_STAFILE4 1  "List of stations (and sigmas) from file"
+
+STAFLAG4 0
+  ## widget = lineedit; activeif = SIGSTA == WITH_FLAG AND RADIO2_2 == 1
+  # 
+
+MSG_STAFLAG4 1  "Stations with specific flags in CRD file"
+
+! Station coordinates to be fixed
+! -------------------------------
+STATION1 0
+  ## widget = selwin; activeif = FIXSTA == MANUAL AND RADIO2_1 == 1
+  ## pointer = STALST
+
+MSG_STATION1 1  "Manual selection"
+
+STAFILE1 0
+  ## widget = selwin; activeif = FIXSTA == FROM_FILE AND RADIO2_1 == 1
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_STAFILE1 1  "List of stations from file"
+
+STAFLAG1 0
+  ## widget = lineedit; activeif = FIXSTA == WITH_FLAG AND RADIO2_1 == 1
+  # 
+
+MSG_STAFLAG1 1  "Stations with specific flags in CRD file"
+
+! =========================================================================
+! ADDNEQ2 6: Datum Definition for Velocities
+! =========================================================================
+! Datum definition type
+! ---------------------
+RADIO3_4 1  "0"
+  ## widget = radiobutton; group = DUMMY
+
+MSG_RADIO3_4 1  "Free network solution"
+
+RADIO3_3 1  "0"
+  ## widget = radiobutton; group = DUMMY
+  ## radiokeys = FREEVEL V_TRA V_ROT V_SCL
+
+MSG_RADIO3_3 1  "Minimum constraint solution"
+
+RADIO3_2 1  "1"
+  ## widget = radiobutton; group = DUMMY; radiokeys = SIGVEL
+
+MSG_RADIO3_2 1  "Velocities constrained"
+
+RADIO3_1 1  "0"
+  ## widget = radiobutton; group = DUMMY; radiokeys = FIXVEL
+
+MSG_RADIO3_1 1  "Velocities fixed"
+
+FREEVEL 1  "MANUAL"
+  ## widget = combobox; editable = false
+  ## cards = ALL MANUAL FROM_FILE WITH_FLAG
+
+MSG_FREEVEL 1  "Minimum constraint solution"
+
+SIGVEL 1  "MANUAL"
+  ## widget = combobox; editable = false
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG
+
+MSG_SIGVEL 1  "Velocities constrained"
+
+FIXVEL 1  "MANUAL"
+  ## widget = combobox; editable = false
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG
+
+MSG_FIXVEL 1  "Velocities fixed"
+
+! Minimum constraint conditions
+! -----------------------------
+V_TRA 1  "YES"
+  ## widget = combobox; cards = YES NO
+
+MSG_V_TRA 1  "Translation"
+
+V_ROT 1  "NO"
+  ## widget = combobox; cards = YES NO
+
+MSG_V_ROT 1  "Rotation"
+
+V_SCL 1  "NO"
+  ## widget = combobox; cards = YES NO
+
+MSG_V_SCL 1  "Scale"
+
+! A priori sigmas
+! ---------------
+V_SIGMAN 1  "0.0001"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = SIGVEL /= FROM_FILE AND RADIO3_2 = 1
+
+MSG_V_SIGMAN 1  "North"
+
+V_SIGMAE 1  "0.0001"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = SIGVEL /= FROM_FILE AND RADIO3_2 = 1
+
+MSG_V_SIGMAE 1  "East"
+
+V_SIGMAU 1  "0.0001"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = SIGVEL /= FROM_FILE AND RADIO3_2 = 1
+
+MSG_V_SIGMAU 1  "Up"
+
+! =========================================================================
+! ADDNEQ2 6.1: Datum Definition for Velocities
+! =========================================================================
+! Stations considered for minimum constraint conditions
+! -----------------------------------------------------
+FREEVEL_L 0
+  ## widget = selwin; activeif = FREEVEL == MANUAL AND RADIO3_3 == 1
+  ## pointer = STALST
+
+MSG_FREEVEL_L 1  "Manual selection"
+
+FREEVEL_F 0
+  ## widget = selwin; activeif = FREEVEL == FROM_FILE AND RADIO3_3 == 1
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1; emptyallowed = true
+  # 
+
+MSG_FREEVEL_F 1  "List of stations from file"
+
+FREEVEL_G 0
+  ## widget = lineedit; activeif = FREEVEL == WITH_FLAG AND RADIO3_3 == 1
+  # 
+
+MSG_FREEVEL_G 1  "Stations with specific flags in VEL file"
+
+! Station velocities to be constrained
+! ------------------------------------
+VELOCITY4 0
+  ## widget = selwin
+  ## activeif = CRD_NINT == 1 AND SIGVEL == MANUAL AND RADIO3_2 == 1
+  ## pointer = STALST
+
+MSG_VELOCITY4 1  "Manual selection"
+
+VELFILE4 0
+  ## widget = selwin; activeif = SIGVEL == FROM_FILE AND RADIO3_2 == 1
+  ## path = DIR_SIG; ext = EXT_SIG; maxfiles = 1; emptyallowed = true
+  # 
+
+MSG_VELFILE4 1  "List of stations (and sigmas) from file"
+
+VELFLAG4 0
+  ## widget = lineedit; activeif = SIGVEL == WITH_FLAG AND RADIO3_2 == 1
+  # 
+
+MSG_VELFLAG4 1  "Stations with specific flags in VEL file"
+
+! Station velocities to be fixed
+! ------------------------------
+VELOCITY1 0
+  ## widget = selwin; activeif = FIXVEL == MANUAL AND RADIO3_1 == 1
+  ## pointer = STALST
+
+MSG_VELOCITY1 1  "Manual selection"
+
+VELFILE1 0
+  ## widget = selwin; activeif = FIXVEL == FROM_FILE AND RADIO3_1 == 1
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_VELFILE1 1  "List of stations from file"
+
+VELFLAG1 0
+  ## widget = lineedit; activeif = FIXVEL == WITH_FLAG AND RADIO3_1 == 1
+  # 
+
+MSG_VELFLAG1 1  "Stations with specific flags in VEL file"
+
+! =========================================================================
+! ADDNEQ2 7.1: Parameter Pre-elimination
+! =========================================================================
+! Station-related parameters: Station coordinates
+! -----------------------------------------------
+CRD_ELIM 1  "NO"
+  ## widget = combobox; editable = false
+  ## cards =  "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+
+MSG_CRD_ELIM 1  "Station coordinates"
+
+CRD_EXCP 0
+  ## widget = lineedit
+  ## activeif = CRD_ELIM == BEFORE_STACKING OR CRD_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_CRD_EXCP 1  "Except for files: Station coordinates"
+
+CRD_EXST 1  "0"
+  ## widget = checkbox; activeif = CRD_ELIM /= NO AND CRD_ELIM / _
+
+MSG_CRD_EXST 1  "Except for stations: Atmospheric pressure loading"
+
+CRD_EXSEL 1  "FROM_FILE"
+  ## widget = combobox; activeif = CRD_ELIM /= NO AND CRD_EXST = 1
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG; editable = false
+
+MSG_CRD_EXSEL 1  "Selection for station exceptions: station coordinates"
+
+CRD_EXMAN 0
+  ## widget = selwin
+  ## activeif = CRD_ELIM /= NO AND CRD_EXST = 1 AND CRD_EXSEL = MANUAL
+  ## pointer = STALST
+
+MSG_CRD_EXMAN 1  "Manual selection for station exceptions: station coordinates"
+
+CRD_EXFIL 0
+  ## widget = selwin
+  ## activeif = CRD_ELIM /= NO AND CRD_EXST = 1 AND CRD_EXSEL = FROM_FILE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_CRD_EXFIL 1  "Selection for station exceptions from file: station coordinates"
+
+CRD_EXFLG 0
+  ## widget = lineedit
+  ## activeif = CRD_ELIM /= NO AND CRD_EXST = 1 AND CRD_EXSEL = WITH_FLAG
+
+MSG_CRD_EXFLG 1  "Selection for station exceptions from flag: station coordinates"
+
+! Station-related parameters: Receiver clock bias/offsets
+! -------------------------------------------------------
+CLK_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_CLK_ELIM 1  "GLONASS receiver clock biases"
+
+CLK_EXCP 0
+  ## widget = lineedit
+  ## activeif = CLK_ELIM == BEFORE_STACKING OR CLK_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_CLK_EXCP 1  "Except for files: Receiver clock offsets"
+
+CLK_EXST 1  "0"
+  ## widget = checkbox; activeif = CLK_ELIM /= NO AND CLK_ELIM / _
+
+MSG_CLK_EXST 1  "Except for stations: Atmospheric pressure loading"
+
+CLK_EXSEL 1  "FROM_FILE"
+  ## widget = combobox; activeif = CLK_ELIM /= NO AND CLK_EXST = 1
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG; editable = false
+
+MSG_CLK_EXSEL 1  "Selection for station exceptions: receiver clock offsets"
+
+CLK_EXMAN 0
+  ## widget = selwin
+  ## activeif = CLK_ELIM /= NO AND CLK_EXST = 1 AND CLK_EXSEL = MANUAL
+  ## pointer = CLKLST
+
+MSG_CLK_EXMAN 1  "Manual selection for station exceptions: receiver clock offsets"
+
+CLK_EXFIL 0
+  ## widget = selwin
+  ## activeif = CLK_ELIM /= NO AND CLK_EXST = 1 AND CLK_EXSEL = FROM_FILE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_CLK_EXFIL 1  "Selection for station exceptions from file: receiver clock offsets"
+
+CLK_EXFLG 0
+  ## widget = lineedit
+  ## activeif = CLK_ELIM /= NO AND CLK_EXST = 1 AND CLK_EXSEL = WITH_FLAG
+
+MSG_CLK_EXFLG 1  "Selection for station exceptions from flag: receiver clock offsets"
+
+! Station-related parameters: Inter-system bias
+! ----------------------------------------------
+ISB_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_ISB_ELIM 1  "Time-dependent GLONASS ISB"
+
+ISB_EXCP 0
+  ## widget = lineedit
+  ## activeif = ISB_ELIM == BEFORE_STACKING OR CLK_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_ISB_EXCP 1  "Except for files: inter-system bias"
+
+ISB_EXST 1  "0"
+  ## widget = checkbox; activeif = ISB_ELIM /= NO AND ISB_ELIM / _
+
+MSG_ISB_EXST 1  "Except for stations: Atmospheric pressure loading"
+
+ISB_EXSEL 1  "FROM_FILE"
+  ## widget = combobox; activeif = ISB_ELIM /= NO AND ISB_EXST = 1
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG; editable = false
+
+MSG_ISB_EXSEL 1  "Selection for station exceptions: inter-system bias"
+
+ISB_EXMAN 0
+  ## widget = selwin
+  ## activeif = ISB_ELIM /= NO AND ISB_EXST = 1 AND ISB_EXSEL = MANUAL
+  ## pointer = CLKLST
+
+MSG_ISB_EXMAN 1  "Manual selection for station exceptions: inter-system bias"
+
+ISB_EXFIL 0
+  ## widget = selwin
+  ## activeif = ISB_ELIM /= NO AND ISB_EXST = 1 AND ISB_EXSEL = FROM_FILE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_ISB_EXFIL 1  "Selection for station exceptions from file: inter-system bias"
+
+ISB_EXFLG 0
+  ## widget = lineedit
+  ## activeif = ISB_ELIM /= NO AND ISB_EXST = 1 AND ISB_EXSEL = WITH_FLAG
+
+MSG_ISB_EXFLG 1  "Selection for station exceptions from flag: inter-system bias"
+
+! Station-related parameters: Receiver antenna offsets
+! ----------------------------------------------------
+RAO_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_RAO_ELIM 1  "Receiver antenna offsets"
+
+RAO_EXCP 0
+  ## widget = lineedit
+  ## activeif = RAO_ELIM == BEFORE_STACKING OR RAO_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_RAO_EXCP 1  "Except for files: Receiver antenna offsets"
+
+! Station-related parameters: Receiver antenna pattern
+! ----------------------------------------------------
+RAP_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_RAP_ELIM 1  "Receiver antenna pattern"
+
+RAP_EXCP 0
+  ## widget = lineedit
+  ## activeif = RAP_ELIM == BEFORE_STACKING OR RAP_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_RAP_EXCP 1  "Except for files: Receiver antenna pattern"
+
+! Station-related parameters: Receiver DCB parameter
+! --------------------------------------------------
+DCBR_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_DCBR_ELIM 1  "Receiver DCB parameters"
+
+DCBR_EXCP 0
+  ## widget = lineedit
+  ## activeif = DCBR_ELIM == BEFORE_STACKING OR DCBR_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_DCBR_EXCP 1  "Except for files: Receiver DCB parameters"
+
+DCBR_EXST 1  "0"
+  ## widget = checkbox; activeif = DCBR_ELIM /= NO AND DCBR_ELIM / _
+
+MSG_DCBR_EXST 1  "Except for stations: Atmospheric pressure loading"
+
+DCBR_EXSEL 1  "FROM_FILE"
+  ## widget = combobox; activeif = DCBR_ELIM /= NO AND DCBR_EXST = 1
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG; editable = false
+
+MSG_DCBR_EXSEL 1  "Selection for station exceptions: receiver DCB parameters"
+
+DCBR_EXMAN 0
+  ## widget = selwin
+  ## activeif = DCBR_ELIM /= NO AND DCBR_EXST = 1 AND DCBR_EXSEL = MANUAL
+  ## pointer = DCBRLST
+
+MSG_DCBR_EXMAN 1  "Manual selection for station exceptions: receiver DCB parameters"
+
+DCBR_EXFIL 0
+  ## widget = selwin
+  ## activeif = DCBR_ELIM /= NO AND DCBR_EXST = 1 AND DCBR_EXSEL = FROM_FILE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_DCBR_EXFIL 1  "Selection for station exceptions from file: receiver DCB parameters"
+
+DCBR_EXFLG 0
+  ## widget = lineedit
+  ## activeif = DCBR_ELIM /= NO AND DCBR_EXST = 1 AND DCBR_EXSEL = WITH_FLAG
+
+MSG_DCBR_EXFLG 1  "Selection for station exceptions from flag: receiver DCB parameters"
+
+! Station-related parameters: GNSS-specific station translation
+! -------------------------------------------------------------
+GTRA_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_GTRA_ELIM 1  "GNSS-specific station translation"
+
+GTRA_EXCP 0
+  ## widget = lineedit
+  ## activeif = GTRA_ELIM == BEFORE_STACKING OR GTRA_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_GTRA_EXCP 1  "Except for files: GNSS-specific station translation"
+
+GTRA_EXST 1  "0"
+  ## widget = checkbox; activeif = GTRA_ELIM /= NO AND GTRA_ELIM / _
+
+MSG_GTRA_EXST 1  "Except for stations: GNSS-specific station translations"
+
+GTRA_EXSEL 1  "FROM_FILE"
+  ## widget = combobox; activeif = GTRA_ELIM /= NO AND GTRA_EXST = 1
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG; editable = false
+
+MSG_GTRA_EXSEL 1  "Selection for station exceptions: GNSS-spec translations"
+
+GTRA_EXMAN 0
+  ## widget = selwin
+  ## activeif = GTRA_ELIM /= NO AND GTRA_EXST = 1 AND GTRA_EXSEL = MANUAL
+  ## pointer = GSPLST
+
+MSG_GTRA_EXMAN 1  "Manual selection for station exceptions: GNSS-spec translations"
+
+GTRA_EXFIL 0
+  ## widget = selwin
+  ## activeif = GTRA_ELIM /= NO AND GTRA_EXST = 1 AND GTRA_EXSEL = FROM_FILE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_GTRA_EXFIL 1  "Selection for station exceptions from file: GNSS-spec translations"
+
+GTRA_EXFLG 0
+  ## widget = lineedit
+  ## activeif = GTRA_ELIM /= NO AND GTRA_EXST = 1 AND GTRA_EXSEL = WITH_FLAG
+
+MSG_GTRA_EXFLG 1  "Selection for station exceptions from flag: GNSS-spec translations"
+
+! Station-related parameters: GNSS-specific troposphere biases
+! ------------------------------------------------------------
+GTRP_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_GTRP_ELIM 1  "GNSS-specific ZPD bias"
+
+GTRP_EXCP 0
+  ## widget = lineedit
+  ## activeif = GTRP_ELIM == BEFORE_STACKING OR GTRP_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_GTRP_EXCP 1  "Except for files: GNSS-specific ZPD bias"
+
+GTRP_EXST 1  "0"
+  ## widget = checkbox; activeif = GTRP_ELIM /= NO AND GTRP_ELIM / _
+
+MSG_GTRP_EXST 1  "Except for stations: GNSS-specific ZPD bias"
+
+GTRP_EXSEL 1  "FROM_FILE"
+  ## widget = combobox; activeif = GTRP_ELIM /= NO AND GTRP_EXST = 1
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG; editable = false
+
+MSG_GTRP_EXSEL 1  "Selection for station exceptions: GNSS-spec ZPD bias"
+
+GTRP_EXMAN 0
+  ## widget = selwin
+  ## activeif = GTRP_ELIM /= NO AND GTRP_EXST = 1 AND GTRP_EXSEL = MANUAL
+  ## pointer = GSPLST
+
+MSG_GTRP_EXMAN 1  "Manual selection for station exceptions: GNSS-spec ZPD bias"
+
+GTRP_EXFIL 0
+  ## widget = selwin
+  ## activeif = GTRP_ELIM /= NO AND GTRP_EXST = 1 AND GTRP_EXSEL = FROM_FILE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_GTRP_EXFIL 1  "Selection for station exceptions from file: GNSS-spec ZPD bias"
+
+GTRP_EXFLG 0
+  ## widget = lineedit
+  ## activeif = GTRP_ELIM /= NO AND GTRP_EXST = 1 AND GTRP_EXSEL = WITH_FLAG
+
+MSG_GTRP_EXFLG 1  "Selection for station exceptions from flag: GNSS-spec ZPD bias"
+
+! Station-related parameters: Range biases
+! ----------------------------------------
+RNG_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_RNG_ELIM 1  "Range biases"
+
+RNG_EXCP 0
+  ## widget = lineedit
+  ## activeif = RNG_ELIM == BEFORE_STACKING OR RNG_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_RNG_EXCP 1  "Except for files: Range biases"
+
+! Atmospheric parameters: Troposphere ZPD
+! ---------------------------------------
+TRP_ELIM 1  "BEFORE_STACKING"
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+
+MSG_TRP_ELIM 1  "Troposphere zenith path delays"
+
+TRP_EXCP 0
+  ## widget = lineedit
+  ## activeif = TRP_ELIM == BEFORE_STACKING OR TRP_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_TRP_EXCP 1  "Except for files: troposphere ZPDs"
+
+TRP_EXST 1  "0"
+  ## widget = checkbox; activeif = TRP_ELIM /= NO AND TRP_ELIM / _
+
+MSG_TRP_EXST 1  "Except for stations: troposphere ZPDs"
+
+TRP_EXSEL 1  "FROM_FILE"
+  ## widget = combobox; activeif = TRP_ELIM /= NO AND TRP_EXST = 1
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG; editable = false
+
+MSG_TRP_EXSEL 1  "Selection for station exceptions: troposphere ZPDs"
+
+TRP_EXMAN 0
+  ## widget = selwin
+  ## activeif = TRP_ELIM /= NO AND TRP_EXST = 1 AND TRP_EXSEL = MANUAL
+  ## pointer = TRPLST
+
+MSG_TRP_EXMAN 1  "Manual selection for station exceptions: troposphere ZPDs"
+
+TRP_EXFIL 0
+  ## widget = selwin
+  ## activeif = TRP_ELIM /= NO AND TRP_EXST = 1 AND TRP_EXSEL = FROM_FILE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_TRP_EXFIL 1  "Selection for station exceptions from file: troposphere ZPDs"
+
+TRP_EXFLG 0
+  ## widget = lineedit
+  ## activeif = TRP_ELIM /= NO AND TRP_EXST = 1 AND TRP_EXSEL = WITH_FLAG
+
+MSG_TRP_EXFLG 1  "Selection for station exceptions from flag: troposphere ZPDs"
+
+! Atmospheric parameters: Troposphere gradient
+! --------------------------------------------
+GRD_ELIM 1  "BEFORE_STACKING"
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+
+MSG_GRD_ELIM 1  "Troposphere gradients"
+
+GRD_EXCP 0
+  ## widget = lineedit
+  ## activeif = GRD_ELIM == BEFORE_STACKING OR GRD_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_GRD_EXCP 1  "Except for files: Troposphere gradients"
+
+GRD_EXST 1  "0"
+  ## widget = checkbox; activeif = GRD_ELIM /= NO AND GRD_ELIM / _
+
+MSG_GRD_EXST 1  "Except for stations: troposphere gradients"
+
+GRD_EXSEL 1  "FROM_FILE"
+  ## widget = combobox; activeif = GRD_ELIM /= NO AND GRD_EXST = 1
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG; editable = false
+
+MSG_GRD_EXSEL 1  "Selection for station exceptions: troposphere gradients"
+
+GRD_EXMAN 0
+  ## widget = selwin
+  ## activeif = GRD_ELIM /= NO AND GRD_EXST = 1 AND GRD_EXSEL = MANUAL
+  ## pointer = TRPLST
+
+MSG_GRD_EXMAN 1  "Manual selection for station exceptions: troposphere gradients"
+
+GRD_EXFIL 0
+  ## widget = selwin
+  ## activeif = GRD_ELIM /= NO AND GRD_EXST = 1 AND GRD_EXSEL = FROM_FILE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_GRD_EXFIL 1  "Selection for station exceptions from file: troposphere gradients"
+
+GRD_EXFLG 0
+  ## widget = lineedit
+  ## activeif = GRD_ELIM /= NO AND GRD_EXST = 1 AND GRD_EXSEL = WITH_FLAG
+
+MSG_GRD_EXFLG 1  "Selection for station exceptions from flag: troposphere gradients"
+
+! Atmospheric parameters: Ionosphere models
+! -----------------------------------------
+GIM_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_GIM_ELIM 1  "Global ionosphere parameters"
+
+GIM_EXCP 0
+  ## widget = lineedit
+  ## activeif = GIM_ELIM == BEFORE_STACKING OR GIM_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_GIM_EXCP 1  "Except for files: Global ionosphere parameters"
+
+HOI_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_HOI_ELIM 1  "HOI scaling factors"
+
+HOI_EXCP 0
+  ## widget = lineedit
+  ## activeif = HOI_ELIM == BEFORE_STACKING OR HOI_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_HOI_EXCP 1  "Except for files: HOI scaling factors"
+
+! Helmert parameters
+! ------------------
+TRANS_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_TRANS_ELIM 1  "Helmert: Translations"
+
+TRANS_EXCP 0
+  ## widget = lineedit
+  ## activeif = TRANS_ELIM == BEFORE_STACKING OR TRANS_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_TRANS_EXCP 1  "Except for files: Helmert translations"
+
+ROT_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_ROT_ELIM 1  "Helmert: Rotations"
+
+ROT_EXCP 0
+  ## widget = lineedit
+  ## activeif = ROT_ELIM == BEFORE_STACKING OR ROT_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_ROT_EXCP 1  "Except for files: Helmert rotations"
+
+SCALE_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_SCALE_ELIM 1  "Helmert: Scale"
+
+SCALE_EXCP 0
+  ## widget = lineedit
+  ## activeif = SCALE_ELIM == BEFORE_STACKING OR SCALE_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_SCALE_EXCP 1  "Except for files: Helmert scale"
+
+! =========================================================================
+! ADDNEQ2 7.2: Parameter Pre-elimination
+! =========================================================================
+! Satellite-related parameters: dynamical orbit parameters
+! --------------------------------------------------------
+ORB_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_ORB_ELIM 1  "Orbital elements"
+
+ORB_EXCP 0
+  ## widget = lineedit
+  ## activeif = ORB_ELIM == BEFORE_STACKING OR ORB_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_ORB_EXCP 1  "Except for files: Orbital elements"
+
+! Satellite-related parameters: stochastic orbit parameters
+! ---------------------------------------------------------
+STO_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_STO_ELIM 1  "Stochastic pulses"
+
+STO_EXCP 0
+  ## widget = lineedit
+  ## activeif = STO_ELIM == BEFORE_STACKING OR STO_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_STO_EXCP 1  "Except for files: Stochastic pulses"
+
+! Satellite-related parameters: satellite antenna offsets
+! -------------------------------------------------------
+ANT_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_ANT_ELIM 1  "Satellite antenna offsets"
+
+ANT_EXCP 0
+  ## widget = lineedit
+  ## activeif = ANT_ELIM == BEFORE_STACKING OR ANT_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_ANT_EXCP 1  "Except for files: Satellite antenna offsets"
+
+ANTX_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_ANTX_ELIM 1  "Satellite antenna offsets (XY)"
+
+ANTX_EXCP 0
+  ## widget = lineedit
+  ## activeif = ANTX_ELIM == BEFORE_STACKING OR ANTX_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_ANTX_EXCP 1  "Except for files: Satellite antenna offsets (XY)"
+
+! Satellite-related parameters: satellite antenna pattern
+! -------------------------------------------------------
+SPV_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_SPV_ELIM 1  "Satellite antenna variations"
+
+SPV_EXCP 0
+  ## widget = lineedit
+  ## activeif = SPV_ELIM == BEFORE_STACKING OR SPV_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_SPV_EXCP 1  "Except for files: Satellite antenna variations"
+
+! Satellite-related parameters: satellite DCB
+! -------------------------------------------
+DCBS_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_DCBS_ELIM 1  "Satellite DCB parameters"
+
+DCBS_EXCP 0
+  ## widget = lineedit
+  ## activeif = DCBS_ELIM == BEFORE_STACKING OR DCBS_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_DCBS_EXCP 1  "Except for files: Satellite DCB parameters"
+
+! Earth orientation parameters (Polar motion)
+! -------------------------------------------
+ERP_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_ERP_ELIM 1  "Earth rotation parameters (Pole)"
+
+ERP_EXCP 0
+  ## widget = lineedit
+  ## activeif = ERP_ELIM == BEFORE_STACKING OR ERP_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_ERP_EXCP 1  "Except for files: Earth rotation parameters (Pole)"
+
+! Earth orientation parameters (UT)
+! ---------------------------------
+UT_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_UT_ELIM 1  "Earth rotation parameters (UT)"
+
+UT_EXCP 0
+  ## widget = lineedit
+  ## activeif = UT_ELIM == BEFORE_STACKING OR UT_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_UT_EXCP 1  "Except for files: Earth rotation parameters (UT)"
+
+! Earth orientation parameters (LOD)
+! ---------------------------------
+LOD_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_LOD_ELIM 1  "Earth rotation parameters (LOD)"
+
+LOD_EXCP 0
+  ## widget = lineedit
+  ## activeif = LOD_ELIM == BEFORE_STACKING OR LOD_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_LOD_EXCP 1  "Except for files: Earth rotation parameters (LOD)"
+
+! Nutation parameters
+! -------------------
+NUT_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_NUT_ELIM 1  "Nutation parameters"
+
+NUT_EXCP 0
+  ## widget = lineedit
+  ## activeif = NUT_ELIM == BEFORE_STACKING OR NUT_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_NUT_EXCP 1  "Except for files: Nutation parameters"
+
+! Scaling factors for Vienna grid files: Atmosphere loading
+! ---------------------------------------------------------
+ALD_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_ALD_ELIM 1  "Atmospheric pressure loading"
+
+ALD_EXCP 0
+  ## widget = lineedit
+  ## activeif = ALD_ELIM == BEFORE_STACKING OR ALD_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_ALD_EXCP 1  "Except for files: Atmospheric pressure loading"
+
+ALD_EXST 1  "0"
+  ## widget = checkbox; activeif = ALD_ELIM /= NO AND ALD_ELIM / _
+
+MSG_ALD_EXST 1  "Except for stations: Atmospheric pressure loading"
+
+ALD_EXSEL 1  "FROM_FILE"
+  ## widget = combobox; activeif = ALD_ELIM /= NO AND ALD_EXST = 1
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG; editable = false
+
+MSG_ALD_EXSEL 1  "Selection for station exceptions: Atmospheric pressure loading"
+
+ALD_EXMAN 0
+  ## widget = selwin
+  ## activeif = ALD_ELIM /= NO AND ALD_EXST = 1 AND ALD_EXSEL = MANUAL
+  ## pointer = GRIDLST
+
+MSG_ALD_EXMAN 1  "Manual selection for station exceptions: Atmospheric pressure loading"
+
+ALD_EXFIL 0
+  ## widget = selwin
+  ## activeif = ALD_ELIM /= NO AND ALD_EXST = 1 AND ALD_EXSEL = FROM_FILE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_ALD_EXFIL 1  "Selection for station exceptions from file: Atmospheric pressure loading"
+
+ALD_EXFLG 0
+  ## widget = lineedit
+  ## activeif = ALD_ELIM /= NO AND ALD_EXST = 1 AND ALD_EXSEL = WITH_FLAG
+
+MSG_ALD_EXFLG 1  "Selection for station exceptions from flag: Atmospheric pressure loading"
+
+! Scaling factors for Vienna grid files: ocean non-tidal loading
+! --------------------------------------------------------------
+OLD_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_OLD_ELIM 1  "Ocean non-tidal loading"
+
+OLD_EXCP 0
+  ## widget = lineedit
+  ## activeif = OLD_ELIM == BEFORE_STACKING OR OLD_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_OLD_EXCP 1  "Except for files: Ocean non-tidal loading"
+
+OLD_EXST 1  "0"
+  ## widget = checkbox; activeif = OLD_ELIM /= NO AND OLD_ELIM / _
+
+MSG_OLD_EXST 1  "Except for stations: Ocean non-tidal loading"
+
+OLD_EXSEL 1  "FROM_FILE"
+  ## widget = combobox; activeif = OLD_ELIM /= NO AND OLD_EXST = 1
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG; editable = false
+
+MSG_OLD_EXSEL 1  "Selection for station exceptions: Ocean non-tidal loading"
+
+OLD_EXMAN 0
+  ## widget = selwin
+  ## activeif = OLD_ELIM /= NO AND OLD_EXST = 1 AND OLD_EXSEL = MANUAL
+  ## pointer = GRIDLST
+
+MSG_OLD_EXMAN 1  "Manual selection for station exceptions: Ocean non-tidal loading"
+
+OLD_EXFIL 0
+  ## widget = selwin
+  ## activeif = OLD_ELIM /= NO AND OLD_EXST = 1 AND OLD_EXSEL = FROM_FILE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_OLD_EXFIL 1  "Selection for station exceptions from file: Ocean non-tidal loading"
+
+OLD_EXFLG 0
+  ## widget = lineedit
+  ## activeif = OLD_ELIM /= NO AND OLD_EXST = 1 AND OLD_EXSEL = WITH_FLAG
+
+MSG_OLD_EXFLG 1  "Selection for station exceptions from flag: Ocean non-tidal loading"
+
+! Scaling factors for Vienna grid files: Hydrostatic loading
+! ----------------------------------------------------------
+HLD_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_HLD_ELIM 1  "Hydrostatic pressure loading"
+
+HLD_EXCP 0
+  ## widget = lineedit
+  ## activeif = HLD_ELIM == BEFORE_STACKING OR HLD_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_HLD_EXCP 1  "Except for files: Hydrostatic pressure loading"
+
+HLD_EXST 1  "0"
+  ## widget = checkbox; activeif = HLD_ELIM /= NO AND HLD_ELIM / _
+
+MSG_HLD_EXST 1  "Except for stations: Atmospheric pressure loading"
+
+HLD_EXSEL 1  "FROM_FILE"
+  ## widget = combobox; activeif = HLD_ELIM /= NO AND HLD_EXST = 1
+  ## cards = FIRST LAST ALL MANUAL FROM_FILE WITH_FLAG; editable = false
+
+MSG_HLD_EXSEL 1  "Selection for station exceptions: Hydrostatic pressure loading"
+
+HLD_EXMAN 0
+  ## widget = selwin
+  ## activeif = HLD_ELIM /= NO AND HLD_EXST = 1 AND HLD_EXSEL = MANUAL
+  ## pointer = GRIDLST
+
+MSG_HLD_EXMAN 1  "Manual selection for station exceptions: Hydrostatic pressure loading"
+
+HLD_EXFIL 0
+  ## widget = selwin
+  ## activeif = HLD_ELIM /= NO AND HLD_EXST = 1 AND HLD_EXSEL = FROM_FILE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1
+  # 
+
+MSG_HLD_EXFIL 1  "Selection for station exceptions from file: Hydrostatic pressure loading"
+
+HLD_EXFLG 0
+  ## widget = lineedit
+  ## activeif = HLD_ELIM /= NO AND HLD_EXST = 1 AND HLD_EXSEL = WITH_FLAG
+
+MSG_HLD_EXFLG 1  "Selection for station exceptions from flag: Hydrostatic pressure loading"
+
+! Additional parameters: center of mass
+! -------------------------------------
+MSS_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_MSS_ELIM 1  "Geocenter coordinates"
+
+MSS_EXCP 0
+  ## widget = lineedit
+  ## activeif = MSS_ELIM == BEFORE_STACKING OR MSS_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_MSS_EXCP 1  "Except for files: Geocenter coordinates"
+
+! Station clocks
+! --------------
+CLKR_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_CLKR_ELIM 1  "Receiver clock offsets"
+
+CLKR_EXCP 0
+  ## widget = lineedit
+  ## activeif = CLKR_ELIM == BEFORE_STACKING OR CLKR_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_CLKR_EXCP 1  "Except for files: Station clock"
+
+! Satellite clocks
+! ----------------
+CLKS_ELIM 0
+  ## widget = combobox; editable = false
+  ## cards = "" "NO" "BEFORE_STACKING" "AFTER_STACKING" "EXCEPT_FOR_BOUNDARIES" "OUTSIDE_FROM_WINDOW" "DELETE"
+  # 
+
+MSG_CLKS_ELIM 1  "Satellite clock offsets"
+
+CLKS_EXCP 0
+  ## widget = lineedit
+  ## activeif = CLKS_ELIM == BEFORE_STACKING OR CLKS_ELIM == EXCEPT_FOR_BOUNDARIES
+  # 
+
+MSG_CLKS_EXCP 1  "Except for files: Satellite clock"
+
+! Preelimination outside time window
+! ----------------------------------
+RADIO_1 1  "1"
+  ## widget = radiobutton; group = DUMMY
+  ## radiokeys = SESSION_YEAR SESSION_STRG
+
+MSG_RADIO_1 1  "Observation window defined by year and session identifier"
+
+RADIO_2 1  "0"
+  ## widget = radiobutton; group = DUMMY
+
+MSG_RADIO_2 1  "Observation window defined by start and end times"
+
+! Preelimination Window: defined by session
+! -----------------------------------------
+SESSION_YEAR 1  "2019"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $Y+0
+
+MSG_SESSION_YEAR 1  "Year"
+
+SESSION_STRG 1  "2560"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $S+0
+
+MSG_SESSION_STRG 1  "Session"
+
+! Preelimination Window: defined by date
+! --------------------------------------
+STADAT 1  "2019 09 13"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_STADAT 1  "Start time(year month day)"
+
+STATIM 1  "00 00 00"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND STADAT / _; check_type = time
+
+MSG_STATIM 1  "Start time(hour minutes seconds)"
+
+ENDDAT 1  "2019 09 13"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_ENDDAT 1  "End time(year month day)"
+
+ENDTIM 1  "23 59 59"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND ENDDAT / _; check_type = time
+
+MSG_ENDTIM 1  "End time(hour minutes seconds)"
+
+! --------------------------------------------------------------------
+! Interval length of parameters
+! --------------------------------------------------------------------
+! Parameter spacing
+! -----------------
+TRP_NINT 0
+  ## widget = lineedit
+  # 
+
+MSG_TRP_NINT 1  "Troposphere zenith path delays"
+
+GRD_NINT 0
+  ## widget = lineedit
+  # 
+
+MSG_GRD_NINT 1  "Troposphere gradients"
+
+ISB_NINT 0
+  ## widget = lineedit
+  # 
+
+MSG_ISB_NINT 1  "Inter-system bias"
+
+ERP_NINT 0
+  ## widget = lineedit
+  # 
+
+MSG_ERP_NINT 1  "Earth rotation parameters"
+
+NUT_NINT 0
+  ## widget = lineedit
+  # 
+
+MSG_NUT_NINT 1  "Nutation parameters"
+
+! Reference epoch for parameter intervals
+! ---------------------------------------
+PAR_REF 0
+  ## widget = lineedit; emptyallowed = true; check_type = date
+  # 
+
+MSG_PAR_REF 1  "Reference epoch for parameter intervals"
+
+PAR_OFF 0
+  ## widget = lineedit; check_type = time
+  # 
+
+MSG_PAR_OFF 1  "Reference epoch for parameter intervals: Time offset"
+
+! --------------------------------------------------------------------
+! Options and constraining, atmosphere parameters
+! --------------------------------------------------------------------
+! Constraints
+! -----------
+TRP_ASIG 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  # 
+
+MSG_TRP_ASIG 1  "Troposphere zenith delays: absolute"
+
+TRP_RSIG 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  # 
+
+MSG_TRP_RSIG 1  "Troposphere zenith delays: relative"
+
+GRD_ASIG 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  # 
+
+MSG_GRD_ASIG 1  "Troposphere gradients: absolute"
+
+GRD_RSIG 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  # 
+
+MSG_GRD_RSIG 1  "Troposphere gradients: relative"
+
+GIM_ASIG 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  # 
+
+MSG_GIM_ASIG 1  "Global ionosphere parameters: absolute"
+
+GIM_RSIG 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  # 
+
+MSG_GIM_RSIG 1  "Global ionosphere parameters: relative"
+
+! Maximum time interval for relativ constraints
+! ---------------------------------------------
+TRP_RDT 0
+  ## widget = lineedit; activeif = TRP_RSIG / _; emptyallowed = false
+  # 
+
+MSG_TRP_RDT 1  "Troposphere zenith delays: maximum time interval"
+
+GRD_RDT 0
+  ## widget = lineedit; activeif = GRD_RSIG / _; emptyallowed = false
+  # 
+
+MSG_GRD_RDT 1  "Troposphere gradients: maximum time interval"
+
+GIM_RDT 0
+  ## widget = lineedit; activeif = GIM_RSIG / _; emptyallowed = false
+  # 
+
+MSG_GIM_RDT 1  "Global ionosphere parameters: maximum time interval"
+
+! Extraction of parameters for troposphere SINEX file
+! ---------------------------------------------------
+TRPOFF 1  "00 30 00"
+  ## widget = lineedit; activeif = TROPSNX / _
+
+MSG_TRPOFF 1  "Offset"
+
+TRPRES 1  "01 00 00"
+  ## widget = lineedit; activeif = TROPSNX / _
+
+MSG_TRPRES 1  "Time resolution"
+
+! ------------------------------------------------------------------------------
+! Options and constraining, higher-order inosphere scaling factors
+! ------------------------------------------------------------------------------
+HOI1 1  "ONE"
+  ## widget = combobox; editable = true; cards = ONE ZERO
+
+MSG_HOI1 1  "Second-order term"
+
+SIGHOI1 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_SIGHOI1 1  "Sigma of second-order term"
+
+STKHOI1 1  "0"
+  ## widget = checkbox
+
+MSG_STKHOI1 1  "Stack second-order term"
+
+HOI2 1  "ONE"
+  ## widget = combobox; editable = true; cards = ONE ZERO
+
+MSG_HOI2 1  "Third-order term"
+
+SIGHOI2 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_SIGHOI2 1  "Sigma of third-order term"
+
+STKHOI2 1  "0"
+  ## widget = checkbox
+
+MSG_STKHOI2 1  "Stack third-order term"
+
+HOI3 1  "ONE"
+  ## widget = combobox; editable = true; cards = ONE ZERO
+
+MSG_HOI3 1  "Ray path bending term"
+
+SIGHOI3 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_SIGHOI3 1  "Sigma of ray path bending term"
+
+STKHOI3 1  "0"
+  ## widget = checkbox
+
+MSG_STKHOI3 1  "Stack ray path bending term"
+
+! --------------------------------------------------------------------
+! Options and constraining, orbital parameters
+! --------------------------------------------------------------------
+! Options for orbit combination
+! -----------------------------
+TRAFO 1  "0"
+  ## widget = checkbox
+
+MSG_TRAFO 1  "Long-arc computation"
+
+NUMSTC 1  "0"
+  ## widget = checkbox; activeif = TRAFO = 1
+
+MSG_NUMSTC 1  "Stochastic pulses at NEQ boundaries"
+
+DTSTC 1  "6 00 00"
+  ## widget = lineedit; check_type = time
+  ## activeif = TRAFO = 1 AND NUMSTC = 1
+
+MSG_DTSTC 1  "Min. time interval between pulse and maneuver"
+
+SPLTDYN 1  "0"
+  ## widget = checkbox; activeif = TRAFO = 1
+
+MSG_SPLTDYN 1  "No stacking of dynamical orbit parameters"
+
+! Constraints for orbital elements
+! --------------------------------
+ORB_A 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_A 1  "Semi major axis"
+
+ORB_E 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_E 1  "Eccentricity"
+
+ORB_I 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_I 1  "Inclination"
+
+ORB_OM 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_OM 1  "Ascending node"
+
+ORB_P 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_P 1  "Perigee"
+
+ORB_U 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_U 1  "Argument of latitude"
+
+! Constraints for dynamical parameters
+! ------------------------------------
+ORB_D0 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_D0 1  "Constant D terms"
+
+ORB_Y0 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_Y0 1  "Constant Y terms"
+
+ORB_X0 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_X0 1  "Constant X terms"
+
+ORB_DP 1  "1e-12"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_DP 1  "Periodic D terms"
+
+ORB_YP 1  "1e-12"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_YP 1  "Periodic Y terms"
+
+ORB_XP 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_ORB_XP 1  "Periodic X terms"
+
+! Constraints for stochastic pulses
+! ---------------------------------
+STC_R 1  "1e-6"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_STC_R 1  "Radial"
+
+STC_A 1  "1e-6"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_STC_A 1  "Along track"
+
+STC_O 1  "1e-9"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_STC_O 1  "Out of plane"
+
+STC_S 1  "1e-6"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_STC_S 1  "Direction to Sun"
+
+STC_Y 1  "1e-6"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_STC_Y 1  "Y-direction in satellite frame"
+
+STC_X 1  "1e-9"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_STC_X 1  "X-direction in satellite frame"
+
+! --------------------------------------------------------------------
+! Options and constraining, earth orientation parameters
+! --------------------------------------------------------------------
+! Options for earth orientation parameters
+! ----------------------------------------
+BLKRET 1  "NO"
+  ## widget = combobox; cards = NO YES
+
+MSG_BLKRET 1  "Block retrograde terms in polar motion"
+
+! Constraints (first parameter)
+! -----------------------------
+POL_UTF 1  "0.00001"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_POL_UTF 1  "UT1-UTC: first parameter"
+
+POL_EPF 1  "0.0001"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_POL_EPF 1  "Delta epsilon: first parameter"
+
+POL_PSF 1  "0.0001"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_POL_PSF 1  "Delta psi: first parameter"
+
+! Constraints (other parameters)
+! ------------------------------
+POL_XY 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_POL_XY 1  "X and Y pole components"
+
+POL_UTN 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_POL_UTN 1  "UT1-UTC: other parameters"
+
+POL_LOD 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_POL_LOD 1  "LOD: all parameters"
+
+POL_EPN 1  "0.0001"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_POL_EPN 1  "Delta epsilon: other parameters"
+
+POL_PSN 1  "0.0001"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_POL_PSN 1  "Delta psi: other parameters"
+
+! Extraction of parameters for pole result file
+! ---------------------------------------------
+POLESTEP 1  "12 00 00"
+  ## widget = lineedit; activeif = POLERS / _ OR IERSPOL / _
+
+MSG_POLESTEP 1  "Time resolution"
+
+! -----------------------------------------
+!
+! PARAMETER TYPE: Scaling factors for Vienna grid files
+! ===============
+!
+! -----------------------------------------
+!
+! ATM-LOAD: Atmospheric pressure loading
+! --------------------------------------
+ALOADSET 1  "PER_STATION"
+  ## widget = combobox; cards = PER_STATION PER_GROUP ONE_OVERALL
+  ## editable = false; activeif = ALOAD_FILES / _
+
+MSG_ALOADSET 1  "Atm. load: Scaling factor for stations"
+
+ALOADCLU 0
+  ## widget = selwin; path = DIR_CLU; ext = EXT_CLU
+  ## activeif = ALOADSET = PER_GROUP
+  # 
+
+MSG_ALOADCLU 1  "Atm. load: Scaling factor for stations"
+
+ALOADDEC 1  "FULL_EFFECT"
+  ## widget = combobox
+  ## cards = FULL_EFFECT HORIZONTAL/VERTICAL NORTH/EAST/UP; editable = false
+  ## activeif = ALOADSET / inactive AND ALOADSET / NONE
+
+MSG_ALOADDEC 1  "Atm. load: Parameter decomposition"
+
+ALOAD10 1  "ONE"
+  ## widget = combobox; cards = ONE ZERO; editable = false
+
+MSG_ALOAD10 1  "Atm. load: constraining to zero/one"
+
+ALOADSIG1 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = ALOADDEC / inactive
+  # 
+
+MSG_ALOADSIG1 1  "Atm. load: a priori sigma 1"
+
+ALOADSIG2 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = ALOADDEC = HORIZONTAL/VERTICAL OR ALOADDEC = NORTH/EAST/UP
+  # 
+
+MSG_ALOADSIG2 1  "Atm. load: a priori sigma 2"
+
+ALOADSIG3 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = ALOADDEC = NORTH/EAST/UP
+  # 
+
+MSG_ALOADSIG3 1  "Atm. load: a priori sigma 3"
+
+! OCN-LOAD: Ocean non-tidal loading
+! ---------------------------------
+ONTLDSET 1  "PER_STATION"
+  ## widget = combobox; cards = PER_STATION PER_GROUP ONE_OVERALL
+  ## editable = false; activeif = ONTLD_FILES / _
+
+MSG_ONTLDSET 1  "Ocn. load: Scaling factor for stations"
+
+ONTLDCLU 0
+  ## widget = selwin; path = DIR_CLU; ext = EXT_CLU
+  ## activeif = ONTLDSET = PER_GROUP
+  # 
+
+MSG_ONTLDCLU 1  "Ocn. load: Scaling factor for stations"
+
+ONTLDDEC 1  "FULL_EFFECT"
+  ## widget = combobox
+  ## cards = FULL_EFFECT HORIZONTAL/VERTICAL NORTH/EAST/UP; editable = false
+  ## activeif = ONTLDSET / inactive AND ONTLDSET / NONE
+
+MSG_ONTLDDEC 1  "Ocn. load: Parameter decomposition"
+
+ONTLD10 1  "ONE"
+  ## widget = combobox; cards = ONE ZERO; editable = false
+  ## activeif = ONTLDSTA / NONE
+
+MSG_ONTLD10 1  "Atm. load: constraining to zero/one"
+
+ONTLDSIG1 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = ONTLDDEC / inactive
+  # 
+
+MSG_ONTLDSIG1 1  "Ocn. load: a priori sigma 1"
+
+ONTLDSIG2 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = ONTLDDEC = HORIZONTAL/VERTICAL OR ONTLDDEC = NORTH/EAST/UP
+  # 
+
+MSG_ONTLDSIG2 1  "Ocn. load: a priori sigma 2"
+
+ONTLDSIG3 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = ONTLDDEC = NORTH/EAST/UP
+  # 
+
+MSG_ONTLDSIG3 1  "Ocn. load: a priori sigma 3"
+
+! HYDR-LOAD: Hydrostatic pressure loading
+! ---------------------------------------
+HLOADSET 1  "PER_STATION"
+  ## widget = combobox; cards = PER_STATION PER_GROUP ONE_OVERALL
+  ## editable = false; activeif = HLOAD_FILES / _
+
+MSG_HLOADSET 1  "Hyd. load: Scaling factor for stations"
+
+HLOADCLU 0
+  ## widget = selwin; path = DIR_CLU; ext = EXT_CLU
+  ## activeif = HLOADSET = PER_GROUP
+  # 
+
+MSG_HLOADCLU 1  "Hyd. load: Scaling factor for stations"
+
+HLOADDEC 1  "FULL_EFFECT"
+  ## widget = combobox
+  ## cards = FULL_EFFECT HORIZONTAL/VERTICAL NORTH/EAST/UP; editable = false
+  ## activeif = HLOADSET / inactive AND HLOADSET / NONE
+
+MSG_HLOADDEC 1  "Hyd. load: Parameter decomposition"
+
+HLOAD10 1  "ONE"
+  ## widget = combobox; cards = ONE ZERO; editable = false
+  ## activeif = HLOADSTA / NONE
+
+MSG_HLOAD10 1  "Atm. load: constraining to zero/one"
+
+HLOADSIG1 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = HLOADDEC / inactive
+  # 
+
+MSG_HLOADSIG1 1  "Hyd. load: a priori sigma 1"
+
+HLOADSIG2 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = HLOADDEC = HORIZONTAL/VERTICAL OR HLOADDEC = NORTH/EAST/UP
+  # 
+
+MSG_HLOADSIG2 1  "Hyd. load: a priori sigma 2"
+
+HLOADSIG3 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = ALOADDEC = NORTH/EAST/UP
+  # 
+
+MSG_HLOADSIG3 1  "Hyd. load: a priori sigma 3"
+
+! --------------------------------------------------------------------
+! Options and constraining, epoch-wise clock parameters
+! --------------------------------------------------------------------
+! Clk est.: Reference Clock Selection
+! -----------------------------------
+REFCLOCK 1  "ALL_STATIONS"
+  ## widget = combobox; editable = false
+  ## cards = NONE FIRST_STATION LAST_STATION ALL_STATIONS ALL_SATELLITES MANUAL FROM_FILE
+
+MSG_REFCLOCK 1  "Selection of reference clock"
+
+! Clk est.: Ref.Stations list
+! ---------------------------
+CLKSTASEL 0
+  ## widget = selwin; activeif = REFCLOCK == MANUAL; pointer = RCLKLST
+
+MSG_CLKSTASEL 1  "Clk.Est.:Ref.Stations list"
+
+! Clk est.: Ref.Stations list
+! ---------------------------
+CLKSATSEL 0
+  ## widget = selwin; activeif = REFCLOCK == MANUAL; pointer = SCLKLST
+
+MSG_CLKSATSEL 1  "Clk.Est.:Ref. Satellite list"
+
+! Clk est.: Ref. clk from file
+! ----------------------------
+CLKSTAFIL 0
+  ## widget = selwin; activeif = REFCLOCK == FROM_FILE; path = DIR_FIX
+  ## ext = EXT_FIX; maxfiles = 1; emptyallowed = true
+  # 
+
+MSG_CLKSTAFIL 1  "Clk.Est.:Ref.Stations from file"
+
+! Clk est.: Ref. clk from file
+! ----------------------------
+CLKSATFIL 0
+  ## widget = selwin; activeif = REFCLOCK == FROM_FILE; path = DIR_FIX
+  ## ext = EXT_FIX; maxfiles = 1; emptyallowed = true
+  # 
+
+MSG_CLKSATFIL 1  "Clk.Est.:Ref.Satellites from file"
+
+CLKFIX 1  "0"
+  ## widget = checkbox
+
+MSG_CLKFIX 1  "Clk.Est.: Fix reference clock"
+
+CLKSIG 0
+  ## widget = lineedit; activeif = CLKFIX = 0; check_type = real
+  ## check_min = 0
+
+MSG_CLKSIG 1  "Clk.Est.: A priori sigma for reference clock"
+
+! Delete (fix) only clocks with values in the input file
+! ------------------------------------------------------
+CLKDELINP 1  "1"
+  ## widget = checkbox; activeif = CLKS_ELIM = DELETE OR CLKR_ELIM = DELETE
+
+MSG_CLKDELINP 1  "Fix only clocks with input values"
+
+! Clk est.: Header of the clk RINEX file: RUNBY
+! ---------------------------------------------
+RUNBY 0
+  ## widget = lineedit; activeif = CLKRNX / _
+
+MSG_RUNBY 1  "Clk.Est.:Header of the clk RINEX file: RUNBY"
+
+! Clk est.: Header of the clk RINEX file: AC
+! ------------------------------------------
+AC 0
+  ## widget = lineedit; activeif = CLKRNX / _
+
+MSG_AC 1  "Clk.Est.:Header of the clk RINEX file: AC"
+
+! Clk est.: Header of the clk RINEX file: ACName
+! ----------------------------------------------
+ACNAME 0
+  ## widget = lineedit; activeif = CLKRNX / _
+
+MSG_ACNAME 1  "Header of the clk RINEX file: AC Name"
+
+! Time System
+! -----------
+TIMESYS 1  "GPS"
+  ## widget = combobox; editable = false; cards = GPS GLO GAL UTC TAI
+  ## activeif = CLKRNX / _
+
+MSG_TIMESYS 1  "Time system"
+
+! DCB line
+! --------
+DCBLINE 0
+  ## widget = lineedit; activeif = CLKRNX / _
+
+MSG_DCBLINE 1  "DCB line"
+
+! Clk est.: Header of the clk RINEX file: Comments
+! ------------------------------------------------
+COMMENT 1  ""
+  ## widget = uniline; activeif = CLKRNX / _
+
+MSG_COMMENT 1  "Header of the clk RINEX file: Comments"
+
+! --------------------------------------------------------------------
+! Options and constraining for Helmert parameters
+! --------------------------------------------------------------------
+! Stacking: Translations
+! ----------------------
+CMB_TRA 1  "NO_STACKING"
+  ## widget = combobox; editable = false
+  ## cards = NO_STACKING IDENT_GROUP STACK_ALL
+
+MSG_CMB_TRA 1  "Stacking of translation parameters"
+
+! Stacking: Rotations
+! -------------------
+CMB_ROT 1  "NO_STACKING"
+  ## widget = combobox; editable = false
+  ## cards = NO_STACKING IDENT_GROUP STACK_ALL
+
+MSG_CMB_ROT 1  "Stacking of rotation parameters"
+
+! Stacking: Scale
+! ---------------
+CMB_SC 1  "NO_STACKING"
+  ## widget = combobox; editable = false
+  ## cards = NO_STACKING IDENT_GROUP STACK_ALL
+
+MSG_CMB_SC 1  "Stacking of scale parameters"
+
+! --------------------------------------------------------------------
+! Options and constraining, GNSS-specific parameters
+! --------------------------------------------------------------------
+! GNSS-specific station translation
+! ---------------------------------
+GTRADAT 1  "NONE"
+  ## widget = combobox; cards = NONE ABSOLUTE MIN_CONST; editable = false
+
+MSG_GTRADAT 1  "GNSS-specific station translation: Datum definition"
+
+GTRATRA 1  "0"
+  ## widget = checkbox; activeif = GTRADAT = MIN_CONST
+
+MSG_GTRATRA 1  "GNSS-specific station translation: Translation"
+
+GTRAROT 1  "0"
+  ## widget = checkbox; activeif = GTRADAT = MIN_CONST
+
+MSG_GTRAROT 1  "GNSS-specific station translation: Rotation"
+
+GTRASCL 1  "0"
+  ## widget = checkbox; activeif = GTRADAT = MIN_CONST
+
+MSG_GTRASCL 1  "GNSS-specific station translation: Scale"
+
+GTRAXCL 1  "INCLUDED"
+  ## widget = combobox; cards = INCLUDED EXCLUDED; editable = false
+  ## activeif = GTRADAT / NONE
+
+MSG_GTRAXCL 1  "GNSS-specific station translation: In-/Exclusion"
+
+GTRAFIX 0
+  ## widget = selwin; activeif = GTRADAT / NONE; path = DIR_FIX
+  ## ext = EXT_FIX; maxfiles = 1; emptyallowed = true
+  # 
+
+MSG_GTRAFIX 1  "GNSS-specific station translation: Station selection"
+
+GTRASIG_N 0
+  ## widget = lineedit; check_type = real; check_min = 0
+  ## activeif = GTRADAT = ABSOLUTE
+
+MSG_GTRASIG_N 1  "GNSS-specific station translation: North"
+
+GTRASIG_E 0
+  ## widget = lineedit; check_type = real; check_min = 0
+  ## activeif = GTRADAT = ABSOLUTE
+
+MSG_GTRASIG_E 1  "GNSS-specific station translation: East"
+
+GTRASIG_U 0
+  ## widget = lineedit; check_type = real; check_min = 0
+  ## activeif = GTRADAT = ABSOLUTE
+
+MSG_GTRASIG_U 1  "GNSS-specific station translation: Up"
+
+! GNSS-specific troposphere biases
+! --------------------------------
+GTRPDAT 1  "NONE"
+  ## widget = combobox; cards = NONE SUM ABSOLUTE; editable = false
+
+MSG_GTRPDAT 1  "GNSS-specific troposphere bias: Datum definition"
+
+GTRPXCL 1  "INCLUDED"
+  ## widget = combobox; cards = INCLUDED EXCLUDED; editable = false
+  ## activeif = GTRPDAT / NONE
+
+MSG_GTRPXCL 1  "GNSS-specific troposphere bias: In-/Exclusion"
+
+GTRPFIX 0
+  ## widget = selwin; activeif = GTRPDAT / FROM_CRD AND GTRPDAT / NONE
+  ## path = DIR_FIX; ext = EXT_FIX; maxfiles = 1; emptyallowed = true
+  # 
+
+MSG_GTRPFIX 1  "GNSS-specific troposphere bias: Station selection"
+
+GTRPSIG 0
+  ## widget = lineedit; check_type = real; check_min = 0
+  ## activeif = GTRPDAT = ABSOLUTE
+
+MSG_GTRPSIG 1  "GNSS-specific troposphere bias: Sigma"
+
+! --------------------------------------------------------------------
+! Options and constraining, additional parameters
+! --------------------------------------------------------------------
+! Constraints
+! -----------
+RECANTN 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_RECANTN 1  "Receiver antenna offsets: N"
+
+RECANTE 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_RECANTE 1  "Receiver antenna offsets: E"
+
+RECANTU 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_RECANTU 1  "Receiver antenna offsets: U"
+
+SATANTX 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_SATANTX 1  "Satellite antenna offsets: X"
+
+SATANTY 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_SATANTY 1  "Satellite antenna offsets: Y"
+
+SATANTZ 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_SATANTZ 1  "Satellite antenna offsets: Z"
+
+SATANTS 1  "ALL"
+  ## widget = combobox; cards = ALL GPS GLONASS LAUNCHED_BEFORE
+  ## editable = false
+
+MSG_SATANTS 1  "Apply satellite antenna offsets sigmas"
+
+SATANTD 0
+  ## widget = lineedit; cech_type = date
+  ## activeif = SATANTS = LAUNCHED_BEFORE
+  # 
+
+MSG_SATANTD 1  "Date for satellite antenna offsets sigmas"
+
+SATANTGPS 1  "NONE"
+  ## widget = combobox; cards = NONE DELETE TO_BLOCK/TYPE; editable = false
+
+MSG_SATANTGPS 1  "Modify satellite antenna offsets parameter"
+
+SATANTGLO 1  "NONE"
+  ## widget = combobox; cards = NONE DELETE TO_FREQUENCY TO_BLOCK/TYPE
+  ## editable = false
+
+MSG_SATANTGLO 1  "Modify satellite antenna offsets parameter"
+
+COFMASSX 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_COFMASSX 1  "Geocenter coordinates: X"
+
+COFMASSY 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_COFMASSY 1  "Geocenter coordinates: Y"
+
+COFMASSZ 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_COFMASSZ 1  "Geocenter coordinates: Z"
+
+! Constraint - Rec. Antenna Patterns
+! ----------------------------------
+RECSPV 0
+  ## widget = lineedit
+
+MSG_RECSPV 1  "Receiver antenna patterns"
+
+! Constraint - Sat. Antenna Patterns
+! ----------------------------------
+SATSPV 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_SATSPV 1  "Satellite antenna patterns"
+
+SATSPVS 1  "ALL"
+  ## widget = combobox; cards = ALL GPS GLONASS LAUNCHED_BEFORE
+  ## editable = false
+
+MSG_SATSPVS 1  "Apply satellite antenna pattern sigmas"
+
+SATSPVD 0
+  ## widget = lineedit; cech_type = date
+  ## activeif = SATSPVS = LAUNCHED_BEFORE
+  # 
+
+MSG_SATSPVD 1  "Date for satellite antenna pattern sigmas"
+
+SATSPVGPS 1  "NONE"
+  ## widget = combobox; cards = NONE DELETE TO_BLOCK/TYPE; editable = false
+
+MSG_SATSPVGPS 1  "Modify satellite antenna pattern parameter"
+
+SATSPVGLO 1  "NONE"
+  ## widget = combobox; cards = NONE DELETE TO_FREQUENCY TO_BLOCK/TYPE
+  ## editable = false
+
+MSG_SATSPVGLO 1  "Modify satellite antenna pattern parameter"
+
+! Sat. ant. off: more input options
+! ---------------------------------
+SATANT0 1  "0"
+  ## widget = checkbox
+
+MSG_SATANT0 1  "Sat. ant. offset: advanced setup"
+
+! Sat. ant. PCV: more input options
+! ---------------------------------
+SAPANT0 1  "0"
+  ## widget = checkbox
+
+MSG_SAPANT0 1  "Sat. ant. pattern: advanced setup"
+
+! Sat. ant. off: define the satellite groups / sigmas
+! ---------------------------------------------------
+SATANTSTR 1  ""
+  ## widget = uniline; check_type.1 = integer; check_min.1 = 1
+  ## check_max.1 = 999; check_type.2 = real; check_min.2 = 0.0
+  ## check_type.3 = real; check_min.3 = 0.0; check_type.4 = real
+  ## check_min.4 = 0.0; check_type.5 = integer; check_min.5 = 0
+  ## check_max.5 = 299; check_type.6 = integer; check_min.6 = 0
+  ## check_max.6 = 299; check_type.7 = integer; check_min.7 = 0
+  ## check_max.7 = 299; check_type.8 = integer; check_min.8 = 0
+  ## check_max.8 = 299; check_type.9 = integer; check_min.9 = 0
+  ## check_max.9 = 299; check_type.10 = integer; check_min.10 = 0
+  ## check_max.10 = 299; check_type.11 = integer; check_min.11 = 0
+  ## check_max.11 = 299; check_type.12 = integer; check_min.12 = 0
+  ## check_max.12 = 299; check_type.13 = integer; check_min.13 = 0
+  ## check_max.13 = 299; numlines = 10
+
+MSG_SATANTSTR 1  "Sat.ant.offset: define the satellite groups and sigmas"
+
+! Sat. ant. PCV: define the satellite groups
+! ------------------------------------------
+SAPGRP 1  "ONE_FOR_ALL"
+  ## widget = uniline; check_type.1 = integer; check_min.1 = 1
+  ## check_max.1 = 999; check_type.2 = real; check_min.2 = 0.0
+  ## check_type.3 = integer; check_min.3 = 0; check_max.3 = 299
+  ## check_type.4 = integer; check_min.4 = 0; check_max.4 = 299
+  ## check_type.5 = integer; check_min.5 = 0; check_max.5 = 299
+  ## check_type.6 = integer; check_min.6 = 0; check_max.6 = 299
+  ## check_type.7 = integer; check_min.7 = 0; check_max.7 = 299
+  ## check_type.8 = integer; check_min.8 = 0; check_max.8 = 299
+  ## check_type.9 = integer; check_min.9 = 0; check_max.9 = 299
+  ## check_type.10 = integer; check_min.10 = 0; check_max.10 = 299
+  ## check_type.11 = integer; check_min.11 = 0; check_max.11 = 299
+  ## numlines = 10
+
+MSG_SAPGRP 1  "Satellite antenna PCV group definition and sigmas"
+
+! Constraint - Receiver clock offsets
+! -----------------------------------
+RCOSIGMA 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_RCOSIGMA 1  "Receiver clock offsets"
+
+! RCO: Biases in the NEQ stem from a PPP
+! --------------------------------------
+RCOFROMPPP 1  "0"
+  ## widget = checkbox
+
+MSG_RCOFROMPPP 1  "Biases in the NEQ stem from a PPP"
+
+! RCO: fix biases for all GPS satellites
+! --------------------------------------
+RCORMGPS 1  "0"
+  ## widget = checkbox
+
+MSG_RCORMGPS 1  "Fix biases for all GPS satellites"
+
+! RCO: transform satellite to frequency biases
+! --------------------------------------------
+RCOTOFRQ 1  "0"
+  ## widget = checkbox
+
+MSG_RCOTOFRQ 1  "Transform satellite to frequency biases"
+
+! Inter-frequency bias, alarming limit
+! -----------------------------------
+IFBMAX 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_IFBMAX 1  "Inter-frequency bias, alarming limit"
+
+! --------------------------------------------------------------------
+! Constraining the differential code biases
+! --------------------------------------------------------------------
+! DCB: Reference Satellite(s)
+! ---------------------------
+P1C1REF 1  "SUM"
+  ## widget = combobox; editable = false; cards = SUM ALL
+
+MSG_P1C1REF 1  "P1-C1: Reference satellite(s)"
+
+! DCB: A Priori Sigma for Reference Satellite Biases
+! --------------------------------------------------
+P1C1SIG 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_P1C1SIG 1  "P1-C1: A Priori Sigma for Reference Satellite Biases"
+
+! DCB: Reference Satellite(s)
+! ---------------------------
+P1P2REF 1  "SUM"
+  ## widget = combobox; editable = false; cards = SUM ALL
+
+MSG_P1P2REF 1  "P1-P2: Reference satellite(s)"
+
+! DCB: A Priori Sigma for Reference Satellite Biases
+! --------------------------------------------------
+P1P2SIG 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_P1P2SIG 1  "P1-P2: A Priori Sigma for Reference Satellite Biases"
+
+! DCB: A Priori Sigma for Receiver Biases
+! ---------------------------------------
+P1P2SIGR 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_P1P2SIGR 1  "P1-P2: A Priori Sigma for Receiver Biases"
+
+! DCB: Reference Stations(s)
+! ---------------------------
+LCREF 1  "SUM"
+  ## widget = combobox; editable = false; cards = SUM ALL
+
+MSG_LCREF 1  "LC: Reference station(s)"
+
+! DCB: A Priori Sigma for Receiver Biases
+! ---------------------------------------
+LCSIGR 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_LCSIGR 1  "LC: A Priori Sigma for Receiver Biases"
+
+! Constraint - Range biases
+! -------------------------
+RGBSIG 0
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_RGBSIG 1  "Range bias parameters"
+
+! Stacking of Range biases
+! ------------------------
+RGB_STK1 1  "1"
+  ## widget = radiobutton; group = DUMMY
+
+MSG_RGB_STK1 1  "Range biases as is"
+
+RGB_STK2 1  "0"
+  ## widget = radiobutton; group = DUMMY
+
+MSG_RGB_STK2 1  "Stack range biases for satellite groups"
+
+RGB_STK3 1  "0"
+  ## widget = radiobutton; group = DUMMY
+
+MSG_RGB_STK3 1  "Stack range biases for station"
+
+! --------------------------------------------------------------------
+! Selection from station information file
+! --------------------------------------------------------------------
+! Use station information file flags
+! ----------------------------------
+USEFLG 1  "0"
+  ## widget = checkbox; activeif = STAINFO /= _
+
+MSG_USEFLG 1  "Consider flags from station information file"
+
+! Information for the Bernese files: flags to be used (TYPE 001)
+! --------------------------------------------------------------
+FLG001 1  "999"
+  ## widget = lineedit; activeif = STAINFO /= _ AND USEFLG = 1
+
+MSG_FLG001 1  "Type 001: Renaming of Stations"
+
+! Information for the Bernese files: flags to be used (TYPE 002)
+! --------------------------------------------------------------
+FLG002 1  "999"
+  ## widget = lineedit; activeif = STAINFO /= _ AND USEFLG = 1
+
+MSG_FLG002 1  "Type 002: Station information"
+
+! Information for the Bernese files: flags to be used (TYPE 003)
+! --------------------------------------------------------------
+FLG003 1  "999"
+  ## widget = lineedit; activeif = STAINFO /= _ AND USEFLG = 1
+
+MSG_FLG003 1  "Type 003: Station problems"
+
+! --------------------------------------------------------------------
+! Some additional things
+! --------------------------------------------------------------------
+! Stations (fixed)
+! ----------------
+STALST 0
+  ## widget = selwin; menuaux = MENUAUX; action = NEQ
+  ## menuauxkeys = CONST STAINFO RECEIVR USEFLG FLG001 FLG002 FLG003 CRXREC CRXANT INPFILE NO_ABC
+  ## updateifactive = FREESTA_L STATION4 STATION1 FREEVEL_L VELOCITY4 VELOCITY1 CRD_EXMAN
+
+! List stations with receiver clock offsets
+! -----------------------------------------
+CLKLST 0
+  ## widget = selwin; menuaux = MENUAUX; action = NEQCLK
+  ## menuauxkeys = CONST STAINFO RECEIVR USEFLG FLG001 FLG002 FLG003 CRXREC CRXANT INPFILE NO_ABC
+
+! List stations with troposphere
+! ------------------------------
+TRPLST 0
+  ## widget = selwin; menuaux = MENUAUX; action = NEQTRP
+  ## menuauxkeys = CONST STAINFO RECEIVR USEFLG FLG001 FLG002 FLG003 CRXREC CRXANT INPFILE NO_ABC
+
+! List stations with receiver DCBs
+! --------------------------------
+DCBRLST 0
+  ## widget = selwin; menuaux = MENUAUX; action = NEQDCBR
+  ## menuauxkeys = CONST STAINFO RECEIVR USEFLG FLG001 FLG002 FLG003 CRXREC CRXANT INPFILE NO_ABC
+
+! List stations with GNSS-specific translations
+! ---------------------------------------------
+GSPLST 0
+  ## widget = selwin; menuaux = MENUAUX; action = NEQGSP
+  ## menuauxkeys = CONST STAINFO RECEIVR USEFLG FLG001 FLG002 FLG003 CRXREC CRXANT INPFILE NO_ABC
+
+! List stations with grid scaling parameters
+! ------------------------------------------
+GRIDLST 0
+  ## widget = selwin; menuaux = MENUAUX; action = NEQGRID
+  ## menuauxkeys = CONST STAINFO RECEIVR USEFLG FLG001 FLG002 FLG003 CRXREC CRXANT INPFILE NO_ABC
+
+! List receiver clocks
+! --------------------
+RCLKLST 0
+  ## widget = selwin; menuaux = MENUAUX; action = NEQRCLK
+  ## menuauxkeys = CONST STAINFO RECEIVR USEFLG FLG001 FLG002 FLG003 CRXREC CRXANT INPFILE NO_ABC
+
+! List satellite clocks
+! ---------------------
+SCLKLST 0
+  ## widget = selwin; menuaux = MENUAUX; action = NEQSCLK
+  ## menuauxkeys = CONST STAINFO RECEIVR USEFLG FLG001 INPFILE NO_ABC
+
+! Directories and Extensions
+! --------------------------
+DIR_ORB 1  "${P}/SAMR_LYT\ORB\"
+  ## widget = initmenu; pointer = DIR_ELE
+
+EXT_ELE 1  "ELE"
+  ## widget = initmenu; pointer = EXT_ELE
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# COMBINE NORMAL EQUATION SYSTEMS - ADDNEQ2 1.1: Input Files 1                 #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files      > % <                                          # SHOWGEN
+#                                                                              #
+# NORMAL EQUATION SYSTEMS                                                      #
+#   Normal equations            > %%%%%%%% <                                   # INPFILE
+#   Variance rescaling factors  > %%%%%%%% <                                   # COVCOMI
+#                                                                              #
+# MAIN INPUT FILES                                                             #
+#   Station coordinates         > %%%%%%%% <                                   # COORD
+#   Station velocities          > %%%%%%%% <                                   # VELAPR
+#   Station information         > %%%%%%%% <                                   # STAINFO
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ADDNEQ2 1.2: Input Files 2                                                   #
+#                                                                              #
+# NEW A PRIORI VALUES                                                          #
+#   Troposphere estimates          > %%%%%%%% <   (parameters are eliminated)  # TROPEST
+#   Differential code biases       > %%%%%%%% <   (a priori is zero if empty)  # DCBINP
+#   Earth rotation parameters      > %%%%%%%% <   (mandatory if ERPs present)  # POLE
+#   Geocenter coordinates          > %%%%%%%% <                                # GCCINP
+#   Satellite clock corrections    > %%%%%%%% <                                # SATCLK
+#   Clock RINEX file               > %%%%%%%% <                                # RXCLKIN
+#   Inter-system biases            > %%%%%%%% <                                # ISBINP
+#   SLR data handling (biases, CoM)> %%%%%%%% <                                # RGBINP
+#   List of parameter estimates    > %%%%%%%% <                                # PARAMIN
+#                                                                              #
+# HEADER AND EPOCH INFORMATION                                                 #
+#   Ionosphere master file         > %%%%%%%% <                                # IONOS
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# ADDNEQ2 1.3: General Files                                                   #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants           > %%%%%%%%%%%% <                               # CONST
+#   Geodetic datum              > %%%%%%%%%%%% <                               # DATUM
+#   Phase center variations     > %%%%%%%%%%%% <                               # PHASECC
+#   Receiver information        > %%%%%%%%%%%% <                               # RECEIVR
+#   Satellite information       > %%%%%%%%%%%% <                               # SATELL
+#   Satellite problems          > %%%%%%%%%%%% <                               # SATCRUX
+#   Subdaily pole model         > %%%%%%%%%%%% <                               # SUBMOD
+#   Nutation model              > %%%%%%%%%%%% <                               # NUTMOD
+#   SINEX header file           > %%%%%%%%%%%% <                               # SINEXIN
+#   IONEX control file          > %%%%%%%%%%%% <                               # IONEXCF
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <# CAMPAIGN
+#   Selected session              Year> %%%% <  Session> %%%% <                # YR4_INFO SES_INFO
+#   Session table               > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <# SESSION_TABLE
+#                                                                              #
+# TEMPORARY FILES                                                              #
+#   Scratch file                > %%%%%%%%%%%% <                               # AUXFIL
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ADDNEQ2 2.1: Output Files 1                                                  #
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output       > % < use ADDNEQ2.Lnn              or  > %%%%%%%% <   # SYSODEF SYSOUT
+#   Error messages       > % < merged to program output     or  > %%%%%%%% <   # ERRMRG SYSERR
+#                                                                              #
+# MAIN RESULT FILES                                                            #
+#   Normal equations                 > %%%%%%%% <                              # NEQOUT
+#   SINEX with> %%% <                > %%%%%%%% <                              # SNXCONT SINEXRS
+#                                                                              #
+# STATION- AND SATELLITE-RELATED RESULTS                                       #
+#   Station coordinates              > %%%%%%%% <                              # COORDRS
+#   Station velocities               > %%%%%%%% <                              # VELORS
+#   Satellite orbital elements       > %%%%%%%% <                              # ELEFILE
+#   Earth rotation parameters        > %%%%%%%% <                              # POLERS
+#   Earth rotation parameters (IERS) > %%%%%%%% <                              # IERSPOL
+#                                                                              #
+# ATMOSPHERE-SPECIFIC RESULTS                                                  #
+#   Troposphere estimates            > %%%%%%%% <                              # TROPSAV
+#   Troposphere estimates (SINEX)    > %%%%%%%% <                              # TROPSNX
+#   Ionosphere models                > %%%%%%%% <                              # IONOSRS
+#   Ionosphere models (IONEX)        > %%%%%%%% <                              # IONEXRS
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ADDNEQ2 2.2: Output Files 2                                                  #
+#                                                                              #
+# ADDITIONAL RESULT FILES                                                      #
+#   Geocenter coordinates              > %%%%%%%% <                            # GCCOUT
+#   Differential code biases           > %%%%%%%% <                            # DCBOUT
+#   Phase center variations (gridded)  > %%%%%%%% <                            # PHASRSG
+#   Satellite clock corrections        > %%%%%%%% <                            # CLKSAV
+#   Clock corrections (RINEX)          > %%%%%%%% <                            # CLKRNX
+#   Inter-system biases                > %%%%%%%% <                            # ISBOUT
+#   Data handling (biases, CoM)        > %%%%%%%% <                            # RGBOUT
+#                                                                              #
+# AUXILIARY FILES                                                              #
+#   Weekly summary                     > %%%%%%%% <                            # WEKSUM
+#   Station residuals                  > %%%%%%%% <                            # PLOTRS
+#   All parameter residuals            > %%%%%%%% <                            # PLOT_ALL
+#   Covariance matrix wrt coordinates  > %%%%%%%% <                            # COVARRS
+#   Full covariance matrix             > %%%%%%%% <                            # COVTTRS
+#   Variance rescaling factors, Helmert> %%%%%%%% <                            # COVCOMO
+#   List of parameter estimates        > %%%%%%%% <                            # PARAMRS
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ADDNEQ2 3.1: Options 1                                                       #
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# GENERAL OPTIONS                                                              #
+#   Maximum number of parameters in combined NEQ> %%%%%% <                     # MAXPAR
+#   A priori sigma of unit weight               > %%%%%%% <meters              # SIGMA0
+#   Compute and compare individual solutions    > %%%%%%% <                    # INDVSOL
+#   Reference epoch for station coordinates     > %%%%%%%%%% <(yyyy mm dd)     # TIMREF
+#   Stop program after NEQ saving               > % <                          # NOINV
+#                                                                              #
+# ADD PARAMETERS TO THE SYSTEM                                                 #
+#   Set up station velocities                   > % <                          # CRD_NINT
+#   Set up Geocenter coordinates                > % <                          # SETUP_GCC
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ADDNEQ2 3.2: Options 2                                                       #
+#                                                                              #
+# REMOVE STATION PARAMETERS FROM THE SYSTEM                                    #
+#   If receiver changes                           > %%%%%%%%%%%%%%%%%%%%%%%% < # CRXREC
+#   If antenna changes                            > %%%%%%%%%%%%%%%%%%%%%%%% < # CRXANT
+#                                                                              #
+# INPUT FILE OPTIONS                                                           #
+#   Truncate NEQ station names after position 14  > %%%%%%%%% <                # NO_ABC
+#   Keep input NEQs in alphabetical order         > % <                        # NOCHRONO
+#                                                                              #
+# OUTPUT OPTIONS                                                               #
+#   Extended output wrt estimated parameters      > % <                        # PRT_EXT
+#   Notify station inconsistencies between NEQs   > % <                        # PRT_SIC
+#   Notify changes due to station information file> % <                        # CRXWARN
+#   Print detailed list of parameter manipulations> % <                        # PRT_PAR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL COVARRS / _ OR COVTTRS / _ AND CRD_NINT = 1 OR SINEXRS /= _ AND NOINV = 0 #
+# ADDNEQ2 3.3: Options 3                                                       #
+#                                                                              #
+# SINEX OPTIONS                                                                #
+#   Regularize a priori constraint matrix                  > %%%%%%%%% <       # SNXREG
+#   Sort stations according to DOMES code                  > % <               # STASORT
+#   Include ADDNEQ1-style statistics block                 > % <               # HEUREF
+#   Do not write uncalibrated antenna/radome combinations  > % <               # ANTRED
+#   Transform ERP to offset/drift representation           > % <               # ERPREP
+#                                                                              #
+# VARIANCE-COVARIANCE FILE OPTIONS                                             #
+#   Representation of coordinates and velocities           > %%%%%%%%% <       # COVMODE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ADDNEQ2 4.1: Parameter Pre-Elimination                                       #
+#                                                               exceptions for #
+# STATION-RELATED PARAMETERS                                    files   station#
+#   Station coordinates           > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% < > % < # CRD_ELIM  CRD_EXCP  CRD_EXST
+#                                                                              #
+# ATMOSPHERIC PARAMETERS                                                       #
+#   Troposphere zenith path delays> %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% < > % < # TRP_ELIM  TRP_EXCP  TRP_EXST
+#   Troposphere gradients         > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% < > % < # GRD_ELIM  GRD_EXCP  GRD_EXST
+#   Global ionosphere parameters  > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # GIM_ELIM  GIM_EXCP
+#                                                                              #
+# GLOBAL PARAMETERS                                                            #
+#   Orbital elements              > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # ORB_ELIM  ORB_EXCP
+#   Stochastic pulses             > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # STO_ELIM  STO_EXCP
+#   Polar motion parameters       > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # ERP_ELIM ERP_EXCP
+#   Length of day parameters      > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # LOD_ELIM LOD_EXCP
+#   Universal time parameters     > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # UT_ELIM UT_EXCP
+#   Nutation parameters           > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # NUT_ELIM NUT_EXCP
+#   Geocenter coordinates         > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # MSS_ELIM  MSS_EXCP
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ADDNEQ2 4.2: Parameter Pre-Elimination                                       #
+#                                                               exceptions for #
+# BIAS PARAMETERS                                               files   station#
+#   Satellite DCBs                > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # DCBS_ELIM DCBS_EXCP
+#   Receiver DCBs                 > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% < > % < # DCBR_ELIM DCBR_EXCP DCBR_EXST
+#   GLONASS receiver clock biases > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% < > % < # CLK_ELIM  CLK_EXCP  CLK_EXST
+#   Time-dependent GLONASS ISBs   > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% < > % < # ISB_ELIM  ISB_EXCP  ISB_EXST
+#   GNSS-specific translations    > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% < > % < # GTRA_ELIM  GTRA_EXCP  GTRA_EXST
+#   GNSS-specific ZPD biases      > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% < > % < # GTRP_ELIM  GTRP_EXCP  GTRP_EXST
+#                                                                              #
+# ANTENNA PHASE CENTER PARAMETERS                                              #
+#   Satellite antenna offsets     > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # ANT_ELIM  ANT_EXCP
+#   Satellite antenna offsets (XY)> %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # ANTX_ELIM ANTX_EXCP
+#   Satellite antenna variations  > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # SPV_ELIM  SPV_EXCP
+#   Receiver@ antenna offsets     > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # RAO_ELIM  RAO_EXCP
+#   Receiver@ antenna variations  > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # RAP_ELIM  RAP_EXCP
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ADDNEQ2 4.3: Parameter Pre-Elimination                                       #
+#                                                               exceptions for #
+# HELMERT TRANSFORMATION PARAMETERS                             files   station#
+#   Translation parameters        > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # TRANS_ELIM  TRANS_EXCP
+#   Rotation parameters           > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # ROT_ELIM    ROT_EXCP
+#   Scale parameters              > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # SCALE_ELIM  SCALE_EXCP
+#                                                                              #
+# PARAMETER SCALING FACTORS                                                    #
+#   HOI scaling factors           > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # HOI_ELIM  HOI_EXCP
+#   Atmospheric pressure loading  > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% < > % < # ALD_ELIM  ALD_EXCP  ALD_EXST
+#   Ocean non-tidal loading       > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% < > % < # OLD_ELIM  OLD_EXCP  OLD_EXST
+#   Hydrostatic pressure loading  > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% < > % < # HLD_ELIM  HLD_EXCP  HLD_EXST
+#                                                                              #
+# EPOCH PARAMETERS                                                             #
+#   Receiver clock offsets        > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # CLKR_ELIM  CLKR_EXCP
+#   Satellite clock offsets       > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # CLKS_ELIM  CLKS_EXCP
+#                                                                              #
+# SLR-RELATED PARAMETERS                                                       #
+#   Range biases                  > %%%%%%%%%%%%%%%%%%%%% <   > %%%%%% <       # RNG_ELIM  RNG_EXCP
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL CRD_ELIM = OUTSIDE_FROM_WINDOW OR TRP_ELIM = OUTSIDE_FROM_WINDOW OR GRD_ELIM = OUTSIDE_FROM_WINDOW OR GIM_ELIM = OUTSIDE_FROM_WINDOW OR ORB_ELIM = OUTSIDE_FROM_WINDOW OR STO_ELIM = OUTSIDE_FROM_WINDOW OR ERP_ELIM = OUTSIDE_FROM_WINDOW OR LOD_ELIM = OUTSIDE_FROM_WINDOW OR UT_ELIM = OUTSIDE_FROM_WINDOW OR NUT_ELIM = OUTSIDE_FROM_WINDOW OR MSS_ELIM = OUTSIDE_FROM_WINDOW OR DCBS_ELIM = OUTSIDE_FROM_WINDOW OR DCBR_ELIM = OUTSIDE_FROM_WINDOW OR CLK_ELIM = OUTSIDE_FROM_WINDOW OR ISB_ELIM = OUTSIDE_FROM_WINDOW OR GTRA_ELIM = OUTSIDE_FROM_WINDOW OR GTRP_ELIM = OUTSIDE_FROM_WINDOW OR ANT_ELIM = OUTSIDE_FROM_WINDOW OR ANTX_ELIM = OUTSIDE_FROM_WINDOW OR SPV_ELIM = OUTSIDE_FROM_WINDOW OR RAO_ELIM = OUTSIDE_FROM_WINDOW OR RAP_ELIM = OUTSIDE_FROM_WINDOW OR TRANS_ELIM = OUTSIDE_FROM_WINDOW OR ROT_ELIM = OUTSIDE_FROM_WINDOW OR SCALE_ELIM = OUTSIDE_FROM_WINDOW OR HOI_ELIM = OUTSIDE_FROM_WINDOW OR ALD_ELIM = OUTSIDE_FROM_WINDOW OR OLD_ELIM = OUTSIDE_FROM_WINDOW OR HLD_ELIM = OUTSIDE_FROM_WINDOW OR CLKR_ELIM = OUTSIDE_FROM_WINDOW OR CLKS_ELIM = OUTSIDE_FROM_WINDOW OR RNG_ELIM = OUTSIDE_FROM_WINDOW
+# ADDNEQ2 4.4: Parameter Pre-Elimination                                       #
+#                                                                              #
+# TIME WINDOW FOR "OUTSIDE FROM WINDOW" PRE-ELIMINATION                        #
+#                                                                              #
+#   > % < Defined by Year and Session identifier                               # RADIO_1
+#         Year  > %%%% <   Session > %%%% <                                    # SESSION_YEAR SESSION_STRG
+#                                                                              #
+#                                                                              #
+#   > % < Defined by Start and End times                                       # RADIO_2
+#                 yyyy mm dd     hh mm ss           yyyy mm dd     hh mm ss    #
+#         Start > %%%%%%%%%% < > %%%%%%%% <   End > %%%%%%%%%% < > %%%%%%%% <  # STADAT   STATIM   ENDDAT   ENDTIM
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL CRD_EXST = 1 OR CLK_EXST = 1 OR ISB_EXST = 1 OR DCBR_EXST = 1 OR TRP_EXST = 1 OR GRD_EXST = 1 OR ALD_EXST = 1 OR OLD_EXST = 1 OR HLD_EXST = 1 OR GTRA_EXST = 1 OR GTRP_EXST = 1
+# ADDNEQ2 4.5: Parameter Pre-Elimination                                       #
+#                                  Manual                 List file      Flag  #
+# STATION-RELATED PARAMETERS                                                   #
+#   Coordinates   > %%%%%%%%% <  > %%%%%%%%%%%%%%%% <   > %%%%%%%% <   > %%%% <# CRD_EXSEL  CRD_EXMAN  CRD_EXFIL  CRD_EXFLG
+#                                                                              #
+# ATMOSPHERIC PARAMETERS                                                       #
+#   ZPDs          > %%%%%%%%% <  > %%%%%%%%%%%%%%%% <   > %%%%%%%% <   > %%%% <# TRP_EXSEL  TRP_EXMAN  TRP_EXFIL  TRP_EXFLG
+#   Gradients     > %%%%%%%%% <  > %%%%%%%%%%%%%%%% <   > %%%%%%%% <   > %%%% <# GRD_EXSEL  GRD_EXMAN  GRD_EXFIL  GRD_EXFLG
+#                                                                              #
+# BIAS PARAMETERS                                                              #
+#   Receiver DCBs > %%%%%%%%% <  > %%%%%%%%%%%%%%%% <   > %%%%%%%% <   > %%%% <# DCBR_EXSEL DCBR_EXMAN DCBR_EXFIL DCBR_EXFLG
+#   GLO biases    > %%%%%%%%% <  > %%%%%%%%%%%%%%%% <   > %%%%%%%% <   > %%%% <# CLK_EXSEL  CLK_EXMAN  CLK_EXFIL  CLK_EXFLG
+#   Time-dep. ISBs> %%%%%%%%% <  > %%%%%%%%%%%%%%%% <   > %%%%%%%% <   > %%%% <# ISB_EXSEL  ISB_EXMAN  ISB_EXFIL  ISB_EXFLG
+#   Translations  > %%%%%%%%% <  > %%%%%%%%%%%%%%%% <   > %%%%%%%% <   > %%%% <# GTRA_EXSEL  GTRA_EXMAN  GTRA_EXFIL  GTRA_EXFLG
+#   ZPD biases    > %%%%%%%%% <  > %%%%%%%%%%%%%%%% <   > %%%%%%%% <   > %%%% <# GTRP_EXSEL  GTRP_EXMAN  GTRP_EXFIL  GTRP_EXFLG
+#                                                                              #
+# PARAMETER SCALING FACTORS                                                    #
+#   Atmospheric PL> %%%%%%%%% <  > %%%%%%%%%%%%%%%% <   > %%%%%%%% <   > %%%% <# ALD_EXSEL  ALD_EXMAN  ALD_EXFIL  ALD_EXFLG
+#   Ocean non-TL  > %%%%%%%%% <  > %%%%%%%%%%%%%%%% <   > %%%%%%%% <   > %%%% <# OLD_EXSEL  OLD_EXMAN  OLD_EXFIL  OLD_EXFLG
+#   Hydrostatic PL> %%%%%%%%% <  > %%%%%%%%%%%%%%%% <   > %%%%%%%% <   > %%%% <# HLD_EXSEL  HLD_EXMAN  HLD_EXFIL  HLD_EXFLG
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL CRD_ELIM / _ #####################################################
+# ADDNEQ2 5: Datum Definition for Station Coordinates                          #
+#                                                                              #
+# DATUM DEFINITION TYPE                                                        #
+#   > % < Free network solution                                                # RADIO2_4
+#   > % < Minimum constraint solution  > %%%%%%%%%%%% <                        # RADIO2_3 FREESTA
+#   > % < Coordinates constrained      > %%%%%%%%%%%% <                        # RADIO2_2 SIGSTA
+#   > % < Coordinates fixed            > %%%%%%%%%%%% <                        # RADIO2_1 FIXSTA
+#                                                                              #
+# MINIMUM CONSTRAINT CONDITIONS                                                #
+#   Translation > %%%%% <                                                      # C_TRA
+#   Rotation    > %%%%% <                                                      # C_ROT
+#   Scale       > %%%%% <                                                      # C_SCL
+#                                                                              #
+# A PRIORI SIGMAS                                                              #
+#   North       > %%%%%%% < meters                                             # C_SIGMAN
+#   East        > %%%%%%% < meters                                             # C_SIGMAE
+#   Up          > %%%%%%% < meters                                             # C_SIGMAU
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL FREESTA = MANUAL OR FREESTA = FROM_FILE OR FREESTA = WITH_FLAG AND RADIO2_3 = 1 AND CRD_ELIM / _ #
+# ADDNEQ2 5.1: Datum Definition for Station Coordinates                        #
+#                                                                              #
+# STATIONS CONSIDERED FOR MINIMUM CONSTRAINT CONDITIONS                        #
+#   Manual selection                         > %%%%%%%%%%%%%%%%%%%% <          # FREESTA_L
+#   List of stations from file               > %%%%%%%% <                      # FREESTA_F
+#   Stations with specific flags in CRD file > %%%%%%%% <  #: all non-blank    # FREESTA_G
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SIGSTA = MANUAL OR SIGSTA = FROM_FILE OR SIGSTA = WITH_FLAG AND RADIO2_2 = 1 AND CRD_ELIM / _ #
+# ADDNEQ2 5.1: Datum Definition for Station Coordinates                        #
+#                                                                              #
+# STATION COORDINATES TO BE CONSTRAINED                                        #
+#   Manual selection                         > %%%%%%%%%%%%%%%%%%%% <          # STATION4
+#   List of stations (and sigmas) from file  > %%%%%%%% <                      # STAFILE4
+#   Stations with specific flags in CRD file > %%%%%%%% <  #: all non-blank    # STAFLAG4
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL FIXSTA = MANUAL OR FIXSTA = FROM_FILE OR FIXSTA = WITH_FLAG AND RADIO2_1 = 1 AND CRD_ELIM / _ #
+# ADDNEQ2 5.1: Datum Definition for Station Coordinates                        #
+#                                                                              #
+# STATION COORDINATES TO BE FIXED                                              #
+#   Manual selection                         > %%%%%%%%%%%%%%%%%%%% <          # STATION1
+#   List of stations from file               > %%%%%%%% <                      # STAFILE1
+#   Stations with specific flags in CRD file > %%%%%%%% <  #: all non-blank    # STAFLAG1
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL CRD_NINT /= 0  AND CRD_ELIM / _ ##################################
+# ADDNEQ2 6: Datum Definition for Station Velocities                           #
+#                                                                              #
+# DATUM DEFINITION TYPE                                                        #
+#   > % < Free network solution                                                # RADIO3_4
+#   > % < Minimum constraint solution  > %%%%%%%%%%%% <                        # RADIO3_3 FREEVEL
+#   > % < Velocities constrained       > %%%%%%%%%%%% <                        # RADIO3_2 SIGVEL
+#   > % < Velocities fixed             > %%%%%%%%%%%% <                        # RADIO3_1 FIXVEL
+#                                                                              #
+# MINIMUM CONSTRAINT CONDITIONS                                                #
+#   Translation > %%%%% <                                                      # V_TRA
+#   Rotation    > %%%%% <                                                      # V_ROT
+#   Scale       > %%%%% <                                                      # V_SCL
+#                                                                              #
+# A PRIORI SIGMAS                                                              #
+#   North       > %%%%%%% < meters/year                                        # V_SIGMAN
+#   East        > %%%%%%% < meters/year                                        # V_SIGMAE
+#   Up          > %%%%%%% < meters/year                                        # V_SIGMAU
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL FREEVEL = MANUAL OR FREEVEL = FROM_FILE OR FREEVEL = WITH_FLAG AND RADIO3_3 = 1 AND CRD_NINT /= 0 AND CRD_ELIM / _ #
+# ADDNEQ2 6.1: Datum Definition for Station Velocities                         #
+#                                                                              #
+# STATIONS CONSIDERED FOR MINIMUM CONSTRAINT CONDITIONS                        #
+#   Manual selection                         > %%%%%%%%%%%%%%%%%%%% <          # FREEVEL_L
+#   List of stations from file               > %%%%%%%% <                      # FREEVEL_F
+#   Stations with specific flags in VEL file > %%%%%%%% <  #: all non-blank    # FREEVEL_G
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SIGVEL = MANUAL OR SIGVEL = FROM_FILE OR SIGVEL = WITH_FLAG AND RADIO3_2 = 1 AND CRD_NINT /= 0 AND CRD_ELIM / _ #
+# ADDNEQ2 6.1: Datum Definition for Station Velocities                         #
+#                                                                              #
+# STATION VELOCITIES TO BE CONSTRAINED                                         #
+#   Manual selection                         > %%%%%%%%%%%%%%%%%%%% <          # VELOCITY4
+#   List of stations (and sigmas) from file  > %%%%%%%% <                      # VELFILE4
+#   Stations with specific flags in VEL file > %%%%%%%% <  #: all non-blank    # VELFLAG4
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL FIXVEL = MANUAL OR FIXVEL = FROM_FILE OR FIXVEL = WITH_FLAG AND RADIO3_1 = 1 AND CRD_NINT /= 0 AND CRD_ELIM / _ #
+# ADDNEQ2 6.1: Datum Definition for Station Velocities                         #
+#                                                                              #
+# STATION VELOCITIES TO BE FIXED                                               #
+#   Manual selection                         > %%%%%%%%%%%%%%%%%%%% <          # VELOCITY1
+#   List of stations from file               > %%%%%%%% <                      # VELFILE1
+#   Stations with specific flags in VEL file > %%%%%%%% <  #: all non-blank    # VELFLAG1
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL INDVSOL /= NO AND CRD_ELIM / _ ###################################
+# ADDNEQ2 7: Comparison of Individual Solutions                                #
+#                                                                              #
+# NOTIFICATION OF POSSIBLE OUTLIERS                                            #
+#   Maximum tolerated residual                North> %%%% < millimeters        # BADSOL_N
+#                                             East > %%%% < millimeters        # BADSOL_E
+#                                             Up   > %%%% < millimeters        # BADSOL_U
+#                                                                              #
+#   Maximum tolerated root-mean-square error  North> %%%% < millimeters        # BADSOLRN
+#                                             East > %%%% < millimeters        # BADSOLRE
+#                                             Up   > %%%% < millimeters        # BADSOLRU
+#                                                                              #
+#   Minimum number of solutions for each station   > %%%% <                    # MINSOL
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL TRP_ELIM / _ OR GRD_ELIM / _ OR CLK_ELIM / _ OR ISB_ELIM / _ OR ERP_ELIM / _ OR LOD_ELIM / _ OR UT_ELIM / _ OR NUT_ELIM / _  #
+# ADDNEQ2 8: Interval Length of Parameters                                     #
+#                                                                              #
+# NEW PARAMETER SPACING                        hhh mm ss                       #
+#   Troposphere zenith path delays           > %%%%%%%%% <                     # TRP_NINT
+#   Troposphere gradients                    > %%%%%%%%% <                     # GRD_NINT
+#   Time-dependent inter-system biases       > %%%%%%%%% <                     # ISB_NINT
+#   Earth rotation parameters                > %%%%%%%%% <                     # ERP_NINT
+#   Nutation parameters                      > %%%%%%%%% <                     # NUT_NINT
+#                                                                              #
+#                                              yyyy mm dd     hh mm ss         #
+# REFERENCE EPOCH FOR PARAMETER INTERVALS    > %%%%%%%%%% < > %%%%%%%% <       # PAR_REF PAR_OFF
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL TRP_ELIM / _ OR GRD_ELIM / _ OR GIM_ELIM / _ #####################
+# ADDNEQ2 9: Options for Atmospheric Parameters                                #
+#                                                                              #
+# ABSOLUTE CONSTRAINING                                                        #
+#   Troposphere zenith path delays> %%%%%%%% <meters                           # TRP_ASIG
+#   Troposphere gradients         > %%%%%%%% <meters                           # GRD_ASIG
+#   Global ionosphere parameters  > %%%%%%%% <TECU                             # GIM_ASIG
+#                                                                              #
+# RELATIVE CONSTRAINING AND VALIDITY INTERVAL OF CONSTRAINT                    #
+#   Troposphere zenith path delays> %%%%%%%% <meters    > %%%%%%%% <(hh mm ss) # TRP_RSIG TRP_RDT
+#   Troposphere gradients         > %%%%%%%% <meters    > %%%%%%%% <(hh mm ss) # GRD_RSIG GRD_RDT
+#   Global ionosphere parameters  > %%%%%%%% <TECU      > %%%%%%%% <(hh mm ss) # GIM_RSIG GIM_RDT
+#                                                                              #
+# EXTRACTION OF PARAMETERS FOR TROPOSPHERE SINEX FILE                          #
+#   Offset > %%%%%%%%% < (hhh mm ss)    Time resolution > %%%%%%%% < (hh mm ss)# TRPOFF TRPRES
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL ORB_ELIM / _ OR STO_ELIM / _ #####################################
+# ADDNEQ2 10.1: Options for Orbital Parameters                                 #
+#                                                                              #
+# OPTIONS FOR ORBIT COMBINATION                                                #
+#   Long-arc computation                          > % <                        # TRAFO
+#   Stochastic pulses at NEQ boundaries           > % <                        # NUMSTC
+#   No stacking of dynamical orbit parameters     > % <                        # SPLTDYN
+#   Minimum interval between pulse and maneuver   > %%%%%%%%% <(hhh mm ss)     # DTSTC
+#                                                                              #
+# A PRIORI SIGMAS FOR ORBITAL ELEMENTS                                         #
+#   Semi major axis                               > %%%%%%%%% <meters          # ORB_A
+#   Eccentricity                                  > %%%%%%%%% <                # ORB_E
+#   Inclination                                   > %%%%%%%%% <arcsec          # ORB_I
+#   Ascending node                                > %%%%%%%%% <arcsec          # ORB_OM
+#   Perigee                                       > %%%%%%%%% <arcsec          # ORB_P
+#   Argument of latitude                          > %%%%%%%%% <arcsec          # ORB_U
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL ORB_ELIM / _ OR STO_ELIM / _ #####################################
+# ADDNEQ2 10.2: Options for Orbital Parameters                                 #
+#                                                                              #
+# A PRIORI SIGMAS FOR DYNAMICAL PARAMETERS                                     #
+#   Constant D/R terms                         > %%%%%%%% < meters/sec**2      # ORB_D0
+#   Constant Y/S terms                         > %%%%%%%% < meters/sec**2      # ORB_Y0
+#   Constant X/W terms                         > %%%%%%%% < meters/sec**2      # ORB_X0
+#   Periodic D/R terms                         > %%%%%%%% < meters/sec**2      # ORB_DP
+#   Periodic Y/S terms                         > %%%%%%%% < meters/sec**2      # ORB_YP
+#   Periodic X/W terms                         > %%%%%%%% < meters/sec**2      # ORB_XP
+#                                                                              #
+# A PRIORI SIGMAS FOR STOCHASTIC PULSES                                        #
+#   Radial                                     > %%%%%%%% < meters/sec         # STC_R
+#   Along track                                > %%%%%%%% < meters/sec         # STC_A
+#   Out of plane                               > %%%%%%%% < meters/sec         # STC_O
+#   Direction to Sun                           > %%%%%%%% < meters/sec         # STC_S
+#   Y-direction in satellite frame             > %%%%%%%% < meters/sec         # STC_Y
+#   X-direction in satellite frame             > %%%%%%%% < meters/sec         # STC_X
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL ERP_ELIM / _ OR LOD_ELIM / _ OR UT_ELIM / _ OR NUT_ELIM / _ ######
+# ADDNEQ2 11: Options for Earth Orientation Parameters                         #
+#                                                                              #
+# OPTIONS FOR EARTH ORIENTATION PARAMETERS                                     #
+#   Block retrograde terms in polar motion> %%%%% <                            # BLKRET
+#                                                                              #
+# A PRIORI SIGMAS (FIRST PARAMETER)                                            #
+#   UT1-UTC                               > %%%%%%%% < milliseconds            # POL_UTF
+#   Delta Epsilon                         > %%%%%%%% < milliarcseconds         # POL_EPF
+#   Delta Psi                             > %%%%%%%% < milliarcseconds         # POL_PSF
+#                                                                              #
+# A PRIORI SIGMAS (REMAINING PARAMETERS)                                       #
+#   X and Y pole components               > %%%%%%%% < milliarcseconds         # POL_XY
+#   UT1-UTC                               > %%%%%%%% < milliseconds            # POL_UTN
+#   LOD                                   > %%%%%%%% < milliseconds/day        # POL_LOD
+#   Delta Epsilon                         > %%%%%%%% < milliarcseconds         # POL_EPN
+#   Delta Psi                             > %%%%%%%% < milliarcseconds         # POL_PSN
+#                                                                              #
+# EXTRACTION OF PARAMETERS FOR ERP FILES                                       #
+#   Time resolution                       > %%%%%%%% < (hh mm ss)              # POLESTEP
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL MSS_ELIM / _ OR SETUP_GCC = 1 ####################################
+# ADDNEQ2 12: Options for Geocenter Coordinates                                #
+#                                                                              #
+# A PRIORI SIGMAS FOR COMPONENT                                                #
+#   Geocenter coordinates           X > %%%%%%%% < meters                      # COFMASSX
+#                                   Y > %%%%%%%% < meters                      # COFMASSY
+#                                   Z > %%%%%%%% < meters                      # COFMASSZ
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL DCBS_ELIM / _ OR DCBR_ELIM / _ ###################################
+# ADDNEQ2 13: Options for Differential Code Biases                             #
+#                                                                              #
+# P1-C1 BIAS PARAMETERS                                                        #
+#   Type of sigma                 > %%%%% <                                    # P1C1REF
+#   A priori sigma for satellites > %%%%%%%% < nanoseconds                     # P1C1SIG
+#                                                                              #
+# P1-P2 BIAS PARAMETERS                                                        #
+#   Type of sigma for satellites  > %%%%% <                                    # P1P2REF
+#   A priori sigma for satellites > %%%%%%%% < nanoseconds                     # P1P2SIG
+#   A priori sigma for receivers  > %%%%%%%% < nanoseconds                     # P1P2SIGR
+#                                                                              #
+# LC BIAS (Inter-System BIAS, ISB) PARAMETERS                                  #
+#   Type of sigma for receivers   > %%%%% <                                    # LCREF
+#   A priori sigma for receivers  > %%%%%%%% < nanoseconds                     # LCSIGR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL CLK_ELIM / _ OR ISB_ELIM / _ #####################################
+# ADDNEQ2 14: Options for GLONASS Receiver Clock Biases                        #
+#                                                                              #
+# GLONASS RECEIVER CLOCK BIASES                                                #
+#   Receiver clock offsets                   > %%%%%%%% < milliseconds         # RCOSIGMA
+#   Biases in the NEQ stem from a PPP        > % <                             # RCOFROMPPP
+#   Fix biases for all GPS satellites        > % <                             # RCORMGPS
+#   Transform satellite to frequency biases  > % <                             # RCOTOFRQ
+#   Inter-frequency bias, alarming limit     > %%%%%%%% < nanoseconds          # IFBMAX
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL GTRA_ELIM / _ OR GTRP_ELIM / _ ###################################
+# ADDNEQ2 15: Options for GNSS-specific Translations and ZPD Biases            #
+#                                                                              #
+# STATION TRANSLATIONS                                 Tra  Rot  Scl           #
+#   Type of constraining           > %%%%%%%% <       > % <> % <> % <          # GTRADAT GTRATRA GTRAROT GTRASCL
+#   Stations to be> %%%%%%%% <     > %%%%%%%% <                                # GTRAXCL GTRAFIX
+#   A priori sigmas              N > %%%%%%%% < meters                         # GTRASIG_N
+#                                E > %%%%%%%% < meters                         # GTRASIG_E
+#                                U > %%%%%%%% < meters                         # GTRASIG_U
+#                                                                              #
+# TROPOSPHERE BIASES                                                           #
+#   Type of constraining           > %%%%%%%% <                                # GTRPDAT
+#   Stations to be> %%%%%%%% <     > %%%%%%%% <                                # GTRPXCL GTRPFIX
+#   A priori sigma                 > %%%%%%%% < meters                         # GTRPSIG
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL ANT_ELIM / _ OR ANTX_ELIM / _ OR SPV_ELIM / _ ####################
+# ADDNEQ2 16: Options for Satellite Antenna Phase Center Parameters            #
+#                                                                              #
+# SATELLITE PHASE CENTER OFFSETS                                               #
+#   Modify parametrization  GPS    > %%%%%%%%%%%%%% <                          # SATANTGPS
+#                           GLONASS> %%%%%%%%%%%%%% <                          # SATANTGLO
+#   A priori sigmas in      X      > %%%%%%%% < meters                         # SATANTX
+#                           Y      > %%%%%%%% < meters                         # SATANTY
+#                           Z      > %%%%%%%% < meters                         # SATANTZ
+#   Apply constraints to           > %%%%%%%%%%%%%% <       > %%%%%%%%%% <     # SATANTS SATANTD
+#   Advanced grouping/sigmas       > % <                      (YYYY MM DD)     # SATANT0
+#                                                                              #
+# SATELLITE PHASE CENTER VARIATIONS                                            #
+#   Modify parametrization  GPS    > %%%%%%%%%%%%%% <                          # SATSPVGPS
+#                           GLONASS> %%%%%%%%%%%%%% <                          # SATSPVGLO
+#   A priori sigma                 > %%%%%%%% < meters                         # SATSPV
+#   Apply constraints to           > %%%%%%%%%%%%%% <        > %%%%%%%%%% <    # SATSPVS SATSPVD
+#   Advanced grouping/sigmas       > % <                       (YYYY MM DD)    # SAPANT0
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL ANT_ELIM / _ OR ANTX_ELIM / _ OR SPV_ELIM / _ AND SATANT0 = 1 ####
+# ADDNEQ2 16.1 Advanced Options for Satellite Antenna Phase Center Offsets     #
+#                                                                              #
+# ADVANCED PARAMETER STACKING AND CONSTRAINING                                 #
+#                                                                              #
+#        A priori sigmas            Satellite numbers                          #
+# > Grp _X(m)_ _Y(m)_ _Z(m)_ ___ ___ ___ ___ ___ ___ ___ ___ ___    <          # SATANTSTR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL ANT_ELIM / _ OR ANTX_ELIM / _ OR SPV_ELIM / _ AND SAPANT0 = 1 ####
+# ADDNEQ2 16.2 Advanced Options for Satellite Antenna Phase Center Variations  #
+#                                                                              #
+# ADVANCED PARAMETER STACKING AND CONSTRAINING                                 #
+#                                                                              #
+#                                   Satellite numbers                          #
+# > Grp A_priori_sigma(m) ___ ___ ___ ___ ___ ___ ___ ___ ___    <             # SAPGRP
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL RAO_ELIM / _ OR RAP_ELIM / _ #####################################
+# ADDNEQ2 17: Options for Receiver Antenna Phase Center Parameters             #
+#                                                                              #
+# RECEIVER ANTENNA PARAMETERS                                                  #
+#   Receiver antenna offsets  North> %%%%%%%% < meters                         # RECANTN
+#                             East > %%%%%%%% < meters                         # RECANTE
+#                             Up   > %%%%%%%% < meters                         # RECANTU
+#   Receiver antenna patterns      > %%%%%%%% < meters                         # RECSPV
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL TRANS_ELIM / _ ###################################################
+# ADDNEQ2 18: Options for Helmert Transformation Parameters                    #
+#                                                                              #
+# STACKING OF PARAMETERS                                                       #
+#   Translations         > %%%%%%%%%%%% <                                      # CMB_TRA
+#   Rotations            > %%%%%%%%%%%% <                                      # CMB_ROT
+#   Scale                > %%%%%%%%%%%% <                                      # CMB_SC
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL HOI_ELIM / _ #####################################################
+# ADDNEQ2 19: Options for Higher-order Ionosphere Scaling Factors              #
+#                                                                              #
+# PARAMETER HANDLING FOR      A priori      Sigma        Stacking              #
+#   Second-order term       > %%%%%%%%% < > %%%%%%%%%% < > % <                 # HOI1 SIGHOI1 STKHOI1
+#   Third-order term        > %%%%%%%%% < > %%%%%%%%%% < > % <                 # HOI2 SIGHOI2 STKHOI2
+#   Ray path bending term   > %%%%%%%%% < > %%%%%%%%%% < > % <                 # HOI3 SIGHOI3 STKHOI3
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL ALD_ELIM / _ OR OLD_ELIM / _ OR HLD_ELIM / _ #####################
+# ADDNEQ2 20: Options for Parameter Scaling Factors                            #
+#                                                                              #
+# ATMOSPHERIC PRESSURE LOADING                                                 #
+#   Parameter setup                  > %%%%%%%%%%%%%%%%%% <    > %%%%%%%% <    # ALOADSET ALOADCLU
+#   Parameter decomposition          > %%%%%%%%%%%%%%%%%% <                    # ALOADDEC
+#   Constrain scaling factors to     > %%%%%%%% <                              # ALOAD10
+#   Sigma in North/horizontal/overall> %%%%%%%% < meters                       # ALOADSIG1
+#   @@@@@@@@@East@/vertical          > %%%%%%%% < meters                       # ALOADSIG2
+#   @@@@@@@@@Up                      > %%%%%%%% < meters                       # ALOADSIG3
+#                                                                              #
+# OCEAN NON-TIDAL LOADING                                                      #
+#   Parameter setup                  > %%%%%%%%%%%%%%%%%% <    > %%%%%%%% <    # ONTLDSET ONTLDCLU
+#   Parameter decomposition          > %%%%%%%%%%%%%%%%%% <                    # ONTLDDEC
+#   Constrain scaling factors to     > %%%%%%%% <                              # ONTLD10
+#   Sigma in North/horizontal/overall> %%%%%%%% < meters                       # ONTLDSIG1
+#   @@@@@@@@@East@/vertical          > %%%%%%%% < meters                       # ONTLDSIG2
+#   @@@@@@@@@Up                      > %%%%%%%% < meters                       # ONTLDSIG3
+#                                                                              #
+# HYDROSTATIC PRESSURE LOADING                                                 #
+#   Parameter setup                  > %%%%%%%%%%%%%%%%%% <    > %%%%%%%% <    # HLOADSET HLOADCLU
+#   Parameter decomposition          > %%%%%%%%%%%%%%%%%% <                    # HLOADDEC
+#   Constrain scaling factors to     > %%%% <                                  # HLOAD10
+#   Sigma in North/horizontal/overall> %%%%%%%% < meters                       # HLOADSIG1
+#   @@@@@@@@@East@/vertical          > %%%%%%%% < meters                       # HLOADSIG2
+#   @@@@@@@@@Up                      > %%%%%%%% < meters                       # HLOADSIG3
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL CLKR_ELIM / _ OR CLKS_ELIM / _ ###################################
+# ADDNEQ2 21: Options for Epoch-wise Clock Offsets                             #
+#                                                                              #
+# REFERENCE CLOCK                                                              #
+#   Selection of reference clock(s)   > %%%%%%%%%%%%%% <                       # REFCLOCK
+#                 Manual: Stations    > %%%%%%%%%%%%%%%%%%%% <                 # CLKSTASEL
+#@@@@@@@@@@@@@@@@@@@@@@@@@Satellites  > %%%%%%%%%%%%%%%%%%%% <                 # CLKSATSEL
+#              From file: Stations    > %%%%%%%% <                             # CLKSTAFIL
+#@@@@@@@@@@@@@@@@@@@@@@@@@Satellites  > %%%%%%%% <                             # CLKSATFIL
+#                                                                              #
+#   Fix reference clock               > % <                                    # CLKFIX
+#   A priori sigma for reference clock> %%%%%%%% < nsec                        # CLKSIG
+#                                                                              #
+#   Fix only clocks with input values > % <                                    # CLKDELINP
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL CLKR_ELIM / _ OR CLKS_ELIM / _ AND CLKRNX / _  ###################
+# ADDNEQ2 21.1: Options for Epoch-wise Clock Offsets                           #
+#                                                                              #
+# HEADER ENTRIES FOR THE CLOCK RINEX OUTPUT FILE                               #
+#   Run by         > %%%%%%%%%%%%%%%%%%% <                                     # RUNBY
+#   AC designator  > %%%% <                                                    # AC
+#   AC name        > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <  # ACNAME
+#                                                                              #
+#   Time system    > %%%% <                                                    # TIMESYS
+#   DCBs applied   > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <                # DCBLINE
+#                                                                              #
+#   Comment lines:                                                             #
+#      > Comment_lines_______________________________________________   <      # COMMENT
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL RNG_ELIM / _ #####################################################
+# ADDNEQ2 22: Options for SLR Range Biases                                     #
+#                                                                              #
+# A PRIORI SIGMAS                                                              #
+#   Range bias parameters       > %%%%%%%% <                                   # RGBSIG
+#                                                                              #
+# ESTIMATION/STACKING PER STATION                                              #
+#   > % < Stack only identical range biases                                    # RGB_STK1
+#   > % < Stack range biases for the satellites of one group                   # RGB_STK2
+#   > % < Stack all range biases for one station                               # RGB_STK3
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL STAINFO / _ AND USEFLG = 999 #####################################
+# ADDNEQ2 99.1: Selection from Station Information File                        #
+#                                                                              #
+# THIS PANEL IS FOR TEST PURPOSES ONLY                                         #
+# MODIFY SR GTSTAFLG.f90 AND REMOVE USEFLG TO ACTIVATE                         #
+#                                                                              #
+# FLAGS CONCERNING STATION INFORMATION FILE                                    #
+#   Consider flags                  > % <                                      # USEFLG
+#                                                                              #
+# FLAGS TO BE CONSIDERED                                                       #
+#   Type 001: Renaming of stations  > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <    # FLG001
+#   Type 002: Station information   > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <    # FLG002
+#   Type 003: Station problems      > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <    # FLG003
+#                                                                              #
+#   Flag 999: Any flag will be considered                                      #
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL STEP2 = 1 ########################################################
+# ADDNEQ2 99.2: Compensate for Step-2 Tide SW Bug                              #
+#                                                                              #
+#   Compensate for effect of step-2 tide SW bug between    > % <               # STEP2
+#          > %%%%%%%%%% < and > %%%%%%%%%% < (yyyy mm dd)                      # STEP2A STEP2B
+# END_PANEL ####################################################################

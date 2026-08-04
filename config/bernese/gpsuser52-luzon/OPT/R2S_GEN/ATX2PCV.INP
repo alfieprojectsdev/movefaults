@@ -1,0 +1,309 @@
+
+! Some keywords for automatic output
+! ----------------------------------
+CAMPAIGN 1  "${P}/LUZON"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${P}/LUZON\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2021"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "2440"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "c:\Bernese\GPSUSER52"
+  "T" "c:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! -------------------------------------------------------------------------
+! Debugging mode
+! --------------
+DEBUG 1  "0"
+
+MSG_DEBUG 1  "Debugging mode"
+
+! General Constants
+! -----------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+CONST 1  "${X}/GEN\CONST."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! Satellite Information
+! ---------------------
+SATELL 1  "${X}/GEN\$(SATINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; maxfiles = 1
+  # $(SATINF).$(PCV)
+
+DESCR_SATELL 1  "Satellite information"
+
+! Receiver information
+! --------------------
+RECEIVR 1  "${X}/GEN\RECEIVER."
+  ## widget = selwin; path = PTH_GEN; maxfiles = 1; emptyallowed = true
+  # RECEIVER.
+
+DESCR_RECEIVR 1  "Receiver information"
+
+! Title
+! -----
+TITLE 1  "RNX2SNX_212440: Conversion from ANTEX to Bernese PCV"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Conversion from ANTEX to Bernese PCV
+
+MSG_TITLE 1  "Title line"
+
+! Input File: External Phase Center File
+! --------------------------------------
+PHASEXT 1  "${P}/LUZON\OUT\$(MYATX)"
+  ## widget = selwin; path = DIR_OUT; ext = NO_EXT
+  # $(MYATX)
+
+DESCR_PHASEXT 1  "External phase center offsets"
+
+! Conversion abs2rel
+! ------------------
+ABS2REL 1  "0"
+  ## widget = checkbox
+
+MSG_ABS2REL 1  "Conversion of absolute phase patterns"
+
+! Input File: Bernese phase file
+! ------------------------------
+PHASECC 1  "${X}/GEN\$(PCVINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; emptyallowed = true
+  # $(PCVINF).$(PCV)
+
+DESCR_PHASECC 1  "Input Bernese phase file"
+
+! Input File: Station information file
+! ------------------------------------
+STAINFO 1  "${P}/LUZON\STA\LUZON.STA"
+  ## widget = selwin; path = DIR_STA; ext = EXT_STA; emptyallowed = true
+  ## maxfiles = 1
+  # LUZON
+
+DESCR_STAINFO 1  "Station information file"
+
+! Conversion
+! ----------
+CONVERT 1  "0"
+  ## widget = checkbox; activeif = PHASECC /= _ AND ABS2REL /= 1
+
+MSG_CONVERT 1  "Conversion of relative phase pattern"
+
+! Bernese Phase Center File
+! -------------------------
+PHASRSG 1  "${P}/LUZON\OUT\$(PCVINF).PHG"
+  ## widget = lineedit; path = DIR_PHG; ext = EXT_PHG
+  # $(PCVINF)
+
+DESCR_PHASRSG 1  "Bernese phase center offsets"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/LUZON\OUT\ATX2PCV.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # ATX2PCV
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Do not write zero patterns
+! --------------------------
+NOZERO 1  "1"
+  ## widget = checkbox
+
+MSG_NOZERO 1  "Do not write zero patterns"
+
+! Consider antennas without radome code
+! -------------------------------------
+RADCOD 1  "1"
+  ## widget = checkbox; activeif = PHASECC /= _
+
+MSG_RADCOD 1  "Consider antennas without radome code"
+
+! ANTEX Conversion
+! ================
+!
+! Fill Pattern
+! ------------
+ATXFIL 1  "1"
+  ## widget = checkbox
+
+MSG_ATXFIL 1  "Special handling of missing values"
+
+! Maximum zenith angle
+! --------------------
+MXFZEN 1  "90"
+  ## widget = spinbox; range = 0 90 5; activeif = ATXFIL = 1
+
+MSG_MXFZEN 1  "Fill missing values up to a MAXIMUM ZENITH ANGLE of"
+
+! Fill missing values for receiver antennas
+! -----------------------------------------
+FILREC 1  "LAST_VALUE"
+  ## widget = combobox; editable = false; cards = ZEROS LAST_VALUE AOAD/M_T
+  ## activeif = ATXFIL = 1
+
+MSG_FILREC 1  "Fill missing values for receiver antennas"
+
+! Maximum nadir angle
+! -------------------
+MXFNAD 1  "17"
+  ## widget = spinbox; range = 0 20 1; activeif = ATXFIL = 1
+
+MSG_MXFNAD 1  "Fill missing values up to a MAXIMUM NADIR ANGLE of"
+
+! Fill missing values for satellite antennas
+! ------------------------------------------
+FILSAT 1  "ZEROS"
+  ## widget = combobox; editable = false; cards = ZEROS LAST_VALUE
+  ## activeif = ATXFIL = 1
+
+MSG_FILSAT 1  "Fill missing values for satellite antennas"
+
+! Fill missing values for indiv. receiver antennas
+! ------------------------------------------------
+FILINDV 1  "GROUP_VALUES"
+  ## widget = combobox; editable = false
+  ## cards = GPS_VALUES GROUP_VALUES GROUP_DIFF
+  ## activeif = ATXFIL = 1 AND RECEIVR /= _
+
+MSG_FILINDV 1  "Fill missing values for individual antennas"
+
+! Priority on calibration methods
+! -------------------------------
+ATXPRIOR 1  "CHAMBER"
+  ## widget = combobox; editable = false; cards = CHAMBER ROBOT LATEST
+
+MSG_ATXPRIOR 1  "Choose the calibration method with the highest priority"
+
+! ONLY ELEVATION DEPENDENT PATTERNS
+! ---------------------------------
+ONLYELE 1  "0"
+  ## widget = checkbox
+
+MSG_ONLYELE 1  "Only elevation dependent patterns required"
+
+! CONSIDER GPS VALUES ONLY
+! ------------------------
+ONLYGPS 1  "0"
+  ## widget = checkbox
+
+MSG_ONLYGPS 1  "Consider GPS values only"
+
+! SET ANTENNA NUMBER TO 999999
+! ----------------------------
+ANTNUM 1  "0"
+  ## widget = checkbox
+
+MSG_ANTNUM 1  "Set number of generic antennas to 999999"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CONVERT ANTEX TO BERNESE FORMAT - ATX2PCV 1: Input                           #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files             > % <                                   # SHOWGEN
+#                                                                              #
+# INPUT FILENAMES                                                              #
+#   External phase center offsets      > %%%%%%%%%%%% <                        # PHASEXT
+#   Bernese phase center offsets file  > %%%%%%%%%%%% <                        # PHASECC
+#   Station information file           > %%%%%%%%%%%% <                        # STAINFO
+#                                                                              #
+# OPTIONS FOR BERNESE INPUT FILE                                               #
+#   Consider antennas without radome code     > % <                            # RADCOD
+#                                                                              #
+# RESULT FILE                                                                  #
+#   Bernese phase center offsets    > %%%%%%%% <                               # PHASRSG
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output          > % < use ATX2PCV.Lnn           or    > %%%%%%%% < # SYSODEF SYSOUT
+#   Error messages          > % < merged to program output  or    > %%%%%%%% < # ERRMRG SYSERR
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1  #####################################################
+# ATX2PCV 1.1: General Files                                                   #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants       > %%%%%%%%%%%% <                                   # CONST
+#   Satellite information   > %%%%%%%%%%%% <                                   # SATELL
+#   Receiver information    > %%%%%%%%%%%% <                                   # RECEIVR
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# ATX2PCV 2: ANTEX Conversion                                                  #
+#                                                                              #
+# MISSING RECEIVER AND SATELLITE ANTENNA PATTERNS                              #
+#   Special handling of missing values                 > % <                   # ATXFIL
+#                                                                              #
+#   Fill missing values up to a MAXIMUM ZENITH ANGLE of> %% <  degrees         # MXFZEN
+#   with > %%%%%%%%%% <                                                        # FILREC
+#                                                                              #
+#   Fill missing values up to a MAXIMUM NADIR ANGLE of > %% <  degrees         # MXFNAD
+#   with > %%%%%%%%%% <                                                        # FILSAT
+#                                                                              #
+#   Fill missing system values for individually calibrated receiver antennas   #
+#   with > %%%%%%%%%% <                                                        # FILINDV
+#                                                                              #
+# OPTIONS                                                                      #
+#   Choose the calibration method with the highest priority > %%%%%%%% <       # ATXPRIOR
+#   Do not write zero patterns                              > % <              # NOZERO
+#   Set number of generic receiver antennas to 999999       > % <              # ANTNUM
+#     (to be used for individual antenna calibrations)                         #
+#   Elevation dependent receiver patterns only              > % <              # ONLYELE
+#   Consider GPS values only                                > % <              # ONLYGPS
+#                                                                              #
+################################################################################
