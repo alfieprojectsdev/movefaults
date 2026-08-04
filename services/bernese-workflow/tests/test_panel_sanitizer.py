@@ -14,10 +14,14 @@ from bernese_workflow.panel_sanitizer import (
 # ---------------------------------------------------------------------------
 
 def test_mixed_separator_path_converted():
-    line = r'SESSION_TABLE 1  "${P}/SOB\GEN\SESSIONS.SES"'
+    # Campaign-agnostic on purpose. This fixture previously used "${P}/SOB",
+    # the instructor's demo campaign — a genuine hardcoded-campaign hazard
+    # that went unnoticed because no check existed for it. Using it here made
+    # a panel with two problems the example of a panel with one.
+    line = r'SESSION_TABLE 1  "${P}/${V_CAMP}\GEN\SESSIONS.SES"'
     res = sanitize_panel_text(line)
     assert res.changed is True
-    assert '"${P}/SOB/GEN/SESSIONS.SES"' in res.text
+    assert '"${P}/${V_CAMP}/GEN/SESSIONS.SES"' in res.text
     assert "\\" not in res.text
     assert res.ok is True  # separator fix alone → no residual warning
 
@@ -148,7 +152,7 @@ def test_provision_sanitizes_inp_sizes_maxpar_and_copies_scripts(tmp_path):
     src.mkdir(parents=True)
     # Clean panel with mixed separators (safe to convert) + a MAXPAR line.
     (src / "ADDNEQ2.INP").write_text(
-        'SESSION_TABLE 1  "${P}/SOB\\GEN\\SESSIONS.SES"\nMAXPAR 1  "5000"\n'
+        'SESSION_TABLE 1  "${P}/${V_CAMP}\\GEN\\SESSIONS.SES"\nMAXPAR 1  "5000"\n'
     )
     # A Perl script must be copied verbatim (backslashes preserved).
     (src / "helper.pl").write_text('$x =~ s/a\\tb/c/;\n')
@@ -158,8 +162,12 @@ def test_provision_sanitizes_inp_sizes_maxpar_and_copies_scripts(tmp_path):
 
     assert report.ok is True
     addneq2 = (dest / "PGN_WK" / "ADDNEQ2.INP").read_text()
-    assert '"${P}/SOB/GEN/SESSIONS.SES"' in addneq2      # separators fixed
-    assert 'MAXPAR 1  "1580"' in addneq2                 # 270*4+500, sized
+    assert '"${P}/${V_CAMP}/GEN/SESSIONS.SES"' in addneq2   # separators fixed
+    # MAXPAR is a CEILING and is raise-only: the panel already carries 5000,
+    # which exceeds the computed 1580 (270*4+500), so it is LEFT ALONE. Lowering
+    # it would undo a value someone raised deliberately against an observed
+    # ADDNEQ2 overflow — exactly what the real PAGENET panel's 10000 records.
+    assert 'MAXPAR 1  "5000"' in addneq2
     assert (dest / "PGN_WK" / "helper.pl").read_text() == '$x =~ s/a\\tb/c/;\n'  # verbatim
 
 
@@ -197,3 +205,78 @@ def test_provision_nonstrict_collects_warnings(tmp_path):
     assert report.ok is False
     assert "ADDNEQ2.INP" in report.warnings
     assert (dest / "ADDNEQ2.INP").exists()  # non-strict still writes
+
+
+def test_maxpar_is_raised_when_the_panel_is_below_the_computed_value(tmp_path):
+    """The heuristic still applies upward — an undersized panel gets sized up."""
+    gold, dest = tmp_path / "gold", tmp_path / "U"
+    (gold / "PGN_WK").mkdir(parents=True)
+    (gold / "PGN_WK" / "ADDNEQ2.INP").write_text('MAXPAR 1  "1000"\n', encoding="ascii")
+
+    provision_opt_dir(gold, dest, n_stations=270)
+
+    assert 'MAXPAR 1  "1580"' in (dest / "PGN_WK" / "ADDNEQ2.INP").read_text()
+
+
+def test_maxpar_is_never_lowered(tmp_path):
+    """Regression: a computed value below the panel's must not overwrite it.
+
+    PR #65's real PAGENET ADDNEQ2.INP ships MAXPAR "10000", raised after an
+    actual parameter overflow during the training week and flagged in
+    PROVENANCE.md as not to be reverted. compute_maxpar(72) is 1000, so the
+    pre-2026-08-04 behaviour would have silently undone that fix during routine
+    provisioning.
+    """
+    gold, dest = tmp_path / "gold", tmp_path / "U"
+    (gold / "PGN_WK").mkdir(parents=True)
+    (gold / "PGN_WK" / "ADDNEQ2.INP").write_text('MAXPAR 1  "10000"\n', encoding="ascii")
+
+    provision_opt_dir(gold, dest, n_stations=72)
+
+    assert 'MAXPAR 1  "10000"' in (dest / "PGN_WK" / "ADDNEQ2.INP").read_text()
+
+
+def test_dry_run_writes_nothing_at_all(tmp_path):
+    """Regression: provision_opt_dir had no dry-run mode, so callers claiming one lied.
+
+    scripts/provision_gpsuser.py printed "DRY RUN — nothing will be written" and
+    then wrote every panel, because there was no way to ask it not to.
+    """
+    gold, dest = tmp_path / "gold", tmp_path / "U"
+    (gold / "PGN_WK").mkdir(parents=True)
+    (gold / "PGN_WK" / "ADDNEQ2.INP").write_text('MAXPAR 1  "1000"\n', encoding="ascii")
+    (gold / "PGN_WK" / "helper.pl").write_text("print 1;\n", encoding="ascii")
+
+    report = provision_opt_dir(gold, dest, n_stations=270, dry_run=True)
+
+    assert report.written, "the plan should still be reported"
+    assert not dest.exists(), "dry run must not create the destination tree"
+    assert not (dest / "PGN_WK" / "ADDNEQ2.INP").exists()
+
+
+def test_hardcoded_campaign_under_P_is_flagged(tmp_path):
+    """`${P}/<name>` pins a panel to one campaign and must not pass silently.
+
+    The real PGN_WK/MENU.INP arrived with `ACTIVE_CAMPAIGN 1 "${P}/SOB"` and a
+    SESSION_TABLE under the same path — SOB being the instructor's demo campaign,
+    a directory that does not exist on the target server. Both lines previously
+    sanitized to `changed=True, warnings=0`: the backslashes were converted and
+    the panel reported clean, so the foreign campaign reached $U silently.
+    """
+    result = sanitize_panel_text(
+        'ACTIVE_CAMPAIGN 1  "${P}/SOB"\n'
+        'SESSION_TABLE 1  "${P}/SOB\\GEN\\SESSIONS.SES"\n'
+    )
+    kinds = [w.kind for w in result.warnings]
+    assert kinds.count("hardcoded_campaign") == 2
+    assert result.ok is False
+
+
+def test_campaign_variables_are_not_flagged(tmp_path):
+    """A panel referring to $P generically, or via a variable, is fine."""
+    result = sanitize_panel_text(
+        'DATAPOOL 1  "${P}"\n'
+        'CAMPAIGN 1  "${P}/${V_CAMP}"\n'
+        'OTHER 1  "${D}/PGN"\n'
+    )
+    assert not [w for w in result.warnings if w.kind == "hardcoded_campaign"]

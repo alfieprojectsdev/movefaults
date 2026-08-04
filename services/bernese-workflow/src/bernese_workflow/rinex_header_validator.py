@@ -11,7 +11,12 @@ dropped by RXOBV3 (PID 221/222) due to header/STA discrepancies.
 """
 from __future__ import annotations
 
+import gzip
 import logging
+import subprocess
+import zlib
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -93,14 +98,82 @@ class ValidationError(Exception):
 # ---------------------------------------------------------------------------
 
 
+# Compression suffixes we can transparently read. Stripped right-to-left, and
+# repeatedly: real DATAPOOL names carry two extensions (``.crx.gz``, ``.24d.Z``).
+#
+#   .gz  RFC 1952 gzip         -> Python's gzip module
+#   .z   UNIX compress (LZW)   -> GNU gzip subprocess; see _open_rinex_text
+_COMPRESSION_SUFFIXES = frozenset({".gz", ".z"})
+
+# Observation-data extensions, AFTER compression suffixes are stripped.
+#   .rnx  RINEX 3 long name, uncompressed
+#   .obs  RINEX observation, generic
+#   .rxo  Bernese RINEX Observation copy, found in campaign RAW/
+#   .crx  RINEX 3 long name, Hatanaka-compacted (CRINEX)
+_RINEX_OBS_SUFFIXES = frozenset({".rnx", ".obs", ".rxo", ".crx"})
+
+# RINEX 2 short-name final character: 'o' plain observation, 'd' Hatanaka
+# (CRINEX) observation. Deliberately EXCLUDES 'n'/'g'/'l' (navigation) and
+# 'm' (meteorological) — feeding those to the header parser yields no
+# REC/ANT records and would pollute the station set.
+_RINEX2_OBS_CHARS = frozenset({"o", "d"})
+
+
+def _strip_compression_suffixes(name: str) -> str:
+    """Remove trailing compression suffixes, right to left, repeatedly.
+
+    A single strip is not enough and a single regex is the wrong shape: real
+    DATAPOOL names stack a data extension under a compression one, and both
+    orders of two extensions occur —
+
+        PZAM0860.26d.gz                              -> PZAM0860.26d
+        GFCN0100.23D.Z                               -> GFCN0100.23D
+        CUSV00THA_R_20260860000_01D_30S_MO.crx.gz    -> ...MO.crx
+        CUSV00THA_R_20260860000_01D_30S_MO.rnx.gz    -> ...MO.rnx
+
+    Looping also means a hypothetical double-compressed name degrades sensibly
+    rather than being silently misclassified.
+    """
+    stem = name
+    while True:
+        dot = stem.rfind(".")
+        if dot < 0 or stem[dot:].lower() not in _COMPRESSION_SUFFIXES:
+            return stem
+        stem = stem[:dot]
+
+
 def _is_rinex_obs(path: Path) -> bool:
-    """Return True for RINEX 2 (.YYo), RINEX 3 (.rnx / .obs), and the Bernese
-    RINEX Observation copy (.RXO) found in campaign RAW/ directories."""
-    s = path.suffix.lower()
-    if s in (".rnx", ".obs", ".rxo"):
+    """True for a RINEX observation file, compressed or not.
+
+    Recognises RINEX 2 short names (``.<yy>o`` plain, ``.<yy>d`` Hatanaka),
+    RINEX 3 long names (``.rnx`` plain, ``.crx`` Hatanaka), ``.obs``, and the
+    Bernese ``.RXO`` copy — each optionally carrying a ``.gz`` or ``.Z``.
+
+    WHY COMPRESSION IS HANDLED HERE (measured on gps3, 2026-08-03). This
+    function previously tested ``path.suffix`` directly, which made it blind to
+    every file in a real DATAPOOL: all 3,010 archive files there are ``.gz`` and
+    20 are ``.Z``, so ``suffix`` was the *compression* extension and never
+    matched. Hatanaka was a second, independent miss — ``.26d``/``.crx`` were
+    absent from the accepted set, so even decompressed the majority of PAGENET
+    files would still have been skipped.
+
+    The consequence was worse than a skipped file. ``validate_rinex_headers``
+    only surfaces an empty scan as an error when called with
+    ``require_stations=True``; under the default it returns a **passing** report
+    having examined nothing — approving every session while inspecting none of
+    it, with the first symptom appearing much later as an RXOBV3 hard abort
+    mid-BPE. The unit suite could not see any of this, because its fixtures use
+    uncompressed ``.YYo``/``.rnx`` names that do not occur in the data.
+    """
+    stem = _strip_compression_suffixes(path.name)
+    dot = stem.rfind(".")
+    if dot < 0:
+        return False
+    s = stem[dot:].lower()
+    if s in _RINEX_OBS_SUFFIXES:
         return True
-    # RINEX 2: extension is .<2-digit-year>o, e.g. .23o
-    return len(s) == 4 and s[1:3].isdigit() and s[3] == "o"
+    # RINEX 2 short name: .<2-digit-year><type-char>, e.g. .26o, .26d
+    return len(s) == 4 and s[1:3].isdigit() and s[3] in _RINEX2_OBS_CHARS
 
 
 def _file_matches_session(path: Path, year: int, session: str) -> bool:
@@ -128,6 +201,124 @@ def _file_matches_session(path: Path, year: int, session: str) -> bool:
     return False
 
 
+@contextmanager
+def _open_rinex_text(path: Path) -> Iterator[Iterable[str]]:
+    """Yield decompressed text lines for a RINEX file, plain or compressed.
+
+    Handles three cases:
+
+    * **plain** — opened directly.
+    * **.gz** — Python's ``gzip`` module. This is the overwhelmingly common case
+      (3,010 of 3,030 compressed files in the gps3 DATAPOOL), so it is kept
+      subprocess-free.
+    * **.Z** — UNIX ``compress``/LZW. Python has **no LZW decoder**: ``gzip.open``
+      on one of these raises ``BadGzipFile: Not a gzipped file (b'\\x1f\\x9d')``
+      (``1f 9d`` being the LZW magic, against gzip's ``1f 8b``). GNU ``gzip -dc``
+      reads both formats, so we shell out rather than take a third-party
+      dependency for 20 files.
+
+    NO HATANAKA DECOMPRESSION IS NEEDED, which is the reason this stayed small.
+    A CRINEX file stores the original RINEX header **verbatim** after two
+    ``CRINEX VERS``/``CRINEX PROG`` lines; only the observation records below
+    ``END OF HEADER`` are compacted. Since this validator reads nothing past the
+    header, ``crx2rnx`` never has to run — no RNXCMP build, no ``hatanaka``
+    package.
+    """
+    suffix = path.suffix.lower()
+
+    if suffix == ".gz":
+        with gzip.open(path, "rt", encoding="ascii", errors="replace") as fh:
+            yield fh
+        return
+
+    if suffix == ".z":
+        proc = subprocess.Popen(
+            ["gzip", "-dc", str(path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            encoding="ascii",
+            errors="replace",
+        )
+        assert proc.stdout is not None
+        try:
+            yield proc.stdout
+        finally:
+            # The caller stops at END OF HEADER, typically a few hundred bytes
+            # into a multi-megabyte file. Closing the pipe makes gzip's next
+            # write fault with SIGPIPE, so it exits 141.
+            #
+            # THAT IS EXPECTED, NOT A FAILURE, and the exit status is
+            # deliberately discarded. This project has been bitten four times by
+            # the inverse mistake — treating a swallowed or signal-derived
+            # status as meaningful (the smartd SIGPIPE bug, `lsof +D` exiting 1
+            # on success, a trailing `[ cond ] && echo` becoming a script's
+            # verdict). Here the reverse discipline applies: a non-zero status
+            # from a process we deliberately cut off carries no information, and
+            # checking it would turn every successful early exit into an error.
+            proc.stdout.close()
+            proc.terminate()
+            proc.wait()
+        return
+
+    with path.open(encoding="ascii", errors="replace") as fh:
+        yield fh
+
+
+def _is_station_code(token: str) -> bool:
+    """True for a bare 4-character alphanumeric Bernese station code."""
+    return len(token) == 4 and token.isalnum()
+
+
+def _resolve_station_code(
+    *,
+    filename_code: str,
+    marker_name: str,
+    marker_number: str,
+    source: str,
+) -> str:
+    """Pick the 4-char station code, given RINEX headers that disagree.
+
+    A PAGENET campaign mixes two naming conventions, and taking MARKER NAME as
+    authoritative silently mis-identifies one of them. Measured on gps3 DOY 086:
+
+        PAGENET CORS         IGS fiducial
+        ------------------   ------------------
+        MARKER NAME   BOGO CITY            CUSV
+        MARKER NUMBER PBOG                 21904S001   (DOMES)
+        filename      PBOG0860.26d.gz      CUSV00THA_R_...
+        PGN.STA key   PBOG                 CUSV
+
+    Preferring MARKER NAME yields "BOGO" for the first — absent from PGN.STA —
+    so 9 of 72 stations were reported missing on data that processes correctly.
+    A validator that fails on good data gets switched off, which costs more than
+    the check was ever worth.
+
+    Order of preference, most to least specific:
+      1. MARKER NUMBER when it is a bare 4-char code (PAGENET convention).
+         Skipped for IGS, where it holds a 9-char DOMES number.
+      2. MARKER NAME when it is a single bare 4-char token (IGS convention).
+         Rejected for "BOGO CITY" — a descriptive name, not a code.
+      3. The filename's leading 4 characters, which is what the campaign and
+         DATAPOOL are keyed on and the reliable fallback.
+
+    Disagreement between the chosen code and the filename is logged: it is
+    usually a misnamed file, which is worth knowing before RXOBV3 finds it.
+    """
+    chosen = filename_code
+    if _is_station_code(marker_number):
+        chosen = marker_number.upper()
+    elif _is_station_code(marker_name):
+        chosen = marker_name.upper()
+
+    if chosen != filename_code:
+        logger.info(
+            "Station code %s from headers differs from filename code %s (%s)",
+            chosen, filename_code, source,
+        )
+    return chosen
+
+
 def _parse_rinex_headers(
     raw_dir: Path,
     *,
@@ -151,6 +342,26 @@ def _parse_rinex_headers(
     for p in raw_dir.rglob("*"):
         if not p.is_file() or not _is_rinex_obs(p):
             continue
+        # Skip dot-directories. Two independent reasons, the second decisive:
+        #
+        #   1. A leading dot is the conventional "not part of this dataset"
+        #      marker. On gps3 the DATAPOOL holds `.excluded_plg2/`, where the
+        #      two intermittent PLG2 files were hand-quarantined during the
+        #      training week to get past the RXOBV3 abort. Recursing resurrects
+        #      exactly the data someone deliberately set aside.
+        #
+        #   2. The validator must model what RNX_COP will actually stage, and
+        #      RNX_COP globs the source directory without recursing. Validating
+        #      files that will never be copied into the campaign produces
+        #      failures that cannot occur in the run — the mirror image of the
+        #      vacuous pass, and just as effective at getting the check ignored.
+        #
+        # NOTE this does NOT make the underlying problem go away: PLG2 is still
+        # absent from PGN.STA, and the quarantine is a manual workaround that
+        # task A is meant to replace with per-session detection and quarantine.
+        if any(part.startswith(".") for part in p.relative_to(raw_dir).parts[:-1]):
+            logger.debug("Skipping %s — inside a dot-directory", p)
+            continue
         if filter_session and not _file_matches_session(p, year, session):  # type: ignore[arg-type]
             continue
 
@@ -158,9 +369,10 @@ def _parse_rinex_headers(
         rec_type = ""
         ant_type = ""
         marker_name = ""
+        marker_number = ""
 
         try:
-            with p.open(encoding="ascii", errors="replace") as fh:
+            with _open_rinex_text(p) as fh:
                 for raw_line in fh:
                     line = raw_line.rstrip("\n")
                     if len(line) < 60:
@@ -170,18 +382,27 @@ def _parse_rinex_headers(
                     label = line[60:].strip()
                     if label == "MARKER NAME":
                         marker_name = line[:60].strip()
+                    elif label == "MARKER NUMBER":
+                        marker_number = line[:60].strip()
                     elif label == "REC # / TYPE / VERS":
                         rec_type = line[_RNX_TYPE_SLICE].strip()
                     elif label == "ANT # / TYPE":
                         ant_type = line[_RNX_TYPE_SLICE].strip()
                     elif label == "END OF HEADER":
                         break
-        except OSError as exc:
+        except (OSError, EOFError, zlib.error) as exc:
+            # A truncated or corrupt archive member must not abort the whole
+            # scan — one unreadable file in a 677-file DATAPOOL should be a
+            # warning about that file, not a failure of the validation run.
             logger.warning("Cannot read %s: %s", p, exc)
             continue
 
-        if marker_name and len(marker_name) >= 4:
-            station_code = marker_name[:4].upper()
+        station_code = _resolve_station_code(
+            filename_code=station_code,
+            marker_name=marker_name,
+            marker_number=marker_number,
+            source=p.name,
+        )
 
         if rec_type or ant_type:
             result[station_code] = {"receiver": rec_type, "antenna": ant_type}
@@ -299,7 +520,7 @@ def validate_rinex_headers(
     *,
     year: int | None = None,
     session: str | None = None,
-    require_stations: bool = False,
+    require_stations: bool = True,
 ) -> ValidationReport:
     """Cross-check RINEX OBS headers in raw_dir against the campaign STA file.
 
@@ -314,8 +535,14 @@ def validate_rinex_headers(
         year:      4-digit year. With ``session``, restricts validation to that
                    session's files (a multi-day source holds many DOYs).
         session:   4-char Bernese session (e.g. "0870"). See ``year``.
-        require_stations: When True, a source that yields zero RINEX files is a
-                   hard error (``no_rinex_found``) instead of a vacuous pass.
+        require_stations: When True (the default), a source yielding zero RINEX
+                   files is a hard error (``no_rinex_found``) rather than a
+                   vacuous pass. Defaulted to False until 2026-08-04, which
+                   meant the *safe* behaviour had to be opted into: any caller
+                   using the defaults got a PASSING report from a scan that
+                   read nothing. Fixing `_is_rinex_obs` removed that day's
+                   instance; defaulting this to True removes the failure mode.
+                   Pass False deliberately where an empty source is legitimate.
 
     Returns:
         ValidationReport.  Call .ok to see if validation passed.

@@ -1,5 +1,13 @@
 # GNSS Pipeline Orchestration: What We're Building for Our Processing Workflow
 
+**Drafted:** 2026-02-27  **Revised:** 2026-08-03
+
+> **What has changed since this was written.** In February this described a plan.
+> Since then the NAMRIA training week (June) ran the whole PAGENET pipeline
+> unattended on live data, and the Dell R740 (§4 below) now has Bernese 5.4
+> installed and verified. Sections marked **[now real]** describe things that
+> exist; the rest is still ahead. Timings have been replaced with measured ones.
+
 ---
 
 ## The Problem We All Know
@@ -15,7 +23,7 @@ Every GNSS processing cycle involves the same invisible overhead:
   Edit it manually. Try to remember the exact column widths.
 - Run BPE. Watch the screen. Something failed at step 221 (RXOBV3) — station header mismatch.
   Find the bad station. Fix the `.STA` entry. Re-run from scratch.
-- Wait 35 minutes. Check `RNX2SNX.OUT`. Everything looks OK.
+- Wait out the run. Check `RNX2SNX.OUT`. Everything looks OK.
   Copy the SINEX files to SAVEDISK. Update the tracking spreadsheet.
 
 Multiply this by every session, every campaign, every year. Then ask: **how much of this work is science, and how much is file management?**
@@ -31,7 +39,7 @@ It is a **conductor** — a program that knows the correct sequence of steps, pe
 For our workflow, one orchestrated processing run looks like this:
 
 ```
-You specify:  Campaign = PIVSMIND, Year = 2023, Session = 0100
+You specify:  Campaign = PAGENET, Year = 2026, Session = 0860
 
 Orchestrator:
   1. Downloads IGS precise orbits + clocks from CDDIS (with automatic fallback to IGN/BKG)
@@ -39,7 +47,7 @@ Orchestrator:
   3. Validates RINEX files against the station info (.STA) — flags mismatches BEFORE Bernese
   4. Decompresses Hatanaka files (CRX2RNX) and copies to RAW/
   5. Renders the RUNBPE.INP and OPT_DIR panel files for this specific campaign
-  6. Calls Bernese non-interactively: runs all 47 BPE steps
+  6. Calls Bernese non-interactively: runs every BPE step in the PCF
   7. Checks the output: station count after RXOBV3, ambiguity fixing rate, HELMCHK residuals
   8. Extracts SINEX coordinates, converts to ENU, stores in the database
   9. Sends a summary report: what ran, what succeeded, what needs attention
@@ -47,13 +55,13 @@ Orchestrator:
 You receive:  A report. Processed results in the database. Any exceptions flagged for your review.
 ```
 
-The 47 BPE steps — RNXGRA, RXOBV3, MAUPRP, GNSQIF, HELMCHK, all of them — run exactly as they do today, with exactly the same Bernese software, the same PCF, the same INP file settings. **The science does not change.** What changes is who carries the files.
+Every BPE step — RNXGRA, RXOBV3, MAUPRP, GNSQIF, HELMCHK, all of them — runs exactly as it does today, with exactly the same Bernese software, the same PCF, the same INP file settings. **The science does not change.** What changes is who carries the files.
 
 ---
 
 ## Why This Matters: Three Concrete Pain Points
 
-### 1. The Reproducibility Problem
+### 1. The Reproducibility Problem  **[partly real]**
 
 If you processed session 2023/010 in February, and re-process it in December with a newer IGS final orbit, **will you get the same answer?** Currently, probably not — and you may not be able to explain why, because the exact settings used in February are not recorded anywhere. They lived in a panel file that has since been overwritten.
 
@@ -64,7 +72,14 @@ With orchestration, every processing run produces a complete record:
 - Which stations survived RXOBV3 and which were dropped
 - What the HELMCHK residuals were
 
-This is the difference between a result you can publish and a result you can only use internally.
+This is the difference between a result you can publish and a result you can only
+use internally.
+
+**Where this stands:** the settings side is now version-controlled — panels, PCFs
+and drivers live in the repository and are applied to the server by one command,
+so "which settings were active" is answerable from the commit history rather than
+from memory. The per-run record of *outcomes* (which stations survived, what the
+residuals were) is still to come.
 
 ### 2. The Knowledge Concentration Problem
 
@@ -78,11 +93,21 @@ PHIVOLCS operates approximately 270 active stations nationwide as of December 20
 
 An orchestrated pipeline processes all stations in parallel, overnight, every night, without anyone sitting at a terminal. The processing staff review the exception report in the morning — they spend their time on the results that need judgment, not on the steps that don't.
 
-### 4. The Workstation Problem
+### 4. The Workstation Problem  **[now real]**
 
-A BPE run occupies whatever machine it runs on. Right now, that means a desktop is tied up for 35 minutes — longer for multi-session batches — while you wait, watch, or find something else to do on a different machine.
+A BPE run occupies whatever machine it runs on, and it is not a coffee break. Measured: the 54-station EXAMPLE campaign takes **11 minutes**, but a real **72-station PAGENET day took about 2 hours** on the T420 — roughly 40 minutes of it inside a single step (PID 502, GPSCLU_P) solving the final system on one core. Multiply by seven days of a processing week.
 
-The orchestrated pipeline runs on the dedicated Dell server (R740). You submit a processing job from your desk, and your workstation is immediately free. The server handles the computation; you receive the results. Your desktop is no longer a processing node.
+The orchestrated pipeline runs on the dedicated Dell server (R740). You submit a
+processing job from your desk, and your workstation is immediately free. The server
+handles the computation; you receive the results. Your desktop is no longer a
+processing node.
+
+**This part now exists.** Bernese 5.4 was installed on the R740 on 2026-07-29 and
+verified against the reference solution to **0.0000 mm** — the same numbers as the
+laptop, on twelve cores instead of two, with the campaign data on a dedicated 4 TB
+volume. Jobs can also be supervised remotely: a run started at the office was
+driven from a home network, with no terminal left open and nothing exposed to the
+internet.
 
 ---
 
@@ -94,7 +119,7 @@ Orchestration automates the mechanical steps. The judgment steps remain human:
 |-----------|-------|
 | IGS product download and staging | Deciding which IGS product tier to use (ultra-rapid vs. rapid vs. final) |
 | RINEX decompression and file staging | Reviewing HELMCHK flags for possible co-seismic displacement events |
-| BPE execution (all 47 steps) | Interpreting anomalies in the ambiguity fixing rate |
+| BPE execution (every step in the PCF) | Interpreting anomalies in the ambiguity fixing rate |
 | RXOBV3 station drop detection | Deciding whether a dropped station reflects a real data problem |
 | SINEX coordinate extraction | Velocity model review and publication |
 | Daily ENU coordinate storage | Offset event classification (EQ, equipment change, unknown) |
@@ -113,7 +138,7 @@ What the browser tool adds that the current script does not: automatic pre-flagg
 
 **Before orchestration:**
 
-> Staff member spends 2–3 hours per campaign session on file management, downloads, and manual BPE setup. BPE runs ~35 minutes attended. Post-processing (SINEX extraction, spreadsheet update) takes another hour. Outlier review requires running a separate Windows script per station, right-clicking bad points, then manually editing PLOT files. One person's full day is consumed by a single session. Errors from manual steps (wrong `.STA` entry, stale orbit file, missed outlier epoch) are caught late.
+> Staff member spends 2–3 hours per campaign session on file management, downloads, and manual BPE setup. A real PAGENET day runs ~2 hours attended. Post-processing (SINEX extraction, spreadsheet update) takes another hour. Outlier review requires running a separate Windows script per station, right-clicking bad points, then manually editing PLOT files. One person's full day is consumed by a single session. Errors from manual steps (wrong `.STA` entry, stale orbit file, missed outlier epoch) are caught late.
 
 **After orchestration:**
 
@@ -138,13 +163,45 @@ The INP file settings — the GPSEST ionosphere configuration, the MAUPRP cycle 
 
 ## What We Need From You
 
-To build the templates correctly, we need copies of the INP files from a working production run:
+*Rewritten 2026-08-03. The original version of this section asked for three files,
+one of them at a path that does not exist and one that should not be copied
+between machines at all. What is actually needed is now known precisely.*
 
-1. The **`R2S_GEN` subdirectory** from `${U}/OPT/` — the ~20 INP files that configure each BPE step
-2. The **`USER.CPU`** file from `${U}/CPU/` — the CPU slot configuration
-3. The **`RUNBPE.INP`** from `${U}/PAN/` — the pre-configured BPE panel file
+**The one thing still blocking a production run on the R740:**
 
-These files become the ground-truth reference for the templates. Your production settings are preserved exactly — the orchestrator generates files that are functionally identical to what you would configure interactively.
+1. **`PAGENET_DLY.PCF`** — the daily Process Control File that drove the training
+   week. It exists **only on the T420**. It is the sequence of BPE steps for a
+   PAGENET day, and it must be copied rather than rebuilt: reconstructing it by
+   trimming the stock `RNX2SNX.PCF` leaves a step waiting on another step that no
+   longer exists, and the BPE then waits forever rather than failing. A rebuilt
+   file would also not be the one that has actually been proven to work.
+
+2. **`${U}/OPT/PGN_WK/`** — the weekly-combination panel directory, if it exists
+   on your machine. Expect our tooling to **reject it on the first attempt**: it
+   is known to contain Windows-style `\` path separators (literal characters on
+   Linux), a reference to a step that was removed, and session dates hardcoded
+   from the instructor's demo week. Being rejected is the tool doing its job.
+   The offending lines get remapped once, and then the corrected version is the
+   one everybody uses.
+
+**What we specifically do *not* want copied:**
+
+- **`USER.CPU`.** The original asked for this from `${U}/CPU/` — a directory that
+  does not exist (the file lives in `${U}/PAN/`). More importantly, it records
+  **how many CPU cores to use**, which is a property of the machine, not of the
+  processing. Copying it between machines is how the R740 came to be running the
+  laptop's setting of 2 — using two of its twelve cores on a step that already
+  takes forty minutes. It is now generated automatically from whatever hardware
+  the job runs on.
+
+- **Stock Bernese panels.** `${U}/OPT` and `${U}/PCF` on the R740 are currently
+  byte-identical to what Bernese 5.4 ships. We only want the files PHIVOLCS has
+  actually changed; the vendor's own files we already have.
+
+Everything supplied is version-controlled at `config/bernese/gpsuser/` and applied
+by a single command, so the environment can be rebuilt from scratch if the server
+is ever reconfigured — which matters, because the MIS team does reconfigure it.
+Your production settings are preserved exactly; nothing is silently reinterpreted.
 
 ---
 

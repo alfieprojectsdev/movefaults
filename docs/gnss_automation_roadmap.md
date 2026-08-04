@@ -1,7 +1,40 @@
-# GNSS Data Processing Automation Roadmap
+# GNSS Automation — Design Backlog
 ## MOVE Faults Project - PHIVOLCS
 
-> **Context**: This document outlines automation opportunities for the existing Bernese GNSS 5.2 workflow, preserving the core processing engine while modernizing data ingestion, quality control, and metadata management.
+**Written:** 2026-01-26 **Reclassified:** 2026-08-03 — *this is no longer the
+project roadmap.*
+
+> ### Read this first
+>
+> **The live roadmap is [`project_documentation/roadmap.md`](project_documentation/roadmap.md),
+> and current status is in [`project_documentation/deliverables_tracker.md`](project_documentation/deliverables_tracker.md).**
+> Both are maintained. This document is not.
+>
+> This file and `roadmap.md` were written on the same day from the same material.
+> `roadmap.md` is the restructured version that survived — reorganised around
+> dependency tiers, kept current, and referenced throughout the project. This one
+> was left behind and drifted for six months without anyone noticing, which is
+> what prompted the reclassification rather than a rewrite.
+>
+> **It is kept because its contents are still worth having.** The detailed feature
+> designs here — OCR for legacy log sheets, ML outlier detection, the QR equipment
+> inventory, the notification matrix — have no equivalent anywhere else in the
+> project. They are ideas with enough thought behind them to be picked up later.
+>
+> **What is definitely stale:**
+> - **The phasing in §12.1** (Phase 1 = "Months 1–3") counted from January 2026.
+>   Those months have passed and the work happened in a different order, driven by
+>   what turned out to be urgent rather than by this plan.
+> - **The effort estimates** were never checked against what things actually took.
+> - **Anything implying nothing exists yet.** Several items here are built:
+>   `vadase-rt-monitor`, `drive-archaeologist`, the field-ops PWA, the
+>   `velocity-reviewer`, and the Bernese orchestrator — which now runs on a
+>   dedicated R740 with Bernese 5.4 verified to 0.0000 mm.
+>
+> Treat everything below as **a menu of designs, not a schedule.** Before starting
+> anything from it, check the tracker for what already exists.
+
+> **Original context**: This document outlines automation opportunities for the existing Bernese GNSS 5.2 workflow, preserving the core processing engine while modernizing data ingestion, quality control, and metadata management. (The processing engine is now Bernese **5.4**.)
 
 ---
 
