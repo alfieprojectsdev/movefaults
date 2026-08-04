@@ -1,0 +1,40 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "c:\Bernese\GPSUSER52"
+  "T" "c:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! Station Name Abbreviations
+! --------------------------
+ABBREV 1  "${P}/PHIVOLCS\STA\$(CRDINF).ABB"
+  ## widget = lineedit; path = DIR_ABB; ext = EXT_ABB
+  # $(CRDINF)
+
+! List of stations
+! ----------------
+STANAM 0
+
+! Program Output File for BPE
+! ---------------------------
+SYSODEF 1  "1"
+  ## widget = checkbox
+
+SYSOUT 1  "${P}/PHIVOLCS\OUT\STA2ID.L03"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # STA2ID
+
+! Error Message File for BPE output
+! ---------------------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR

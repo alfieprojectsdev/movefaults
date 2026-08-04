@@ -1,0 +1,355 @@
+
+! Some keywords for automatic output
+! ----------------------------------
+CAMPAIGN 1  "./DUMMY"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${X}/SKL/SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "1980"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0060"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 1  "" "${}"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! General Constants
+! -----------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! Satellite Problems
+! ------------------
+SATCRUX 1  "${X}/GEN/$(SATCRX).CRX"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_CRX; maxfiles = 1
+  ## emptyallowed = true
+  # $(SATCRX)
+
+DESCR_SATCRUX 1  "Satellite problems"
+
+! Abbreviation Table
+! ------------------
+ABBREV 1  "./DUMMY/STA/$(CRDINF).ABB"
+  ## widget = selwin; path = DIR_ABB; ext = EXT_ABB; maxfiles = 1
+  # $(CRDINF)
+
+DESCR_ABBREV 1  "Abbreviation table"
+
+! ARCSPLIT SUMMARY FILE
+! ---------------------
+ASPLIT 0
+  ## widget = selwin; path = DIR_OUT; ext = NO_EXT; maxfiles = 1
+
+MSG_ASPLIT 1  "Arc split summary file"
+
+! CODSPP SUMMARY FILE
+! ---------------------
+CODXTR 0
+  ## widget = selwin; path = DIR_OUT; ext = NO_EXT; maxfiles = 1
+  ## activeif = MANSAT = 1
+  # 
+
+MSG_CODXTR 1  "CODSPP extraction file"
+
+! RESRMS SUMMARY FILE
+! ---------------------
+RESRMS 1  "./DUMMY/OUT/RES800060.SUM"
+  ## widget = selwin; path = DIR_SUM; ext = EXT_SUM; maxfiles = 1
+  # RES$YSS+0
+
+MSG_RESRMS 1  "Residual summary"
+
+! List of stations to be deleted
+! ------------------------------
+DELSTA 1  "./DUMMY/OUT/CHK800060.DEL"
+  ## widget = lineedit; path = DIR_DEL; ext = EXT_DEL; emptyallowed = true
+  # CHK$YSS+0
+
+DESCR_DELSTA 1  "Files deletion list"
+
+! Path to the obs. files
+! ----------------------
+DIR_CZH 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_CZH
+
+DIR_CZO 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_CZO
+
+DIR_PZH 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_PZH
+
+DIR_PZO 1  "./DUMMY/OBS/"
+  ## widget = initmenu; pointer = DIR_PZO
+
+! Extensions of the Output Files
+! ------------------------------
+EXT_CZH 1  "CZH"
+  ## widget = initmenu; pointer = EXT_CZH
+
+EXT_CZO 1  "CZO"
+  ## widget = initmenu; pointer = EXT_CZO
+
+EXT_PZH 1  "PZH"
+  ## widget = initmenu; pointer = EXT_PZH
+
+EXT_PZO 1  "PZO"
+  ## widget = initmenu; pointer = EXT_PZO
+
+! Output: Summary/Details
+! -----------------------
+SUMMARY 1  "SUMMARY"
+  ## widget = combobox; editable = false; cards = DETAILS SUMMARY
+
+MSG_SUMMARY 1  "Level of detail"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "./DUMMY/OUT/CHK800060.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # CHK$YSS+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Short summary
+! -------------
+SUMOUT 1  "./DUMMY/OUT/CHK800060.SUM"
+  ## widget = lineedit; path = DIR_SUM; ext = EXT_SUM
+  # CHK$YSS+0
+
+DESCR_SUMOUT 1  "Short summary"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK/ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Title
+! -----
+TITLE 1  "RNX2SNX_800060: Check residual statistics for bad stations"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Check residual statistics for bad stations
+
+MSG_TITLE 1  "Title line"
+
+! Difference level of residuals in summary
+! ----------------------------------------
+DIFRESI 1  "SINGLE"
+  ## widget = combobox; cards = ZERO SINGLE; editable = false
+
+MSG_DIFRESI 1  "Difference level of residuals in summary"
+
+! Search for bad stations
+! -----------------------
+BADSTA 1  "1"
+  ## widget = checkbox
+
+MSG_BADSTA 1  "Detect bad stations"
+
+! Detect maneuver satellites
+! --------------------------
+MANSAT 1  "0"
+  ## widget = checkbox
+
+MSG_MANSAT 1  "Detect misbehaving satellites"
+
+! Prorgam runs in the test mode (1st iteration will be analized)
+! --------------------------------------------------------------
+TSTMODE 1  "0"
+  ## widget = checkbox
+
+MSG_TSTMODE 1  "Analyze only first iteration"
+
+! Maximum number of stations to delete
+! ------------------------------------
+MAXSTA 1  "1"
+  ## widget = spinbox; range = 1 999 1
+
+MSG_MAXSTA 1  "Maximum number of stations to delete"
+
+! Maximum total RMS allowed
+! -------------------------
+MAXRMS 1  "6.0"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_MAXRMS 1  "Maximum allowed overall RMS"
+
+! RMS limit when a bad solution assumed
+! -------------------------------------
+BADSOL 1  "100.0"
+  ## widget = lineedit; activeif = DIFRESI = ZERO; check_type = real
+  ## check_min = 0.0
+
+MSG_BADSOL 1  "RMS threshold level for a bad solution"
+
+! Maximum ratio of Sat-RMS to total RMS allowed
+! ---------------------------------------------
+MAXRRMS 1  "1.5"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_MAXRRMS 1  "Maximum ratio of satellite RMS to overall RMS"
+
+! Maximal percentage of data can be deleted from RESRMS
+! -----------------------------------------------------
+MAXDEL 1  "5.0"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+
+MSG_MAXDEL 1  "Maximal percentage of deleted data"
+
+! Minimum number of observations required
+! ---------------------------------------
+MINOBSG 1  "1"
+  ## widget = lineedit; check_type = integer; check_min = 0
+
+MSG_MINOBSG 1  "Minimum number of observations required (GPS)"
+
+MINOBSR 1  "1"
+  ## widget = lineedit; check_type = integer; check_min = 0
+
+MSG_MINOBSR 1  "Minimum number of observations required (GLONASS)"
+
+! Maximum RMS allowed for a satellite (otherwise maneuver)
+! --------------------------------------------------------
+MAXARMS 1  "5.0"
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_MAXARMS 1  "RMS threshold level for a bad solution"
+
+! Maximum RMS in arc split allowed (otherwise maneuver)
+! --------------------------------------------------------
+MAXORB 1  "250"
+  ## widget = lineedit; check_type = real; check_min = 0
+  ## activeif = ASPLIT / _
+
+MSG_MAXORB 1  "Maximum allowed arc split RMS"
+
+! Maximum ratio of Sat-RMS to total RMS allowed, when man.
+! -------------------------------------------------------
+MAXMRMS 1  "2.5"
+  ## widget = lineedit; check_type = real; check_min = 0
+
+MSG_MAXMRMS 1  "Maximum ratio of satellite RMS to overall RMS"
+
+! Delete not more than 1 satellite per run
+! ----------------------------------------
+DEL1SAT 1  "1"
+  ## widget = checkbox
+
+MSG_DEL1SAT 1  "Delete only one satellite per run"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# DETECT MISBEHAVING STATIONS/SATELLITES - RESCHK 1: Filenames                 #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files > % <                                               # SHOWGEN
+#                                                                              #
+# INPUT FILE                                                                   #
+#   Residual summary       > %%%%%%%% <                                        # RESRMS
+#                                                                              #
+# OUTPUT FILE                                                                  #
+#   Short summary          > %%%%%%%% <                                        # SUMOUT
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output         > % < use RESCHK.Lnn           or    > %%%%%%%% <   # SYSODEF SYSOUT
+#   Error messages         > % < merged to program output or    > %%%%%%%% <   # ERRMRG SYSERR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# RESCHK 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   Abbreviation table      > %%%%%%%% <                                       # ABBREV
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+#  RESCHK 2: Options                                                           #
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# GENERAL OPTIONS                                                              #
+#   Difference level of residuals in summary > %%%%%%%% <                      # DIFRESI
+#   Detect bad stations                      > % <                             # BADSTA
+#   Detect misbehaving satellites            > % <                             # MANSAT
+#   Analyze only first iteration             > % <       (debugging mode)      # TSTMODE
+#                                                                              #
+# PROGRAM OUTPUT OPTIONS                                                       #
+#   Level of detail                          > %%%%%%%% <                      # SUMMARY
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL BADSTA == 1 ######################################################
+# RESCHK 2.1: Detection of Bad Stations                                        #
+#                                                                              #
+# OPTIONS FOR BAD STATION DETECTION                                            #
+#   Maximum number of stations to delete       > %%%% <                        # MAXSTA
+#   Maximum allowed overall RMS error          > %%%%% <millimeters            # MAXRMS
+#   RMS threshold level for a bad solution     > %%%%% <millimeters            # BADSOL
+#                                                                              #
+# SPECIAL OUTPUT FILE                                                          #
+#   File deletion list                         > %%%%%%%% <                    # DELSTA
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL MANSAT == 1 ######################################################
+#  RESCHK 2.2: Detection of Misbehaving Satellites                             #
+#                                                                              #
+# SPECIAL INPUT FILES                                                          #
+#   CODSPP extraction file                               > %%%%%%%%%%%% <      # CODXTR
+#   Arc split summary file                               > %%%%%%%%%%%% <      # ASPLIT
+#                                                                              #
+# OPTIONS FOR SATELLITE REPOSITIONING DETECTION                                #
+#   Maximum allowed arc split RMS                        > %%%% <centimeters   # MAXORB
+#   Maximum ratio of satellite RMS to overall RMS        > %%%% <              # MAXMRMS
+#                                                                              #
+# OPTIONS FOR BAD SATELLITE DETECTION                                          #
+#   RMS threshold level for a bad solution               > %%%% <millimeters   # MAXARMS
+#   Maximum ratio of satellite RMS to overall RMS        > %%%% <              # MAXRRMS
+#   Maximal percentage of deleted data                   > %%%% <%             # MAXDEL
+#   Minimum number of observations required for GPS      > %%%% <              # MINOBSG
+#   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ GLONASS  > %%%% <              # MINOBSR
+#   Delete only one satellite per run                    > % <                 # DEL1SAT
+#                                                                              #
+# SPECIAL OUTPUT FILE                                                          #
+#   File with satellite problems                         > %%%%%%%% <            # SATCRUX
+#                                                                              #
+# END_PANEL ####################################################################

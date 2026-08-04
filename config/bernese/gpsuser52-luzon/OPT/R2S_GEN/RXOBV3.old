@@ -1,0 +1,793 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "c:\Bernese\GPSUSER52"
+  "T" "c:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! Some title information
+! ----------------------
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+SESSION_TABLE 1  "${P}/PHIVOLCS\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2019"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0110"
+  ## widget = comment
+  # $S+0
+
+! Active Campaign
+! ---------------
+CAMPAIGN 1  "${P}/PHIVOLCS"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+! General Constants
+! -----------------
+! Show general files
+! ------------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+CONST 1  "${X}/GEN\CONST."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! Difference of GPS-TIME - UTC-TIME
+! ---------------------------------
+GPSUTC 1  "${X}/GEN\GPSUTC."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # GPSUTC.
+
+DESCR_GPSUTC 1  "Difference GPS-UTC"
+
+! Satellite Problems
+! ------------------
+SATCRUX 1  "${X}/GEN\$(SATCRX).CRX"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_CRX; maxfiles = 1
+  ## emptyallowed = true
+  # $(SATCRX)
+
+DESCR_SATCRUX 1  "Satellite problems"
+
+! Satellite Information
+! ---------------------
+SATELL 1  "${X}/GEN\$(SATINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # $(SATINF).$(PCV)
+
+DESCR_SATELL 1  "Satellite information"
+
+! Phase Center Eccentricities
+! ---------------------------
+PHASECC 1  "${X}/GEN\$(PCVINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; maxfiles = 1; emptyallowed = true
+  # $(PCVINF).$(PCV)
+
+DESCR_PHASECC 1  "Phase center eccentricities"
+
+! Station Name Abbreviations
+! --------------------------
+ABBREV 1  "${P}/PHIVOLCS\STA\$(CRDINF).ABB"
+  ## widget = selwin; path = DIR_ABB; ext = EXT_ABB; maxfiles = 1
+  # $(CRDINF)
+
+DESCR_ABBREV 1  "Abbreviation table"
+
+! Frequency Information
+! ---------------------
+FRQINFO 0
+  ## widget = selwin; path = PTH_GEN; ext = EXT_FRQ; maxfiles = 1
+  ## activeif = RADIO_R == 1
+  # 
+
+DESCR_FRQINFO 1  "Frequency information"
+
+! List of RINEX Input Files
+! -------------------------
+RADIO_O 1  "0"
+  ## widget = radiobutton; group = RXOSMT; radiokeys = RXOFILE
+
+MSG_RADIO_O 1  "Select original RINEX observation files"
+
+RXOFILE 18
+  "${P}/PHIVOLCS\RAW\ALAB0110.19O"
+  "${P}/PHIVOLCS\RAW\ATIM0110.19O"
+  "${P}/PHIVOLCS\RAW\BAKO0110.19O"
+  "${P}/PHIVOLCS\RAW\BJFS0110.19O"
+  "${P}/PHIVOLCS\RAW\ELNA0110.19O"
+  "${P}/PHIVOLCS\RAW\GUNG0110.19O"
+  "${P}/PHIVOLCS\RAW\HKSL0110.19O"
+  "${P}/PHIVOLCS\RAW\HYDE0110.19O"
+  "${P}/PHIVOLCS\RAW\IISC0110.19O"
+  "${P}/PHIVOLCS\RAW\LBAN0110.19O"
+  "${P}/PHIVOLCS\RAW\MALA0110.19O"
+  "${P}/PHIVOLCS\RAW\MAUB0110.19O"
+  "${P}/PHIVOLCS\RAW\PGEN0110.19O"
+  "${P}/PHIVOLCS\RAW\PIMO0110.19O"
+  "${P}/PHIVOLCS\RAW\PTAG0110.19O"
+  "${P}/PHIVOLCS\RAW\SHAO0110.19O"
+  "${P}/PHIVOLCS\RAW\SPAB0110.19O"
+  "${P}/PHIVOLCS\RAW\XMIS0110.19O"
+  ## widget = selwin; path = DIR_RXO; ext = EXT_RXO; maxfiles = 999
+  # ????$S+0
+
+RXOFILE_TXT_COL_1 1  "RINEX files"
+
+MSG_RXOFILE 1  "Original RINEX observation files"
+
+! List of RINEX Input Files
+! -------------------------
+RADIO_S 1  "1"
+  ## widget = radiobutton; group = RXOSMT; radiokeys = SMTFILE
+
+MSG_RADIO_S 1  "Select Smoothed RINEX obs. files"
+
+SMTFILE 18
+  "${P}/PHIVOLCS\RAW\ALAB0110.SMT"
+  "${P}/PHIVOLCS\RAW\ATIM0110.SMT"
+  "${P}/PHIVOLCS\RAW\BAKO0110.SMT"
+  "${P}/PHIVOLCS\RAW\BJFS0110.SMT"
+  "${P}/PHIVOLCS\RAW\ELNA0110.SMT"
+  "${P}/PHIVOLCS\RAW\GUNG0110.SMT"
+  "${P}/PHIVOLCS\RAW\HKSL0110.SMT"
+  "${P}/PHIVOLCS\RAW\HYDE0110.SMT"
+  "${P}/PHIVOLCS\RAW\IISC0110.SMT"
+  "${P}/PHIVOLCS\RAW\LBAN0110.SMT"
+  "${P}/PHIVOLCS\RAW\MALA0110.SMT"
+  "${P}/PHIVOLCS\RAW\MAUB0110.SMT"
+  "${P}/PHIVOLCS\RAW\PGEN0110.SMT"
+  "${P}/PHIVOLCS\RAW\PIMO0110.SMT"
+  "${P}/PHIVOLCS\RAW\PTAG0110.SMT"
+  "${P}/PHIVOLCS\RAW\SHAO0110.SMT"
+  "${P}/PHIVOLCS\RAW\SPAB0110.SMT"
+  "${P}/PHIVOLCS\RAW\XMIS0110.SMT"
+  ## widget = selwin; path = DIR_SMT; ext = EXT_SMT; maxfiles = 999
+  # ????$S+0
+
+SMTFILE_TXT_COL_1 1  "RINEX files"
+
+MSG_SMTFILE 1  "Smoothed RINEX observation files"
+
+! STAINFO with information for the Bernese files
+! ----------------------------------------------
+STAINFO 1  "${P}/PHIVOLCS\STA\$(CRDINF).STA"
+  ## widget = selwin; path = DIR_STA; ext = EXT_STA; emptyallowed = true
+  # $(CRDINF)
+
+DESCR_STAINFO 1  "Station information file"
+
+! Measurement Types to Save: GPS/GLONASS
+! --------------------------------------
+RADIO_G 1  "1"
+  ## widget = radiobutton; group = MEATYP; radiokeys = SAVCOD SAVPHS
+
+MSG_RADIO_G 1  "Select measurement types to save (Code/Phase)"
+
+! Measurement Types to Save: Range
+! --------------------------------------
+RADIO_R 1  "0"
+  ## widget = radiobutton; group = MEATYP
+
+MSG_RADIO_R 1  "Select measurement types to save (Range)"
+
+! measurement Types to Save: Code
+! --------------------------------------
+SAVCOD 1  "1"
+  ## widget = checkbox
+
+MSG_SAVCOD 1  "types to save: Code"
+
+! measurement Types to Save: Phase
+! --------------------------------------
+SAVPHS 1  "1"
+  ## widget = checkbox
+
+MSG_SAVPHS 1  "types to save: Phase"
+
+! Coordinates to be updated
+! -------------------------
+COORD 0
+  ## widget = selwin; path = DIR_CRD; ext = EXT_CRD; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+MSG_COORD 1  "Update coordinates"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/PHIVOLCS\OUT\OBS$(CLUSTER).OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # OBS$(CLUSTER)
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error messages"
+
+! Scratch File
+! ------------
+AUXFIL 1  "${U}/WORK\RXOBV3.SCR"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SCR; emptyallowed = false
+  # RXOBV3$J
+
+DESCR_AUXFIL 1  "Scratch file 1"
+
+! Scratch File: Code Obs.
+! -----------------------
+AUXCOD 1  "${U}/WORK\RXOBV3.SC1"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SC1; emptyallowed = false
+  # RXOBV3$J
+
+DESCR_AUXCOD 1  "Scratch file 2"
+
+! Scratch File: Phase Obs.
+! ------------------------
+AUXPHS 1  "${U}/WORK\RXOBV3.SC2"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SC2; emptyallowed = false
+  # RXOBV3$J
+
+DESCR_AUXPHS 1  "Scratch file 3"
+
+DELETE_FILES 3
+  "AUXFIL"
+  "AUXCOD"
+  "AUXPHS"
+
+! Title
+! -----
+TITLE 1  "RNX2SNX_190110"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0
+
+MSG_TITLE 1  "Title line"
+
+! Satellite System Selection
+! --------------------------
+SATSYS 1  "$(SATSYS)"
+  ## widget = combobox; editable = false
+  ## cards = GPS GLONASS GALILEO GPS/GAL GPS/GLO GLO/GAL ALL
+
+MSG_SATSYS 1  "Satellite system to be considered"
+
+! Get station name
+! ----------------
+STANAM 1  "FILE_NAME"
+  ## widget = combobox; editable = false
+  ## cards = MARKER_NAME MARKER_NUMBER MARKER_DOMES FILE_NAME
+
+MSG_STANAM 1  "Gather station names from"
+
+! Abbreviation error handling
+! ---------------------------
+ABBUPD 1  "UPDATE"
+  ## widget = combobox; editable = false; cards = ERROR UPDATE UPDATE+
+  ## activeif = ABBREV /= _
+
+MSG_ABBUPD 1  "Action if station not in abbreviation list"
+
+! Session ID
+! ----------
+SESSID 1  "0110"
+  ## widget = lineedit; check_strlen = 4
+  # $S+0
+
+MSG_SESSID 1  "Session ID used for Bernese observation files"
+
+! Sampling Interval in Seconds
+! ----------------------------
+SAMPL 1  "30"
+  ## widget = spinbox; range = 0 3000 5; check_type = integer; check_min = 0
+
+MSG_SAMPL 1  "Sampling interval"
+
+! Sampling Offset to Full Minute
+! ------------------------------
+SOFFSET 1  "0"
+  ## widget = spinbox; range = 0 3000 1
+
+MSG_SOFFSET 1  "Sampling offset to full minute"
+
+! Observation Window
+! ------------------
+RADIO_0 1  "0"
+  ## widget = radiobutton; group = OBSWIN
+
+MSG_RADIO_0 1  "Take all observations"
+
+RADIO_1 1  "1"
+  ## widget = radiobutton; group = OBSWIN
+  ## radiokeys = SESSION_YEAR SESSION_STRG WINDOW
+
+MSG_RADIO_1 1  "Observation window defined by year and session identifier"
+
+RADIO_2 1  "0"
+  ## widget = radiobutton; group = OBSWIN
+  ## radiokeys = STADAT STATIM ENDDAT ENDTIM
+
+MSG_RADIO_2 1  "Observation window defined by start and end times"
+
+SESSION_YEAR 1  "2019"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $Y+-
+
+MSG_SESSION_YEAR 1  "Year for sessions def. the time window"
+
+SESSION_STRG 3
+  "0100"
+  "0110"
+  "0120"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $S+-
+
+MSG_SESSION_STRG 1  "Sessions defining the time window"
+
+! Use Obs. Window
+! ---------------
+STADAT 1  "2019 01 11"
+  ## widget = lineedit; emptyallowed = false; check_type = date
+  # $YMD_STR+0
+
+MSG_STADAT 1  "Start of time window (year month day)"
+
+STATIM 1  "00 00 00"
+  ## widget = lineedit; emptyallowed = false; check_type = time
+
+MSG_STATIM 1  "Start of time window (hour min. sec.)"
+
+ENDDAT 1  "2019 01 11"
+  ## widget = lineedit; emptyallowed = false; check_type = date
+  # $YMD_STR+0
+
+MSG_ENDDAT 1  "End of time window (year month day)"
+
+ENDTIM 1  "23 59 59"
+  ## widget = lineedit; emptyallowed = false; check_type = time
+
+MSG_ENDTIM 1  "End of time window (hour min. sec.)"
+
+! Minimum Signal Strength
+! -----------------------
+MINSIG 1  "2"
+  ## widget = spinbox; range = 0 9 1
+
+MSG_MINSIG 1  "Minimum signal strength"
+
+! Accept Signal Strength 0
+! ------------------------
+ACCEPT0 1  "1"
+  ## widget = checkbox
+
+MSG_ACCEPT0 1  "Accept signal strength = 0"
+
+! Accept Cycle Slip Flags from RINEX
+! ----------------------------------
+ACCEPTCS 1  "1"
+  ## widget = checkbox
+
+MSG_ACCEPTCS 1  "Accept cycle slip flags from RINEX"
+
+! Minimum number of epochs requested
+! ----------------------------------
+REQEPO 1  "10"
+  ## widget = lineedit; activeif = RADIO_R = 0; check_type = integer
+  ## check_min = 0
+
+MSG_REQEPO 1  "Minimum number of epochs requested per file"
+
+! Use station information file flags
+! ----------------------------------
+STAFLG 1  "0"
+  ## widget = checkbox; activeif = STAINFO /= _
+
+MSG_STAFLG 1  "Consider flags from station information file"
+
+! Information for the Bernese files: flags to be used (TYPE 001)
+! --------------------------------------------------------------
+FLG001 1  "999"
+  ## widget = lineedit
+
+MSG_FLG001 1  "Type 001: Renaming of stations"
+
+! Information for the Bernese files: flags to be used (TYPE 002)
+! --------------------------------------------------------------
+FLG002 1  "999"
+  ## widget = lineedit
+
+MSG_FLG002 1  "Type 002: Station information"
+
+! Information for the Bernese files: flags to be used (TYPE 003)
+! --------------------------------------------------------------
+FLG003 1  "999"
+  ## widget = lineedit
+
+MSG_FLG003 1  "Type 003: Station problems"
+
+! Information for the Bernese files: flags to be used (TYPE 005)
+! --------------------------------------------------------------
+FLG005 1  "999"
+  ## widget = lineedit
+
+MSG_FLG005 1  "Type 005: Marker type"
+
+! Information requested in the RINEX files: check STANAM
+! ------------------------------------------------------
+TSTANAM 1  "ERROR"
+  ## widget = combobox; editable = false
+  ## cards = NO_CHECK WARNING SKIP ERROR
+
+MSG_TSTANAM 1  "Station names"
+
+TRYFILE 1  "1"
+  ## widget = checkbox; activeif = TSTANAM / NO_CHECK AND STANAM / FILE_NAME
+
+MSG_TRYFILE 1  "Try also RINEX filename for station name"
+
+! Information requested in the RINEX files: check ANT/REC type
+! ------------------------------------------------------------
+TANTTYP 1  "WARNING"
+  ## widget = combobox; editable = false
+  ## cards = NO_CHECK WARNING SKIP ERROR
+
+MSG_TANTTYP 1  "Receiver/Antenna type"
+
+RADOME 1  "1"
+  ## widget = checkbox
+
+MSG_RADOME 1  "Consider radome code"
+
+CORRAD 1  "1"
+  ## widget = checkbox
+
+MSG_CORRAD 1  "Correct position of radome code"
+
+! Information requested in the RINEX files: check ANT/REC num
+! -----------------------------------------------------------
+TANTNUM 1  "NO_CHECK"
+  ## widget = combobox; editable = false
+  ## cards = NO_CHECK WARNING SKIP ERROR
+
+MSG_TANTNUM 1  "Receiver/Antenna number"
+
+! Information requested in the RINEX files: check ANT pos.
+! --------------------------------------------------------
+TANTPOS 1  "WARNING"
+  ## widget = combobox; editable = false
+  ## cards = NO_CHECK WARNING SKIP ERROR
+
+MSG_TANTPOS 1  "Antenna position"
+
+! Information requested in the RINEX files: check marker type
+! -----------------------------------------------------------
+TMRKTYP 1  "NO_CHECK"
+  ## widget = combobox; editable = false
+  ## cards = NO_CHECK WARNING SKIP ERROR
+
+MSG_TMRKTYP 1  "Marker type"
+
+! Verfy station name/number
+! -------------------------
+DOSTAVER 1  "1"
+  ## widget = checkbox
+
+MSG_DOSTAVER 1  "Verify station name/number using"
+
+STAVER 1  "MARKER_DOMES"
+  ## widget = combobox; editable = false; activeif = DOSTAVER = 1
+  ## cards = MARKER_NAME MARKER_NUMBER MARKER_DOMES
+
+MSG_STAVER 1  "Verify station name/number"
+
+! Verify frequency
+! ----------------
+FRQVER 1  "WARNING"
+  ## widget = combobox; editable = false
+  ## activeif = RADIO_R == 1 AND FRQINFO / _
+  ## cards = NO_CHECK WARNING SKIP ERROR UPDATE
+
+MSG_FRQVER 1  "Check frequency information file for frequency"
+
+! Verify station name using RINEX filename
+! -----------------------------------------
+RNXVER 1  "1"
+  ## widget = checkbox
+
+MSG_RNXVER 1  "Verify station name using RINEX filename"
+
+! Verfy station name/number
+! -------------------------
+DOANTVER 1  "1"
+  ## widget = checkbox; activeif = PHASECC / _
+
+MSG_DOANTVER 1  "Check phase center file for antenna type"
+
+ANTVER 1  "ERROR"
+  ## widget = combobox; editable = false
+  ## activeif = DOANTVER = 1 AND PHASECC / _; cards = WARNING SKIP ERROR
+
+MSG_ANTVER 1  "Check phase center file for antenna type"
+
+! What to do in case of event flag
+! --------------------------------
+EPOFLAG 1  "SKIP"
+  ## widget = combobox; editable = false; cards = WARNING SKIP ERROR
+
+MSG_EPOFLAG 1  "What to do in case of event flag"
+
+! STAINFO with information requested in the RINEX files
+! -----------------------------------------------------
+RNXINFO 1  "${P}/PHIVOLCS\STA\$(CRXINF).CRX"
+  ## widget = selwin; path = DIR_STA; ext = EXT_CRX; emptyallowed = true
+  # $(CRXINF)
+
+DESCR_RNXINFO 1  "Accepted station information"
+
+! Extensions of the Output Files
+! ------------------------------
+RXOFILE_EXT_COL_2 1  "CZH"
+  ## widget = initmenu; pointer = EXT_CZH
+
+RXOFILE_EXT_COL_3 1  "CZO"
+  ## widget = initmenu; pointer = EXT_CZO
+
+RXOFILE_EXT_COL_4 1  "PZH"
+  ## widget = initmenu; pointer = EXT_PZH
+
+RXOFILE_EXT_COL_5 1  "PZO"
+  ## widget = initmenu; pointer = EXT_PZO
+
+RXOFILE_EXT_COL_6 1  "RZH"
+  ## widget = initmenu; pointer = EXT_RZH
+
+RXOFILE_EXT_COL_7 1  "RZO"
+  ## widget = initmenu; pointer = EXT_RZO
+
+SMTFILE_EXT_COL_2 1  "CZH"
+  ## widget = initmenu; pointer = EXT_CZH
+
+SMTFILE_EXT_COL_3 1  "CZO"
+  ## widget = initmenu; pointer = EXT_CZO
+
+SMTFILE_EXT_COL_4 1  "PZH"
+  ## widget = initmenu; pointer = EXT_PZH
+
+SMTFILE_EXT_COL_5 1  "PZO"
+  ## widget = initmenu; pointer = EXT_PZO
+
+SMTFILE_EXT_COL_6 1  "RZH"
+  ## widget = initmenu; pointer = EXT_RZH
+
+SMTFILE_EXT_COL_7 1  "RZO"
+  ## widget = initmenu; pointer = EXT_RZO
+
+! Path of the Output Files
+! ------------------------
+RXOFILE_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CZH
+
+RXOFILE_PTH_COL_3 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CZO
+
+RXOFILE_PTH_COL_4 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PZH
+
+RXOFILE_PTH_COL_5 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PZO
+
+RXOFILE_PTH_COL_6 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_RZH
+
+RXOFILE_PTH_COL_7 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_RZO
+
+SMTFILE_PTH_COL_2 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CZH
+
+SMTFILE_PTH_COL_3 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_CZO
+
+SMTFILE_PTH_COL_4 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PZH
+
+SMTFILE_PTH_COL_5 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_PZO
+
+SMTFILE_PTH_COL_6 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_RZH
+
+SMTFILE_PTH_COL_7 1  "${P}/PHIVOLCS\OBS\"
+  ## widget = initmenu; pointer = DIR_RZO
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# TRANSFER RINEX OBSERVATION FILES TO BERNESE FORMAT - RXOBV3 1: Filenames     #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files                 > % <                               # SHOWGEN
+#                                                                              #
+# INPUT FILES                                                                  #
+#   > % < original RINEX observation files > %%%%%%%% <                        # RADIO_O RXOFILE
+#   > % < smoothed RINEX observation files > %%%%%%%% <                        # RADIO_S SMTFILE
+#                                                                              #
+#   Station information file               > %%%%%%%% <                        # STAINFO
+#                                                                              #
+# RESULT FILES                                                                 #
+#   Measurement types to save                                                  #
+#   > % <  Code > % <  Phase > % <                 > % <  Range                # RADIO_G SAVCOD SAVPHS RADIO_R
+#                                                                              #
+#   Update coordinates       > %%%%%%%% <       (blank if not used)            # COORD
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output           > % < use RXOBV3.Lnn            or > %%%%%%%% <   # SYSODEF SYSOUT
+#   Error messages           > % < merged to program output  or > %%%%%%%% <   # ERRMRG SYSERR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# RXOBV3 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants       > %%%%%%%%%%%% <                                   # CONST
+#   Satellite information   > %%%%%%%%%%%% <                                   # SATELL
+#   Satellite problems      > %%%%%%%%%%%% <                                   # SATCRUX
+#   Phase center offsets    > %%%%%%%%%%%% <                                   # PHASECC
+#   GPS-UTC seconds         > %%%%%%%%%%%% <                                   # GPSUTC
+#   Abbreviation table      > %%%%%%%%%%%% <                                   # ABBREV
+#   Frequency information   > %%%%%%%%%%%% <                                   # FRQINFO
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign       > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # CAMPAIGN
+#   Selected session          year> %%%% <  session> %%%% <                    # YR4_INFO SES_INFO
+#   Session table           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # SESSION_TABLE
+#                                                                              #
+# TEMPORARY FILES                                                              #
+#   Scratch files           > %%%%%%%% <     > %%%%%%%% <      > %%%%%%%% <    # AUXFIL  AUXCOD AUXPHS
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# RXOBV3 2: Input Options 1                                                    #
+#                                                                              #
+# TITLE   > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <            # TITLE
+#                                                                              #
+# SATELLITE SYSTEM SELECTION                                                   #
+#   Satellite system to be considered                 > %%%%%%%% <             # SATSYS
+#                                                                              #
+# STATION NAMES                                                                #
+#   Gather station names from                         > %%%%%%%%%%%%%% <       # STANAM
+#   Action if station not in abbreviation list        > %%%%%%%% <             # ABBUPD
+#                                                                              #
+# SESSION IDENTIFIER                                                           #
+#   Session ID used for Bernese observation files     > %%%% < (blank: AUTO)   # SESSID
+#                                                                              #
+# DATA SAMPLING                                                                #
+#   Sampling interval                                 > %%% <  seconds         # SAMPL
+#   Sampling offset to full minute                    > %%% <  seconds         # SOFFSET
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# RXOBV3 3: Observation Window                                                 #
+#                                                                              #
+# OBSERVATION WINDOW                                                           #
+#                                                                              #
+#   > % < Take all observations                                                # RADIO_0
+#                                                                              #
+#   > % < Defined by Year and Session identifier                               # RADIO_1
+#         Year  > %%%% <   Session > %%%% <                                    # SESSION_YEAR SESSION_STRG
+#                                                                              #
+#   > % < Defined by Start and End times                                       # RADIO_2
+#                 yyyy mm dd     hh mm ss           yyyy mm dd     hh mm ss    #
+#         Start > %%%%%%%%%% < > %%%%%%%% <   End > %%%%%%%%%% < > %%%%%%%% <  # STADAT STATIM ENDDAT ENDTIM
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# RXOBV3 4: Input Options 2                                                    #
+#                                                                              #
+# SIGNAL STRENGTH REQUIREMENTS                                                 #
+#   Minimum signal strength                         > % <                      # MINSIG
+#   Accept signal strength = 0                      > % <                      # ACCEPT0
+#   Accept cycle slip flags from RINEX              > % <                      # ACCEPTCS
+#                                                                              #
+# MINIMUM OBSERVATION NUMBER                                                   #
+#   Minimum number of epochs requested per file     > %%%%% <  epochs          # REQEPO
+#                                                                              #
+# OPTIONS CONCERNING ANTENNAS                                                  #
+#   Consider radome code of the antennas            > % <                      # RADOME
+#   Correct position of radome code                 > % <                      # CORRAD
+#   Check phase center file for antenna type        > % <   else> %%%%%%%% <   # DOANTVER ANTVER
+#                                                                              #
+# EVENT FLAG HANDLING                                                          #
+#   What to do in case of event flags               > %%%%%%%% <               # EPOFLAG
+#                                                                              #
+# FREQUENCY CHECK FOR SLR                                                      #
+#   Check frequency information file for frequency  > %%%%%%%% <               # FRQVER
+#
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL STAFLG == 999 AND STAINFO / _ ####################################
+# RXOBV3 4.1: Flags Concerning Station Information File                        #
+#                                                                              #
+# ATTENTION!!!!    THIS IS DUMMY AT THE MOMENT!!!!                             #
+# To make the flag handling active, please modify SR GTSTAFLG.f90              #
+#                                                                              #
+# FLAGS CONCERNING STATION INFORMATION FILE                                    #
+#   Consider flags                                    > % <                    # STAFLG
+#                                                                              #
+# FLAGS TO BE CONSIDERED                                                       #
+#   Type 001: Renaming of stations  > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <    # FLG001
+#   Type 002: Station information   > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <    # FLG002
+#   Type 003: Station problems      > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <    # FLG003
+#   Type 005: Marker type           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <    # FLG005
+#                                                                              #
+#   Flag 999: Any flag will be considered                                      #
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL STAINFO / _ ######################################################
+# RXOBV3 5.1: Check Content of RINEX Header 1                                  #
+#                                                                              #
+# ACTIONS IN CASE OF INCONSISTENCIES                                           #
+#   Station name             > %%%%%%%%% <     Try also filename      > % <    # TSTANAM TRYFILE
+#   Receiver/antenna type    > %%%%%%%%% <                                     # TANTTYP
+#   Receiver/antenna number  > %%%%%%%%% <                                     # TANTNUM
+#   Antenna position         > %%%%%%%%% <                                     # TANTPOS
+#   Marker type              > %%%%%%%%% <                                     # TMRKTYP
+#                                                                              #
+#     NO_CHECK : No check is done                                              #
+#     WARNING@ : Write warning and continue                                    #
+#     SKIP@@@@ : Skip file and continue with next file                         #
+#     ERROR@@@ : Write error message and stop processing                       #
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL STAINFO / _ ######################################################
+# RXOBV3 5.2: Check Content of RINEX Header 2                                  #
+#                                                                              #
+# ADDITIONAL VERIFICATION                                                      #
+#   Verify station name/number using                > % < > %%%%%%%%%%%%%% <   # DOSTAVER STAVER
+#   Verify station name using RINEX filename        > % <                      # RNXVER
+#                                                                              #
+# HANDLING OF KNOWN INCONSISTENCIES                                            #
+#   Accepted station information                    > %%%%%%%%% <              # RNXINFO
+#                                                                              #
+# END_PANEL ####################################################################

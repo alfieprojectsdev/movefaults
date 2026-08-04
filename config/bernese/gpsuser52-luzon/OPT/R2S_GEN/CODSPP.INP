@@ -1,0 +1,812 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "C:\Bernese\GPSUSER52"
+  "T" "C:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+! SOME KEYWORDS FOR AUTOMATIC OUTPUT
+! ----------------------------------
+CAMPAIGN 1  "${P}/SAMR_LYT"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${P}/SAMR_LYT\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2019"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "2410"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! -------------------------------------------------------------------------
+! Show general files
+! ------------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! General Constants
+! -----------------
+CONST 1  "${X}/GEN\CONST."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # CONST.
+
+DESCR_CONST 1  "General constants"
+
+! Local Geodetic Datum
+! --------------------
+DATUM 1  "${X}/GEN\DATUM."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # DATUM.
+
+DESCR_DATUM 1  "Geodetic datum"
+
+! Satellite Information
+! ---------------------
+SATELL 1  "${X}/GEN\$(SATINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # $(SATINF).$(PCV)
+
+DESCR_SATELL 1  "Satellite information"
+
+! Satellite Problems
+! ------------------
+SATCRUX 1  "${X}/GEN\$(SATCRX).CRX"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_CRX; maxfiles = 1
+  # $(SATCRX)
+
+DESCR_SATCRUX 1  "Satellite problems"
+
+! Station crux file
+! -----------------
+STAINFO 1  "${P}/SAMR_LYT\STA\$(CRDINF).STA"
+  ## widget = selwin; path = DIR_STA; ext = EXT_STA; maxfiles = 1
+  ## emptyallowed = true
+  # $(CRDINF)
+
+DESCR_STAINFO 1  "Station information"
+
+! Receiver information
+! --------------------
+RECEIVR 1  "${X}/GEN\$(RECINF)"
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  ## emptyallowed = true
+  # $(RECINF)
+
+DESCR_RECEIVR 1  "Receiver information"
+
+! Pole File
+! ---------
+POLE 1  "${P}/SAMR_LYT\ORB\$B192410.ERP"
+  ## widget = selwin; path = DIR_ERP; ext = EXT_ERP; maxfiles = 1
+  # $B$YSS+0
+
+DESCR_POLE 1  "Pole file"
+
+! Subdaily Pole Model
+! -------------------
+SUBMOD 1  "${X}/GEN\IERS2010XY.SUB"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_SUB; maxfiles = 1
+  # IERS2010XY
+
+DESCR_SUBMOD 1  "Subdaily pole model"
+
+! Nutation Model
+! -------------------
+NUTMOD 1  "${X}/GEN\IAU2000R06.NUT"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_NUT; maxfiles = 1
+  # IAU2000R06
+
+DESCR_NUTMOD 1  "Nutation model"
+
+! Phase Center Eccentricities
+! ---------------------------
+PHASECC 1  "${X}/GEN\$(PCVINF).$(PCV)"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_ANY; maxfiles = 1
+  # $(PCVINF).$(PCV)
+
+DESCR_PHASECC 1  "Phase center eccentricities"
+
+! Frequency Information
+! ---------------------
+FRQINFO 0
+  ## widget = selwin; path = PTH_GEN; ext = EXT_FRQ; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_FRQINFO 1  "Frequency information"
+
+! Broadcast Ephemeris
+! -------------------
+RADIO_B 1  "0"
+  ## widget = radiobutton; group = ORBIT; radiokeys = BRDEPH
+
+MSG_RADIO_B 1  "Broadcast orbits"
+
+BRDEPH 0
+  ## widget = selwin; path = DIR_BRD; ext = EXT_BRD; maxfiles = 1
+  # 
+
+DESCR_BRDEPH 1  "Broadcast orbits"
+
+! Standard Orbits
+! ---------------
+RADIO_S 1  "1"
+  ## widget = radiobutton; group = ORBIT; radiokeys = STDORB SATCLK
+
+MSG_RADIO_S 1  "Selection of standard orbit"
+
+STDORB 1  "${P}/SAMR_LYT\ORB\$B192410.STD"
+  ## widget = selwin; path = DIR_STD; ext = EXT_STD; maxfiles = 1
+  # $B$YSS+0
+
+DESCR_STDORB 1  "Standard orbits"
+
+! Satellite Clocks
+! ----------------
+SATCLK 1  "${P}/SAMR_LYT\ORB\$B192410.CLK"
+  ## widget = selwin; path = DIR_CLK; ext = EXT_CLK; maxfiles = 1
+  # $B$YSS+0
+
+DESCR_SATCLK 1  "Satellite clocks"
+
+! Code Files
+! ----------
+CODEFILE 0
+  ## widget = selwin; path = DIR_CZH; ext = EXT_CZH; maxfiles = 999
+  # ????$S+0
+
+MSG_CODEFILE 1  "Code observation files"
+
+! File Extensions
+! ---------------
+CODEFILE_PTH_COL_2 1  "${P}/SAMR_LYT\OBS\"
+  ## widget = initmenu; pointer = DIR_CZO
+
+CODEFILE_EXT_COL_2 1  "CZO"
+  ## widget = initmenu; pointer = EXT_CZO
+
+CODEFILE_PTH_COL_3 1  "${P}/SAMR_LYT\OBS\"
+  ## widget = initmenu; pointer = DIR_PZH
+
+CODEFILE_EXT_COL_3 1  "PZH"
+  ## widget = initmenu; pointer = EXT_PZH
+
+CODEFILE_PTH_COL_4 1  "${P}/SAMR_LYT\OBS\"
+  ## widget = initmenu; pointer = DIR_PZO
+
+CODEFILE_EXT_COL_4 1  "PZO"
+  ## widget = initmenu; pointer = EXT_PZO
+
+! A Priori Coordinates
+! --------------------
+COORD 1  "${P}/SAMR_LYT\STA\$A192410.CRD"
+  ## widget = selwin; path = DIR_CRD; ext = EXT_CRD; maxfiles = 1
+  # $A$YSS+0
+
+DESCR_COORD 1  "A priori coordinates"
+
+! Eccentricities
+! --------------
+ECCENT 0
+  ## widget = selwin; path = DIR_ECC; ext = EXT_ECC; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_ECCENT 1  "Site eccentricities"
+
+! Troposphere
+! ---------
+TROPEST 0
+  ## widget = selwin; path = DIR_TRP; ext = EXT_TRP; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_TROPEST 1  "Estimated troposphere values"
+
+! VMF grid files
+! --------------
+VMF1_FILES 0
+  ## widget = selwin; path = DIR_GRD; ext = EXT_GRD; emptyallowed = true
+  # 
+
+MSG_VMF1_FILES 1  "Grid files for VMF"
+
+! LEO Kinematic positions
+! -----------------------
+LEOPROC 1  "0"
+  ## widget = checkbox
+
+MSG_LEOPROC 1  "LEO files"
+
+! LEO Standard Orbit
+! ------------------
+LEOSTD 0
+  ## widget = selwin; activeif = LEOPROC = 1; path = DIR_STD; ext = EXT_STD
+  ## maxfiles = 1; emptyallowed = true
+  # 
+
+DESCR_LEOSTD 1  "LEO standard orbit"
+
+! Kinematic Input Coordinates
+! ---------------------------
+KININP 0
+  ## widget = selwin; path = DIR_KIN; ext = EXT_KIN; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_KININP 1  "Kin. input coordinates"
+
+! LEO Attitude Data
+! -----------------
+ATTIT 0
+  ## widget = selwin; activeif = LEOPROC = 1; path = DIR_ATT; ext = EXT_ATT
+  ## maxfiles = 1; emptyallowed = true
+  # 
+
+DESCR_ATTIT 1  "LEO attitude"
+
+! GPS-UTC file
+! -------------
+GPSUTC 1  "${X}/GEN\GPSUTC."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # GPSUTC.
+
+DESCR_GPSUTC 1  "Difference GPS-UTC"
+
+! Differentail Code Biases
+! ------------------------
+DCBINP 1  "${P}/SAMR_LYT\ORB\P1C11908.DCB"
+  ## widget = selwin; path = DIR_DCB; ext = EXT_DCB; maxfiles = 1
+  ## emptyallowed = true
+  # P1C1$M+0
+
+DESCR_DCBINP 1  "Code bias input files"
+
+! Station Observation sigma factors for scaling the outlier limits
+! ----------------------------------------------------------------
+STAWGT 0
+  ## widget = selwin; path = DIR_SOS; ext = EXT_SOS; maxfiles = 1
+  ## emptyallowed = true
+  # 
+
+DESCR_STAWGT 1  "Station sigma factors"
+
+! Resulting Coordinates
+! ---------------------
+COORDRS 1  "${P}/SAMR_LYT\STA\$A$(CLUSTER).CRD"
+  ## widget = lineedit; path = DIR_CRD; ext = EXT_CRD
+  # $A$(CLUSTER)
+
+DESCR_COORDRS 1  "Coordinate results"
+
+! Resulting Kinematic Coordinates
+! -------------------------------
+KINOUT 0
+  ## widget = lineedit; path = DIR_KIN; ext = EXT_KIN
+  # 
+
+DESCR_KINOUT 1  "Kinematic Coordinates"
+
+! Residuals
+! ---------
+RESIDRS 0
+  ## widget = lineedit; path = DIR_RES; ext = EXT_RES
+  # 
+
+DESCR_RESIDRS 1  "Residual file"
+
+! Clock RINEX output file name
+! -----------------------------
+CLKRNXRS 0
+  ## widget = lineedit; path = DIR_RXC; ext = EXT_RXC
+  # 
+
+DESCR_CLKRNXRS 1  "Clock RINEX results"
+
+! Resulting Satellite Clocks
+! --------------------------
+SACLKRS 0
+  ## widget = lineedit; path = DIR_CLK; ext = EXT_CLK
+  # 
+
+DESCR_SACLKRS 1  "Satellite clock results"
+
+! GNSS receiver LC DCB values
+! --------------------------
+DCBOUT 0
+  ## widget = lineedit; path = DIR_DCB; ext = EXT_DCB
+  # 
+
+DESCR_DCBOUT 1  "GNSS receiver LC DCB values"
+
+! Summary Files
+! -------------
+SMCINO 0
+  ## widget = lineedit; path = DIR_SMC; ext = EXT_SMC
+  # 
+
+DESCR_SMCINO 1  "Output summary (XYZ coord.)"
+
+SMEINO 0
+  ## widget = lineedit; path = DIR_SME; ext = EXT_SME
+  # 
+
+DESCR_SMEINO 1  "Output summary (Ell. coord.)"
+
+! Scratch Files
+! -------------
+AUXFIL 1  "${U}/WORK\CODSPP.SCR"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SCR; emptyallowed = false
+  # CODSPP$J
+
+DESCR_AUXFIL 1  "Scratch file 1"
+
+AUXFIL1 1  "${U}/WORK\CODSPP.SC1"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SC1; emptyallowed = false
+  # CODSPP$J
+
+DESCR_AUXFIL1 1  "Scratch file 2"
+
+AUXFIL2 1  "${U}/WORK\CODSPP.SC2"
+  ## widget = lineedit; path = PTH_SCR; ext = EXT_SC2; emptyallowed = false
+  # CODSPP$J
+
+DESCR_AUXFIL2 1  "Scratch file 3"
+
+DELETE_FILES 3
+  "AUXFIL"
+  "AUXFIL1"
+  "AUXFIL2"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/SAMR_LYT\OUT\SPP$(CLUSTER).OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # SPP$(CLUSTER)
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Title
+! -----
+TITLE 1  "RNX2SNX_192410_$(CCC): Receiver clock synchronization"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0_$(CCC): Receiver clock synchronization
+
+MSG_TITLE 1  "Title line"
+
+! Frequency
+! ---------
+FREQ 1  "L3"
+  ## widget = combobox; editable = false; cards = L1 L2 L3
+
+MSG_FREQ 1  "Frequency"
+
+! Clock Polynomial Degree
+! -----------------------
+CLKPOLY 1  "E"
+  ## widget = combobox; editable = false; cards = E 0 1 2 3 4 5 6 7
+
+MSG_CLKPOLY 1  "Clock polynomial degree"
+
+! Save Clock Estimates ?
+! ----------------------
+CLKSAVE 1  "BOTH"
+  ## widget = combobox; editable = false; cards = NO CODE PHASE BOTH
+
+MSG_CLKSAVE 1  "Save clock estimates"
+
+! Estimate Coordinates ?
+! ----------------------
+COORDEST 1  "STATIC"
+  ## widget = combobox; editable = false; cards = NO STATIC KINEMATIC
+
+MSG_COORDEST 1  "Estimate coordinates"
+
+! Tropospheric Model
+! ------------------
+TROPOS 1  "GMF"
+  ## widget = combobox; editable = false
+  ## cards = NONE VMF GMF NIELL SAASTAMOINEN HOPFIELD ESSEN-FROOME MARINI-MUR ESTIMATED
+
+MSG_TROPOS 1  "Troposphere"
+
+! Ionosperic Model
+! ----------------
+IONOS 1  "0"
+  ## widget = checkbox
+
+MSG_IONOS 1  "Ionosphere"
+
+! Minimal Elevation
+! -----------------
+MINEL 1  "3"
+  ## widget = spinbox; range = 0 90 1
+
+MSG_MINEL 1  "Minimum elevation"
+
+! Sampling Rate
+! -------------
+SAMPLE 1  "1"
+  ## widget = spinbox; range = 1 600 1
+
+MSG_SAMPLE 1  "Sampling rate"
+
+! Interpolation of clocks
+! -----------------------
+SECIPL 0
+  ## widget = lineedit
+  # 
+
+MSG_SECIPL 1  "Interpolation of clocks"
+
+! Use mark flags from observation file
+! ------------------------------------
+USEMRK 1  "0"
+  ## widget = checkbox
+
+MSG_USEMRK 1  "Use mark flags from observation files"
+
+! Use Obs. Window
+! ---------------
+WINDOW 1  "0"
+  ## widget = checkbox
+
+MSG_WINDOW 1  "Observation window"
+
+! Observation Window
+! ------------------
+RADIO_1 1  "1"
+  ## widget = radiobutton; group = DUMMY
+  ## radiokeys = SESSION_YEAR SESSION_STRG
+
+MSG_RADIO_1 1  "Defined by year and session identifier"
+
+RADIO_2 1  "0"
+  ## widget = radiobutton; group = DUMMY
+
+MSG_RADIO_2 1  "Defined by start and end times"
+
+SESSION_YEAR 1  "2019"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $Y+0
+
+MSG_SESSION_YEAR 1  "Year for sessions def. the time window"
+
+SESSION_STRG 1  "2410"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $S+0
+
+MSG_SESSION_STRG 1  "Sessions defining the time window"
+
+STADAT 1  "2019 08 29"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_STADAT 1  "Start of time window (year month day)"
+
+STATIM 1  "00 00 00"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND STADAT / _; check_type = time
+
+MSG_STATIM 1  "Start of time window (hour min. sec.)"
+
+ENDDAT 1  "2019 08 29"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_ENDDAT 1  "End of time window (year month day)"
+
+ENDTIM 1  "23 59 59"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND ENDDAT / _; check_type = time
+
+MSG_ENDTIM 1  "End of time window (hour min. sec.)"
+
+! Print Residuals
+! ---------------
+PRTRES 1  "0"
+  ## widget = checkbox
+
+MSG_PRTRES 1  "Residuals"
+
+! Print Elevations
+! ----------------
+PRTELE 1  "0"
+  ## widget = checkbox
+
+MSG_PRTELE 1  "Elevations"
+
+! Maximum Number of Iterations
+! ----------------------------
+ITRMAX 1  "10"
+  ## widget = spinbox; range = 1 20 1
+
+MSG_ITRMAX 1  "Max. number of iterations"
+
+! Outlier Detection
+! -----------------
+OUTDET 1  "1"
+  ## widget = checkbox
+
+MSG_OUTDET 1  "Outlier detection"
+
+! Maximum Residual Allowed
+! ------------------------
+RESMAX 1  "30.0"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = OUTDET = 1 AND COORDEST /= KINEMATIC
+
+MSG_RESMAX 1  "Max. residual allowed"
+
+! Confidence Interval
+! -------------------
+CONFIN 1  "5.0"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = OUTDET = 1 AND COORDEST /= KINEMATIC
+
+MSG_CONFIN 1  "Confidence interval"
+
+! Minimal Degree of Freedom
+! -------------------------
+KINDOF 1  "1"
+  ## widget = spinbox; range = 0 5 1
+  ## activeif = OUTDET = 1 AND COORDEST = KINEMATIC
+
+MSG_KINDOF 1  "Min. degree of freedom"
+
+! Maximum RMS of Epoch Solution
+! -----------------------------
+KINSIG 1  "5.0"
+  ## widget = lineedit; check_type = real; check_min = 0.0
+  ## activeif = OUTDET = 1 AND COORDEST = KINEMATIC
+
+MSG_KINSIG 1  "Max. RMS of kin. solution"
+
+! Mark outliers in obs. file ?
+! ----------------------------
+OUTLSAVE 1  "NO"
+  ## widget = combobox; editable = false; cards = NO CODE PHASE BOTH
+  ## activeif = OUTDET = 1
+
+MSG_OUTLSAVE 1  "Mark outliers in obs. files"
+
+! Header of the new RINEX file: RUNBY
+! -----------------------------------
+RUNBY 0
+  ## widget = lineedit
+
+MSG_RUNBY 1  "Run by"
+
+! Header of the new RINEX file: AC
+! --------------------------------
+AC 0
+  ## widget = lineedit
+
+MSG_AC 1  "AC"
+
+! Header of the new RINEX file: ACName
+! ------------------------------------
+ACNAME 0
+  ## widget = lineedit
+
+MSG_ACNAME 1  "AC name"
+
+! Time System
+! -----------
+TIMESYS 1  "GPS"
+  ## widget = combobox; editable = false; cards = GPS GLO GAL UTC TAI
+
+MSG_TIMESYS 1  "Time system"
+
+! DCB line
+! --------
+DCBLINE 0
+  ## widget = lineedit
+
+MSG_DCBLINE 1  "DCB line"
+
+! Header of the new RINEX file: Comments
+! ------------------------------------
+COMMENT 1  ""
+  ## widget = uniline
+
+MSG_COMMENT 1  "Comment lines"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CODE-BASED CLOCK SYNCHRONIZATION - CODSPP 1: Filenames                       #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files> % <                                                # SHOWGEN
+#                                                                              #
+# INPUT ORBITS                                                                 #
+#   > % < Broadcast orbits> %%%%%%%% <                                         # RADIO_B BRDEPH
+#   > % < Standard orbits > %%%%%%%% <       Satellite clocks      > %%%%%%%% <# RADIO_S STDORB SATCLK
+#                                                                              #
+# INPUT FILES                                                                  #
+#   Code observation files> %%%%%%%% <       A priori coordinates  > %%%%%%%% <# CODEFILE COORD
+#   Estimated tropo.values> %%%%%%%% <       Site eccentricities   > %%%%%%%% <# TROPEST ECCENT
+#   Maps of VMF1 coeff.   > %%%%%%%% <       Kin. input coordinates> %%%%%%%% <# VMF1_FILES KININP
+#   Pole file             > %%%%%%%% <       Code bias input files > %%%%%%%% <# POLE DCBINP
+#                                            Station sigma factors > %%%%%%%% <# STAWGT
+#                                                                              #
+#   LEO files             > % <                                                # LEOPROC
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# CODSPP 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   General constants           > %%%%%%%%%%%% <                               # CONST
+#   Subdaily pole model         > %%%%%%%%%%%% <                               # SUBMOD
+#   Nutation model              > %%%%%%%%%%%% <                               # NUTMOD
+#   Satellite information       > %%%%%%%%%%%% <                               # SATELL
+#   Receiver information        > %%%%%%%%%%%% <                               # RECEIVR
+#   Satellite problems          > %%%%%%%%%%%% <                               # SATCRUX
+#   Station information         > %%%%%%%%%%%% <                               # STAINFO
+#   Geodetic datum              > %%%%%%%%%%%% <                               # DATUM
+#   Phase center eccentricities > %%%%%%%%%%%% <                               # PHASECC
+#   Frequency information       > %%%%%%%%%%%% <                               # FRQINFO
+#   GPS-UTC file                > %%%%%%%%%%%% <                               # GPSUTC
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign           > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <# CAMPAIGN
+#   Selected session              year> %%%% <  session> %%%% <                # YR4_INFO SES_INFO
+#   Session table               > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <# SESSION_TABLE
+#                                                                              #
+# TEMPORARY FILES                                                              #
+#   Scratch files               > %%%%%%%% <   > %%%%%%%% <   > %%%%%%%% <     # AUXFIL AUXFIL1 AUXFIL2
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL LEOPROC = 1 ######################################################
+# CODSPP 1.2: LEO Files                                                        #
+#                                                                              #
+# LEO FILES                                                                    #
+#   LEO standard orbit    > %%%%%%%% <                                         # LEOSTD
+#   LEO attitude          > %%%%%%%% <                                         # ATTIT
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CODSPP 1.3: Output Files                                                     #
+#                                                                              #
+# RESULT FILES                                                                 #
+#   Coordinate results          > %%%%%%%% <                                   # COORDRS
+#   Kinematic coordinates       > %%%%%%%% <                                   # KINOUT
+#   Residual file               > %%%%%%%% <                                   # RESIDRS
+#   Satellite clock results     > %%%%%%%% <                                   # SACLKRS
+#   Clock RINEX results         > %%%%%%%% <                                   # CLKRNXRS
+#   GNSS receiver LC DCB values > %%%%%%%% <                                   # DCBOUT
+#                                                                              #
+# OUTPUT FILES                                                                 #
+#   Output summary (XYZ coord.) > %%%%%%%% <                                   # SMCINO
+#   Output summary (Ell.coord.) > %%%%%%%% <                                   # SMEINO
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output              > % < use CODSPP.Lnn           or > %%%%%%%% < # SYSODEF SYSOUT
+#   Error messages              > % < merged to program output or > %%%%%%%% < # ERRMRG SYSERR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CODSPP 2: Input Options                                                      #
+#                                                                              #
+# TITLE > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <   # TITLE
+#                                                                              #
+# PARAMETERS                                                                   #
+#   Frequency                             > %%%%%% <                           # FREQ
+#   Clock polynomial degree               > %%%%%% <   E: one offset per epoch # CLKPOLY
+#   Save clock estimates                  > %%%%%% <                           # CLKSAVE
+#   Estimate coordinates                  > %%%%%%%%%%%%% <                    # COORDEST
+#                                                                              #
+# ATMOSPHERE MODELS                                                            #
+#   Troposphere                           > %%%%%%%%%%%%% <                    # TROPOS
+#   Ionosphere                            > % <                                # IONOS
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CODSPP 3: Input Options                                                      #
+#                                                                              #
+# OBSERVATION SELECTION                                                        #
+#   Minimum elevation                     > %% <  degrees                      # MINEL
+#   Sampling rate                         > %% <                               # SAMPLE
+#   Interpolation of clocks allowed over  > %%% <  seconds (0:no interpolation)# SECIPL
+#   Observation window                    > % <                                # WINDOW
+#   Use mark flags from observation files > % <                                # USEMRK
+#                                                                              #
+# PRINT OPTIONS                                                                #
+#   Residuals                             > % <                                # PRTRES
+#   Elevations                            > % <                                # PRTELE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL WINDOW = 1 #######################################################
+# CODSPP 3.1: Observation Window                                               #
+#                                                                              #
+# OBSERVATION WINDOW                                                           #
+#                                                                              #
+#   > % < Defined by Year and Session identifier                               # RADIO_1
+#         Year  > %%%% <   Session > %%%% <                                    # SESSION_YEAR SESSION_STRG
+#                                                                              #
+#                                                                              #
+#   > % < Defined by Start and End times                                       # RADIO_2
+#                 yyyy mm dd     hh mm ss           yyyy mm dd     hh mm ss    #
+#         Start > %%%%%%%%%% < > %%%%%%%% <   End > %%%%%%%%%% < > %%%%%%%% <  # STADAT STATIM ENDDAT ENDTIM
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CODSPP 4: Screening Options                                                  #
+#                                                                              #
+# ITERATIONS                                                                   #
+#   Max. number of iterations   > %% <                                         # ITRMAX
+#                                                                              #
+# OUTLIER DETECTION                                                            #
+#   Outlier detection           > % <                                          # OUTDET
+#   Max. residual allowed       > %%%%% <  meters                              # RESMAX
+#   Confidence interval         > %%%%% <  (in units of one sigma)             # CONFIN
+#   Min. degree of freedom      > % <                                          # KINDOF
+#   Max. RMS of kin. solution   > %%%%  <  meters                              # KINSIG
+#   Mark outliers in obs. files > %%%%%% <                                     # OUTLSAVE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL CLKRNXRS / _ #####################################################
+# CODSPP 5: Header For Clock RINEX Files                                       #
+#                                                                              #
+# HEADER ENTRIES FOR THE CLOCK RINEX FILE                                      #
+#   Run by   > %%%%%%%%%%%%%%%%%%% <                                           # RUNBY
+#   AC       > %%% <                                                           # AC
+#   AC name  > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <        # ACNAME
+#                                                                              #
+#   Time system    > %%%% <                                                    # TIMESYS
+#   DCBs applied   > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <                # DCBLINE
+#                                                                              #
+#   > Comment_lines_______________________________________________   <         # COMMENT
+#                                                                              #
+# END_PANEL ####################################################################

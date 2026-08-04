@@ -1,0 +1,298 @@
+
+! Environment Variables
+! ---------------------
+ENVIRONMENT 5
+  "U" "c:\Bernese\GPSUSER52"
+  "T" "c:\Bernese\GPSTEMP"
+  "X" "c:\Bernese\BERN52\GPS"
+  "P" "c:\Bernese\GPSDATA\CAMPAIGN52"
+  "USER" "<operator>"
+  ## widget = initmenu; pointer = ENVIR_LIST
+
+CAMPAIGN 1  "${P}/PHIVOLCS"
+  ## widget = initmenu; pointer = ACTIVE_CAMPAIGN
+
+SESSION_TABLE 1  "${P}/PHIVOLCS\STA\SESSIONS.SES"
+  ## widget = initmenu; pointer = SESSION_TABLE
+
+DESCR_SESSION_TABLE 1  "Session table"
+
+YR4_INFO 1  "2019"
+  ## widget = comment
+  # $Y+0
+
+SES_INFO 1  "0110"
+  ## widget = comment
+  # $S+0
+
+USR_INFO 1  "${USER}"
+  ## widget = comment
+
+! -------------------------------------------------------------------------
+! Show general files
+! ------------------
+SHOWGEN 1  "1"
+  ## widget = checkbox
+
+MSG_SHOWGEN 1  "Show all general files"
+
+! Pole Offset Coefficients
+! ------------------------
+OFFFIL 1  "${X}/GEN\POLOFF."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  ## emptyallowed = true
+  # POLOFF.
+
+DESCR_OFFFIL 1  "Pole offset coefficients"
+
+! Leap Second File
+! ----------------
+GPSUTC 1  "${X}/GEN\GPSUTC."
+  ## widget = selwin; path = PTH_GEN; ext = NO_EXT; maxfiles = 1
+  # GPSUTC.
+
+DESCR_GPSUTC 1  "Difference GPS-UTC"
+
+! Input Pole Files Bernese Format
+! -------------------------------
+ERPFIL 0
+  ## widget = selwin; path = DIR_ERP; ext = EXT_ERP; maxfiles = 999
+  ## emptyallowed = true
+  # 
+
+MSG_ERPFIL 1  "Bernese formatted ERP files"
+
+ERPFIL_TXT_COL_1 1  "Input Bernese ERP files"
+
+! Input Pole Files Foreign Format
+! -------------------------------
+IEPFIL 1  "${P}/PHIVOLCS\ORB\$B20355.IEP"
+  ## widget = selwin; path = DIR_IEP; ext = EXT_IEP; maxfiles = 999
+  ## emptyallowed = true
+  # $B$WD+0
+
+MSG_IEPFIL 1  "Foreign formatted ERP files"
+
+IEPFIL_TXT_COL_1 1  "Input IERS ERP files"
+
+! Output Pole File
+! ----------------
+OUTFIL 1  "${P}/PHIVOLCS\ORB\$B190110.ERP"
+  ## widget = lineedit; path = DIR_ERP; ext = EXT_ERP; maxfiles = 1
+  # $B$YSS+0
+
+DESCR_OUTFIL 1  "Bernese formatted ERP file (out)"
+
+! Program Output File
+! -------------------
+SYSODEF 1  "0"
+  ## widget = checkbox
+
+MSG_SYSODEF 1  "Program output"
+
+SYSOUT 1  "${P}/PHIVOLCS\OUT\POL190110.OUT"
+  ## widget = lineedit; path = DIR_OUT; ext = EXT_OUT
+  ## activeif = SYSODEF == 0; emptyallowed = false
+  # POL$YSS+0
+
+DESCR_SYSOUT 1  "Program output"
+
+! Error Message File
+! ------------------
+ERRMRG 1  "0"
+  ## widget = checkbox
+
+MSG_ERRMRG 1  "Error message"
+
+SYSERR 1  "${U}/WORK\ERROR.MSG"
+  ## widget = lineedit; path = PTH_ERR; ext = EXT_ERR
+  ## activeif = ERRMRG == 0; emptyallowed = false
+  # ERROR
+
+DESCR_SYSERR 1  "Error message"
+
+! Title for Result Files
+! ----------------------
+TITLE 1  "RNX2SNX_190110: Extract ERP information"
+  ## widget = lineedit
+  # RNX2SNX_$YSS+0: Extract ERP information
+
+MSG_TITLE 1  "Title line"
+
+! Nutation Model
+! --------------
+NUTMOD 1  "${X}/GEN\IAU2000R06.NUT"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_NUT; maxfiles = 1
+  ## emptyallowed = true
+  # IAU2000R06
+
+NUTMOD_TXT_COL_1 1  "Nutation Model"
+
+MSG_NUTMOD 1  "Nutation model"
+
+! Subdaily Pole Model
+! -------------------
+SUBMOD 1  "${X}/GEN\IERS2010XY.SUB"
+  ## widget = selwin; path = PTH_GEN; ext = EXT_SUB; maxfiles = 1
+  ## emptyallowed = true
+  # IERS2010XY
+
+SUBMOD_TXT_COL_1 1  "Subdaily ERP Model"
+
+MSG_SUBMOD 1  "Subdaily pole model"
+
+! Values of IERS Bulletin B
+! -------------------------
+NDAYS 1  "1"
+  ## widget = combobox; editable = false; cards = 1 5
+
+MSG_NDAYS 1  "Use 1 or 5 day values"
+
+! ERP Rates
+! ---------
+USERATE 1  "0"
+  ## widget = checkbox
+
+MSG_USERATE 1  "Use ERP rates"
+
+! Allow double epochs
+! -------------------
+DBLEPO 1  "0"
+  ## widget = checkbox; activeif = USERATE == 0
+
+MSG_DBLEPO 1  "Allow double epochs"
+
+! Include Nutation Offsets
+! ------------------------
+NUTOFF 1  "0"
+  ## widget = checkbox
+
+MSG_NUTOFF 1  "Include nutation offsets"
+
+! Use Window
+! ----------
+IWIN 1  "1"
+  ## widget = checkbox
+
+MSG_IWIN 1  "Use time window"
+
+! Observation Window
+! ------------------
+RADIO_1 1  "1"
+  ## widget = radiobutton; group = WINDOW
+  ## radiokeys = SESSION_YEAR SESSION_STRG
+
+MSG_RADIO_1 1  "Defined by Year and Session identifier"
+
+RADIO_2 1  "0"
+  ## widget = radiobutton; group = WINDOW
+
+MSG_RADIO_2 1  "Defined by start and end times"
+
+SESSION_YEAR 1  "2019"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $Y+-
+
+MSG_SESSION_YEAR 1  "Year for sessions def. the time window"
+
+SESSION_STRG 3
+  "0100"
+  "0110"
+  "0120"
+  ## widget = lineedit; multilineallowed = true; emptyallowed = false
+  # $S+-
+
+MSG_SESSION_STRG 1  "Sessions defining the time window"
+
+STADAT 1  "2019 01 11"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_STADAT 1  "Start of time window (year month day)"
+
+STATIM 1  "00 00 00"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND STADAT / _; check_type = time
+
+MSG_STATIM 1  "Start of time window (hour min. sec.)"
+
+ENDDAT 1  "2019 01 11"
+  ## widget = lineedit; activeif = RADIO_2 = 1; check_type = date
+  # $YMD_STR+0
+
+MSG_ENDDAT 1  "End of time window (year month day)"
+
+ENDTIM 1  "23 59 59"
+  ## widget = lineedit; emptyallowed = false
+  ## activeif = RADIO_2 = 1 AND ENDDAT / _; check_type = time
+
+MSG_ENDTIM 1  "End of time window (hour min. sec.)"
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# CONVERT IERS POLE FILES TO BERNESE FORMAT - POLUPD 1: Input/Output Files     #
+#                                                                              #
+# GENERAL FILES                                                                #
+#   Show all general files               > % <                                 # SHOWGEN
+#                                                                              #
+# INPUT FILES                                                                  #
+#   Bernese formatted ERP files          > %%%%%%%% <                          # ERPFIL
+#   Foreign formatted ERP files          > %%%%%%%% <                          # IEPFIL
+#                                                                              #
+# RESULT FILE                                                                  #
+#   Bernese formatted ERP file (out)     > %%%%%%%% <                          # OUTFIL
+#                                                                              #
+# GENERAL OUTPUT FILES                                                         #
+#   Program output             > % < use POLUPD.Lnn           or  > %%%%%%%% < # SYSODEF SYSOUT
+#   Error messages             > % < merged to program output or  > %%%%%%%% < # ERRMRG SYSERR
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL SHOWGEN = 1 ######################################################
+# POLUPD 1.1: General Files                                                    #
+#                                                                              #
+# GENERAL INPUT FILES                                                          #
+#   Pole offset coefficients   > %%%%%%%%%% <                                  # OFFFIL
+#   GPS-UTC seconds            > %%%%%%%%%% <                                  # GPSUTC
+#                                                                              #
+# MENU SETTINGS                                                                #
+#   Selected campaign          > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <# CAMPAIGN
+#   Selected session             year> %%%% <  session> %%%% <                 # YR4_INFO SES_INFO
+#   Session table              > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <# SESSION_TABLE
+#                                                                              #
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL NO_CONDITION #####################################################
+# POLUPD 2: Options                                                            #
+#                                                                              #
+# HEADER INFORMATION                                                           #
+#   Title  > %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% <    # TITLE
+#   Nutation model             > %%%%%%%% <                                    # NUTMOD
+#   Subdaily pole model        > %%%%%%%% <                                    # SUBMOD
+#                                                                              #
+# BULLETIN B AS INPUT                                                          #
+#   Use 1 or 5 day values      > %% <                                          # NDAYS
+#                                                                              #
+# OPTIONS                                                                      #
+#   Use ERP rates              > % <                                           # USERATE
+#   Allow double epochs        > % <                                           # DBLEPO
+#   Include nutation offsets   > % <                                           # NUTOFF
+#   Use time window            > % <                                           # IWIN
+# END_PANEL ####################################################################
+
+
+# BEGIN_PANEL IWIN = 1 #########################################################
+# POLUPD 3: Time Window                                                        #
+#                                                                              #
+# TIME WINDOW                                                                  #
+#                                                                              #
+#   > % < Defined by Year and Session identifier                               # RADIO_1
+#         Year  > %%%% <    Session > %%%% <                                   # SESSION_YEAR SESSION_STRG
+#                                                                              #
+#   > % < Defined by Start and End times                                       # RADIO_2
+#                 yyyy mm dd     hh mm ss           yyyy mm dd     hh mm ss    #
+#         Start > %%%%%%%%%% < > %%%%%%%% <   End > %%%%%%%%%% < > %%%%%%%% <  # STADAT STATIM ENDDAT ENDTIM
+#                                                                              #
+# END_PANEL ####################################################################
