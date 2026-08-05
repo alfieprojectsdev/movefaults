@@ -134,11 +134,28 @@ def main() -> int:
     ap.add_argument("--src", type=Path, default=U / "PCF" / "RNX2SNX.PCF")
     ap.add_argument("--dest", type=Path, default=U / "PCF" / "LUZON_DLY.PCF")
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument(
+        "--frame", choices=("i14", "i20"), default="i14",
+        help="i14 reproduces her configuration but cannot run on 5.4 at this "
+             "epoch (runbook §4b.6): the satellite tables end in 2023 and the "
+             "ANTEX fails 5.4's SVN/PRN check. i20 is a PIPELINE TEST ONLY — it "
+             "changes the reference frame and antenna model, so its coordinates "
+             "are NOT comparable with her I14 solutions.",
+    )
     args = ap.parse_args()
 
     if not args.src.is_file():
         print(f"FATAL: {args.src} not found", file=sys.stderr)
         return 1
+
+    if args.frame == "i20":
+        # Pipeline-test mode. Only the frame/model triple moves; V_SATSYS stays
+        # GPS so exactly one thing differs from the I14 configuration and a
+        # completed run tells us the I14 model set was the blocker.
+        OVERRIDES.update({"V_PCV": "I20", "V_REFINF": "IGS20", "V_REFPSD": "IGS20"})
+        print("*** FRAME: I20 — PIPELINE TEST ONLY ***")
+        print("    Coordinates from this run are NOT comparable with her I14")
+        print("    solutions. See runbook §1.4 and §4b.6.\n")
 
     text, changed = apply_overrides(args.src.read_text(errors="replace"))
 

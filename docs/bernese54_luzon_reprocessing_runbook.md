@@ -651,6 +651,68 @@ comparison then becomes a separate question — and the finding that I14 cannot 
 run on 5.4 at this epoch is itself a result worth reporting to Abegail, since it
 bears on how the LUZON series can be continued at all.
 
+### 4b.7 I20 pipeline test: the chain runs, and where each configuration stops
+
+**I20 cleared the I14 blocker, confirming §4b.6.** Same PCF, same data, same
+GPS-only selection; only the frame/antenna triple changed.
+
+| Configuration | Furthest PID | Time | Result |
+|---|---|---|---|
+| **24 local stations** (RINEX 2 only) | **513 HELMCHK** | 4m12s | **`FIN_20251210.NQ0` produced** |
+| **32 stations** (+ 9 RINEX 3 fiducials) | 322 GPSEDT | 3m22s | fails earlier |
+
+**The 24-station run is the deepest yet and produced a final ambiguity-fixed
+solution.** Its only failure is the closing QC gate:
+
+```
+*** PGM HELMR1: NO REDUNDANCY. NO VERIFICATION OF SITES POSSIBLE
+```
+
+Cause understood: **5.4's stock `RNX2SNX.PCF` has no `V_RX3DIR`** — that variable
+is specific to her extended 5.2 PCF — so the RINEX 3 fiducials were never staged,
+and none of the 24 locals is an IGS20 reference station. Nothing to transform
+against.
+
+`RNX_COP` in 5.4 *does* handle RINEX 3 natively (it globs long names from the
+same `${rnxDir}`), so the fix is to stage RINEX 2 and RINEX 3 into **one**
+directory rather than two. Done, with BASC/CLAV de-duplicated in favour of
+RINEX 3 per §1.1a. All 32 stations then staged and **`RXOBV3` passed** — every
+station matched a `LUZON.STA` entry, no hard abort.
+
+#### But the fiducials introduce a new stop: ocean loading
+
+```
+*** SR GTOCNL: OCEAN LOADING CORRECTION VALUES NOT FOUND
+               STATION NAME : ALIC 50137M001
+               FILE NAME    : ${P}/LUZON/STA/LUZON.BLQ
+```
+
+**No `.BLQ` anywhere in her tree contains ALIC.** All four copies of
+`LUZON.BLQ` are identical (1,544 lines) and cover only the local network. So
+either her run did not process the fiducials' observations — using them purely
+as datum constraints — or 5.2 warned where 5.4 errors. Given §4b.6's finding
+that 5.2 completed with 3 `***` errors, the second is more likely.
+
+**This is the same shape as everything else in §4b: a check 5.4 enforces and 5.2
+did not.** It is now the fourth instance.
+
+#### Consequence for scheduling
+
+There is **no configuration that completes a single day cleanly**:
+
+- 24 stations → reaches the end, produces `FIN_*.NQ0`, fails datum verification
+- 32 stations → fails at baseline editing on missing ocean-loading coefficients
+
+A multi-day batch is therefore **not yet worth running.** What a 31-day run of
+the 24-station configuration would establish is throughput and stability — real,
+but modest against what is already known from one day — and every solution it
+produced would lack datum control.
+
+**The next task is to obtain ocean-loading coefficients for the nine fiducials**
+(free from the Onsala/Chalmers BLQ service) and merge them into `LUZON.BLQ`.
+That closes the last known gap and makes both the datum verification and a
+multi-day run meaningful at the same time.
+
 ## 5. Open questions — resolvable only by running it
 
 Most of the original list closed during the 2026-08-05 configuration survey
