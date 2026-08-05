@@ -311,55 +311,117 @@ what she actually ran.
 
 ---
 
-## 4. Provisioning `$U` — expect it to be refused
+## 4. Configuration checklist — what actually has to change
 
-The 5.2 OPT tree is **not** a clean gold standard. Measured across all 105 live
-`.INP` panels in `config/bernese/gpsuser52-luzon/`:
+Investigated 2026-08-05. **Every input is local. Nothing needs downloading and
+nothing needs requesting.** What remains is configuration, and most of it is
+staging rather than authoring.
 
-| Hazard | Instances |
+### 4.0 Things that turned out NOT to be problems
+
+| Feared blocker | Reality |
 |---|---|
-| `hardcoded_campaign` | 820 |
-| `foreign_abs_path` (`C:\Bernese\…`) | 200, across **50 panels** |
-| `hardcoded_date` | 95 |
-| **Panels affected** | **72 of 105** |
+| Provision `PHI_WK`/`PHI_MO`, remediate 72 hazardous panels | **Not needed.** Those two dirs are referenced *only* by PIDs 530 (`ADD_WK`) and 531 (`ADD_MON`). Stop at 514 and they never load. The `R2S_*` panels the daily path uses already ship with 5.4. |
+| Mixed RINEX 2 / RINEX 3 staging | **Already handled by the PCF**: `V_RNXDIR=LUZON` and `V_RX3DIR=RINEX3` are separate variables. The design anticipated this. |
+| Configure I14 vs I20 | **Already in the PCF**: `V_PCV=I14`, `V_MYATX=I14.ATX`. The model discipline is built in, not something to remember. |
+| `ANTENNA_I14.PCV` | **5.4 already ships it** in `REF54`, alongside I20. |
+| `FTP_DWLD` missing | Products are all local (§1.1c). One-line drop. |
 
-```bash
-uv run python scripts/provision_gpsuser.py \
-    --gold config/bernese/gpsuser52-luzon --stations 25
+### 4.1 The eight missing scripts — all resolved
+
+| 5.2 script | Disposition |
+|---|---|
+| `FTP_DWLD` | **Drop.** Products staged. |
+| `ADD_WK`, `ADD_MON` | **Drop.** PIDs 530/531, weekly/monthly combination, out of scope for a daily comparison. |
+| `POLUPDH` | → **`POLUPD`** (exists; panel `POLUPD.INP`) |
+| `ORBGENH` | → **`ORBGEN`** (exists; panel `ORBGEN.INP`) |
+| `RXOBV3_H` | → **`RXOBV3`** (exists) |
+| `RNXSMT_H` | → **`RNXSMT_P`** (exists; panel `RNXSMT.INP`) |
+| `PRETAB` | → **`ORBMRG`** — the one genuine substitution |
+
+**The `_H`/`H` suffix is on the script name only.** The OPT panels are named
+without it (`R2S_GEN/RXOBV3.INP`), so panel lookups are unaffected by the rename.
+
+**On `PRETAB` → `ORBMRG`:** `PRETAB` does not exist in 5.4 in any form — not as a
+script, not as a program in `SOURCE/PGM/EXE_GNU`. 5.4's own stock `RNX2SNX.PCF`
+runs `111 ORBMRG` then `112 ORBGEN` where 5.2 ran `112 PRETAB` then `113
+ORBGENH`. Follow 5.4's own chain rather than inventing a replacement.
+
+### 4.2 What must be staged
+
+**Reference frame — the one real gap.** `PHIVOL_REL.PCF` wants `V_REFINF=IGS14`
+and `V_REFPSD=IGS14`. **5.4's `REF54` ships IGS20 only** (8 files, no IGS14).
+The I14 frame files are in the 5.2 capture and must be copied in:
+
+```
+DATAPOOL_REF52/IGS14.FIX   IGS14.PSD   IGS14.SIG   IGS14_R.CRD   IGS14_R.VEL
 ```
 
-This will **refuse and exit 1**. That is the tool working — a panel carrying an
-unresolvable hazard aborts the whole run before anything is written, so `$U` is
-never left half-updated. Separator conversion is automatic; the hardcoded
-campaign names, dates and `C:\Bernese\…` paths need deliberate remapping,
-because a machine cannot know what they *should* say.
+Without these the run either fails or silently falls back to IGS20 — which is
+the I14/I20 confound of §1.4 arriving through the back door, and it would not
+announce itself.
 
-Only `PHI_MO` and `PHI_WK` are strictly required from this tree — the `R2S_*`
-panels already exist in the 5.4 install. Remediating two directories is a much
-smaller job than remediating 72 panels, and is the recommended starting scope.
+| Item | From | To |
+|---|---|---|
+| `IGS14.{FIX,PSD,SIG}`, `IGS14_R.{CRD,VEL}` | `DATAPOOL_REF52/` | `$D/REF54/` |
+| `I14.ATX` | `BERN52/GPS/GEN/I14.ATX` | `$D/REF54/` (or per `V_MYATX`) |
+| `LUZON.{STA,CRD,VEL,ABB,CLU,BLQ,ATL,PLD}` | `DATAPOOL_REF52/` or the repo | `$D/REF54/` |
+| RINEX 2 observations | `DATAPOOL/LUZON/` | `$D/LUZON/` |
+| RINEX 3 fiducials | `DATAPOOL/RINEX3/` | `$D/RINEX3/` |
+| Orbits, weeks 2364–2368 | `DATAPOOL/IGS/` (76 `.sp3`) | `$D/IGS/` |
+| Ionosphere | `DATAPOOL_BSW52/COD236*.ION.gz` (31) | `$D/BSW52/` |
+| DCB | `DATAPOOL/COD/` | `$D/COD/` |
 
----
+### 4.3 Settings to change
+
+1. **`V_REFDIR`: `REF52` → `REF54`.** 5.2 names it `${D}/REF52`; the 5.4 tree is
+   `${D}/REF54`. Compare against `PAGENET_DLY.PCF`, which already uses
+   `V_REFDIR = ${D}/REF54`.
+2. **Create the LUZON campaign.** `$P` (`GPSDATA/CAMPAIGN54/`) holds only
+   `EXAMPLE`. Register it in `$U/PAN/MENU_CMP.INP`, whose `CAMPAIGN` list
+   currently names `EXAMPLE`, `INTRO`, `PAGENET`.
+3. **Choose one convention for BASC and CLAV** (§1.1a). Prefer RINEX 3 — BASC's
+   RINEX 2 coverage is 20 days against RINEX 3's 31.
+4. **Check the three known 5.2↔5.4 panel differences** before trusting a
+   comparison: `RNXGRA` `MINOBS`/`MAXBAD`, and `ADDNEQ2` `MAXPAR`. These were
+   identified in the 2026-03-03 INP diff and are the parameters that differ
+   between the PHIVOLCS 5.2 panels and the 5.4 EXAMPLE set.
+5. **`USER.CPU` is already correct** — maxjobs 11, set 2026-08-03. `V_CLU=10`
+   over ~30 stations gives three clusters, which is fine on 11 cores.
+
+### 4.4 Order of work
+
+1. Stage §4.2 (mechanical, scriptable, no decisions)
+2. Create and register the campaign
+3. Copy `PHIVOL_REL.PCF` → `LUZON_DLY.PCF`; apply §4.1 renames, drop PIDs
+   515–999, substitute `ORBMRG` for `PRETAB`
+4. Set `V_REFDIR=${D}/REF54`
+5. Pre-flight inventory: station-days per convention, duplicates, PNGM's gaps
+6. Run DOY 121 alone
 
 ## 5. Open questions — resolvable only by running it
 
-These are the actual content of the exercise. None can be settled by inspection.
+Most of the original list closed during the 2026-08-05 configuration survey
+(§4). What genuinely remains:
 
-1. ~~Do the seven fiducials fetch cleanly?~~ **Moot** — §1.1a: they were always
-   local, as RINEX 3. No download and no request to anyone is needed. The open
-   question that replaces it is narrower: **does the staging step glob both
-   naming conventions?** (§1.1b.) That code path is unexercised.
+1. **Does `ORBMRG` produce what `ORBGEN` expects, in this campaign's layout?**
+   The one real substitution. 5.4's own `RNX2SNX.PCF` chains them this way, so
+   the pattern is sound; whether it works against 5.2-era staged products is
+   untested.
+2. **Do the 5.2 `R2S_*` panels load under 5.4 unchanged?** They exist in both,
+   but the 2026-03-03 INP diff found three parameters differing (`RNXGRA`
+   `MINOBS`/`MAXBAD`, `ADDNEQ2` `MAXPAR`). Whether anything else drifted between
+   versions is unknown.
+3. **Does `V_PCV=I14` resolve correctly** once the IGS14 frame files are staged
+   into `REF54` beside the IGS20 set? Two frames in one directory is the
+   configuration most likely to fail quietly rather than loudly.
+4. **Do the RINEX 3 fiducials stage cleanly** via `V_RX3DIR`? The variable
+   exists and the PCF was written for it, but this specific code path has not
+   run on this machine.
 
-2. **Can 5.4 read a 5.2 campaign's `OBS/` directly?** No longer blocking, since
-   §1.1 gives a raw-RINEX path with references for every day. Still worth knowing
-   for any future run started from converted observations.
-
-3. **Are the non-`H` scripts drop-in for the `H` variants?**
-4. **Do `PHI_MO`/`PHI_WK` work under 5.4 once remediated?** They are the two
-   directories with no 5.4 equivalent.
-5. **Does staging `ANT_COD_I14.PCV` into 5.4's `GEN/` suffice**, or does 5.4
-   expect an ATX-derived PCV it will not accept from a 5.2 tree?
-
----
+Closed by §4: the eight missing scripts, the fiducial "gap", `FTP_DWLD`,
+`PHI_WK`/`PHI_MO` provisioning, mixed RINEX conventions, and I14 model
+selection.
 
 ## 6. Suggested first run
 
