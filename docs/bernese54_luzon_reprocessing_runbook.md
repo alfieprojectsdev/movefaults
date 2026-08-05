@@ -207,7 +207,24 @@ could produce. A 5.4 run under I20 compared against her I14 result yields a
 difference that is real, reproducible, and has nothing to do with the PCF.
 
 **Reprocess under I14 first and reproduce her numbers. Change one thing at a
-time afterwards.** The file you need is local:
+time afterwards.**
+
+> **Why not transform between frames instead?** The published IGS14→IGS20
+> approach — 7-parameter Helmert plus epoch propagation plus consistent ATX —
+> is the correct method when you have two *finished* products in different
+> frames and must reconcile them. It is the wrong method here: it would leave
+> transform residuals entangled with the PCF effect we are trying to measure.
+> Running both sides under I14 removes the difference instead of correcting for
+> it, and 5.4 ships `ANTENNA_I14.PCV`, so the option costs nothing.
+>
+> That method does apply to the **next** exercise — comparing LUZON (I14 /
+> ITRF2014) against PAGENET (I20 / ITRF2020) — which is a genuine cross-frame
+> comparison. Official parameters: <https://itrf.ign.fr/en/solutions/transformations>.
+>
+> External corroboration for the magnitude in the table above: the EPN switch-to-IGS20
+> analyses report ground and satellite antenna calibration changes producing
+> **centimetre-level offsets, up to ~3 cm and concentrated in the Up component**,
+> independent of the frame translation itself (which is sub-centimetre globally). The file you need is local:
 
 ```
 /srv/gnss-archive/processed/luzon-bern52/BERN52/GPS/GEN/ANT_COD_I14.PCV
@@ -373,6 +390,23 @@ announce itself.
 | DCB | `DATAPOOL/COD/` | `$D/COD/` |
 
 ### 4.3 Settings to change
+
+0. **`V_PCVINF`: `PCV` → `ANTENNA`.** The two versions name the antenna table
+   differently: 5.2 resolves `{V_PCVINF}_{V_PCV}` to `PCV_I14.PCV`, 5.4 to
+   `ANTENNA_I20.PCV`. Setting `V_PCV=I14` with `V_PCVINF=ANTENNA` resolves to
+   **`ANTENNA_I14.PCV`, which 5.4 already installs** in `REF54`. Leaving
+   `V_PCVINF=PCV` makes Bernese look for a file that does not exist in the 5.4
+   tree.
+
+   `002 ATX2PCV` runs in both PCFs — the table is built at runtime from the
+   ATX — so `V_MYATX` and `V_PCV` must agree, or the table is built from one
+   model and selected by another.
+
+   > **`REF54` holds four antenna tables side by side**: `ANTENNA_I14.PCV`,
+   > `ANTENNA_I20.PCV`, `ANTENNA_M14.PCV`, `ANTENNA_R20.PCV`. Mixing phase-centre
+   > tables is a documented cm-level error source, largely in the Up component,
+   > and `V_PCV` is the only thing keeping them apart. Verify which table the run
+   > actually loaded from the BPE output rather than assuming the variable took.
 
 1. **`V_REFDIR`: `REF52` → `REF54`.** 5.2 names it `${D}/REF52`; the 5.4 tree is
    `${D}/REF54`. Compare against `PAGENET_DLY.PCF`, which already uses
