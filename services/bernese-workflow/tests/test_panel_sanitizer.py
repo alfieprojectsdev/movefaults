@@ -280,3 +280,62 @@ def test_campaign_variables_are_not_flagged(tmp_path):
         'OTHER 1  "${D}/PGN"\n'
     )
     assert not [w for w in result.warnings if w.kind == "hardcoded_campaign"]
+
+
+# --- PCF dialects: find_dangling_waits must understand both -----------------
+
+_PCF_COLUMNAR = """PID SCRIPT   OPT_DIR  CAMPAIGN CPU      F WAIT FOR....
+001 R2S_COP  NO_OPT            ANY      1 000
+101 POLUPD   R2S_GEN           ANY      1 001
+113 ORBGEN   R2S_GEN           ANY      1 101 111
+599 DUMMY    NO_OPT            ANY      1 113 522
+"""
+
+_PCF_KEYWORD = """# PID  SCRIPT    OPT_DIR   PARAMETERS
+001  R2S_COP   NO_OPT    CPU=ANY; WAIT=000
+101  POLUPD    R2S_GEN   CPU=ANY; WAIT=001
+"""
+
+
+def test_dangling_waits_detected_in_columnar_dialect():
+    """The 5.2 dialect has no `WAIT=` keyword — the WAIT list is a bare column.
+
+    Regression for 2026-08-05: the detector matched only `WAIT=`, so against a
+    PHIVOLCS 5.2 PCF it found zero WAITs, reported zero dangling, and returned a
+    clean bill having inspected nothing. That report signed off LUZON_DLY.PCF,
+    which then failed on its first process with "Invalid PID: 000". A checker
+    that silently does not understand its input converts "unverified" into
+    "verified", which is worse than having no checker.
+    """
+    d = find_dangling_waits(_PCF_COLUMNAR)
+    pids = sorted(x.pid for x in d)
+    # 000 and 111 and 522 are referenced but never defined; 001/101/113 are.
+    assert pids == ["000", "111", "522"], pids
+
+
+def test_dangling_waits_still_detected_in_keyword_dialect():
+    """The 5.4 dialect must keep working — 000 is referenced, never defined."""
+    d = find_dangling_waits(_PCF_KEYWORD)
+    assert [x.pid for x in d] == ["000"]
+
+
+def test_clean_columnar_pcf_reports_nothing():
+    """And a well-formed columnar PCF must not produce false positives."""
+    clean = """PID SCRIPT   OPT_DIR  CAMPAIGN CPU      F WAIT FOR....
+001 R2S_COP  NO_OPT            ANY      1
+101 POLUPD   R2S_GEN           ANY      1 001
+599 DUMMY    NO_OPT            ANY      1 001 101
+"""
+    assert find_dangling_waits(clean) == []
+
+
+def test_variable_table_rows_are_not_read_as_dependencies():
+    """A PCF's variable and parameter tables must not be parsed as process rows."""
+    with_tables = _PCF_COLUMNAR + """
+PID USER         PASSWORD PARAM1   PARAM2
+201                       $201
+VARIABLE DESCRIPTION                              DEFAULT
+V_CLU    Maximum number of stations per cluster    10
+"""
+    pids = sorted(x.pid for x in find_dangling_waits(with_tables))
+    assert pids == ["000", "111", "522"], pids

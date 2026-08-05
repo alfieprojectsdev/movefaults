@@ -38,7 +38,17 @@ my $bpe = new startBPE();
 # ----------------------------
 $$bpe{PCF_FILE}     = $pcf;
 $$bpe{CPU_FILE}     = "USER";
-$$bpe{BPE_CAMPAIGN} = "LUZON";
+# ${P}-qualified, NOT a bare name. startBPE tests the campaign with
+# `-d RUNBPE::_expandEnv('', BPE_CAMPAIGN)`, so a bare "LUZON" is resolved
+# RELATIVE TO THE CURRENT DIRECTORY and only works when launched from $P.
+# The stock rnx2snx_pcs.pl uses a bare "EXAMPLE" and is therefore silently
+# CWD-dependent; running it from anywhere else fails with
+# "The campaign directory ... does not exist" while the directory plainly does.
+#
+# SINGLE-quoted on purpose. In double quotes Perl interpolates ${P} as a Perl
+# variable, which does not exist under `use strict` and aborts at compile time.
+# Bernese's _expandEnv wants the LITERAL string ${P} and resolves it itself.
+$$bpe{BPE_CAMPAIGN} = '${P}/LUZON';   # SINGLE quotes: Perl must not interpolate
 $$bpe{YEAR}         = $ARGV[0];
 $$bpe{SESSION}      = $ARGV[1];
 $$bpe{SYSOUT}       = $pcf;

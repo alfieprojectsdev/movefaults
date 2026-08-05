@@ -433,6 +433,96 @@ announce itself.
 5. Pre-flight inventory: station-days per convention, duplicates, PNGM's gaps
 6. Run DOY 121 alone
 
+## 4b. RESULTS OF THE FIRST RUN ATTEMPTS — 2026-08-05
+
+Five attempts. The plan in §4.1 was **wrong in its premise** and is superseded
+by §4b.1. Everything else in §4 stands.
+
+### 4b.1 The 5.2 PCF cannot be adapted — the file format changed
+
+Renaming scripts and repairing WAIT lists cannot bridge a **format change**:
+
+```
+5.2   PID SCRIPT   OPT_DIR  CAMPAIGN CPU      F WAIT FOR....
+      3** 8******* 8******* 8******* 8******* 1 3** 3** ...
+      501 GPSCLUAP R2S_FIN           ANY      1 499
+
+5.4   501  GPSCLUAP  R2S_FIN   CPU=ANY; WAIT=499;  PARAM2=V_FIN
+```
+
+Fixed-column with a ruler, versus free-form `KEY=VALUE;`. **Handing 5.4 a 5.2
+PCF segfaults the menu program** — it does not report a parse error, so the
+incompatibility is not self-announcing.
+
+`PAGENET_DLY.PCF` is 5.4-native and proven, but needs the `PGN_*` OPT
+directories, which exist only on the T420 (PR #65 captured only `PGN_WK`).
+
+**Derive from stock `RNX2SNX.PCF` instead** — same RNX2SNX workflow, 5.4-native,
+and its `R2S_*` OPT dirs ship with 5.4. `scripts/derive_luzon_pcf.py` applies 14
+variable overrides and nothing structural. It refuses to write if any row lacks
+`CPU=`, so the format mistake cannot recur silently.
+
+### 4b.2 §1.1c was wrong: `FTP_DWLD` does gate the run
+
+§1.1c said every product was local so `FTP_DWLD` could be dropped. The products
+are local **in 5.2-era legacy naming** (`igs22364.sp3.Z`); 5.4 reads long-name
+(`IGS0OPSFIN_20251210000_01D_15M_ORB.SP3.gz`). Present but unusable — presence
+was verified, usability was not.
+
+`scripts/fetch_igs_products.sh` downloads the long-name set from BKG
+(anonymous HTTPS; CDDIS needs an Earthdata login). Note the **ERP is weekly**,
+`_<startDOY>0000_07D_01D_ERP`, so fetching "the ERP for DOY 121" means locating
+the week containing it.
+
+### 4b.3 Where it stands: one missing file
+
+The fifth attempt reached **PID 001** and failed there. Everything before it
+worked — `LUZON.BLQ/.ATL/.CLU` copied into the campaign, `ANTENNA_I14.PCV`
+confirmed in use, orbit copied to `.PRE`, ERP to `.IEP`.
+
+```
+File .../DATAPOOL/BSW54/IAR23644.OSB cannot be provided (mandatory)
+*** copyRef: 1 mandatory file is missing
+```
+
+`R2S_COP` *generates* `IAR_*.OSB` by running `BIA2OSB` over a bias-SINEX input:
+
+```perl
+putKey(... "BIASNX", "${orb}_${myYYYYDDD}");   # IGS0OPSFIN_2025121 -> the .BIA
+putKey(... "OSBOUT", "IAR_${myYYYYDDD}0");     # -> IAR_*.OSB
+```
+
+So the mandatory file is missing **because its optional input is**:
+`IGS0OPSFIN_2025121*_OSB.BIA`. Blanking `V_OSBFIL` does not help — the
+requirement lives in the script's key list, not the PCF variable.
+
+**BKG's IGS final set has no bias product at all** for GPS week 2364 — only
+`CLK`, `SP3`, `ERP`, `SUM`. Satellite biases come from an analysis centre:
+
+| Source | Status |
+|---|---|
+| AIUB (`ftp.aiub.unibe.ch`, CODE's home) | **unreachable from gps3** — timed out on http and https |
+| CDDIS | has them, but needs an **Earthdata login** |
+| BKG | does not carry them |
+
+**This is the only thing standing between here and a run.** It needs either
+Earthdata credentials, or a route to AIUB, or a CODE product set copied in by
+hand. Note her 5.2 run used **DCB** files rather than OSB, so this requirement
+is a 5.4-ism and not something inherited from her configuration.
+
+### 4b.4 Three tool defects the failures exposed
+
+| Defect | Consequence |
+|---|---|
+| `find_dangling_waits()` knew only the `WAIT=` dialect | Reported **0 dangling** on a 5.2 PCF having parsed **zero** PIDs and zero WAITs. Signed off a PCF with four broken WAIT lists. Fixed, +4 tests. |
+| `REWAIT` regex captured 4 fields where the row has 3 | Old dependency survived, replacement appended after it: `1 112  101 111` |
+| `BPE_CAMPAIGN` as a bare name | `startBPE` tests it with `-d` **relative to CWD**. The stock drivers are silently directory-dependent. Must be `'${P}/LUZON'`, single-quoted so Perl does not interpolate. |
+
+The first is the week's eighth instance of a check reporting success without
+having inspected anything — this time in the function written to prevent it.
+
+---
+
 ## 5. Open questions — resolvable only by running it
 
 Most of the original list closed during the 2026-08-05 configuration survey

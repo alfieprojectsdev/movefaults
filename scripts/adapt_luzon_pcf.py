@@ -102,7 +102,13 @@ def adapt(text: str) -> tuple[str, list[str], list[str]]:
             renamed.append(f"{pid} {script} -> {RENAME[script]}")
             script = RENAME[script]
         if pid in REWAIT:
-            head = re.match(r"^(\s+\S+\s+\S+\s+\S+\s+\S+)", rest).group(1)
+            # rest is "  OPT_DIR   CPU   F   [WAIT...]" — THREE fields before the
+            # WAIT list, not four. Capturing four swallowed the first WAIT entry
+            # into `head`, so the old dependency survived and the replacement was
+            # appended after it: `1 112  101 111`. The BPE then failed on the
+            # very first process with "Invalid PID: 000".
+            m2 = re.match(r"^(\s+\S+\s+\S+\s+\S+)", rest)
+            head = m2.group(1)
             rest = head + ("  " + REWAIT[pid] if REWAIT[pid] else "")
         out.append(f"{pid} {script:<8}{rest}")
 
