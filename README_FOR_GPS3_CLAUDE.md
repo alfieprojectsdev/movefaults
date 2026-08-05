@@ -123,6 +123,22 @@ It records the hazards. Two matter most:
   gold standard. The BPE sets the campaign at runtime so this is mostly
   cosmetic — but do not assume the directory name describes the contents.
 
+> ### ⚠ Operational runbook, and a correction to the plan below
+> **2026-08-05.** `processing_files/` has since been copied to
+> `/srv/gnss-archive/processed/luzon-bern52/`, so none of this depends on the
+> drive any more. The step-by-step procedure lives in
+> **[`docs/bernese54_luzon_reprocessing_runbook.md`](docs/bernese54_luzon_reprocessing_runbook.md)**.
+>
+> **One finding there changes the plan in this section.** The raw RINEX below
+> (DOY 121–151 of 2025) and the `SOL/` reference solutions **do not overlap**:
+> there are *no* daily solutions for those 31 days. Reprocessing that RINEX
+> produces numbers with nothing to compare against. The campaign `OBS/`
+> directory instead covers exactly the ten days that *do* have `F1_` solutions —
+> 2025 DOY 029–033 and 2026 DOY 106–110 — so that is the viable comparison set.
+>
+> Also: `PHIVOL_REL.PCF` references **eight scripts absent from the 5.4
+> install**, so it will not run unmodified. See §3 of the runbook.
+
 ### The data half stays here
 
 | Path on this drive | Contents |
