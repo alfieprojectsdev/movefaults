@@ -2,8 +2,8 @@
 
 **Date:** 2026-01-26
 
-**Project Location:** `/home/finch/repos/movefaults/packages/CORS-dashboard/`
-**Status:** Discontinued
+**Project Location:** `/home/finch/repos/movefaults/packages/CORS-dashboard/`<br>
+**Status:** Discontinued<br>
 **Original Developer:** Oriel Absin
 
 ## 1. Overview and Purpose
