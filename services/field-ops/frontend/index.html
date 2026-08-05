@@ -6,6 +6,28 @@
     <meta name="theme-color" content="#1a56a4" />
     <link rel="manifest" href="/manifest.json" />
     <title>POGF Field Ops</title>
+    <script>
+      // Set the theme before first paint. Without this the page renders light
+      // for one frame and then flips — a white flash straight into the eyes of
+      // someone working at dawn or at night, which is exactly who dark mode is
+      // for. Deliberately inline and dependency-free so it runs before the
+      // bundle loads; useTheme.ts takes over once React mounts.
+      (function () {
+        try {
+          var stored = localStorage.getItem("field_ops_theme");
+          var dark =
+            stored === "dark" ||
+            (stored !== "light" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute("content", dark ? "#11191f" : "#1a56a4");
+        } catch (e) {
+          /* storage blocked — fall back to the stylesheet's media query */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -106,39 +106,16 @@ interface FormValues {
 
 // ── Shared styles ────────────────────────────────────────────────────────────
 
-const inputStyle: React.CSSProperties = { width: "100%", boxSizing: "border-box" };
+// Presentation now lives in src/styles/field.css. Pico styles bare
+// <input>/<select>/<textarea> globally, so these are intentionally empty —
+// keeping the names means the ~20 `style={inputStyle}` call sites below need
+// no edit, and there is one obvious place to reintroduce an override if a
+// single control ever genuinely needs one.
+const inputStyle: React.CSSProperties = {};
 
-const readonlyStyle: React.CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  background: "#f0f0f0",
-  border: "none",
-  fontFamily: "monospace",
-  padding: "0.3rem 0.4rem",
-};
+// Computed fields (avg slant, RINEX height) are styled via `input[readonly]`.
+const readonlyStyle: React.CSSProperties = {};
 
-const sectionHeaderStyle: React.CSSProperties = {
-  marginTop: "1.5rem",
-  marginBottom: "0.25rem",
-  fontSize: "1rem",
-  color: "#333",
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "0.75rem",
-  fontSize: "1rem",
-  background: "#1a56a4",
-  color: "#fff",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-};
-
-const btnDisabledStyle: React.CSSProperties = {
-  ...btnStyle,
-  background: "#888",
-  cursor: "not-allowed",
-};
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -329,9 +306,9 @@ export default function LogSheetForm() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+      className="logsheet-form"
     >
-      <h2 style={{ margin: 0 }}>Station Visit Log</h2>
+      <h2>Station Visit Log</h2>
 
       {/* ── Monitoring method ── */}
       <label>
@@ -345,7 +322,7 @@ export default function LogSheetForm() {
           <option value="continuous">Continuous (CORS Maintenance)</option>
         </select>
         {errors.monitoring_method && (
-          <span style={{ color: "#c00" }}>Required</span>
+          <span className="field-error">Required</span>
         )}
       </label>
 
@@ -358,7 +335,7 @@ export default function LogSheetForm() {
           disabled={isSubmitting}
         />
         {errors.station_code && (
-          <span style={{ color: "#c00" }}>Required</span>
+          <span className="field-error">Required</span>
         )}
       </label>
 
@@ -372,7 +349,7 @@ export default function LogSheetForm() {
         />
       </label>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+      <div className="form-grid-2">
         <label>
           Arrival time
           <input type="time" {...register("arrival_time")} style={inputStyle} />
@@ -393,7 +370,7 @@ export default function LogSheetForm() {
         ) : staffList && staffList.length > 0 ? (
           <select
             multiple
-            style={{ ...inputStyle, height: "7rem" }}
+            style={inputStyle}
             onChange={(e) => {
               const selected = Array.from(e.target.selectedOptions).map((o) =>
                 parseInt(o.value, 10)
@@ -412,7 +389,7 @@ export default function LogSheetForm() {
             <option>Staff unavailable (offline?)</option>
           </select>
         )}
-        <small style={{ color: "#666" }}>Hold Ctrl / Cmd to select multiple</small>
+        <small>Hold Ctrl / Cmd to select multiple</small>
       </label>
 
       {/* ── Equipment status ── */}
@@ -445,7 +422,7 @@ export default function LogSheetForm() {
         <textarea
           {...register("notes")}
           rows={3}
-          style={{ ...inputStyle, resize: "vertical" }}
+          style={inputStyle}
         />
       </label>
 
@@ -454,7 +431,7 @@ export default function LogSheetForm() {
       ════════════════════════════════════════════════════════════ */}
       {method === "continuous" && (
         <>
-          <h3 style={sectionHeaderStyle}>Power &amp; Battery</h3>
+          <h3 className="section-header">Power &amp; Battery</h3>
 
           <label>
             Power notes
@@ -462,7 +439,7 @@ export default function LogSheetForm() {
               {...register("power_notes")}
               rows={2}
               placeholder="Solar panel condition, UPS status, etc."
-              style={{ ...inputStyle, resize: "vertical" }}
+              style={inputStyle}
             />
           </label>
 
@@ -486,7 +463,7 @@ export default function LogSheetForm() {
       ════════════════════════════════════════════════════════════ */}
       {method === "campaign" && (
         <>
-          <h3 style={sectionHeaderStyle}>Antenna Setup</h3>
+          <h3 className="section-header">Antenna Setup</h3>
 
           <label>
             Antenna model *
@@ -502,16 +479,16 @@ export default function LogSheetForm() {
               ))}
             </select>
             {errors.antenna_model && (
-              <span style={{ color: "#c00" }}>Required for campaign</span>
+              <span className="field-error">Required for campaign</span>
             )}
           </label>
 
-          <p style={{ margin: "0.25rem 0", fontSize: "0.875rem", color: "#555" }}>
+          <p className="hint">
             Slant heights (metres) — measure from mark to antenna reference point
           </p>
 
           <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}
+            className="form-grid-2"
           >
             <label>
               Slant N (m)
@@ -561,7 +538,7 @@ export default function LogSheetForm() {
 
           {/* Live computation readouts */}
           <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}
+            className="form-grid-2"
           >
             <label>
               Avg slant height (m)
@@ -583,7 +560,7 @@ export default function LogSheetForm() {
             </label>
           </div>
 
-          <h3 style={sectionHeaderStyle}>Session Details</h3>
+          <h3 className="section-header">Session Details</h3>
 
           <label>
             Session ID
@@ -593,13 +570,13 @@ export default function LogSheetForm() {
               placeholder="e.g. BUCA342 or BUCA342-01"
               style={inputStyle}
             />
-            <small style={{ color: "#666" }}>
+            <small>
               Auto-filled from station + DOY. Append -01, -02 for multiple sessions.
             </small>
           </label>
 
           <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}
+            className="form-grid-2"
           >
             <label>
               UTC start
@@ -611,7 +588,7 @@ export default function LogSheetForm() {
             </label>
           </div>
 
-          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <label className="checkbox-row">
             <input type="checkbox" {...register("bubble_centred")} />
             Bubble centred (level confirmed)
           </label>
@@ -631,7 +608,7 @@ export default function LogSheetForm() {
       )}
 
       {/* ── Photo ── */}
-      <h3 style={sectionHeaderStyle}>Site Photo</h3>
+      <h3 className="section-header">Site Photo</h3>
 
       <label>
         Photo *
@@ -640,24 +617,24 @@ export default function LogSheetForm() {
           accept="image/*"
           capture="environment"
           {...register("photo")}
-          style={{ marginTop: "0.25rem" }}
+          
         />
       </label>
 
       {hasPhoto && photoFilename && (
-        <p style={{ margin: 0, color: "#1a56a4", fontSize: "0.875rem" }}>
+        <p className="msg msg-info">
           Photo selected: {photoFilename}
         </p>
       )}
 
       {!hasPhoto && !navigator.onLine && (
-        <p style={{ margin: 0, color: "#a06000", fontSize: "0.875rem" }}>
+        <p className="msg msg-warn">
           Your text entries are saved locally. Add a photo to submit.
         </p>
       )}
 
       {!hasPhoto && (
-        <p style={{ margin: 0, color: "#c00", fontSize: "0.875rem" }}>
+        <p className="msg msg-error">
           Add a photo to submit.
         </p>
       )}
@@ -665,26 +642,26 @@ export default function LogSheetForm() {
       {/* ── Submit ── */}
       <button
         type="submit"
+        className="submit-btn"
         disabled={isSubmitting || !hasPhoto}
-        style={isSubmitting || !hasPhoto ? btnDisabledStyle : btnStyle}
       >
         {isSubmitting ? "Saving…" : "Submit Log Sheet"}
       </button>
 
       {/* ── Status messages ── */}
       {submitState === "saved" && (
-        <p style={{ color: "green", margin: 0 }}>Saved and synced to server.</p>
+        <p className="msg msg-ok">Saved and synced to server.</p>
       )}
       {submitState === "saved" && errorMsg && (
-        <p style={{ color: "#a06000", margin: 0 }}>{errorMsg}</p>
+        <p className="msg msg-warn">{errorMsg}</p>
       )}
       {submitState === "queued" && (
-        <p style={{ color: "#a06000", margin: 0 }}>
+        <p className="msg msg-warn">
           Saved offline. Will sync automatically when connected.
         </p>
       )}
       {submitState === "error" && (
-        <p style={{ color: "#c00", margin: 0 }}>Error: {errorMsg}</p>
+        <p className="msg msg-error">Error: {errorMsg}</p>
       )}
     </form>
   );

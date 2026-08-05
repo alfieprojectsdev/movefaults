@@ -16,6 +16,9 @@ dist/
 htmlcov/
 *.bak
 
+# Node / frontend
+node_modules/
+
 # OS / Editor
 .DS_Store
 .AppleDouble
