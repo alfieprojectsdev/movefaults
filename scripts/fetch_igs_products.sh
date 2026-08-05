@@ -31,6 +31,14 @@ set -uo pipefail
 
 BASE="https://igs.bkg.bund.de/root_ftp/IGS/products"
 AC="IGS0OPSFIN"
+
+# CODE products live in a SWITCH S3 bucket that www.aiub.unibe.ch redirects to.
+# ftp.aiub.unibe.ch — the address in most documentation — is firewalled from
+# this network and times out; the S3 host is not, and needs no credentials.
+# Directory URLs 404 (object storage has no listings), so files are addressed
+# individually. Bias products are NOT available from BKG: its IGS final set
+# carries only CLK, SP3, ERP and SUM.
+COD_BASE="https://zhw-b.s3.cloud.switch.ch/aiub/CODE"
 YEAR="${1:?usage: $0 <year> <doy_from> <doy_to> [--dry-run]}"
 FROM="${2:?doy_from required}"
 TO="${3:?doy_to required}"
@@ -67,6 +75,21 @@ get() {  # $1 = gps week, $2 = filename
     fi
 }
 
+get_cod() {  # $1 = year, $2 = filename, $3 = destination dir
+    local y="$1" f="$2" dest="$3" url="$COD_BASE/$1/$2"
+    mkdir -p "$dest"
+    if [ -f "$dest/$f" ]; then printf '    have  %s\n' "$f"; return 0; fi
+    if [ "$DRY" = "--dry-run" ]; then printf '    fetch %s (CODE)\n' "$f"; return 0; fi
+    if curl -sS --fail -o "$dest/$f.part" "$url" 2>/dev/null; then
+        mv "$dest/$f.part" "$dest/$f"
+        printf '    OK    %s (%s)\n' "$f" "$(du -h "$dest/$f" | cut -f1)"
+    else
+        rm -f "$dest/$f.part"
+        printf '    FAIL  %s (CODE)\n' "$f"
+        return 1
+    fi
+}
+
 echo "=== IGS long-name products, $YEAR DOY $FROM-$TO -> $DEST ==="
 [ "$DRY" = "--dry-run" ] && echo "  (dry run)"
 echo
@@ -77,8 +100,25 @@ for doy in $(seq "$FROM" "$TO"); do
     d3=$(printf '%03d' "$doy")
     wk=$(gps_week "$YEAR" "$doy")
     echo "  DOY $d3  (GPS week $wk)"
-    get "$wk" "${AC}_${YEAR}${d3}0000_01D_15M_ORB.SP3.gz" || rc=1
-    get "$wk" "${AC}_${YEAR}${d3}0000_01D_30S_CLK.CLK.gz" || rc=1
+    # CODE is the PRIMARY set, not IGS. R2S_COP derives the bias filename from
+    # V_ORB, so orbits, clocks, ERP and biases must all come from one analysis
+    # centre or the names do not line up. Only CODE publishes the bias, and 5.4
+    # ships defaulting to COD0OPSFIN for exactly that reason. This is also the
+    # product set the working EXAMPLE campaign uses.
+    get_cod "$YEAR" "COD0OPSFIN_${YEAR}${d3}0000_01D_05M_ORB.SP3.gz" "$D/COD0OPSFIN" || rc=1
+    get_cod "$YEAR" "COD0OPSFIN_${YEAR}${d3}0000_01D_30S_CLK.CLK.gz" "$D/COD0OPSFIN" || rc=1
+    get_cod "$YEAR" "COD0OPSFIN_${YEAR}${d3}0000_01D_01D_ERP.ERP.gz" "$D/COD0OPSFIN" || rc=1
+    # The bias: R2S_COP runs BIA2OSB over this to produce the IAR_*.OSB it
+    # treats as MANDATORY. Without it the very first BPE process fails. 5.4 uses
+    # observable-specific biases where 5.2 used DCBs, so this is a 5.4
+    # requirement, not one inherited from the 5.2 workflow.
+    get_cod "$YEAR" "COD0OPSFIN_${YEAR}${d3}0000_01D_01D_OSB.BIA.gz" "$D/COD0OPSFIN" || rc=1
+    get_cod "$YEAR" "COD0OPSFIN_${YEAR}${d3}0000_01D_01H_GIM.ION.gz" "$D/BSW54" || true
+
+    # IGS equivalents, kept as a cross-check. CODE's ERP is daily; IGS's is
+    # weekly, which is why the IGS branch below needs the week-start lookup.
+    get "$wk" "${AC}_${YEAR}${d3}0000_01D_15M_ORB.SP3.gz" || true
+    get "$wk" "${AC}_${YEAR}${d3}0000_01D_30S_CLK.CLK.gz" || true
 
     # The weekly ERP: find the Sunday of this GPS week and request that DOY.
     case " $weeks_seen " in
@@ -88,7 +128,7 @@ for doy in $(seq "$FROM" "$TO"); do
             sunday=$(date -u -d "1980-01-06 +$((wk * 7)) days" +%j)
             syear=$(date -u -d "1980-01-06 +$((wk * 7)) days" +%Y)
             echo "    weekly ERP for week $wk (starts $syear DOY $sunday)"
-            get "$wk" "${AC}_${syear}${sunday}0000_07D_01D_ERP.ERP.gz" || rc=1
+            get "$wk" "${AC}_${syear}${sunday}0000_07D_01D_ERP.ERP.gz" || true
             ;;
     esac
 done

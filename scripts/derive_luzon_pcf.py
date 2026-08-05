@@ -32,18 +32,24 @@ directories are 5.4's own and are left exactly as installed.
     V_BLQINF  EXAMPLE    -> LUZON      ocean loading
     V_ATLINF  (blank)    -> LUZON      atmospheric loading
     V_RNXDIR  ${D}/RINEX -> ${D}/LUZON RINEX 2 observations
-    V_ORB     COD0OPSFIN -> IGS0OPSFIN orbit/ERP/clock product set
-    V_ORBDIR  ${D}/COD.. -> ${D}/IGS0OPSFIN
-    V_GNSSAR  GRE        -> ALL        she resolved on all constellations
+    V_GNSSAR  GRE        -> ALL        all *selected* systems get AR
+    V_SATSYS  GRE        -> GPS        she processed GPS only -- see the note
+                                       in OVERRIDES; this is why I14 works
     V_CLU     8          -> 10         her cluster size
     V_DEL     Y          -> N          keep results in the campaign to inspect
     V_SAVOBS  Y          -> N          ditto
 
-V_ORB matters more than it looks. The 5.2 set ships orbits in legacy naming
-(`igs22364.sp3.Z`); 5.4 reads long-name (`IGS0OPSFIN_20251210000_...SP3.gz`).
-The products were "already local" and simultaneously unusable, which is why the
-runbook's claim that FTP_DWLD could be dropped was wrong. Fetch the long-name
-products with scripts/fetch_igs_products.sh before running.
+V_ORB and V_ORBDIR are LEFT AT COD0OPSFIN, the 5.4 default. An earlier revision
+pointed them at IGS0OPSFIN because IGS products are anonymously available from
+BKG. That fails: `R2S_COP` derives the satellite-bias filename from `V_ORB`, and
+**only CODE publishes the bias**. Orbits, clocks, ERP and biases must come from
+one analysis centre or the names do not line up — which is why 5.4 ships
+defaulting to CODE, and why the working EXAMPLE campaign uses that set.
+
+The 5.2 set ships orbits in legacy naming (`igs22364.sp3.Z`); 5.4 reads
+long-name. The products were "already local" and simultaneously unusable, which
+is why the runbook's claim that FTP_DWLD could be dropped was wrong. Fetch with
+scripts/fetch_igs_products.sh before running.
 
 DELIBERATELY NOT CHANGED: baselines (V_BL_*), which already match her values,
 and the process graph. Every difference from her run should be one we chose.
@@ -70,9 +76,19 @@ OVERRIDES = {
     "V_BLQINF": "LUZON",
     "V_ATLINF": "LUZON",
     "V_RNXDIR": "${D}/LUZON",
-    "V_ORB": "IGS0OPSFIN",
-    "V_ORBDIR": "${D}/IGS0OPSFIN",
     "V_GNSSAR": "ALL",
+    # THE ONE THAT MATTERS MOST. V_SATSYS selects which constellations are
+    # PROCESSED; V_GNSSAR only says which of those get ambiguity resolution.
+    # 5.4 ships V_SATSYS=GRE (GPS+GLONASS+Galileo); her 5.2 PCF has GPS.
+    #
+    # Copying V_GNSSAR=ALL while leaving V_SATSYS at the 5.4 default made the
+    # run attempt GLONASS, and CODSPP then died on GLONASS-M 861 -- a satellite
+    # launched after the I14 model's epoch and absent from every I14 table,
+    # hers and 5.4's alike (both stop at 860; only I20 has 861).
+    #
+    # So this is not a workaround for a missing file. Processing GPS only is
+    # what she did, and it is *why* I14 remains valid against 2025 data.
+    "V_SATSYS": "GPS",
     "V_CLU": "10",
     "V_DEL": "N",
     "V_SAVOBS": "N",

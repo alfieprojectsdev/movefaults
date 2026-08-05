@@ -523,6 +523,63 @@ having inspected anything — this time in the function written to prevent it.
 
 ---
 
+### 4b.5 The run now reaches CODSPP — and I14 is a retired model
+
+Later attempts got through RINEX import, orbit preparation and observation
+conversion (92 files, ~1m40s) before stopping at **PID 232 `CODSPP_P`**.
+
+**`V_SATSYS` was the variable that mattered, and it was missed.** The first
+override set copied `V_GNSSAR = ALL` from her PCF and reasoned that she resolved
+ambiguities across all constellations. `V_GNSSAR` only selects which of the
+*already-selected* systems get ambiguity resolution; **`V_SATSYS` selects the
+systems**, and hers reads `GPS` where 5.4 ships `GRE`.
+
+Leaving it at the default made the run attempt GLONASS, and `CODSPP` died on
+**GLONASS-M 861** — launched after I14's epoch and absent from every I14 table
+(hers and 5.4's both stop at 860; only I20 has it). That looked like a missing
+file and was a constellation-selection error. Had it been "fixed" by switching
+to I20, the comparison would have acquired the exact I14/I20 confound §1.4
+exists to prevent, and the numbers would have looked plausible.
+
+**Processing GPS-only is therefore not a workaround — it is what she did, and it
+is why I14 remains usable against 2025 data at all.**
+
+#### The remaining blocker is model validity, not configuration
+
+With GPS selected, `CODSPP` stops on `BLOCK IIR-A 044`. The satellite *is* in
+`ANTENNA_I14.PCV`; what fails is the PRN→SVN resolution, which comes from the
+satellite information table:
+
+| Table | Latest entry |
+|---|---|
+| Her `SATELLIT.I14` (5.2) | **2023-01-31** |
+| 5.4's `SATELLIT_I14.SAT` | 2023-08-10 |
+| 5.4's `SATELLIT_I20.SAT` | 2024-09-17 |
+
+**AIUB no longer publishes `SATELLIT_I14.SAT`** — `BSWUSER54/CONFIG/` returns
+404 for I14 and 200 for I20. I14's supporting tables are retired, and hers was
+already two years stale when she processed this day.
+
+So the open question is no longer "what is misconfigured" but **"how did her
+5.2 run handle satellites absent from its own tables?"** Bernese 5.4 halts
+(`Processing stopped!`); 5.2 may have warned and excluded them. If so, that is a
+5.2→5.4 behavioural difference of exactly the kind this exercise exists to find
+— and it means reproducing her numbers under I14 on 5.4 may require either
+updated I14 tables (which no longer exist publicly) or accepting satellite
+exclusions and documenting them.
+
+**Three options, none free:**
+
+1. **Find how 5.2 tolerated it** — inspect her `OUT/` logs for DOY 121 for
+   excluded-satellite messages. Cheapest, and it settles whether the two runs
+   were ever processing the same satellites.
+2. **Run under I20** — tables current to 2024-09, still short of 2025 but two
+   years closer. Introduces the §1.4 frame confound, so it answers "does the
+   pipeline work" and not "does it reproduce her numbers".
+3. **Source updated I14 tables** from another archive.
+
+Option 1 first. It is the only one that does not change what is being measured.
+
 ## 5. Open questions — resolvable only by running it
 
 Most of the original list closed during the 2026-08-05 configuration survey
