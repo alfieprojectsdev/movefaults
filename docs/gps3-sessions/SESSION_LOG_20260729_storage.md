@@ -1109,12 +1109,16 @@ a truncation that leaves a dangling WAIT.
 
 > **Correction 2026-08-04.** The sentence below originally read "All work
 > reached `main`". It had not, and still has not. Everything is on the branch in
-> an **open** PR; `origin/main` was and is at `1d1082e` (PR #60). Rule 5 exists
+> an **open** PR; at the time of writing `origin/main` was at `1d1082e`
+> (PR #60). **It merged later the same day** — see below. Rule 5 exists
 > for exactly this — *verify `origin/main` actually advanced*, do not infer it
 > from having pushed successfully. Caught by the T420 session, not by me, in a
 > section I wrote to be the authoritative end-of-session state.
 
-All work is queued for `main` in [PR #64](https://github.com/alfieprojectsdev/movefaults/pull/64), **still open**,
+All work reached `main` via [PR #64](https://github.com/alfieprojectsdev/movefaults/pull/64),
+**merged 2026-08-04 as `9623395`** — verified by confirming `origin/main` advanced
+and that each commit is an ancestor of it, not by the merge command's exit status,
+which returned 0 while printing nothing at all. Branch retired after merge.
 branch `docs/gps3-session-20260803`, three commits:
 
 | Commit | Contents |
@@ -1158,3 +1162,222 @@ The corollary for the test suite is sharper still. The 128 tests passed
 throughout because their fixtures described a filename space that does not
 exist in production. **A suite that never sees real data cannot fail on a
 misreading of real data**, no matter how many assertions it contains.
+
+---
+
+## 16. The archive transfers — 2026-08-04
+
+The DOSTB20150918 drive was carried from the T420 and attached to the R740's
+USB bus, which removed the 6 MB/s wifi bottleneck that had kept
+`/srv/gnss-archive/legacy` empty since §13.6. Both in-scope paths were copied
+and verified the same day.
+
+### 16.1 What landed
+
+| Set | Files | Bytes | Result |
+|---|---|---|---|
+| `RECOVERED_*` (4 directories) | 162,328 | 155.71 GiB | **MATCH** |
+| `processing_files/` | 67,553 | 21.55 GiB | **MATCH** |
+| └ `GPSDATA/CAMPAIGN/LUZON/SOL/` | 1,944 | 0.39 GiB | **MATCH** |
+| **Total** | **229,881** | **177.26 GiB** | |
+
+Files, symlinks, directories and bytes were counted independently on both sides
+for every directory. Zero symlinks throughout — the source is NTFS, and that is
+a property of the source rather than a transfer fault. All rsync invocations
+exited 0, but the censuses are what decided the outcome; rsync exits 0 having
+skipped unreadable files and 23 on a run that copied 99.99%.
+
+**The legacy archive now exists in two places on independent hardware.** That
+was the project's Tier 0 item and it is closed.
+
+### 16.2 The handover's directory table was missing 131 GB
+
+`README_FOR_GPS3_CLAUDE.md` listed **three** `RECOVERED_*` directories totalling
+26 GB and stated this was "not the ~157 GB the continuity audit refers to". The
+user identified a fourth, `RECOVERED_SEAGATE_W2A0W9T2_DATA0`. Measured on
+mounting: **131 G**, bringing the total to exactly the 157 G the audit records,
+and holding 139,509 of the 162,328 files — **86% of the archive**.
+
+The omission happened because three directory names were written out by hand.
+Both transfer scripts glob `RECOVERED_*` and report what they find, so a fifth
+directory would be copied rather than silently skipped. The measured 162,328
+files also corroborates the audit's independent "~155k files" figure.
+
+*A typed list cannot notice what it omits.*
+
+### 16.3 The LUZON solution series is older than its documentation implied
+
+§3 of the handover describes `GPSDATA/CAMPAIGN/LUZON/SOL/` as "the comparison
+target — `F1_*` dailies, `WK_2413`/`WK_2414`", naming two recent weeks. Measured:
+
+- **725 weekly** combines, GPS weeks **1573 → 2414** = **2010-02-28 to 2026-04-12**
+- **166 monthly** combines
+- **421 MB** total
+
+Sixteen years of results in 0.39 GiB, against **one month** of raw input
+(DOY 121–151 of 2025, 25 stations). **The SOL series cannot be regenerated from
+this tree** — the observations for fifteen of those sixteen years are on staff
+machines and remain uncaptured. `processed_transfer.sh` therefore copies that
+subtree first and alone, so an interrupted run still secures it.
+
+Rough sizing for the uncaptured remainder: 22 GB bought one month of full
+campaign data, so ~192 months ≈ **4 TB**. `/srv/gnss-archive` has 20 T with
+177 GiB used, so capacity is not the constraint — logistics and provenance are.
+
+### 16.4 Still not "backed up"
+
+Both scripts refuse to print that phrase, and the reason stands: **there is no
+fixity.** No checksum manifest exists for either copy, so silent corruption on
+the array is undetectable. Continuity-audit item 4, and cheap now that the data
+is local:
+
+```bash
+/srv/gnss-archive/verify_archive.sh manifest
+```
+
+It reads every byte of 177 GiB. The resulting `.gz` belongs in git — fingerprints
+stored only beside the data cannot prove anything if that disk is what failed.
+
+### 16.5 A defect in the first script, found by using it
+
+`archive_transfer.sh` wrapped everything in `{ … } | tee`, including rsync's
+`--info=progress2` output, which emits a carriage-return update per file. The
+157 GB run produced an **11.2 MB log** with the structured results buried in
+progress spam. `processed_transfer.sh` sends progress to the terminal and
+structured lines to the log; `archive_transfer.sh` should be brought into line
+before its next use.
+
+Separately, shellcheck on `archive_transfer.sh` before that run caught the bug
+that would have mattered: `rc_worst` was assigned inside the `| tee` subshell,
+so `exit "${rc_worst:-0}"` read an unset variable and returned 0 for every run —
+including one that had just printed `*** MISMATCH ***`. Seventh instance of the
+pattern in §15.5, in the script written because rsync's exit code cannot be
+trusted.
+
+---
+
+## 17. Two-machine corrections and the first 5.4 run attempts — 2026-08-05
+
+### 17.1 The T420 exchange, and two datasets that were never missing
+
+Three relay documents arrived (`T420_REPLY_20260804.md`,
+`T420_REPLY_20260805.md`, `T420_NOTE_20260805c.md`, all committed). Two of them
+overturned conclusions this machine had reached, both verified here before being
+accepted.
+
+**The LUZON reference solutions exist.** §14 recorded that no daily solutions
+covered the raw RINEX window (2025 DOY 121–151), concluding the comparison could
+not be run against that data. Wrong: `SAVEDISK/2025/SOL/` holds **all 365 daily
+finals for 2025**, gzipped — 730 files, 31 of 31 days in the window.
+`CAMPAIGN/LUZON/SOL/` looked empty of them because `PHIVOL_REL.PCF` archives via
+`902 R2S_SAV` then cleans the campaign with `903 R2S_DEL`. A campaign holding
+only recent days is normal operation.
+
+**The seven "missing" fiducials exist.** Having found the solutions, this machine
+then reported that AIRA, ALIC, BASC, DAEJ, DARW, MCIL and PNGM had no local
+RINEX, and advised requesting BASC from PHIVOLCS as "a Philippine station absent
+from every archive". Wrong again: all nine are in `GPSDATA/DATAPOOL/RINEX3/` as
+RINEX 3 long-name Hatanaka. `DATAPOOL/` has **fourteen** subdirectories and both
+sessions had searched only `LUZON/`.
+
+The decisive check, once framed correctly, took one command:
+
+```
+she used, we lack:        (none)
+we have, she did not use: PIMO TGDN
+```
+
+**Both errors are the same shape**, and it is now the week's dominant one:
+*searching with one convention and reading zero results as absence.* Five
+instances by §1.5's count, seven by the end of the day. The remedy never varied:
+look at actual filenames before writing the pattern.
+
+The T420's framing of the first is worth keeping: the question that
+short-circuits it is not *"what is in this directory?"* but ***"where does this
+software put finished solutions?"*** — answerable from `PHIVOL_REL.PCF`, which
+both sessions had already read while checking something else.
+
+### 17.2 A commit was nearly lost to a merge race
+
+`6399c9a` (T420) was authored 08-05 08:10 on the **pre-correction** PR #65 head,
+after that PR had merged the previous evening and its branch was deleted. The
+T420 recreated the branch and pushed there, leaving two divergent corrections to
+one file: `main` had the hazard-count fix without the overlap fix, the recreated
+branch had the reverse.
+
+Recovered by cherry-pick; they merge cleanly and both are present. Authorship
+preserved, AI co-author trailer dropped per `CLAUDE.md`.
+
+**Per Alfie's decision, `config/bernese/gpsuser52-luzon/PROVENANCE.md` is now
+single-writer on the gps3 side.** Two writers on one file cost more than the
+corrections were worth.
+
+### 17.3 PRs #64 and #65 merged
+
+`main` moved `1d1082e` → `9623395` → `19c68cf`. Both verified at the git level
+rather than from the wrapper's exit status: `scripts/merge_pr.sh` returned **0
+while printing nothing at all** on both merges, and `gh pr view --json` came back
+empty on the same PR immediately after. Confirmed instead with
+`git merge-base --is-ancestor` per commit. Branches deleted after verifying
+content, not after assuming redundancy.
+
+### 17.4 Bernese 5.4: five run attempts, one file short
+
+Full detail in `docs/bernese54_luzon_reprocessing_runbook.md` §4b. Summary:
+
+| Attempt | Failure |
+|---|---|
+| 1 | `BPE_CAMPAIGN="LUZON"` — bare names resolve **relative to CWD** |
+| 2 | `"${P}/LUZON"` in double quotes — Perl interpolated a variable that does not exist |
+| 3 | Four broken WAIT lists — `001` still waiting on the dropped `000` |
+| 4 | **Segmentation fault** — the 5.2 PCF format is unreadable by 5.4 |
+| 5 | Reached **PID 001**; one mandatory bias file missing |
+
+**The premise was wrong, not the details.** The PCF *file format* changed between
+5.2 and 5.4 — fixed-column with a ruler line versus free-form `KEY=VALUE;` — and
+5.4 responds to a 5.2 PCF with a segfault rather than a parse error, so four
+attempts went by before the incompatibility surfaced. Script renames and WAIT
+repairs cannot bridge a format change. `scripts/derive_luzon_pcf.py` now starts
+from 5.4's own `RNX2SNX.PCF` and refuses to write any process row lacking `CPU=`.
+
+**§14's `FTP_DWLD` conclusion was also wrong.** It said every product was local
+so the download step could be dropped. The products are local **in 5.2-era legacy
+naming**; 5.4 reads long-name. Present and unusable simultaneously — presence had
+been verified, usability had not.
+
+**Where it stands:** attempt 5 copied the station files, confirmed
+`ANTENNA_I14.PCV` in use, and copied orbit and ERP into the campaign before
+stopping on `IAR23644.OSB`. `R2S_COP` generates that from a bias SINEX, and the
+input `IGS0OPSFIN_2025121*_OSB.BIA` is not at BKG — whose IGS final set carries
+only CLK, SP3, ERP and SUM. AIUB is unreachable from this machine; CDDIS holds
+them behind an Earthdata login. Her 5.2 run used **DCB**, so the OSB requirement
+is a 5.4-ism, not inherited.
+
+One credential or one file unblocks it. Everything else is staged and verified.
+
+### 17.5 Three tool defects, found by using the tools
+
+| Defect | Consequence |
+|---|---|
+| `find_dangling_waits()` knew only the `WAIT=` dialect | On a 5.2 PCF it parsed **zero** PIDs and zero WAITs, reported "0 dangling", and signed off a file with four broken WAIT lists |
+| `REWAIT` regex captured 4 fields where the row has 3 | Old dependency survived; replacement appended after it |
+| `BPE_CAMPAIGN` as a bare name | `startBPE` tests it with `-d` relative to CWD — the stock Bernese drivers are silently directory-dependent |
+
+The first is the eighth instance of §15.5's pattern, in the function written to
+prevent it. All three fixed; **198 tests pass**, up from 128 at the week's start.
+
+Two smaller ones worth the same note: a `find` piped through `head -8` reported
+zero orbit products where there were 76, and `LOADGPS.setvar` exports its own
+`$SRC`, which silently clobbered the staging script's source path and made every
+file report as missing.
+
+### 17.6 State at end of 2026-08-05
+
+| Item | State |
+|---|---|
+| Legacy archive | **Two copies** — 177.26 GiB, censused, matched |
+| Fixity | **Still none.** No sha256 manifest on either copy |
+| DOSTB drive | Still mounted read-only; unmount before unplugging |
+| `main` | `19c68cf`; PRs #61–#63 still open (T420's) |
+| LUZON campaign | Staged, registered, PCF derived, driver fixed |
+| First 5.4 run | **Blocked on one OSB bias product** |

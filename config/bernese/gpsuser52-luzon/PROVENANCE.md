@@ -221,11 +221,64 @@ Left on the drive (too large for git, and data rather than configuration):
 | `BERN52/GPS/GEN/` | `C04_*.ERP` (1986→), `BULLET_A.ERP`, `ANT_COD_I14.PCV`, `ANT_COD_I20*.PCV` |
 | `BERN52/` | full software tree, `update_2020-08-27.zip`, `exe_aiub_64_2021.zip` |
 
-`SOL/` is the comparison target — `F1_*.NQ0` daily finals plus `WK_2413`/`WK_2414`
-weekly `.NQ0`/`.SNX`.
-
 `CAMPAIGN/LUZON/RAW`, `ORX` and `GRD` are **empty**. `RAW` does not matter —
 `OBS` holds the converted observations. This is not a truncated delivery.
+
+### ⚠ SUPERSEDED 2026-08-05 — the solutions were in `SAVEDISK/` all along
+
+**Read this before the correction below it.** That correction is itself wrong,
+and is kept because the sequence is instructive.
+
+`SAVEDISK/2025/SOL/` holds **all 365 daily finals for 2025**, gzipped
+(`F1_25<DDD>0.NQ0.gz` / `.SNX.gz`) — including every day of DOY 121–151.
+Verified on gps3: 730 files, 365 distinct DOYs, 31 of 31 days in the window.
+
+`CAMPAIGN/LUZON/SOL/` looked empty of them because `PHIVOL_REL.PCF` archives to
+`SAVEDISK` (`902 R2S_SAV`) and then cleans the campaign (`903 R2S_DEL`). A
+campaign holding only the most recent days is **normal operation**.
+
+So the usable comparison window is **31 contiguous days from raw RINEX**, not
+ten days from converted observations. Full procedure:
+[`docs/bernese54_luzon_reprocessing_runbook.md`](../../../docs/bernese54_luzon_reprocessing_runbook.md) §1.1.
+
+Three passes over one question, each more careful than the last and each wrong:
+the DOY ranges were catalogued but not compared; then compared, but only within
+one directory; then finally answered by asking *where the software writes
+finished solutions* — which `PHIVOL_REL.PCF` had stated plainly all along.
+
+---
+
+### ⚠⚠ THE CORRECTION BELOW WAS ITSELF WRONG — see the 2026-08-05 block above
+
+Read both. The 08-04 entry is kept because the reasoning error it records is
+worth more than the conclusion it reached.
+
+### ⚠ CORRECTION 2026-08-04 — the RINEX and the solutions do not overlap
+
+An earlier version of this file called `SOL/` "the comparison target" alongside
+the DATAPOOL RINEX, implying the two describe the same days. **They do not**,
+and the gps3 session caught it on first contact with the copied set:
+
+| | Coverage |
+|---|---|
+| RINEX in `DATAPOOL/LUZON/` | **2025 DOY 121–151** (31 days) |
+| Converted `OBS/`, and the `F1_` solutions | **2025 DOY 029–033** and **2026 DOY 106–110** |
+| Solutions for DOY 121–151 | **none** |
+
+The raw data on this drive was never processed into the solutions on this
+drive. "Reproduce her `SOL/` numbers" is therefore **not executable against the
+RINEX** — there is no reference solution for those days.
+
+The viable comparison is the ten days where `OBS/` and `F1_` **do** coincide.
+That path starts from already-converted observations, so note what it does and
+does not test (see the runbook, `docs/bernese54_luzon_reprocessing_runbook.md`).
+
+**How the error was made, since it is instructive:** both facts were recorded
+correctly and separately — the DOY range in one inventory, the `F1_` filenames
+in another — and never compared. Two accurate observations, one wrong
+conclusion drawn from holding them apart. Same family as the five defects in
+session-log §15.5: a check that reports success without having inspected the
+thing it claims about.
 
 ### Version, and how it was run
 

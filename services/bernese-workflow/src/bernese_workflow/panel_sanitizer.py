@@ -166,11 +166,35 @@ def sanitize_panel_text(text: str) -> SanitizeResult:
     return SanitizeResult(text=result_text, warnings=warnings, changed=changed)
 
 
+# The 5.2 columnar process row:  `511 ADDNEQ2   R2S_FIN   ANY   1 502 503`
+# PID, SCRIPT, OPT_DIR, CPU, F, then a bare space-separated WAIT list. There is
+# no `WAIT=` keyword anywhere in this dialect.
+_PCF_ROW_COLUMNAR_RE = re.compile(
+    r"^(\d{3})\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)(?:\s+([\d\s]+?))?\s*$"
+)
+
+
 def find_dangling_waits(pcf_text: str) -> list[DanglingWait]:
     """Return WAIT dependencies that reference an undefined PID.
 
     A dangling WAIT makes the BPE block forever on a process that will never run
-    (the exact hazard behind the stray ``WAIT=522`` dropped from PAGENET.PCF).
+    (the hazard behind the stray ``WAIT=522`` dropped from PAGENET.PCF).
+
+    TWO PCF DIALECTS, and missing the second one made this function useless
+    exactly when it mattered (2026-08-05):
+
+    * **keyword** — ``501 GPSCLUAP R2S_FIN CPU=ANY; WAIT=499`` (Bernese 5.4)
+    * **columnar** — ``511 ADDNEQ2  R2S_FIN  ANY  1 502`` (PHIVOLCS 5.2), where
+      the WAIT list is a bare trailing column with no keyword at all.
+
+    Until this was fixed the function matched only ``WAIT=``, so on a 5.2 PCF it
+    found **zero** WAITs, concluded **zero** dangling, and returned a clean
+    report having inspected nothing. That report was used to sign off
+    ``LUZON_DLY.PCF``, which then failed at runtime on the very first process:
+    ``001: R2S_COP — Invalid PID: 000``. Four of its WAIT lists were broken.
+
+    A checker that silently does not understand its input is worse than no
+    checker, because it converts "unverified" into "verified".
     """
     defined: set[str] = set()
     for raw in pcf_text.splitlines():
@@ -183,8 +207,21 @@ def find_dangling_waits(pcf_text: str) -> list[DanglingWait]:
         stripped = raw.strip()
         if _is_comment(stripped):
             continue
+
+        found_keyword = False
         for wm in _PCF_WAIT_RE.finditer(stripped):
+            found_keyword = True
             for pid in wm.group(1).split():
+                if pid not in defined:
+                    dangling.append(DanglingWait(i, pid))
+        if found_keyword:
+            continue
+
+        # Columnar dialect. Only consider rows that actually look like process
+        # rows, so variable/parameter tables are not misread as dependencies.
+        cm = _PCF_ROW_COLUMNAR_RE.match(stripped)
+        if cm and cm.group(6):
+            for pid in cm.group(6).split():
                 if pid not in defined:
                     dangling.append(DanglingWait(i, pid))
     return dangling
