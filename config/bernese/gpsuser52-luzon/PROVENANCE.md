@@ -248,6 +248,11 @@ finished solutions* — which `PHIVOL_REL.PCF` had stated plainly all along.
 
 ---
 
+### ⚠⚠ THE CORRECTION BELOW WAS ITSELF WRONG — see the 2026-08-05 block above
+
+Read both. The 08-04 entry is kept because the reasoning error it records is
+worth more than the conclusion it reached.
+
 ### ⚠ CORRECTION 2026-08-04 — the RINEX and the solutions do not overlap
 
 An earlier version of this file called `SOL/` "the comparison target" alongside
