@@ -224,6 +224,30 @@ Left on the drive (too large for git, and data rather than configuration):
 `CAMPAIGN/LUZON/RAW`, `ORX` and `GRD` are **empty**. `RAW` does not matter —
 `OBS` holds the converted observations. This is not a truncated delivery.
 
+### ⚠ SUPERSEDED 2026-08-05 — the solutions were in `SAVEDISK/` all along
+
+**Read this before the correction below it.** That correction is itself wrong,
+and is kept because the sequence is instructive.
+
+`SAVEDISK/2025/SOL/` holds **all 365 daily finals for 2025**, gzipped
+(`F1_25<DDD>0.NQ0.gz` / `.SNX.gz`) — including every day of DOY 121–151.
+Verified on gps3: 730 files, 365 distinct DOYs, 31 of 31 days in the window.
+
+`CAMPAIGN/LUZON/SOL/` looked empty of them because `PHIVOL_REL.PCF` archives to
+`SAVEDISK` (`902 R2S_SAV`) and then cleans the campaign (`903 R2S_DEL`). A
+campaign holding only the most recent days is **normal operation**.
+
+So the usable comparison window is **31 contiguous days from raw RINEX**, not
+ten days from converted observations. Full procedure:
+[`docs/bernese54_luzon_reprocessing_runbook.md`](../../../docs/bernese54_luzon_reprocessing_runbook.md) §1.1.
+
+Three passes over one question, each more careful than the last and each wrong:
+the DOY ranges were catalogued but not compared; then compared, but only within
+one directory; then finally answered by asking *where the software writes
+finished solutions* — which `PHIVOL_REL.PCF` had stated plainly all along.
+
+---
+
 ### ⚠ CORRECTION 2026-08-04 — the RINEX and the solutions do not overlap
 
 An earlier version of this file called `SOL/` "the comparison target" alongside

@@ -7,8 +7,13 @@ the DOSTB drive to `/srv/gnss-archive/processed/luzon-bern52/`.
 comparison ng results / adjustment (fine tuning) ng PCF."* Reprocess Abegail's
 LUZON network under 5.4, reproduce her 5.2 numbers, and only then tune.
 
-**Status: not yet run.** Everything below about *inputs* is measured. Everything
-about *execution* is untested — §5 lists what will only be settled by running it.
+**Status: not yet run.** Everything below about *inputs* is measured on gps3.
+Everything about *execution* is untested — §5 lists what only a run will settle.
+
+**Revised 2026-08-05** after the T420 session found the reference solutions in
+`SAVEDISK/`. §1.1 replaces an earlier conclusion that they did not exist; §1.1a
+adds a gap that neither session had spotted. If you read an earlier version,
+re-read §1 — the plan changed.
 
 ---
 
@@ -17,30 +22,122 @@ about *execution* is untested — §5 lists what will only be settled by running
 Two findings from surveying the copied set change the shape of the exercise.
 Both would have cost days if met mid-run.
 
-### 1.1 The raw data and the reference solutions do not overlap
+### 1.1 The reference solutions exist — in `SAVEDISK/`, not in the campaign
+
+> **This section was wrong on 2026-08-04 and is corrected here.** The first
+> version concluded that no reference solutions existed for the raw RINEX,
+> because `CAMPAIGN/LUZON/SOL/` contains none. That is true of *that directory*
+> and false of the dataset. The T420 session found them in `SAVEDISK/`.
+
+**Verified on gps3, 2026-08-05:**
+
+```
+GPSDATA/SAVEDISK/2025/SOL/   730 files, 365 distinct DOYs
+                             F1_25<DDD>0.NQ0.gz and .SNX.gz
+DOY 121-151 window:          31 of 31 days present
+```
 
 | Asset | Coverage |
 |---|---|
-| `GPSDATA/DATAPOOL/LUZON/` — raw RINEX | **2025 DOY 121–151** (31 days, 25 stations, 741 obs) |
-| `GPSDATA/CAMPAIGN/LUZON/OBS/` — converted observations | 2025 DOY **029–033**, 2026 DOY **106–110** |
-| `GPSDATA/CAMPAIGN/LUZON/SOL/F1_*` — daily solutions | 2025 DOY **029–033**, 2026 DOY **106–110** |
-| Solutions for DOY 121–151 of 2025 | **none** |
+| `DATAPOOL/LUZON/` raw RINEX | 2025 DOY **121–151** (31 days, 24–25 stations) |
+| `SAVEDISK/2025/SOL/` daily finals | **all 365 days of 2025**, gzipped |
+| `CAMPAIGN/LUZON/SOL/` | only DOY 029–033 and 2026 106–110 — the last run's leftovers |
 
-**The RINEX on the drive was never processed into the solutions on the drive.**
-Reprocessing DOY 121–151 under 5.4 therefore produces numbers with *nothing to
-compare against*, which is not the exercise.
+**Why the campaign directory looked empty.** Bernese put the results where it is
+configured to put them: `PHIVOL_REL.PCF` runs `902 R2S_SAV` to archive into
+`SAVEDISK`, then `903 R2S_DEL` to clean the campaign. A campaign holding only
+the most recent days is **normal operation, not a truncated delivery.**
 
-**Use the campaign `OBS/` instead.** It covers exactly the ten days that have
-`F1_` solutions, so the comparison is well-posed:
+**So the usable window is 31 contiguous days — 2025 DOY 121–151 — starting from
+raw RINEX.** That is materially better than the `OBS/` fallback: it exercises
+`RXOBV3`, station matching and QC, the stages the readiness doc calls the real
+risk area. **This exercise can therefore produce BRN-001 acceptance evidence**,
+which the `OBS/` path could not.
 
-- **2025 DOY 029–033** — five consecutive days
-- **2026 DOY 106–110** — five consecutive days, and `WK_2413`/`WK_2414` combine
-  the surrounding weeks
+> **How three careful passes all missed it**, since the remedy generalises:
+>
+> 1. **T420, 08-03** — recorded the RINEX DOY range and the `F1_` filenames in
+>    two separate inventories, never compared them.
+> 2. **gps3, 08-04** — compared them, found no overlap, concluded no reference
+>    existed. Right about `CAMPAIGN/LUZON/SOL`, wrong about the dataset.
+> 3. **T420, 08-05** — looked in `SAVEDISK`. They were there all along.
+>
+> The question that short-circuits all three is not *"what is in this
+> directory?"* but ***"where does this software put finished solutions?"*** —
+> answerable from `PHIVOL_REL.PCF`, which both sessions had already read. Its
+> `902 R2S_SAV` / `903 R2S_DEL` pair says exactly this, and both of us listed
+> those PIDs while checking script availability without asking what they do.
+>
+> A new member of the §15.5 family: **a conclusion about a dataset drawn from
+> one directory of it.**
 
-Start with a single day. **2026 DOY 110** is the most recent and its inputs are
-the least likely to have drifted.
+### 1.1a Seven fiducial stations are NOT in the local RINEX
 
-### 1.2 The comparison is invalid unless the models are controlled
+Reproducing her solution needs her network, and it is larger than the DATAPOOL:
+
+```
+F1_251210.SNX     30 stations
+DOY 121 RINEX     24 stations
+missing           AIRA ALIC BASC DAEJ DARW MCIL PNGM
+```
+
+These are IGS fiducials. Their only observations in the copied set are converted
+`.CZH/.CZO` files for **DOY 029** — the older campaign block — so there is
+nothing for DOY 121–151. `DATAPOOL_IGS/` holds 94 files, all `.sp3`/orbit
+products, **no observation data**.
+
+**This is the same gap as one of the missing scripts.** `FTP_DWLD` — absent from
+the 5.4 install (§3.1) — is precisely the step that downloaded these. Its absence
+and this gap are one problem, not two.
+
+**Consequence:** a run from local RINEX alone processes 24 stations against a
+30-station reference. Coordinates would differ for legitimate
+network-geometry reasons, and the comparison would be measuring the wrong thing.
+
+**Fix before running:** fetch the seven fiducials' RINEX for 2025 DOY 121–151
+from CDDIS/IGN. The repo already has a downloader — `pogf-geodetic-suite`'s
+`igs-downloader` (deliverable 2.2, partial: needs IGS20 naming and mirror
+fallback). ~7 stations × 31 days is a small fetch. **Do this before staging
+anything**, because it determines whether the comparison is well-posed at all.
+
+### 1.2 If you ever take the `OBS/` path instead — what it does and does not test
+
+*Retained for reference. §1.1 means this is no longer the path you have to take,
+but the reasoning applies to any run started from converted observations.*
+
+Starting from converted `OBS/` rather than from RINEX means **`RXOBV3` never
+runs**. This exercises the **estimation chain only**, not the full pipeline.
+That cuts both ways:
+
+| | |
+|---|---|
+| **Better** for PCF tuning | one less stage of confounders between input and result |
+| **Worse** as a pipeline test | exercises none of the RINEX ingest, station matching or QC that the readiness doc identifies as the real risk area |
+
+**A run started from `OBS/` is therefore not the BRN-001 acceptance test.**
+(A run from RINEX, per §1.1, can be.) That test — *"one PAGENET
+session end-to-end on gps3, clearing the station/MAXPAR/panel problems
+automatically, not by hand"* — is a different exercise on different data, and it
+remains outstanding. Two things are easily conflated here, so state it plainly:
+
+> **A green LUZON comparison does not constitute pipeline acceptance.**
+
+Reading it as such would be the same defect this project keeps finding — a check
+reporting success without having inspected the thing it is supposed to be about.
+
+### 1.3 Use the contiguous 31 days
+
+~~Pick one of two disjoint five-day blocks~~ — **moot after §1.1.** Use 2025 DOY
+121–151: contiguous, 31 days, one IGS product vintage, one station set, raw
+RINEX with a reference solution for every day.
+
+Thirty-one days is also enough signal to separate an I14→I20 model shift from a
+genuine tuning effect, which five days would not have been. §1.4's discipline
+still applies, but it is no longer fighting a thin sample.
+
+**Start with a single day — DOY 121** — before committing to the run.
+
+### 1.4 The comparison is invalid unless the models are controlled
 
 |  | 5.2 LUZON (hers) | 5.4 PAGENET (this machine) |
 |---|---|---|
@@ -168,17 +265,24 @@ smaller job than remediating 72 panels, and is the recommended starting scope.
 
 These are the actual content of the exercise. None can be settled by inspection.
 
-1. **Can 5.4 read a 5.2 campaign's `OBS/` directly?** The directory layout is
-   identical (`ATM GRD OBS ORB ORX OUT RAW SOL STA`) and the observation files
-   are the usual `CSH/CSO/PZH/PZO` pairs, but whether the on-disk format changed
-   between 5.2 and 5.4 is untested. **If it did not, this is the fast path.** If
-   it did, re-convert from RINEX — but note §1.1: RINEX exists only for days
-   with no reference solution, so a format incompatibility makes the comparison
-   much harder, not merely slower.
-2. **Are the non-`H` scripts drop-in for the `H` variants?**
-3. **Do `PHI_MO`/`PHI_WK` work under 5.4 once remediated?** They are the two
+1. **Do the seven fiducials' observations fetch cleanly for DOY 121–151?**
+   (§1.1a.) This is now the first thing to settle, because it decides whether the
+   comparison is well-posed. `igs-downloader` needs IGS20 naming and mirror
+   fallback per deliverable 2.2, so it may need work before it can do this.
+
+   > **The earlier "ask Abegail for RINEX" mitigation is withdrawn.** §1.1 makes
+   > it unnecessary — the reference solutions were never missing. What *is*
+   > needed is fiducial observations from IGS, not anything from her. Do not
+   > chase the original request.
+
+2. **Can 5.4 read a 5.2 campaign's `OBS/` directly?** No longer blocking, since
+   §1.1 gives a raw-RINEX path with references for every day. Still worth knowing
+   for any future run started from converted observations.
+
+3. **Are the non-`H` scripts drop-in for the `H` variants?**
+4. **Do `PHI_MO`/`PHI_WK` work under 5.4 once remediated?** They are the two
    directories with no 5.4 equivalent.
-4. **Does staging `ANT_COD_I14.PCV` into 5.4's `GEN/` suffice**, or does 5.4
+5. **Does staging `ANT_COD_I14.PCV` into 5.4's `GEN/` suffice**, or does 5.4
    expect an ATX-derived PCV it will not accept from a 5.2 tree?
 
 ---
@@ -187,33 +291,47 @@ These are the actual content of the exercise. None can be settled by inspection.
 
 Deliberately the smallest thing that produces a comparable number.
 
-1. **One day: 2026 DOY 110.** Most recent, has `F1_261100.NQ0` and `.SNX` as the
-   target, and campaign `OBS/` for `A2GG1100.*` and friends.
-2. Create a LUZON campaign under `$P` (`GPSDATA/CAMPAIGN54/`) and stage `OBS/`,
-   `ORB/`, `ATM/`, `STA/` for that day only.
-3. Stage `ANT_COD_I14.PCV` — **I14, not I20** (§1.2).
+0. **Fetch the seven fiducials for DOY 121 first** (§1.1a). Without them the run
+   processes 24 stations against a 30-station reference and the comparison is
+   measuring the wrong thing. This step gates everything below.
+1. **One day: 2025 DOY 121.** Raw RINEX present, reference is
+   `SAVEDISK/2025/SOL/F1_251210.SNX.gz` — gunzip it first.
+2. Create a LUZON campaign under `$P` (`GPSDATA/CAMPAIGN54/`) and stage the
+   RINEX, orbits, ERP and station files for that day.
+3. Stage `ANT_COD_I14.PCV` — **I14, not I20** (§1.4).
 4. Provision `PHI_WK` only, remediated (§4).
-5. Run the daily path. Stop before `ADD_WK`.
-6. Compare `F1_` output against `SOL/F1_261100.SNX` the same way the 07-29 BPE
-   re-verification did: extract `STAX/STAY/STAZ` from `SOLUTION/ESTIMATE`,
-   difference, convert to mm.
+5. Run the daily path from RINEX, so `RXOBV3` is exercised. Stop before `ADD_WK`.
+6. Compare against `F1_251210.SNX` the way the 07-29 BPE re-verification did:
+   extract `STAX/STAY/STAZ` from `SOLUTION/ESTIMATE`, difference, convert to mm.
 
-**What counts as success:** not zero. Her run and yours differ in Bernese
-version and possibly in scripts. A sub-millimetre agreement means the models and
-inputs line up; a systematic, largely-vertical centimetre-scale offset means
-I20 leaked in somewhere (§1.2). **Record the number before tuning anything** —
-it is the baseline every later comparison is measured against.
+**What counts as success:** not zero. Her run and yours differ in Bernese version
+and possibly in scripts. Sub-millimetre agreement means models and inputs line
+up; a systematic, largely-vertical centimetre-scale offset means I20 leaked in
+(§1.4); a difference concentrated in particular stations points at the fiducial
+set (§1.1a) rather than at the PCF.
+
+**Record the number before tuning anything** — it is the baseline every later
+comparison is measured against.
+
+**Then, and only then, extend to the full 31 days.** At that point the run is
+also BRN-001 acceptance evidence (§1.2), provided the station and panel problems
+were cleared automatically rather than by hand.
 
 ---
 
 ## 7. What is not here, and cannot be reprocessed
 
 `SOL/` holds **725 weekly and 166 monthly** solutions spanning **2010-02-28 to
-2026-04-12** — sixteen years of results in 421 MB. The raw observations behind
-all but ten of those days are **not on the array and not on the drive**. They
-are on staff machines, roughly 4 TB by extrapolation from the one month present.
+2026-04-12** — sixteen years of results in 421 MB, plus `SAVEDISK/2025/` with all
+365 daily finals for that year.
 
-So those sixteen years of results are, today, **irreproducible**. They can be
+The raw observations behind them are **not on the array and not on the drive**,
+with one exception: the 31 days of 2025 DOY 121–151 that §1.1 identifies. Every
+other day of those sixteen years has a solution and no input. The rest is on
+staff machines — roughly 4 TB by extrapolation from the one month present.
+
+So apart from that one month, those sixteen years of results are, today,
+**irreproducible**. They can be
 copied and checksummed; they cannot be regenerated. That makes the 421 MB
 `SOL/` directory the most valuable thing recovered from the drive per byte, and
 it is why `scripts/sudo/processed_transfer.sh` copies it first and alone.
