@@ -580,6 +580,77 @@ exclusions and documenting them.
 
 Option 1 first. It is the only one that does not change what is being measured.
 
+### 4b.6 Answered: how 5.2 tolerated it, and why 5.4 will not
+
+Her retained processing summary — `SAVEDISK/2025/OUT/R2S251210.PRC`, 56,781
+lines — settles the question §4b.5 posed.
+
+**Her run completed with 26,172 warnings and 3 errors.**
+
+```
+### SR RCVOBS: Satellite/system not found      (x thousands)
+                Receiver name    : TRIMBLE ALLOY
+                PRN              : E02 / E03 / R01
+
+*** SR R2RDOH : NUMBER OF SAT. (NUMLST) > MAXSAT   136 > 135
+*** PG RXOBV3: TOO MANY OUTPUT FILES DEFINED       31 defined, 30 found
+```
+
+`###` is a warning in Bernese, `***` an error. **She had all three `***` errors
+and still produced `F1_251210.SNX`.** So 5.2 pressed on through conditions 5.4
+treats as fatal — the version difference is real, and it is one of tolerance
+rather than capability.
+
+The `RCVOBS` warnings also confirm her data *was* multi-GNSS (Galileo and
+GLONASS PRNs on a TRIMBLE ALLOY): `V_SATSYS=GPS` meant those observations were
+warned about and skipped, not absent.
+
+#### The I14 model set is retired, and 5.4 enforces what 5.2 did not
+
+Two independent blockers, neither a configuration error:
+
+**1. Satellite tables end in 2023.** Hers 2023-01-31; 5.4's `SATELLIT_I14.SAT`
+2023-08-10; `SATELLIT_I20.SAT` 2024-09-17. **AIUB no longer publishes
+`SATELLIT_I14.SAT`** — `BSWUSER54/CONFIG/` returns 404 for I14, 200 for I20.
+Against 2025 data the PRN→SVN resolution lands on stale entries, and CODSPP
+stops on `BLOCK IIR-A 044` — a satellite that *is* in the antenna file.
+
+**2. The I14 ANTEX fails 5.4's consistency check.** Her run logs *"Antenna phase
+center model updated with: I14.ATX"*, so `V_MYATX=I14.ATX` and ATX2PCV merged it.
+On 5.4 that is rejected outright:
+
+```
+*** PG ATX2PCV: Given SVN and PRN inconsistent in ANTEX file.
+                File not converted!      PRN: 22   SVN: G041
+```
+
+All three variants in her tree fail it — `I14.ATX` carries four `G041` entries
+with different PRN mappings across epochs; `I14-orig.ATX` and `I14_1.ATX` carry
+one each and fail the same way. A file 5.2 consumed without complaint is invalid
+to 5.4.
+
+**Setting `V_MYATX` therefore fails EARLIER (PID 002) than leaving it blank
+(PID 232).** It is left blank, with that reasoning recorded at the override.
+
+#### What this means for the exercise
+
+**Reproducing her I14 numbers on 5.4 is not a configuration problem to be
+solved — it runs into a retired model that 5.4's stricter validation rejects.**
+The honest options:
+
+| Option | Cost |
+|---|---|
+| **Run under I20** | Tables current to 2024-09 and ANTEX consistent. Answers *"does the pipeline work"* — **not** *"does it reproduce her numbers"*, since it introduces the §1.4 frame difference the exercise exists to isolate. |
+| Source updated I14 tables | They are not published. Would need another archive or a hand-repaired ANTEX. |
+| Relax 5.4's validation | Not obviously possible, and it would mean processing data the software considers inconsistent. |
+
+**Recommendation: run I20 first, explicitly as a pipeline test rather than a
+comparison.** It establishes that the 31-day chain executes end to end on this
+machine, which is BRN-001 acceptance evidence in its own right. The I14
+comparison then becomes a separate question — and the finding that I14 cannot be
+run on 5.4 at this epoch is itself a result worth reporting to Abegail, since it
+bears on how the LUZON series can be continued at all.
+
 ## 5. Open questions — resolvable only by running it
 
 Most of the original list closed during the 2026-08-05 configuration survey
