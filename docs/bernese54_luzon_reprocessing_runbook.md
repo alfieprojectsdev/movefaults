@@ -739,9 +739,71 @@ raising alongside the I14 finding, because it means the transferred set is not a
 complete mirror of what she worked from, and nothing else has yet checked for
 other such days outside this 31-day window.
 
-Running it anyway would have produced a solution from the nine fiducials alone
-(TGDN is one of the two stations DOY 121 dropped), sitting in `SOL/` beside
-thirty proper ones and distinguishable only by opening it.
+Running it anyway would have produced a solution from the nine fiducials plus
+TGDN — whose own session is 43% of a day (§4b.10) — sitting in `SOL/` beside
+thirty proper ones and distinguishable only by opening it. Ten stations of which
+nine are fiducials is not a Luzon network solution.
+
+*(An earlier version of this paragraph said TGDN was "one of the two stations
+DOY 121 dropped" and would therefore be absent too. TGDN is dropped on DOY 121
+only; it appears in the other nine solutions. The conclusion is unchanged —
+the day is degenerate either way — but the reasoning was wrong.)*
+
+### 4b.9 Two stations differ from her run, and neither is the frame
+
+Comparing DOY 122 station-for-station against her `F1_251220.SNX`: **30 of 31
+stations agree. She has `S01R` and not `PIMO`; we have `PIMO` and not `S01R`.**
+The counts match at 31, which is why this went unnoticed — a station-count check
+would have passed.
+
+`PIMO` is straightforward: it is one of the nine fiducials we stage from
+RINEX3, and her fiducial set did not include it.
+
+**`S01R` is the one to look at.** It is absent from *all ten* of our solutions so
+far, and present in hers. What is verified:
+
+- Its RINEX samples at **15 s** where every other station samples at 30 s
+  (5760 epochs against 2880).
+- It is present in `LUZON.CRD`, `.STA`, `.BLQ`, `.CLU` and `.ABB`, and appears in
+  `FIN_*.CRD` — but **carries no estimation flag**, i.e. it is the a priori value
+  passed through, never solved. Estimated stations carry `G`.
+- It has entries in `BSL_*.BSL` but produces **no observation files** under its
+  `S0` abbreviation.
+- **No `***` message anywhere in the BPE logs names it.** It leaves the solution
+  silently.
+
+What is *not* established is the cause. The obvious suspect — the 15 s sampling
+— does not survive contact: `V_SAMPL = 180`, and 180 divides evenly by both 15
+and 30, so decimation alone should not exclude it. **Do not record the sampling
+interval as the explanation until someone has traced the import step.**
+
+The consequence is worth stating plainly: a station in the network contributes
+to her results and nothing to ours, and the pipeline reports success either way.
+That is the same defect class as §19.3 of the session log, this time in Bernese
+rather than in our own tooling.
+
+### 4b.10 Repeatability: the solutions are good, and that is not the same as correct
+
+`scripts/coord_repeatability.py` over the first ten days gives **median N 2.9 mm,
+E 3.4 mm, U 7.4 mm** across 31 stations — ordinary for daily double-difference
+solutions, and the first evidence that the derived PCF is not merely executable
+but sound.
+
+**This is precision, not accuracy.** A solution in the wrong reference frame
+would show the same repeatability, because every day would be wrong identically.
+It is not evidence about I20 versus I14 and must not be quoted as such.
+
+Two stations sit outside the band, both explained by their input rather than by
+the configuration:
+
+- **TGDN** — 13.3 / 20.0 mm horizontal. Its session is **43% of a day** (1266
+  epochs of 2880), the only short session in the network. It is also the only
+  station present on DOY 139.
+- **ANTP** — 42.8 mm vertical with normal horizontals, on a full-length session.
+  Unexplained; older LEICA GRX1200GGPRO / LEIAT504 equipment.
+
+That a single station degrades while the rest hold at 3 mm is itself the useful
+signal: a wrong configuration degrades everything together.
 
 **The month is a pipeline test under I20, not a comparison.** §4b.6 stands: I14
 cannot run on 5.4 at this epoch. Do not difference these coordinates against the
