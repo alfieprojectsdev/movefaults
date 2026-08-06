@@ -713,6 +713,41 @@ produced would lack datum control.
 That closes the last known gap and makes both the datum verification and a
 multi-day run meaningful at the same time.
 
+### 4b.8 Closed — one day complete, and the month launched (2026-08-06)
+
+The ocean-loading gap is closed. Coefficients for the nine fiducials came from
+the Chalmers/Onsala service (FES2004, CMC:NO, Gutenberg-Bullen — chosen to match
+the 135 existing stations, not for being newest) and merged into `LUZON.BLQ` via
+`scripts/merge_blq.py`. **DOY 121 then completed cleanly:** `Sessions finished:
+OK: 1 Error: 0`, 5m36s, 30 stations in `FIN_20251210.SNX` — the same count
+Abegail's run produced — with `HELMCHK` and `COMPARF` both passing.
+
+So both failure modes in the table above are resolved, and the answer to "is a
+multi-day batch worth running" flipped. `scripts/run_luzon_month.sh` runs
+2025 DOY 121–151 and was launched on 2026-08-06.
+
+**Results go to `${S}/LUZON/$Y+0`, not the stock `${S}/RNX2SNX/$Y+0`.** Every
+RNX2SNX-derived campaign shares the stock path, so `EXAMPLE`'s output would land
+beside LUZON's with nothing in the filename to separate them.
+
+**DOY 139 is excluded, and this is a data-holdings finding rather than a
+processing one.** Our copy of her `DATAPOOL/LUZON` holds exactly one RINEX2
+station for that day (`TGDN`) where every neighbouring day holds 25 — yet
+`F1_251390.SNX` exists in her `SAVEDISK`, so the observations were present when
+she processed. **Our copy of that day is short; the original was not.** Worth
+raising alongside the I14 finding, because it means the transferred set is not a
+complete mirror of what she worked from, and nothing else has yet checked for
+other such days outside this 31-day window.
+
+Running it anyway would have produced a solution from the nine fiducials alone
+(TGDN is one of the two stations DOY 121 dropped), sitting in `SOL/` beside
+thirty proper ones and distinguishable only by opening it.
+
+**The month is a pipeline test under I20, not a comparison.** §4b.6 stands: I14
+cannot run on 5.4 at this epoch. Do not difference these coordinates against the
+`F1_25*` series and attribute the residual to a Bernese version change — the
+frame and antenna model both moved.
+
 ## 5. Open questions — resolvable only by running it
 
 Most of the original list closed during the 2026-08-05 configuration survey
