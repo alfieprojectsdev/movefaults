@@ -15,10 +15,22 @@ the Chalmers/Onsala OTL service, which delivers by **email**, so acquiring them
 is a manual step. This handles everything on either side of that step.
 
 WHY IT DOES NOT JUST APPEND
+Two reasons, and the second cost a run before it was understood.
+
 Bernese matches BLQ stations by name, and a duplicate block is worse than a
 missing one: which of two conflicting entries wins is not obvious from the file.
 This refuses to add a station that is already present unless `--replace` is
 given, and reports rather than guessing.
+
+**Bernese also stops reading at the first `$$ END TABLE`.** Appending to
+end-of-file puts new blocks *after* the terminator, where they are silently
+invisible — the file looks correct, the station is plainly there on inspection,
+and GTOCNL still reports the coefficients missing. New blocks are therefore
+inserted BEFORE that marker, and the incoming file's own header (everything
+above its first station) is dropped rather than carried in mid-file.
+
+Line endings are preserved: these files are CRLF, and rewriting them as LF is
+an unnecessary change to a file other tools read.
 
 Usage:
     scripts/merge_blq.py --blq <target.BLQ> --new <onsala-reply.txt>
@@ -54,8 +66,13 @@ def _station_name(line: str) -> str | None:
     tok = line.split()
     if not tok or len(tok) > 2 or _NUMERIC_RE.match(tok[0]):
         return None
-    if len(tok) == 2 and tok[0].upper() != tok[1].upper():
-        return None                      # two different tokens: not a name line
+    # The second token is whatever the CRD carries in that column: local sites
+    # repeat the name ("ABUY ABUY"), IGS sites carry a DOMES ("ALIC 50137M001").
+    # An earlier version required the two to be EQUAL, which held for all 135
+    # local stations and rejected every fiducial the moment one was added --
+    # a rule generalised from the only examples available at the time.
+    # Any 1-2 token line with a non-numeric first token is a name line; data
+    # rows carry 11 numeric values and $$ lines are excluded above.
     return tok[0].upper()
 
 
@@ -134,6 +151,38 @@ def main() -> int:
         if not args.replace:
             print("  (pass --replace to overwrite them)")
 
+    # Position the key line. GTOCNL reads the name with FORMAT(2X,A4), then
+    # re-reads with FORMAT(//,2X,A10): the "//" SKIPS TWO RECORDS, so the 10-char
+    # key comes from the THIRD line after the name and must carry the station
+    # name at columns 4-7 (the match is OLNAME == OLNUMB(2:5)).
+    #
+    # Onsala emits a "$$ NAME,   RADI TANG  lon/lat: ..." line that carries it,
+    # but its position varies: three comment lines for interpolated sites
+    # ("FES2004_PP ID:", "Computed by OLMPP", "$$ NAME,") and two for sites
+    # needing none ("Complete FES2004", "$$ NAME,"). Padding must go BEFORE that
+    # line, not after, or the read lands on a blank comment and the station is
+    # silently unmatched.
+    for name in list(incoming):
+        blk = incoming[name]
+        name_idx = next((i for i, ln in enumerate(blk) if _station_name(ln)), 0)
+        key_idx = next(
+            (i for i, ln in enumerate(blk)
+             if ln.strip().startswith(f"$$ {name}") or ln.strip().startswith(f"$$ {name.lower()}")),
+            None,
+        )
+        if key_idx is None:
+            print(f"  WARNING {name}: no '$$ {name}, ...' key line found; "
+                  f"GTOCNL will not match this station")
+            continue
+        want = name_idx + 3
+        if key_idx < want:
+            blk = blk[:key_idx] + ["$$"] * (want - key_idx) + blk[key_idx:]
+            incoming[name] = blk
+            print(f"  {name}: key line moved from position {key_idx - name_idx} to 3")
+        elif key_idx > want:
+            print(f"  WARNING {name}: key line at position {key_idx - name_idx}, "
+                  f"expected 3")
+
     # Sanity-check each incoming block: 6 numeric rows, 11 columns each.
     bad = []
     for name in to_add + (clash if args.replace else []):
@@ -159,15 +208,40 @@ def main() -> int:
     backup = args.blq.with_suffix(f".BLQ.bak-{stamp}")
     shutil.copy2(args.blq, backup)
 
-    out = target_text.rstrip("\n") + "\n"
+    # Detect from RAW BYTES. Path.read_text() uses universal newlines and has
+    # already turned \r\n into \n by this point, so testing target_text for
+    # "\r\n" is always False and silently rewrites a CRLF file as LF.
+    crlf = b"\r\n" in args.blq.read_bytes()
+    eol = "\r\n" if crlf else "\n"
+    lines = target_text.splitlines()
+
+    # Insert BEFORE the terminator: Bernese stops reading at the first
+    # "$$ END TABLE", so anything after it is invisible however well-formed.
+    end_idx = next(
+        (i for i, ln in enumerate(lines) if ln.strip().startswith("$$ END TABLE")),
+        len(lines),
+    )
+    new_lines: list[str] = []
     for name in to_add:
-        out += "\n".join(incoming[name]).rstrip("\n") + "\n"
+        # Drop the reply's file-level header AND its terminators. A stray
+        # "$$ END TABLE" carried in mid-file would make Bernese stop reading
+        # there — harmless if it lands after every station, quietly destructive
+        # if a later merge inserts past it.
+        blk = [ln.rstrip("\r") for ln in incoming[name]
+               if not ln.strip().startswith(("$$ END TABLE", "$$ END HEADER"))]
+        new_lines.extend(blk)
+        new_lines.append("$$")
+    merged_lines = lines[:end_idx] + new_lines + lines[end_idx:]
+
     if args.replace:
         for name in clash:
-            old = "\n".join(existing[name])
-            out = out.replace(old, "\n".join(incoming[name]))
+            old, new = existing[name], incoming[name]
+            i = merged_lines.index(old[0])
+            merged_lines[i:i + len(old)] = [ln.rstrip("\r") for ln in new]
 
-    args.blq.write_text(out, encoding="ascii")
+    args.blq.write_text(eol.join(merged_lines) + eol, encoding="ascii")
+    print(f"  inserted before line {end_idx + 1} ($$ END TABLE); line endings: "
+          f"{'CRLF' if crlf else 'LF'}")
     merged = parse_blocks(args.blq.read_text(encoding="ascii", errors="replace"))
     print(f"\nwrote {args.blq}  ({len(existing)} -> {len(merged)} stations)")
     print(f"backup: {backup}")
