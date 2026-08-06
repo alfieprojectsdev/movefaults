@@ -68,6 +68,22 @@ export interface Equipment {
   notes: string | null;
 }
 
+// ── API base ────────────────────────────────────────────────────────────────
+
+/**
+ * Empty by default, which yields same-origin relative paths (`/api/v1/...`).
+ * That is what the Vite dev proxy expects, and what a Vercel rewrite expects —
+ * and same-origin means no CORS preflight, which is one fewer round trip on a
+ * connection that may be a single bar of signal.
+ *
+ * Set VITE_API_BASE_URL at build time only if the API is on another origin.
+ */
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+
+function apiUrl(path: string): string {
+  return `${API_BASE}/api/v1${path}`;
+}
+
 // ── Token management ────────────────────────────────────────────────────────
 
 const TOKEN_KEY = "field_ops_token";
@@ -94,7 +110,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  const resp = await fetch(`/api/v1${path}`, { ...init, headers });
+  const resp = await fetch(apiUrl(path), { ...init, headers });
 
   if (resp.status === 401) {
     clearToken();
@@ -113,7 +129,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export async function login(username: string, password: string): Promise<void> {
   const body = new URLSearchParams({ username, password });
-  const resp = await fetch("/api/v1/token", {
+  const resp = await fetch(apiUrl("/token"), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
@@ -156,7 +172,7 @@ export async function uploadLogSheetPhoto(logsheetId: number, photo: File): Prom
   const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
   const form = new FormData();
   form.append("file", photo);
-  const resp = await fetch(`/api/v1/logsheets/${logsheetId}/photos`, {
+  const resp = await fetch(apiUrl(`/logsheets/${logsheetId}/photos`), {
     method: "POST",
     headers,
     body: form,

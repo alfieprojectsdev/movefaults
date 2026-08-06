@@ -90,6 +90,9 @@ field-ops = [
     "bcrypt>=4.0.0",
     "python-multipart>=0.0.9",
     "pyyaml>=6.0.1",
+    # Cloudflare R2 photo storage via its S3-compatible API. Imported lazily in
+    # storage.py, so local development never loads it.
+    "boto3>=1.34.0",
     "typer>=0.21.1",
     "qrcode[pil]>=7.4.2",
 ]

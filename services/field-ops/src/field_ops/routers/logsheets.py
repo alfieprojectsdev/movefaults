@@ -20,10 +20,10 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from field_ops.config import settings
 from field_ops.database import get_db
 from field_ops.models import LogSheet, LogSheetPhoto, User
 from field_ops.routers.auth import get_current_user
+from field_ops.storage import get_storage
 
 router = APIRouter(prefix="/api/v1", tags=["logsheets"])
 
@@ -221,29 +221,32 @@ async def upload_photo(
 ) -> dict:
     """
     Attach a photo to a logsheet (antenna install, equipment, site conditions).
-    Saves to disk at settings.field_ops_upload_dir.
-    """
-    from pathlib import Path
 
+    Storage backend is configured, not hardcoded: local disk in development,
+    Cloudflare R2 in deployment. See field_ops/storage.py — a container's
+    filesystem does not survive a restart, so a deployed instance writing to
+    disk would leave rows pointing at files that no longer exist.
+    """
     result = await db.execute(select(LogSheet).where(LogSheet.id == logsheet_id))
     if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Logsheet not found")
 
-    upload_dir = Path(settings.field_ops_upload_dir) / str(logsheet_id)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    safe_name = f"{uuid.uuid4().hex}_{file.filename}"
-    dest = upload_dir / safe_name
-
     contents = await file.read()
-    dest.write_bytes(contents)
+
+    # Store the bytes BEFORE the row. If this raises, the request fails and the
+    # device keeps the photo queued for retry. The reverse order would commit a
+    # row referencing an object that was never written — the DB would look
+    # correct and the photo would be gone.
+    storage_ref = await get_storage().save(
+        logsheet_id, file.filename or "photo.jpg", contents
+    )
 
     photo = LogSheetPhoto(
         logsheet_id=logsheet_id,
         filename=file.filename,
-        storage_path=str(dest),
+        storage_path=storage_ref,
     )
     db.add(photo)
     await db.commit()
 
-    return {"photo_id": photo.id, "filename": safe_name}
+    return {"photo_id": photo.id, "storage_path": storage_ref}
