@@ -811,9 +811,11 @@ merely executable but sound. Horizontal held steady as the series lengthened
 would show the same repeatability, because every day would be wrong identically.
 It is not evidence about I20 versus I14 and must not be quoted as such.
 
-**No day is bad network-wide.** Scanning all 30 days for stations more than
-30 mm from their own mean: **25 days are completely clean**, and the other five
-have **exactly one** bad station each. Only two stations are ever involved.
+**By a single-station threshold, no day is bad network-wide** — see §4b.11 for
+why that qualifier matters and turns out to be wrong for a different, more
+consequential reason. Scanning all 30 days for stations more than 30 mm from
+their own mean: **25 days are completely clean**, and the other five have
+**exactly one** bad station each. Only two stations are ever involved.
 
 | DOY | stations >30 mm | worst |
 |---|---|---|
@@ -836,16 +838,74 @@ DOY 137: 1119 epochs   DOY 138: 112 epochs
 
 Its two worst days are its two shortest. Nothing to fix in the pipeline.
 
-**LGYE is not explained.** It has a **full 2880 epochs on every one of its bad
-days** (137, 140, 151), so session length is ruled out. A 200 mm excursion on
-DOY 137 against a station that is otherwise unremarkable suggests ambiguity
-resolution failing on that day, or a site-specific data problem. **This is open,
-and it is the most worthwhile thing to look at next** — it is the only quality
-finding in the month with no explanation attached.
+**LGYE is not explained by session length.** It has a **full 2880 epochs on
+every one of its bad days** (137, 140, 151). It is, however, **ruled out as a
+seismic event** by §4b.11's neighbour check: BLN2 sits 51 km away and stays
+within 3 mm on both of LGYE's worst days. A real earthquake large enough to
+move LGYE 200 mm would move BLN2 too. **This is open as a station/processing
+problem** — ambiguity resolution failing on that day, or a site-specific issue
+at LGYE — but closed as a possible earthquake.
 
 **ANTP** — 30.1 mm vertical with normal horizontals across the month, on
 full-length sessions. Elevated but never an outlier by the 30 mm horizontal test;
 older LEICA GRX1200GGPRO / LEIAT504 equipment.
+
+### 4b.11 A single-station threshold misses the signal this project exists to
+### detect — network coherence, checked properly
+
+§4b.10's "no day is bad network-wide" used a 30 mm **single-station** threshold.
+That is the wrong test for a seismic event: a real earthquake displaces several
+**nearby** stations **together**, often by amounts well under what would flag
+any one of them alone. `scripts/network_coherence_scan.py` checks for that
+directly — pairs of stations within 120 km both exceeding 8 mm horizontal
+(≈2.5× the median repeatability) in the same direction (cosine similarity >0.5).
+
+**It found what the single-station scan missed. DOY 126 (2025-05-06): 14
+stations moved together, 8–30 mm, dozens of coherent pairs across the entire
+southern-to-central Luzon cluster** — ALAB, ANTP, BLN2, CAC2, GUMA, GUNG, IBAZ,
+MAUB, MLPA, PIMO, SAPN, TANY, TGDN, and more. Smaller versions of the same
+pattern appear on DOY 129 (8 stations) and DOY 145 (13 stations). None of these
+were visible in §4b.10 — no single station on DOY 126 individually cleared
+30 mm by much (ANTP peaked at 29.8), so a network-wide 14-station shift hid
+inside a check built to catch one bad station.
+
+**Distinguishing a real event from a processing artifact: is it a step or a
+spike?** A coseismic offset is permanent — it persists in every subsequent
+day's solution because the ground actually moved. Reading the day-by-day series
+for the DOY 126 stations: DOY 125 is quiet (1–8 mm, ordinary), DOY 126 jumps to
+9–30 mm across nearly the whole network — including BLN2, IBAZ and TGDN in the
+north, so it is not confined to one geographic cluster — and **DOY 127 drops
+straight back to 1–5 mm.** That is a spike, not a step, and a spike that
+reverts completely in one day is the signature of something specific to that
+day's processing, not of ground motion.
+
+**Corroborated against the catalog.** A web search against PHIVOLCS/USGS
+reporting found **no earthquake recorded on 2025-05-06, 05-09, or 05-25** — the
+three flagged dates. There **is** a confirmed M4.6 near General Nakar, Quezon on
+**2025-05-27 (DOY 147)**, and checking the stations nearest that epicenter
+(POLI, MAUB, GUMA, and others) on that date shows **no anomaly at all** — 0.5 to
+6.8 mm, ordinary noise. That is a useful negative control: a real but small
+(M4.6) event at tens of km from the nearest station is below what daily static
+GNSS resolves, and the scan correctly stays quiet for it rather than
+manufacturing a signal out of noise. Both halves — flagging three unexplained
+network-wide days with no earthquake behind them, and staying silent for a
+real one too small to see — say the method is behaving sensibly.
+
+**The technical cause of the DOY 126/129/145 spikes is not identified.** Two
+candidates were checked and ruled out: the CODE SP3 orbit file for DOY 126 is a
+normal size (no truncation), and the fiducial-fixing list in `HLM_20251260.FIX`
+is identical to every ordinary day — just AIRA. Whatever produces a whole-day,
+whole-network, fully-reverting shift remains open. Recorded as unexplained
+rather than assigned a plausible-sounding cause, on the same principle as the
+S01R and LGYE findings above.
+
+**What this means for anyone using this pipeline for actual event detection**:
+a single-station outlier check is not sufficient and will miss a coordinated
+multi-station shift unless it happens to also blow past the single-station
+threshold. Any future monitoring built on this pipeline needs the coherence
+check as a matter of course, not as an afterthought — and needs the step/spike
+distinction made explicit, since an automated system that flags DOY 126 as
+"earthquake" without checking DOY 127 would have been wrong.
 
 **The month is a pipeline test under I20, not a comparison.** §4b.6 stands: I14
 cannot run on 5.4 at this epoch. Do not difference these coordinates against the
