@@ -826,3 +826,22 @@ it is why `scripts/sudo/processed_transfer.sh` copies it first and alone.
 
 Capturing the raw archive from staff machines is a separate and larger piece of
 work, and it is the precondition for ever reprocessing the full LUZON history.
+
+**Confirmed by census, 2026-08-06.** The claim above was carried forward from the
+transfer handover; it has now been checked directly against both trees:
+
+```bash
+find /srv/gnss-archive /home/gps3/GPSDATA -name '????[0-3][0-9][0-9]0.25[oOdD]' \
+  | sed 's|.*/....\([0-9]\{3\}\)0\.25.|\1|' | sort -u
+```
+
+Both return exactly DOY 121–151 and nothing else. Against 365 solved days in
+2025 alone, **the reproducible fraction of that year is 8.5%**, and of the
+sixteen-year series, well under 1%.
+
+Within the reproducible month, one day is itself short: **DOY 139 holds one
+RINEX2 station where its neighbours hold 25**, though she solved it — so even our
+"complete" month is 30 days, not 31 (§4b.8). Her `DATAPOOL/LUZON` is a rolling
+staging area holding roughly a month, not an archive; what was transferred is a
+snapshot of that window, which is why the boundary falls where it does rather
+than at anything meaningful in the data.
