@@ -7,8 +7,25 @@ the DOSTB drive to `/srv/gnss-archive/processed/luzon-bern52/`.
 comparison ng results / adjustment (fine tuning) ng PCF."* Reprocess Abegail's
 LUZON network under 5.4, reproduce her 5.2 numbers, and only then tune.
 
-**Status: not yet run.** Everything below about *inputs* is measured on gps3.
-Everything about *execution* is untested — §5 lists what only a run will settle.
+**Status as of 2026-08-06: RUN, and it completes.** 30 of the 31 days processed
+end to end with **zero failures** in 2h47m (§4b.8–§4b.10). Repeatability is
+median N 2.8 mm, E 3.0 mm, U 10.9 mm.
+
+Two things that section headings below will not tell you, so read them here:
+
+1. **It ran under I20, not I14.** I14 cannot run on 5.4 at this epoch — the
+   satellite tables end in 2023 and the ANTEX fails a consistency check 5.2 did
+   not perform (§4b.6). **These coordinates are therefore NOT comparable with
+   Abegail's `F1_25*` series**, and differencing them will show a frame and
+   antenna-model change, not a Bernese-version effect. The stated goal at the top
+   of this document — reproduce her numbers — is **not** what this run achieved.
+2. **Only 31 days of 2025 can be reprocessed at all**, verified by census (§7).
+   She solved 365. The rest of the sixteen-year series has solutions and no
+   inputs.
+
+Sections below marked "not yet run" or "untested" predate 2026-08-06 and are
+left in place because the reasoning that led to them is still worth reading;
+§4b.7 onward records what actually happened.
 
 **Revised twice on 2026-08-05.** §1.1 replaces an earlier conclusion that the
 reference solutions did not exist — they are in `SAVEDISK/`. §1.1a replaces a

@@ -1585,3 +1585,51 @@ legitimate.
   archive copy; T420 PRs #61–#63 now past the Rule 2 one-week limit; the leaked
   `sk-ant-oat01-` token still needs revoking by a human at claude.ai; reboot
   pending for kernel 6.8.0-136; iDRAC networking unconfigured.
+
+### 19.6 The month completed — 30 days, zero failures
+
+Finished 17:28, **2h47m** wall, **OK 30, FAILED 0, EXCLUDED 1**. Verified against
+the filesystem rather than the summary: 30 `FIN_*.SNX.gz` and 30 `.NQ0.gz`, every
+one readable under `gzip -t`, every one carrying ≥25 stations, no day missing
+from the 121–151 range bar the excluded 139.
+
+**Repeatability over the full month: median N 2.8 mm, E 3.0 mm, U 10.9 mm.**
+Horizontal held steady as the series grew from ten days to thirty (2.9/3.4 mm at
+ten), which is what a stable configuration looks like.
+
+The result that carries weight is the *shape* of the bad days. Scanning all 30
+for stations more than 30 mm from their own mean: **25 days are completely
+clean**, five have **exactly one** bad station, and only **two stations** are
+ever involved. A bad configuration degrades every station on every day; bad
+stations degrade themselves. Nothing here points at the PCF.
+
+**TGDN** is fully explained: its sessions run 112 to 1119 epochs against a 2880
+full day, and its two worst days are its two shortest. The "43%" recorded earlier
+came from a single day and understated the variability considerably.
+
+**LGYE is not explained and is the open item.** Full 2880 epochs on every one of
+its bad days, yet a **200 mm** excursion on DOY 137. Session length is ruled out.
+It is recorded as open rather than attributed to a guess — the same discipline
+applied to S01R in §4b.9.
+
+### 19.7 Capacity, measured rather than assumed
+
+Asked what a full year would cost. Measured during the run rather than
+extrapolated from the per-day figure:
+
+- 333 s/day at 30 stations, consuming **3.94 of 24 cores** — 16% of the machine.
+- A year at this configuration: **~34 h serial**, or **~7 h** at five concurrent
+  days. Storage is ~1.5 GB/year, so the whole sixteen-year series is ~23 GB.
+- Parallelism needs **one campaign directory per worker**; `$P/LUZON` holds the
+  working files for whichever day is in flight, which is why the driver takes a
+  single-instance lock.
+- Scaling to the ~135-station national network is **estimated** at 4–8× per day
+  and must be measured, not modelled.
+- `MAXPAR` is 1000 and 135 stations need ~405 parameters, so the ceiling sits
+  near 330 stations — but only because `TROPEST 0` pre-eliminates the troposphere
+  parameters, which would otherwise dominate. Worth knowing before anyone points
+  this at the 417-entry CRD.
+
+**None of this is the binding constraint.** We hold 31 days of observations. The
+compute budget for the full series is weeks, entirely tractable, and irrelevant
+until the data exists.
