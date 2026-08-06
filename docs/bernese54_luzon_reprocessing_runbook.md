@@ -784,26 +784,51 @@ rather than in our own tooling.
 
 ### 4b.10 Repeatability: the solutions are good, and that is not the same as correct
 
-`scripts/coord_repeatability.py` over the first ten days gives **median N 2.9 mm,
-E 3.4 mm, U 7.4 mm** across 31 stations — ordinary for daily double-difference
-solutions, and the first evidence that the derived PCF is not merely executable
-but sound.
+`scripts/coord_repeatability.py` over the **completed 30 days** gives **median
+N 2.8 mm, E 3.0 mm, U 10.9 mm** across 31 stations — ordinary for daily
+double-difference solutions, and the first evidence that the derived PCF is not
+merely executable but sound. Horizontal held steady as the series lengthened
+(2.9/3.4 mm at ten days), which is what a stable configuration looks like.
 
 **This is precision, not accuracy.** A solution in the wrong reference frame
 would show the same repeatability, because every day would be wrong identically.
 It is not evidence about I20 versus I14 and must not be quoted as such.
 
-Two stations sit outside the band, both explained by their input rather than by
-the configuration:
+**No day is bad network-wide.** Scanning all 30 days for stations more than
+30 mm from their own mean: **25 days are completely clean**, and the other five
+have **exactly one** bad station each. Only two stations are ever involved.
 
-- **TGDN** — 13.3 / 20.0 mm horizontal. Its session is **43% of a day** (1266
-  epochs of 2880), the only short session in the network. It is also the only
-  station present on DOY 139.
-- **ANTP** — 42.8 mm vertical with normal horizontals, on a full-length session.
-  Unexplained; older LEICA GRX1200GGPRO / LEIAT504 equipment.
+| DOY | stations >30 mm | worst |
+|---|---|---|
+| 124 | 1 | TGDN 66 mm |
+| 137 | 1 | LGYE 200 mm |
+| 138 | 1 | TGDN 67 mm |
+| 140 | 1 | LGYE 35 mm |
+| 151 | 1 | LGYE 111 mm |
 
-That a single station degrades while the rest hold at 3 mm is itself the useful
-signal: a wrong configuration degrades everything together.
+That distinction carries the weight. A bad *configuration* degrades every station
+on every day; bad *stations* degrade themselves. This is the second pattern.
+
+**TGDN is fully explained by session length**, and the 43% figure quoted from
+DOY 122 understated it — sessions vary enormously day to day:
+
+```
+DOY 123: 875 epochs    DOY 124: 124 epochs   (~1 hour)
+DOY 137: 1119 epochs   DOY 138: 112 epochs
+```
+
+Its two worst days are its two shortest. Nothing to fix in the pipeline.
+
+**LGYE is not explained.** It has a **full 2880 epochs on every one of its bad
+days** (137, 140, 151), so session length is ruled out. A 200 mm excursion on
+DOY 137 against a station that is otherwise unremarkable suggests ambiguity
+resolution failing on that day, or a site-specific data problem. **This is open,
+and it is the most worthwhile thing to look at next** — it is the only quality
+finding in the month with no explanation attached.
+
+**ANTP** — 30.1 mm vertical with normal horizontals across the month, on
+full-length sessions. Elevated but never an outlier by the 30 mm horizontal test;
+older LEICA GRX1200GGPRO / LEIAT504 equipment.
 
 **The month is a pipeline test under I20, not a comparison.** §4b.6 stands: I14
 cannot run on 5.4 at this epoch. Do not difference these coordinates against the
