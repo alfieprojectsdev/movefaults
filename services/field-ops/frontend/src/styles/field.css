@@ -202,6 +202,75 @@ textarea {
   color: var(--pico-muted-color);
 }
 
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 22rem;
+}
+
+.conn-banner {
+  margin-bottom: 1rem;
+}
+
+/* ── Queue ── */
+
+.queue-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.queue-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--pico-border-radius);
+  border-left: 4px solid var(--field-warn);
+  background: var(--pico-card-background-color, var(--field-computed-bg));
+}
+
+.queue-item.is-synced {
+  border-left-color: var(--field-ok);
+  opacity: 0.7;
+}
+
+.queue-station {
+  font-weight: 700;
+  font-family: var(--pico-font-family-monospace, monospace);
+}
+
+.queue-meta {
+  font-size: 0.875rem;
+  color: var(--pico-muted-color);
+}
+
+.queue-synced summary {
+  cursor: pointer;
+  color: var(--pico-muted-color);
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+.app-footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--pico-muted-border-color);
+  text-align: center;
+}
+
+.link-btn {
+  --pico-background-color: transparent;
+  --pico-border-color: transparent;
+  --pico-color: var(--pico-muted-color);
+  width: auto;
+  margin: 0;
+  text-decoration: underline;
+}
+
 .section-header {
   margin-top: 2rem;
   margin-bottom: 0.5rem;

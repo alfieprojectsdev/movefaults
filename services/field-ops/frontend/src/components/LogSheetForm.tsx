@@ -9,8 +9,8 @@
  *   2. If online → submits text payload to POST /api/v1/logsheets, then uploads
  *      photo to POST /api/v1/logsheets/{id}/photos.
  *   3. If offline → saves to IndexedDB via useOfflineQueue.
- *      Photo cannot be uploaded offline; the UI warns the user to re-attach it
- *      after connectivity returns. Text data is never lost.
+ *      The photo blob is queued with it and uploaded on sync, so
+ *      nothing is lost while out of signal.
  *
  * Conditional sections:
  *   - Top-level "monitoring_method" dropdown controls which fields are rendered.
@@ -266,10 +266,21 @@ export default function LogSheetForm() {
         : undefined;
     }
 
+    // The photo is queued WITH the record. Before this it was dropped on the
+    // offline path while the UI still reported a successful save.
+    const photo = hasPhoto && photoFiles !== null ? photoFiles[0] : undefined;
+
     if (!navigator.onLine) {
-      await addToQueue(record);
-      setSubmitState("queued");
-      reset();
+      try {
+        await addToQueue(record, photo);
+        setSubmitState("queued");
+        reset();
+      } catch (err) {
+        // Out of device storage — do NOT reset(), the operator still has the
+        // form and the photo and can retry after syncing.
+        setSubmitState("error");
+        setErrorMsg(err instanceof Error ? err.message : "Could not save offline.");
+      }
       return;
     }
 
@@ -277,13 +288,17 @@ export default function LogSheetForm() {
       const created = await submitLogSheet(record);
 
       // Upload photo as a separate request after logsheet is created
-      if (hasPhoto && photoFiles !== null) {
+      if (photo) {
         try {
-          await uploadLogSheetPhoto(created.id, photoFiles[0]);
+          await uploadLogSheetPhoto(created.id, photo);
         } catch {
-          // Photo upload failed — logsheet was saved; user can re-attach later
-          setSubmitState("saved");
-          setErrorMsg("Log saved, but photo upload failed. Re-attach photo when reconnected.");
+          // Logsheet is on the server but the photo is not. Queue the photo
+          // rather than asking the operator to remember to re-attach it later:
+          // by then they have left the site. _photoUploaded stays false, so the
+          // next flush re-POSTs the (idempotent) logsheet and retries the photo.
+          await addToQueue(record, photo);
+          setSubmitState("queued");
+          setErrorMsg("Log saved. Photo queued — it will upload on the next sync.");
           reset();
           return;
         }
@@ -292,10 +307,17 @@ export default function LogSheetForm() {
       setSubmitState("saved");
       reset();
     } catch (err) {
-      // Network error mid-submit — save text payload to queue as fallback
-      await addToQueue(record);
-      setSubmitState("queued");
-      reset();
+      // Network error mid-submit — queue both halves as the fallback.
+      try {
+        await addToQueue(record, photo);
+        setSubmitState("queued");
+        reset();
+      } catch (queueErr) {
+        setSubmitState("error");
+        setErrorMsg(
+          queueErr instanceof Error ? queueErr.message : "Could not save offline."
+        );
+      }
     }
   };
 
@@ -657,7 +679,7 @@ export default function LogSheetForm() {
       )}
       {submitState === "queued" && (
         <p className="msg msg-warn">
-          Saved offline. Will sync automatically when connected.
+          Saved offline — including the photo. Will sync automatically when connected.
         </p>
       )}
       {submitState === "error" && (
