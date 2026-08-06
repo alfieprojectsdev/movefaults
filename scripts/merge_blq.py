@@ -33,9 +33,30 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# A station block header in Scherneck/Onsala BLQ output: two leading spaces then
-# the site name, e.g. "  ALIC". Comment lines start with $$ and are not blocks.
-_STATION_RE = re.compile(r"^\s{2}(\S+)\s*$")
+# A station name line in real Scherneck/Onsala BLQ output, verified against
+# LUZON.BLQ rather than against the documented example:
+#
+#     "  ABUY               ABUY"          name REPEATED
+#     "  ALBU     \t         ALBU"         and sometimes tab-separated
+#
+# A first attempt matched a single token and found ZERO stations in a file
+# holding 135 -- the documented "  NAME" form is not what the service emits.
+# Data rows also begin with two spaces, so the discriminator is the token count
+# (1-2) plus a non-numeric first token; amplitude and phase rows carry 11
+# numeric values. Files are CRLF, which splitlines() handles.
+_NUMERIC_RE = re.compile(r"^[-.\d]")
+
+
+def _station_name(line: str) -> str | None:
+    """Return the site name if this is a station header line, else None."""
+    if line.strip().startswith("$$") or not line.startswith("  "):
+        return None
+    tok = line.split()
+    if not tok or len(tok) > 2 or _NUMERIC_RE.match(tok[0]):
+        return None
+    if len(tok) == 2 and tok[0].upper() != tok[1].upper():
+        return None                      # two different tokens: not a name line
+    return tok[0].upper()
 
 
 def parse_blocks(text: str) -> dict[str, list[str]]:
@@ -51,11 +72,11 @@ def parse_blocks(text: str) -> dict[str, list[str]]:
     pending: list[str] = []
 
     for ln in lines:
-        m = _STATION_RE.match(ln)
-        if m and not ln.strip().startswith("$$"):
+        name = _station_name(ln)
+        if name:
             if current:
                 blocks[current] = buf
-            current = m.group(1).upper()
+            current = name
             buf = pending + [ln]
             pending = []
         elif current is None and ln.strip().startswith("$$"):
@@ -118,7 +139,7 @@ def main() -> int:
     for name in to_add + (clash if args.replace else []):
         rows = [ln for ln in incoming[name]
                 if ln.strip() and not ln.strip().startswith("$$")
-                and not _STATION_RE.match(ln)]
+                and not _station_name(ln)]
         numeric = [r for r in rows if len(r.split()) == 11]
         if len(numeric) != 6:
             bad.append(f"{name}: {len(numeric)} rows of 11 values (expected 6)")
