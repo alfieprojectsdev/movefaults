@@ -90,6 +90,10 @@ OVERRIDES = {
     # So this is not a workaround for a missing file. Processing GPS only is
     # what she did, and it is *why* I14 remains valid against 2025 data.
     "V_SATSYS": "GPS",
+    # Own results tree. The stock value is ${S}/RNX2SNX/$Y+0, which every
+    # RNX2SNX-derived campaign shares — EXAMPLE's output would land beside
+    # LUZON's and neither would be identifiable later.
+    "V_RESULT": "${S}/LUZON/$Y+0",
     # V_MYATX IS DELIBERATELY LEFT BLANK, though her run logs
     # "Antenna phase center model updated with: I14.ATX".
     #
