@@ -37,7 +37,7 @@
  */
 
 import { openDB, DBSchema, IDBPDatabase } from "idb";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { LogSheetIn, submitLogSheets, uploadLogSheetPhoto } from "../services/api";
 
 // ── IDB schema ──────────────────────────────────────────────────────────────
@@ -81,9 +81,47 @@ async function getDb(): Promise<IDBPDatabase<FieldOpsDB>> {
           store.createIndex("by_status", "_status");
         }
       },
+      blocked() {
+        // Another tab holds an older version open. Without this the upgrade
+        // waits forever and every queue write hangs with no error — a submit
+        // button that silently does nothing, on the offline path.
+        console.warn(
+          "field-ops: database upgrade blocked by another open tab. " +
+            "Close other copies of this app."
+        );
+      },
+      blocking() {
+        // We are the old connection holding someone else's upgrade up. Close so
+        // the newer context can proceed rather than deadlocking both.
+        dbInstance?.close();
+        dbInstance = null;
+      },
     });
   }
   return dbInstance;
+}
+
+// ── Shared state ────────────────────────────────────────────────────────────
+//
+// useOfflineQueue is mounted by three components at once (App for the badge,
+// LogSheetForm to queue, QueueView to list and flush). Per-instance state would
+// mean three independent `online` listeners firing three concurrent flushes on
+// one reconnect. Because `_photoUploaded` is read from a snapshot taken at the
+// top of each run and written only after the upload resolves, all three would
+// see `false` and upload the same photo — and the photo endpoint, unlike the
+// logsheet POST, has no idempotency guard. One observation would end up with
+// three R2 objects and three logsheet_photos rows.
+//
+// So the listener, the in-flight lock and the pending count live at module
+// scope, and the hook subscribes to them.
+
+let flushInFlight: Promise<void> | null = null;
+const countSubscribers = new Set<(n: number) => void>();
+let lastPendingCount = 0;
+
+function publishCount(n: number): void {
+  lastPendingCount = n;
+  countSubscribers.forEach((fn) => fn(n));
 }
 
 // ── Storage headroom ────────────────────────────────────────────────────────
@@ -102,126 +140,175 @@ export async function storageHeadroom(): Promise<{
 } | null> {
   if (!navigator.storage?.estimate) return null;
   const { usage = 0, quota = 0 } = await navigator.storage.estimate();
+  // A zero quota means the browser declined to report one, not that the device
+  // is full. Treating it as "no space" would make the guard reject every photo
+  // on such a device — blocking the mandatory-photo path entirely, which is a
+  // worse failure than the one the guard exists to prevent.
+  if (!quota) return null;
   return { usage, quota, remaining: Math.max(0, quota - usage) };
 }
 
 export class QueueStorageError extends Error {}
 
-// ── Hook ────────────────────────────────────────────────────────────────────
+// ── Queue operations (module scope — one copy, whatever mounts the hook) ─────
 
-export function useOfflineQueue() {
-  const [pendingCount, setPendingCount] = useState(0);
+async function refreshCount(): Promise<QueueRecord[]> {
+  const db = await getDb();
+  const pending = await db.getAllFromIndex("logsheet_queue", "by_status", "pending");
+  publishCount(pending.length);
+  return pending;
+}
 
-  const refreshCount = useCallback(async () => {
-    const db = await getDb();
-    const pending = await db.getAllFromIndex("logsheet_queue", "by_status", "pending");
-    setPendingCount(pending.length);
-    return pending;
-  }, []);
+async function addToQueue(record: LogSheetIn, photo?: File): Promise<void> {
+  const db = await getDb();
 
-  const addToQueue = useCallback(
-    async (record: LogSheetIn, photo?: File) => {
-      const db = await getDb();
+  if (photo) {
+    const headroom = await storageHeadroom();
+    // Require the photo to fit with room to spare — a queue that fills the
+    // quota exactly leaves no space for the next station's sheet.
+    if (headroom && headroom.remaining < photo.size * 2) {
+      throw new QueueStorageError(
+        `Not enough device storage to queue this photo ` +
+          `(${(headroom.remaining / 1048576).toFixed(0)} MB free). ` +
+          `Sync pending records, or free space, before continuing.`
+      );
+    }
+  }
 
-      if (photo) {
-        const headroom = await storageHeadroom();
-        // Require the photo to fit with room to spare — a queue that fills the
-        // quota exactly leaves no space for the next station's sheet.
-        if (headroom && headroom.remaining < photo.size * 2) {
-          throw new QueueStorageError(
-            `Not enough device storage to queue this photo ` +
-              `(${(headroom.remaining / 1048576).toFixed(0)} MB free). ` +
-              `Sync pending records, or free space, before continuing.`
-          );
-        }
-      }
+  const entry: QueueRecord = {
+    ...record,
+    _status: "pending",
+    _queuedAt: new Date().toISOString(),
+    ...(photo ? { _photo: photo, _photoName: photo.name } : {}),
+  };
 
-      const entry: QueueRecord = {
-        ...record,
-        _status: "pending",
-        _queuedAt: new Date().toISOString(),
-        ...(photo ? { _photo: photo, _photoName: photo.name } : {}),
-      };
+  await db.put("logsheet_queue", entry);
+  await refreshCount();
+}
 
-      await db.put("logsheet_queue", entry);
-      await refreshCount();
-    },
-    [refreshCount]
-  );
+async function runFlush(): Promise<void> {
+  const db = await getDb();
+  const pending = await db.getAllFromIndex("logsheet_queue", "by_status", "pending");
+  if (pending.length === 0) return;
 
-  const flushQueue = useCallback(async () => {
-    const db = await getDb();
-    const pending = await db.getAllFromIndex("logsheet_queue", "by_status", "pending");
-    if (pending.length === 0) return;
+  let server;
+  try {
+    // Strip local-only fields; the API rejects unknown keys on some paths and
+    // a Blob is not JSON-serialisable in any case.
+    const payload = pending.map(stripLocalFields);
+    server = await submitLogSheets(payload);
+  } catch (err) {
+    // Network still down, or auth expired. Records stay pending and retry on
+    // the next online event — deliberately no error status here, because a
+    // failed flush is the expected case in the field, not a fault.
+    console.warn("Offline queue flush failed:", err);
+    return;
+  }
 
-    let server;
-    try {
-      // Strip local-only fields; the API rejects unknown keys on some paths and
-      // a Blob is not JSON-serialisable in any case.
-      const payload = pending.map(stripLocalFields);
-      server = await submitLogSheets(payload);
-    } catch (err) {
-      // Network still down, or auth expired. Records stay pending and retry on
-      // the next online event — deliberately no error status here, because a
-      // failed flush is the expected case in the field, not a fault.
-      console.warn("Offline queue flush failed:", err);
-      return;
+  // Match server rows back to queued records by client_uuid.
+  const idByUuid = new Map(server.map((r) => [String(r.client_uuid), r.id]));
+
+  for (const rec of pending) {
+    const serverId = idByUuid.get(String(rec.client_uuid));
+    if (serverId === undefined) {
+      // Server did not return this record — leave pending, do not lose it.
+      continue;
     }
 
-    // Match server rows back to queued records by client_uuid.
-    const idByUuid = new Map(server.map((r) => [String(r.client_uuid), r.id]));
+    // Re-read immediately before uploading rather than trusting the snapshot
+    // taken at the top of this run. Another browsing context (a second tab, the
+    // installed PWA alongside the tab it was installed from) can flush the same
+    // store concurrently, and the photo endpoint has no idempotency guard.
+    const fresh = (await db.get("logsheet_queue", String(rec.client_uuid))) ?? rec;
+    if (fresh._status === "synced") continue;
 
-    for (const rec of pending) {
-      const serverId = idByUuid.get(String(rec.client_uuid));
-      if (serverId === undefined) {
-        // Server did not return this record — leave pending, do not lose it.
+    if (fresh._photo && !fresh._photoUploaded) {
+      try {
+        const file = new File([fresh._photo], fresh._photoName ?? "photo.jpg", {
+          type: fresh._photo.type || "image/jpeg",
+        });
+        await uploadLogSheetPhoto(serverId, file);
+
+        // Persist the flag BEFORE marking synced. If the tab closes here, the
+        // next flush re-POSTs the logsheet (idempotent) and skips the photo.
+        await db.put("logsheet_queue", { ...fresh, _photoUploaded: true });
+      } catch (err) {
+        // Text is safe on the server; the photo is not. Stay pending so the
+        // photo retries — never drop the blob.
+        console.warn(`Photo upload failed for ${fresh.client_uuid}:`, err);
         continue;
       }
-
-      if (rec._photo && !rec._photoUploaded) {
-        try {
-          const file = new File([rec._photo], rec._photoName ?? "photo.jpg", {
-            type: rec._photo.type || "image/jpeg",
-          });
-          await uploadLogSheetPhoto(serverId, file);
-
-          // Persist the flag BEFORE marking synced. If the tab closes here, the
-          // next flush re-POSTs the logsheet (idempotent) and skips the photo.
-          rec._photoUploaded = true;
-          await db.put("logsheet_queue", rec);
-        } catch (err) {
-          // Text is safe on the server; the photo is not. Stay pending so the
-          // photo retries — never drop the blob.
-          console.warn(`Photo upload failed for ${rec.client_uuid}:`, err);
-          continue;
-        }
-      }
-
-      // Both halves are on the server. Drop the blob to reclaim device storage;
-      // keeping it would fill the quota with data that is already safe.
-      await db.put("logsheet_queue", {
-        ...rec,
-        _status: "synced",
-        _photo: undefined,
-      });
     }
 
-    await refreshCount();
-  }, [refreshCount]);
+    // Both halves are on the server. Drop the blob to reclaim device storage;
+    // keeping it would fill the quota with data that is already safe.
+    await db.put("logsheet_queue", {
+      ...fresh,
+      _photoUploaded: true,
+      _status: "synced",
+      _photo: undefined,
+    });
+  }
 
-  const getQueue = useCallback(async (): Promise<QueueRecord[]> => {
-    const db = await getDb();
-    const all = await db.getAll("logsheet_queue");
-    return all.sort((a, b) => (b._queuedAt ?? "").localeCompare(a._queuedAt ?? ""));
-  }, []);
+  await refreshCount();
+}
 
-  // Auto-flush on reconnect, and once at mount if already online.
+/**
+ * Single-flight flush. Concurrent callers join the run already in progress
+ * rather than starting a second one — without this, the three mounted hook
+ * instances would each upload every queued photo.
+ */
+function flushQueue(): Promise<void> {
+  if (!flushInFlight) {
+    flushInFlight = runFlush().finally(() => {
+      flushInFlight = null;
+    });
+  }
+  return flushInFlight;
+}
+
+async function getQueue(): Promise<QueueRecord[]> {
+  const db = await getDb();
+  const all = await db.getAll("logsheet_queue");
+  return all.sort((a, b) => (b._queuedAt ?? "").localeCompare(a._queuedAt ?? ""));
+}
+
+// One `online` listener for the whole app, registered on first use. Attaching
+// per hook instance meant one reconnect fired as many flushes as there were
+// mounted components.
+let onlineListenerAttached = false;
+
+function attachOnlineListener(): void {
+  if (onlineListenerAttached) return;
+  onlineListenerAttached = true;
+  window.addEventListener("online", () => {
+    void flushQueue();
+  });
+}
+
+export { addToQueue, flushQueue, getQueue, refreshCount };
+
+// ── Hook ────────────────────────────────────────────────────────────────────
+
+/**
+ * Thin subscriber over the module-level queue. Every mounted instance sees the
+ * same pending count and shares one flush, so the badge in the header stays in
+ * step with what the form and the queue view are doing.
+ */
+export function useOfflineQueue() {
+  const [pendingCount, setPendingCount] = useState(lastPendingCount);
+
   useEffect(() => {
-    window.addEventListener("online", flushQueue);
-    if (navigator.onLine) flushQueue();
-    refreshCount();
-    return () => window.removeEventListener("online", flushQueue);
-  }, [flushQueue, refreshCount]);
+    countSubscribers.add(setPendingCount);
+    attachOnlineListener();
+
+    if (navigator.onLine) void flushQueue();
+    void refreshCount();
+
+    return () => {
+      countSubscribers.delete(setPendingCount);
+    };
+  }, []);
 
   return { addToQueue, flushQueue, getQueue, pendingCount, refreshCount };
 }

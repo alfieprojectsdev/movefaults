@@ -96,8 +96,25 @@ export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
 }
 
+/**
+ * Subscribers notified when the token is cleared by a 401.
+ *
+ * Without this, App reads `getToken()` once at mount and never learns that the
+ * session died: the PWA keeps rendering the authenticated shell, every submit
+ * silently diverts into the offline queue, and that queue can never drain
+ * because it is the expired token failing. The operator fills sheets all
+ * afternoon believing they are queued.
+ */
+const authListeners = new Set<() => void>();
+
+export function onAuthCleared(fn: () => void): () => void {
+  authListeners.add(fn);
+  return () => authListeners.delete(fn);
+}
+
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+  authListeners.forEach((fn) => fn());
 }
 
 // ── Base fetch ──────────────────────────────────────────────────────────────

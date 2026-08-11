@@ -69,6 +69,13 @@ class Settings(BaseSettings):
             # asyncpg rejects libpq's ?sslmode= parameter; it negotiates TLS via
             # its own `ssl` argument. Neon's copy-paste string includes it, and
             # leaving it in produces a confusing connect error at first request.
+            #
+            # Stripping it is necessary, but stripping it ALONE would silently
+            # drop the requirement the operator asked for: asyncpg's default is
+            # opportunistic TLS with no certificate verification, so the DB
+            # password and every logsheet would cross the public internet with
+            # no MITM protection. db_connect_args below translates the
+            # requirement instead of discarding it.
             if "?" in url:
                 base, _, query = url.partition("?")
                 kept = [
@@ -82,6 +89,36 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://{self.pogf_db_user}:{self.pogf_db_password}"
             f"@{self.pogf_db_host}:{self.pogf_db_port}/{self.pogf_db_name}"
         )
+
+    @property
+    def db_connect_args(self) -> dict:
+        """
+        asyncpg connect args, carrying the TLS requirement db_url had to strip.
+
+        libpq's `sslmode=require` cannot be passed to asyncpg, so db_url removes
+        it. Removing it without translation would leave asyncpg on its default
+        (`ssl=None`) — opportunistic TLS with **no certificate verification** —
+        which is strictly weaker than what the connection string asked for.
+
+        A verifying SSLContext is returned whenever the source URL requested TLS
+        or we are in production. `ssl.create_default_context()` verifies the
+        chain and the hostname, which is what `sslmode=verify-full` means and
+        what a managed provider over the public internet requires.
+
+        Note this is deliberately NOT applied to the discrete-field local dev
+        path, where the database is a container on localhost with no certificate.
+        """
+        import ssl as _ssl
+
+        source = self.database_url or ""
+        wants_tls = (
+            "sslmode=" in source
+            and "sslmode=disable" not in source
+        ) or (self.is_production and bool(self.database_url))
+
+        if not wants_tls:
+            return {}
+        return {"ssl": _ssl.create_default_context()}
 
     @property
     def is_production(self) -> bool:
@@ -117,6 +154,27 @@ def _assert_deployable(s: Settings) -> None:
             "FIELD_OPS_STORAGE_BACKEND must be 'r2' in production — a container "
             "filesystem is ephemeral, so photos written to disk are lost on restart"
         )
+    else:
+        # Checked HERE, not at first upload. get_storage() is only reached from
+        # the photo endpoint, so validating there means a deploy with a typo'd
+        # R2_BUCKET boots healthy, passes its health check, accepts logsheets,
+        # and 500s on every photo forever — with nobody finding out until a
+        # field team comes back. Names only; never the values.
+        missing_r2 = [
+            name
+            for name, value in (
+                ("R2_ACCOUNT_ID", s.r2_account_id),
+                ("R2_ACCESS_KEY_ID", s.r2_access_key_id),
+                ("R2_SECRET_ACCESS_KEY", s.r2_secret_access_key),
+                ("R2_BUCKET", s.r2_bucket),
+            )
+            if not value
+        ]
+        if missing_r2:
+            problems.append(
+                "FIELD_OPS_STORAGE_BACKEND=r2 but these are unset: "
+                + ", ".join(missing_r2)
+            )
 
     if not s.database_url:
         problems.append("DATABASE_URL is unset")

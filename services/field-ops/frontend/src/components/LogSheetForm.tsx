@@ -679,7 +679,12 @@ export default function LogSheetForm() {
       )}
       {submitState === "queued" && (
         <p className="msg msg-warn">
-          Saved offline — including the photo. Will sync automatically when connected.
+          {/* errorMsg is set on the partial path, where the logsheet DID reach
+              the server and only the photo is queued. Telling that operator
+              "Saved offline" would be the same class of false reassurance this
+              form was rewritten to remove. */}
+          {errorMsg ||
+            "Saved offline — including the photo. Will sync automatically when connected."}
         </p>
       )}
       {submitState === "error" && (

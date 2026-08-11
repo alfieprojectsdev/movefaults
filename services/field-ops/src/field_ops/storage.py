@@ -21,9 +21,18 @@ Selection is by configuration, not by branching at the call site:
 
 Fail-closed
 -----------
-Choosing ``r2`` without complete credentials raises at startup rather than at
-first upload. A service that accepts a photo and silently drops it is worse
-than one that refuses to boot: the operator has already left the site.
+Choosing ``r2`` without complete credentials raises before any request is
+served, not at first upload. Two things enforce that, because this function is
+otherwise only reached from the photo endpoint:
+
+* ``config._assert_deployable`` includes the four R2 variables in the
+  production gate, so the process refuses to start.
+* ``main._init_storage`` resolves the backend on the FastAPI startup event, so
+  even outside production the failure lands while someone is watching the
+  deploy rather than on an operator's phone.
+
+A service that accepts a photo and silently drops it is worse than one that
+refuses to boot: by then the operator has already left the site.
 """
 
 from __future__ import annotations

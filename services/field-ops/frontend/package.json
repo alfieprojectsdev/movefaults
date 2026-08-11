@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node scripts/check-deploy-config.mjs && tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

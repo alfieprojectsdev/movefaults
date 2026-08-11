@@ -10,6 +10,8 @@ Architecture note:
   The central 'stations' table (public schema) is read via the /stations endpoint.
 """
 
+from contextlib import asynccontextmanager
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,10 +19,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from field_ops.config import settings
 from field_ops.routers import auth, equipment, logsheets, staff, stations
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """
+    Resolve the photo storage backend before serving any request.
+
+    get_storage() is otherwise reached only from the photo endpoint, which means
+    a bad R2 configuration would surface as a 500 on the first upload from the
+    field rather than as a failed deploy. Constructing it here makes the failure
+    happen while someone is still watching the deploy logs.
+    """
+    from field_ops.storage import get_storage
+
+    get_storage()
+    yield
+
+
 app = FastAPI(
     title="Field Ops API",
     description="PHIVOLCS CORS station field operations — logsheets, equipment, QR scanning",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # CORS: the dev server origins, plus any origin named in FIELD_OPS_CORS_ORIGINS
@@ -29,7 +48,12 @@ app = FastAPI(
 # on a slow link. Wildcards are deliberately not supported: allow_credentials
 # with "*" is rejected by browsers anyway, and an open CORS policy on a service
 # holding field data is not something to configure by accident.
-_ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:3000"] + [
+# Dev origins are included only OUTSIDE production. On a public deployment,
+# trusting localhost with allow_credentials=True means any process listening on
+# those ports on an operator's machine can make credentialed calls to the API.
+_DEV_ORIGINS = ["http://localhost:5173", "http://localhost:3000"]
+
+_ALLOWED_ORIGINS = ([] if settings.is_production else _DEV_ORIGINS) + [
     o.strip()
     for o in (settings.field_ops_cors_origins or "").split(",")
     if o.strip() and o.strip() != "*"

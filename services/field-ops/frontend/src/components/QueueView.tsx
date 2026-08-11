@@ -15,12 +15,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useOfflineQueue, QueueRecord, storageHeadroom } from "../hooks/useOfflineQueue";
+import { useOnline } from "../hooks/useOnline";
 
 export default function QueueView() {
-  const { getQueue, flushQueue } = useOfflineQueue();
+  const { getQueue, flushQueue, pendingCount } = useOfflineQueue();
   const [records, setRecords] = useState<QueueRecord[]>([]);
   const [storage, setStorage] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const online = useOnline();
 
   const refresh = useCallback(async () => {
     setRecords(await getQueue());
@@ -33,9 +35,12 @@ export default function QueueView() {
     }
   }, [getQueue]);
 
+  // pendingCount changes whenever ANY component's flush or queue write lands,
+  // so this also re-lists after an automatic background sync — without it the
+  // view kept showing records as pending after they had already gone.
   useEffect(() => {
     refresh();
-  }, [refresh]);
+  }, [refresh, pendingCount, online]);
 
   const onSync = async () => {
     setBusy(true);
@@ -71,9 +76,9 @@ export default function QueueView() {
             type="button"
             className="submit-btn"
             onClick={onSync}
-            disabled={busy || !navigator.onLine}
+            disabled={busy || !online}
           >
-            {busy ? "Syncing…" : navigator.onLine ? "Sync now" : "Sync now (offline)"}
+            {busy ? "Syncing…" : online ? "Sync now" : "Sync now (offline)"}
           </button>
         </>
       )}

@@ -3,8 +3,9 @@ import LogSheetForm from "./components/LogSheetForm";
 import LoginScreen from "./components/LoginScreen";
 import QueueView from "./components/QueueView";
 import { useTheme, ThemeChoice } from "./hooks/useTheme";
-import { useOfflineQueue } from "./hooks/useOfflineQueue";
-import { getToken, clearToken } from "./services/api";
+import { useOfflineQueue, flushQueue } from "./hooks/useOfflineQueue";
+import { getToken, clearToken, onAuthCleared } from "./services/api";
+import { useOnline } from "./hooks/useOnline";
 
 type View = "logsheet" | "queue";
 
@@ -32,6 +33,19 @@ export default function App() {
     setAuthed(false);
   }, []);
 
+  // An expired token is cleared deep inside apiFetch. Without this subscription
+  // App would never hear about it, leaving the operator on a form whose every
+  // submit silently queues and whose queue can never drain.
+  useEffect(() => onAuthCleared(() => setAuthed(false)), []);
+
+  const onLoginSuccess = useCallback(() => {
+    setAuthed(true);
+    // Anything stranded by the expired token can go now. Without this the queue
+    // waits for the next online/offline transition, which may not come for
+    // hours — and the operator has just proven they have signal.
+    void flushQueue();
+  }, []);
+
   const themeButton = (
     <button
       type="button"
@@ -51,7 +65,7 @@ export default function App() {
           <h1>POGF Field Ops</h1>
           {themeButton}
         </div>
-        <LoginScreen onSuccess={() => setAuthed(true)} />
+        <LoginScreen onSuccess={onLoginSuccess} />
       </div>
     );
   }
@@ -105,18 +119,3 @@ export default function App() {
   );
 }
 
-/** Live online/offline state — `navigator.onLine` alone does not re-render. */
-function useOnline(): boolean {
-  const [online, setOnline] = useState(navigator.onLine);
-  useEffect(() => {
-    const up = () => setOnline(true);
-    const down = () => setOnline(false);
-    window.addEventListener("online", up);
-    window.addEventListener("offline", down);
-    return () => {
-      window.removeEventListener("online", up);
-      window.removeEventListener("offline", down);
-    };
-  }, []);
-  return online;
-}
