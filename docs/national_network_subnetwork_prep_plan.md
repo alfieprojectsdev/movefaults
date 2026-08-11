@@ -1,10 +1,24 @@
 # Prep reading plan: processing the full PH network via subnetworks
 
-**Written:** 2026-08-11, gps3. **Status: plan only — nothing in this document has
-been read yet.** Written after the LUZON 5.4 reprocessing exercise (see
-`docs/bernese54_luzon_reprocessing_runbook.md`) and after the user asked
-whether the full PH network should be processed as subnetworks combined
-later, rather than as one national cluster.
+**Written:** 2026-08-11, gps3. **Status as of 2026-08-12: all four tiers read,
+findings recorded per tier below.** Written after the LUZON 5.4 reprocessing
+exercise (see `docs/bernese54_luzon_reprocessing_runbook.md`) and after the
+user asked whether the full PH network should be processed as subnetworks
+combined later, rather than as one national cluster.
+
+**Short answer to the question that prompted this: yes, subnetworks — and the
+mechanism is one this pipeline already runs.** MKCLUS → GPSEST (with
+`CORRECT` correlations, stopping after NEQ save) → ADDNEQ2 under minimum
+constraint, with a HELMR1 reference-site verification loop. `LUZON_DLY`
+already does this within a single campaign; national scale applies the same
+pattern at a coarser, independently-executed grain. No new architecture, and
+no architecture *decision* outstanding — the double-vs-zero-difference
+question turned out to be a false premise (Tier 3).
+
+**Two claims in the original plan were wrong and are corrected in place**
+below rather than silently edited: clustering is not what defines a
+subnetwork boundary (Tier 1), and the Tier 3 comparison was between two PCFs
+that do entirely different jobs.
 
 ## Why subnetworks, in one paragraph
 
@@ -327,6 +341,97 @@ solution and for the straightforward extraction of station coordinates of the
 originally computed minimum-constraint solution."* That is a design guarantee
 that the SINEX we already produce is suitable for later recombination — which
 matches what was confirmed empirically about `SNXCONT=NEQ` above.
+
+## Tier 4 findings — 2026-08-12
+
+**Read: DOCU52 §11.1.3 (pp. 276–278), §11.2.1.1 (pp. 278–279). Applied
+directly to our own 30-day solutions.**
+
+### FODITS supersedes `network_coherence_scan.py`, and it isn't close
+
+`scripts/network_coherence_scan.py` was written from scratch this session to
+find coherent multi-station motion. FODITS does that and considerably more,
+as a shipped, tested program:
+
+- Reads coordinate time series from `CRD` files, **or** reconstructs them from
+  the residual (`PLT`) file — note that **covariance information is only
+  available via the `PLT` route**, which matters for weighting anything
+  properly rather than treating every daily solution as equally good.
+- Takes **predefined events** from four sources: equipment-change
+  discontinuities straight from the station information file (`STA`), seismic
+  events from a **USGS-derived earthquake list file** (`ERQ`, format described
+  in §24.7.21), proposed seasonal/periodic signals, and a manual event list
+  (`EVL`).
+- Searches for **discontinuities, outliers, velocity changes, and periodic
+  functions**, each with a significance test, iteratively adding and removing
+  elements until every remaining one is statistically justified.
+- Handles **aftershock screening** so a large event followed by aftershocks
+  doesn't get modelled as a sequence of frequent discontinuities.
+
+Our script does none of the significance testing, none of the seasonal
+modelling, and has no notion of equipment changes or an earthquake catalog.
+**It should be treated as a stopgap, and FODITS evaluated before any further
+effort goes into extending it.** One caveat: FODITS is designed for
+multi-year series (its purpose is velocity/discontinuity estimation over long
+records) — on a 30-day window it has little to work with. It becomes the right
+tool as the reprocessed archive grows, not immediately.
+
+### The earthquake-detectability criterion, and what it actually means
+
+§11.2.1.1 gives an explicit criterion (Eqn. 11.3) for whether an earthquake
+should be considered capable of producing a permanent coseismic offset at a
+station distance `d` metres:
+
+```
+M >= -5.60 + 2.17 * log10(d)
+```
+
+(Eqn. 11.2 is the Delle Donne et al. (2010) original at `-6.40`; AIUB shifts
+the offset by +0.8 to be deliberately more inclusive, and both factors are
+user-adjustable via "Earthquake factor A/B".)
+
+**Applied to the confirmed M4.6 near General Nakar, Quezon on DOY 147** — the
+event used earlier as a negative control for `network_coherence_scan.py` —
+this predicts detectability out to **~50 km**. Several of our stations are
+well inside that. So this was worth testing properly rather than assuming the
+earlier "no anomaly" conclusion held.
+
+**A proper pre/post step test (mean of DOY 121–146 vs. 147–151) finds no
+coseismic signal at any station**, including the ones deepest inside the
+threshold:
+
+| STA | dist (km) | M required | ΔN | ΔE | ΔU | \|ΔH\| |
+|---|---|---|---|---|---|---|
+| INFA | 5.9 | 2.58 | 1.9 | −0.1 | 6.9 | **1.9 mm** |
+| TANY | 32.5 | 4.19 | 0.5 | 0.1 | 1.2 | 0.5 mm |
+| POLI | 36.9 | 4.31 | 0.7 | −0.9 | 1.5 | 1.1 mm |
+| ANTP | 49.1 | 4.58 | 0.7 | 1.6 | 10.6 | 1.7 mm |
+
+**This is not a contradiction of the criterion — it is what the criterion is
+for.** Eqn. 11.3 is a *candidate-proposal* threshold: it decides which events
+get added to the list of elements FODITS will then subject to a significance
+test. The manual is explicit that Eqn. 11.2 "is only roughly representing the
+mean effect," and that AIUB deliberately loosened it further precisely because
+"a significance test is added for each potential discontinuity." FODITS would
+propose a discontinuity at INFA for this event and then reject it as
+insignificant. Our observation matches that expected outcome exactly.
+
+### A methodological correction to this session's own earlier analysis
+
+The earlier DOY 147 check measured each station's deviation from its **30-day
+mean**. That is the wrong statistic for detecting a step near the end of a
+window: a genuine offset at DOY 147 would shift only 5 of 30 days, leaving the
+mean dominated by the pre-event level and splitting the signal across both
+sides. **The pre/post step test above is the correct method**, and it happens
+to confirm the same conclusion — but the earlier conclusion was right partly by
+luck, and the method should not be reused as-is.
+
+One caution the step test itself surfaces: **LGYE shows a spurious 19.4 mm
+"step"** purely because its known-bad DOY 151 outlier (runbook §4b.10) falls
+inside the 5-day post-event window. At 202.8 km it is far below the threshold
+anyway. Short post-event windows are badly exposed to single-day outliers —
+another argument for using FODITS's tested outlier handling rather than
+hand-rolled window statistics.
 
 ## Explicitly out of scope for this plan
 
