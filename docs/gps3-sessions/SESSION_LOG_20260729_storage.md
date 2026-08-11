@@ -1381,3 +1381,255 @@ file report as missing.
 | `main` | `19c68cf`; PRs #61–#63 still open (T420's) |
 | LUZON campaign | Staged, registered, PCF derived, driver fixed |
 | First 5.4 run | **Blocked on one OSB bias product** |
+
+---
+
+## 18. First Bernese 5.4 run attempts — 2026-08-05 evening
+
+Nine attempts at DOY 121 of 2025. No solution yet, but the failures were
+informative and three of them were defects in this project's own tooling. Full
+detail in `docs/bernese54_luzon_reprocessing_runbook.md` §4b.
+
+### 18.1 How far it gets
+
+RINEX import, orbit preparation and observation conversion all succeed — **92
+observation files in about 100 seconds** — before stopping at PID 232 `CODSPP`.
+
+### 18.2 The premise was wrong, not the details
+
+The plan was to adapt her 5.2 `PHIVOL_REL.PCF` by renaming scripts and repairing
+WAIT lists. **The PCF file format changed between 5.2 and 5.4** — fixed-column
+with a ruler line versus free-form `KEY=VALUE;` — and 5.4 answers a 5.2 PCF with
+a **segmentation fault**, not a parse error. Four attempts passed before that
+surfaced. `scripts/derive_luzon_pcf.py` now derives from 5.4's own
+`RNX2SNX.PCF` and refuses to write a file whose process rows lack `CPU=`.
+
+### 18.3 Products: present and unusable
+
+§14 concluded `FTP_DWLD` could be dropped because every product was local. They
+are local **in 5.2-era legacy naming** (`igs22364.sp3.Z`); 5.4 reads long-name.
+Presence had been verified, usability had not.
+
+Two further gaps, both fetched from AIUB: the **CODE satellite-bias product**,
+without which `R2S_COP` cannot generate the `IAR_*.OSB` it treats as mandatory,
+and **`SAT_2025.CRX`** — the installed set stopped at 2019, so any 2025
+processing would have hit it. This is readiness **gap #6** arriving as predicted.
+
+**A correction worth recording:** these were reported here as needing
+credentials. They do not. `ftp.aiub.unibe.ch` is firewalled from gps3 and times
+out; `www.aiub.unibe.ch` redirects to a SWITCH S3 bucket that serves everything
+anonymously. A timeout was taken as proof of inaccessibility rather than as a
+reason to look for another route. The user's own research corrected it.
+
+### 18.4 `V_SATSYS` — the most instructive error
+
+The override set copied `V_GNSSAR = ALL` from her PCF, reasoning that she
+resolved ambiguities across all constellations. **That reads the variable
+backwards.** `V_GNSSAR` selects which of the *already-selected* systems get
+ambiguity resolution; **`V_SATSYS` selects the systems**, and hers reads `GPS`
+where 5.4 ships `GRE`.
+
+The run therefore attempted GLONASS and died on **GLONASS-M 861** — launched
+after I14's epoch and absent from every I14 table. **It presented as a missing
+file and was a constellation-selection error.** Had it been "fixed" by switching
+to I20, the comparison would have silently acquired the I14/I20 confound the
+whole exercise exists to isolate, and the numbers would have looked plausible.
+
+Processing GPS-only is not a workaround. It is what she did, and it is why I14
+is usable against 2025 data at all.
+
+### 18.5 The blocker is model retirement, not configuration
+
+Her retained log (`R2S251210.PRC`, 56,781 lines) settles it: **26,172 warnings
+and 3 errors — and it produced `F1_251210.SNX` regardless.** `###` is a warning
+in Bernese and `***` an error; she had all three errors and the run finished. The
+version difference is one of **tolerance**, not capability.
+
+Two independent blockers follow:
+
+- **Satellite tables end in 2023.** Hers 2023-01-31, 5.4's I14 2023-08-10, I20
+  2024-09-17. **AIUB no longer publishes `SATELLIT_I14.SAT`** (404 for I14, 200
+  for I20). CODSPP stops on `BLOCK IIR-A 044` — a satellite that *is* in the
+  antenna file; what fails is PRN→SVN resolution against a stale table.
+- **The I14 ANTEX fails 5.4's consistency check.** `*** ATX2PCV: Given SVN and
+  PRN inconsistent … PRN 22, SVN G041`. All three variants in her tree fail. A
+  file 5.2 consumed without complaint is invalid to 5.4.
+
+**Reproducing her I14 numbers on 5.4 is therefore not a configuration problem.**
+The recommendation is to run I20 first, explicitly as a *pipeline test* rather
+than a comparison — that is BRN-001 acceptance evidence in its own right — and
+to put the I14 finding to Abegail, since it bears on how the LUZON series can be
+continued at all.
+
+### 18.6 Three tooling defects, found by use
+
+| Defect | Consequence |
+|---|---|
+| `find_dangling_waits()` knew only the `WAIT=` dialect | On a 5.2 PCF it parsed **zero** PIDs and zero WAITs, reported "0 dangling", and signed off a file with four broken WAIT lists |
+| `REWAIT` regex captured 4 fields where the row has 3 | Old dependency survived, replacement appended after it |
+| `BPE_CAMPAIGN` as a bare name | `startBPE` tests it with `-d` **relative to CWD** — the stock Bernese drivers are silently directory-dependent |
+
+The first is the eighth instance of §15.5's pattern, in the function written to
+prevent it. All fixed; **198 tests pass**.
+
+Three Bernese environment variables also collided with script variables this
+session — `$SRC`, `$S` and `$P` are all exported by `LOADGPS.setvar`, and two of
+them silently clobbered locals, making every source file report as missing.
+**Do not use bare short names in scripts that source LOADGPS.**
+
+### 18.7 A process note
+
+One commit (`c4bc867`) was pushed **directly to `main`**, breaking Rule 1. After
+the PR #66 merge the branch had been deleted and work continued on `main`
+without creating a new one. The commit is sound; the route was not.
+
+---
+
+## 19. Ocean loading closed, the month launched — 2026-08-06
+
+### 19.1 What ran
+
+Ocean-loading coefficients for the nine fiducials arrived from the
+Chalmers/Onsala service and were merged into `LUZON.BLQ`. **DOY 121 then
+completed cleanly** — `Sessions finished: OK: 1 Error: 0`, 5m36s, 30 stations in
+`FIN_20251210.SNX`, the same count Abegail's run produced, with `HELMCHK` and
+`COMPARF` both passing. `scripts/run_luzon_month.sh` was launched over DOY
+121–151 at 14:40 and is running at roughly 5m30s per day.
+
+The run is under **I20** and is a pipeline test, not a comparison. §18.5 stands:
+I14 cannot run on 5.4 at this epoch.
+
+### 19.2 The BLQ merge took four attempts, each a different wrong assumption
+
+`scripts/merge_blq.py` was written once and corrected four times, and the
+corrections are more instructive than the script:
+
+1. The station-name parser matched the **documented** single-token form and
+   found **zero** stations in a file holding 135. The service does not emit what
+   its documentation shows.
+2. Rewritten to require two equal tokens — which held for all 135 local stations
+   and rejected **every fiducial**, because IGS sites carry a DOMES number in
+   that column instead of a repeated name. A rule generalised from the only
+   examples available.
+3. New blocks were appended at end-of-file, i.e. **after `$$ END TABLE`**, where
+   Bernese never reads them. The file looked correct, the station was plainly
+   there on inspection, and `GTOCNL` still reported the coefficients missing.
+4. Padding to position the key line was inserted **after** it rather than before,
+   so `GTOCNL`'s `FORMAT(//,2X,A10)` — where `//` skips *two* records — landed on
+   a blank comment.
+
+Every one of these produced a file that looked right. Three of them produced a
+file that was silently wrong at read time rather than loudly wrong at parse time.
+
+### 19.3 The month driver scored thirty days OK without running anything
+
+Two defects in `run_luzon_month.sh`, **both found by dry-running the loop with
+the BPE call stubbed out**, neither by reading it.
+
+`LOADGPS.setvar` exports `PCF`, and the script set `PCF=LUZON_DLY` *above* the
+source, so the source clobbered it. The first launch died looking for
+`$U/PCF/$U/PCF.PCF`. That is the **fourth** such collision after `$SRC`, `$S` and
+`$P` (§18.6), so the fix is now the naming rule and not another rename: config
+names carry a `LUZON_` prefix and an assertion across the source fails loudly if
+a future one is added without it.
+
+The serious one: `LUZON_DLY.OUT` is rewritten in place each run, and the success
+test grepped it **without checking whose run wrote it**. A day whose BPE never
+started would be scored against the previous day's summary and counted OK. The
+stubbed dry run reported **all thirty days OK from the single file DOY 121 left
+behind** — a full month of green with nothing executed. The summary must now be
+at least as new as the day's start; with the guard the same dry run reports 30
+FAILED, 1 EXCLUDED.
+
+This is the same defect the session has produced repeatedly and now for the
+ninth time: **a check that reports success without having inspected anything.**
+It would have been invisible in production — thirty OK lines and an empty `SOL/`
+nobody opened until much later.
+
+Worth noting separately: `shellcheck` passed clean on a version of this script
+that referenced three unset variables under `set -u`. A grep caught them.
+
+### 19.4 Two findings for Abegail, both about limits rather than bugs
+
+**The series cannot be continued under its original model.** I14's satellite
+tables end in 2023, AIUB no longer publishes `SATELLIT_I14.SAT`, and the I14
+ANTEX fails 5.4's SVN/PRN consistency check (§18.5).
+
+**The series cannot be rebuilt from what we hold.** §7 of the runbook asserted
+that only DOY 121–151 of 2025 has raw observations; that claim came from the
+transfer handover and had never been checked. It is now verified by census
+across both the array and the live tree — exactly those 31 days, nothing else,
+against **365 solved days in 2025 alone**. The reproducible fraction is 8.5% of
+that year and well under 1% of the sixteen-year series.
+
+The boundary falls there because her `DATAPOOL/LUZON` is a **rolling staging
+area** holding about a month; the transfer captured a snapshot of it. The missing
+observations were therefore probably never on the DOSTB drive, so re-transferring
+will not recover them. Locating raw RINEX on staff machines is the only path, and
+it is a much larger piece of work than this run.
+
+Within the window, **DOY 139 holds one RINEX2 station where its neighbours hold
+25**, though she solved it — so our copy of that day is short and the
+reproducible month is 30 days, not 31. It is excluded from the run rather than
+processed into a fiducials-only solution that would sit in `SOL/` looking
+legitimate.
+
+### 19.5 State at end of 2026-08-06
+
+- Commits on `docs/luzon-i14-investigation` (PR #67): `f42a69d`, `69a16b4`,
+  `35fbc56`, `4b2a133`, `b6dfffa` — all pushed and verified on `origin`.
+- Results land in `${S}/LUZON/$Y+0`, moved off the stock `${S}/RNX2SNX/$Y+0`
+  which every RNX2SNX-derived campaign shares.
+- **Still open:** DOSTB unmount before unplugging
+  (`sudo scripts/sudo/mount_dostb.sh --umount`); no sha256 fixity on either
+  archive copy; T420 PRs #61–#63 now past the Rule 2 one-week limit; the leaked
+  `sk-ant-oat01-` token still needs revoking by a human at claude.ai; reboot
+  pending for kernel 6.8.0-136; iDRAC networking unconfigured.
+
+### 19.6 The month completed — 30 days, zero failures
+
+Finished 17:28, **2h47m** wall, **OK 30, FAILED 0, EXCLUDED 1**. Verified against
+the filesystem rather than the summary: 30 `FIN_*.SNX.gz` and 30 `.NQ0.gz`, every
+one readable under `gzip -t`, every one carrying ≥25 stations, no day missing
+from the 121–151 range bar the excluded 139.
+
+**Repeatability over the full month: median N 2.8 mm, E 3.0 mm, U 10.9 mm.**
+Horizontal held steady as the series grew from ten days to thirty (2.9/3.4 mm at
+ten), which is what a stable configuration looks like.
+
+The result that carries weight is the *shape* of the bad days. Scanning all 30
+for stations more than 30 mm from their own mean: **25 days are completely
+clean**, five have **exactly one** bad station, and only **two stations** are
+ever involved. A bad configuration degrades every station on every day; bad
+stations degrade themselves. Nothing here points at the PCF.
+
+**TGDN** is fully explained: its sessions run 112 to 1119 epochs against a 2880
+full day, and its two worst days are its two shortest. The "43%" recorded earlier
+came from a single day and understated the variability considerably.
+
+**LGYE is not explained and is the open item.** Full 2880 epochs on every one of
+its bad days, yet a **200 mm** excursion on DOY 137. Session length is ruled out.
+It is recorded as open rather than attributed to a guess — the same discipline
+applied to S01R in §4b.9.
+
+### 19.7 Capacity, measured rather than assumed
+
+Asked what a full year would cost. Measured during the run rather than
+extrapolated from the per-day figure:
+
+- 333 s/day at 30 stations, consuming **3.94 of 24 cores** — 16% of the machine.
+- A year at this configuration: **~34 h serial**, or **~7 h** at five concurrent
+  days. Storage is ~1.5 GB/year, so the whole sixteen-year series is ~23 GB.
+- Parallelism needs **one campaign directory per worker**; `$P/LUZON` holds the
+  working files for whichever day is in flight, which is why the driver takes a
+  single-instance lock.
+- Scaling to the ~135-station national network is **estimated** at 4–8× per day
+  and must be measured, not modelled.
+- `MAXPAR` is 1000 and 135 stations need ~405 parameters, so the ceiling sits
+  near 330 stations — but only because `TROPEST 0` pre-eliminates the troposphere
+  parameters, which would otherwise dominate. Worth knowing before anyone points
+  this at the 417-entry CRD.
+
+**None of this is the binding constraint.** We hold 31 days of observations. The
+compute budget for the full series is weeks, entirely tractable, and irrelevant
+until the data exists.

@@ -7,8 +7,25 @@ the DOSTB drive to `/srv/gnss-archive/processed/luzon-bern52/`.
 comparison ng results / adjustment (fine tuning) ng PCF."* Reprocess Abegail's
 LUZON network under 5.4, reproduce her 5.2 numbers, and only then tune.
 
-**Status: not yet run.** Everything below about *inputs* is measured on gps3.
-Everything about *execution* is untested — §5 lists what only a run will settle.
+**Status as of 2026-08-06: RUN, and it completes.** 30 of the 31 days processed
+end to end with **zero failures** in 2h47m (§4b.8–§4b.10). Repeatability is
+median N 2.8 mm, E 3.0 mm, U 10.9 mm.
+
+Two things that section headings below will not tell you, so read them here:
+
+1. **It ran under I20, not I14.** I14 cannot run on 5.4 at this epoch — the
+   satellite tables end in 2023 and the ANTEX fails a consistency check 5.2 did
+   not perform (§4b.6). **These coordinates are therefore NOT comparable with
+   Abegail's `F1_25*` series**, and differencing them will show a frame and
+   antenna-model change, not a Bernese-version effect. The stated goal at the top
+   of this document — reproduce her numbers — is **not** what this run achieved.
+2. **Only 31 days of 2025 can be reprocessed at all**, verified by census (§7).
+   She solved 365. The rest of the sixteen-year series has solutions and no
+   inputs.
+
+Sections below marked "not yet run" or "untested" predate 2026-08-06 and are
+left in place because the reasoning that led to them is still worth reading;
+§4b.7 onward records what actually happened.
 
 **Revised twice on 2026-08-05.** §1.1 replaces an earlier conclusion that the
 reference solutions did not exist — they are in `SAVEDISK/`. §1.1a replaces a
@@ -580,6 +597,321 @@ exclusions and documenting them.
 
 Option 1 first. It is the only one that does not change what is being measured.
 
+### 4b.6 Answered: how 5.2 tolerated it, and why 5.4 will not
+
+Her retained processing summary — `SAVEDISK/2025/OUT/R2S251210.PRC`, 56,781
+lines — settles the question §4b.5 posed.
+
+**Her run completed with 26,172 warnings and 3 errors.**
+
+```
+### SR RCVOBS: Satellite/system not found      (x thousands)
+                Receiver name    : TRIMBLE ALLOY
+                PRN              : E02 / E03 / R01
+
+*** SR R2RDOH : NUMBER OF SAT. (NUMLST) > MAXSAT   136 > 135
+*** PG RXOBV3: TOO MANY OUTPUT FILES DEFINED       31 defined, 30 found
+```
+
+`###` is a warning in Bernese, `***` an error. **She had all three `***` errors
+and still produced `F1_251210.SNX`.** So 5.2 pressed on through conditions 5.4
+treats as fatal — the version difference is real, and it is one of tolerance
+rather than capability.
+
+The `RCVOBS` warnings also confirm her data *was* multi-GNSS (Galileo and
+GLONASS PRNs on a TRIMBLE ALLOY): `V_SATSYS=GPS` meant those observations were
+warned about and skipped, not absent.
+
+#### The I14 model set is retired, and 5.4 enforces what 5.2 did not
+
+Two independent blockers, neither a configuration error:
+
+**1. Satellite tables end in 2023.** Hers 2023-01-31; 5.4's `SATELLIT_I14.SAT`
+2023-08-10; `SATELLIT_I20.SAT` 2024-09-17. **AIUB no longer publishes
+`SATELLIT_I14.SAT`** — `BSWUSER54/CONFIG/` returns 404 for I14, 200 for I20.
+Against 2025 data the PRN→SVN resolution lands on stale entries, and CODSPP
+stops on `BLOCK IIR-A 044` — a satellite that *is* in the antenna file.
+
+**2. The I14 ANTEX fails 5.4's consistency check.** Her run logs *"Antenna phase
+center model updated with: I14.ATX"*, so `V_MYATX=I14.ATX` and ATX2PCV merged it.
+On 5.4 that is rejected outright:
+
+```
+*** PG ATX2PCV: Given SVN and PRN inconsistent in ANTEX file.
+                File not converted!      PRN: 22   SVN: G041
+```
+
+All three variants in her tree fail it — `I14.ATX` carries four `G041` entries
+with different PRN mappings across epochs; `I14-orig.ATX` and `I14_1.ATX` carry
+one each and fail the same way. A file 5.2 consumed without complaint is invalid
+to 5.4.
+
+**Setting `V_MYATX` therefore fails EARLIER (PID 002) than leaving it blank
+(PID 232).** It is left blank, with that reasoning recorded at the override.
+
+#### What this means for the exercise
+
+**Reproducing her I14 numbers on 5.4 is not a configuration problem to be
+solved — it runs into a retired model that 5.4's stricter validation rejects.**
+The honest options:
+
+| Option | Cost |
+|---|---|
+| **Run under I20** | Tables current to 2024-09 and ANTEX consistent. Answers *"does the pipeline work"* — **not** *"does it reproduce her numbers"*, since it introduces the §1.4 frame difference the exercise exists to isolate. |
+| Source updated I14 tables | They are not published. Would need another archive or a hand-repaired ANTEX. |
+| Relax 5.4's validation | Not obviously possible, and it would mean processing data the software considers inconsistent. |
+
+**Recommendation: run I20 first, explicitly as a pipeline test rather than a
+comparison.** It establishes that the 31-day chain executes end to end on this
+machine, which is BRN-001 acceptance evidence in its own right. The I14
+comparison then becomes a separate question — and the finding that I14 cannot be
+run on 5.4 at this epoch is itself a result worth reporting to Abegail, since it
+bears on how the LUZON series can be continued at all.
+
+### 4b.7 I20 pipeline test: the chain runs, and where each configuration stops
+
+**I20 cleared the I14 blocker, confirming §4b.6.** Same PCF, same data, same
+GPS-only selection; only the frame/antenna triple changed.
+
+| Configuration | Furthest PID | Time | Result |
+|---|---|---|---|
+| **24 local stations** (RINEX 2 only) | **513 HELMCHK** | 4m12s | **`FIN_20251210.NQ0` produced** |
+| **32 stations** (+ 9 RINEX 3 fiducials) | 322 GPSEDT | 3m22s | fails earlier |
+
+**The 24-station run is the deepest yet and produced a final ambiguity-fixed
+solution.** Its only failure is the closing QC gate:
+
+```
+*** PGM HELMR1: NO REDUNDANCY. NO VERIFICATION OF SITES POSSIBLE
+```
+
+Cause understood: **5.4's stock `RNX2SNX.PCF` has no `V_RX3DIR`** — that variable
+is specific to her extended 5.2 PCF — so the RINEX 3 fiducials were never staged,
+and none of the 24 locals is an IGS20 reference station. Nothing to transform
+against.
+
+`RNX_COP` in 5.4 *does* handle RINEX 3 natively (it globs long names from the
+same `${rnxDir}`), so the fix is to stage RINEX 2 and RINEX 3 into **one**
+directory rather than two. Done, with BASC/CLAV de-duplicated in favour of
+RINEX 3 per §1.1a. All 32 stations then staged and **`RXOBV3` passed** — every
+station matched a `LUZON.STA` entry, no hard abort.
+
+#### But the fiducials introduce a new stop: ocean loading
+
+```
+*** SR GTOCNL: OCEAN LOADING CORRECTION VALUES NOT FOUND
+               STATION NAME : ALIC 50137M001
+               FILE NAME    : ${P}/LUZON/STA/LUZON.BLQ
+```
+
+**No `.BLQ` anywhere in her tree contains ALIC.** All four copies of
+`LUZON.BLQ` are identical (1,544 lines) and cover only the local network. So
+either her run did not process the fiducials' observations — using them purely
+as datum constraints — or 5.2 warned where 5.4 errors. Given §4b.6's finding
+that 5.2 completed with 3 `***` errors, the second is more likely.
+
+**This is the same shape as everything else in §4b: a check 5.4 enforces and 5.2
+did not.** It is now the fourth instance.
+
+#### Consequence for scheduling
+
+There is **no configuration that completes a single day cleanly**:
+
+- 24 stations → reaches the end, produces `FIN_*.NQ0`, fails datum verification
+- 32 stations → fails at baseline editing on missing ocean-loading coefficients
+
+A multi-day batch is therefore **not yet worth running.** What a 31-day run of
+the 24-station configuration would establish is throughput and stability — real,
+but modest against what is already known from one day — and every solution it
+produced would lack datum control.
+
+**The next task is to obtain ocean-loading coefficients for the nine fiducials**
+(free from the Onsala/Chalmers BLQ service) and merge them into `LUZON.BLQ`.
+That closes the last known gap and makes both the datum verification and a
+multi-day run meaningful at the same time.
+
+### 4b.8 Closed — one day complete, and the month launched (2026-08-06)
+
+The ocean-loading gap is closed. Coefficients for the nine fiducials came from
+the Chalmers/Onsala service (FES2004, CMC:NO, Gutenberg-Bullen — chosen to match
+the 135 existing stations, not for being newest) and merged into `LUZON.BLQ` via
+`scripts/merge_blq.py`. **DOY 121 then completed cleanly:** `Sessions finished:
+OK: 1 Error: 0`, 5m36s, 30 stations in `FIN_20251210.SNX` — the same count
+Abegail's run produced — with `HELMCHK` and `COMPARF` both passing.
+
+So both failure modes in the table above are resolved, and the answer to "is a
+multi-day batch worth running" flipped. `scripts/run_luzon_month.sh` runs
+2025 DOY 121–151 and was launched on 2026-08-06.
+
+**Results go to `${S}/LUZON/$Y+0`, not the stock `${S}/RNX2SNX/$Y+0`.** Every
+RNX2SNX-derived campaign shares the stock path, so `EXAMPLE`'s output would land
+beside LUZON's with nothing in the filename to separate them.
+
+**DOY 139 is excluded, and this is a data-holdings finding rather than a
+processing one.** Our copy of her `DATAPOOL/LUZON` holds exactly one RINEX2
+station for that day (`TGDN`) where every neighbouring day holds 25 — yet
+`F1_251390.SNX` exists in her `SAVEDISK`, so the observations were present when
+she processed. **Our copy of that day is short; the original was not.** Worth
+raising alongside the I14 finding, because it means the transferred set is not a
+complete mirror of what she worked from, and nothing else has yet checked for
+other such days outside this 31-day window.
+
+Running it anyway would have produced a solution from the nine fiducials plus
+TGDN — whose own session is 43% of a day (§4b.10) — sitting in `SOL/` beside
+thirty proper ones and distinguishable only by opening it. Ten stations of which
+nine are fiducials is not a Luzon network solution.
+
+*(An earlier version of this paragraph said TGDN was "one of the two stations
+DOY 121 dropped" and would therefore be absent too. TGDN is dropped on DOY 121
+only; it appears in the other nine solutions. The conclusion is unchanged —
+the day is degenerate either way — but the reasoning was wrong.)*
+
+### 4b.9 Two stations differ from her run, and neither is the frame
+
+Comparing DOY 122 station-for-station against her `F1_251220.SNX`: **30 of 31
+stations agree. She has `S01R` and not `PIMO`; we have `PIMO` and not `S01R`.**
+The counts match at 31, which is why this went unnoticed — a station-count check
+would have passed.
+
+`PIMO` is straightforward: it is one of the nine fiducials we stage from
+RINEX3, and her fiducial set did not include it.
+
+**`S01R` is the one to look at.** It is absent from *all ten* of our solutions so
+far, and present in hers. What is verified:
+
+- Its RINEX samples at **15 s** where every other station samples at 30 s
+  (5760 epochs against 2880).
+- It is present in `LUZON.CRD`, `.STA`, `.BLQ`, `.CLU` and `.ABB`, and appears in
+  `FIN_*.CRD` — but **carries no estimation flag**, i.e. it is the a priori value
+  passed through, never solved. Estimated stations carry `G`.
+- It has entries in `BSL_*.BSL` but produces **no observation files** under its
+  `S0` abbreviation.
+- **No `***` message anywhere in the BPE logs names it.** It leaves the solution
+  silently.
+
+What is *not* established is the cause. The obvious suspect — the 15 s sampling
+— does not survive contact: `V_SAMPL = 180`, and 180 divides evenly by both 15
+and 30, so decimation alone should not exclude it. **Do not record the sampling
+interval as the explanation until someone has traced the import step.**
+
+The consequence is worth stating plainly: a station in the network contributes
+to her results and nothing to ours, and the pipeline reports success either way.
+That is the same defect class as §19.3 of the session log, this time in Bernese
+rather than in our own tooling.
+
+### 4b.10 Repeatability: the solutions are good, and that is not the same as correct
+
+`scripts/coord_repeatability.py` over the **completed 30 days** gives **median
+N 2.8 mm, E 3.0 mm, U 10.9 mm** across 31 stations — ordinary for daily
+double-difference solutions, and the first evidence that the derived PCF is not
+merely executable but sound. Horizontal held steady as the series lengthened
+(2.9/3.4 mm at ten days), which is what a stable configuration looks like.
+
+**This is precision, not accuracy.** A solution in the wrong reference frame
+would show the same repeatability, because every day would be wrong identically.
+It is not evidence about I20 versus I14 and must not be quoted as such.
+
+**By a single-station threshold, no day is bad network-wide** — see §4b.11 for
+why that qualifier matters and turns out to be wrong for a different, more
+consequential reason. Scanning all 30 days for stations more than 30 mm from
+their own mean: **25 days are completely clean**, and the other five have
+**exactly one** bad station each. Only two stations are ever involved.
+
+| DOY | stations >30 mm | worst |
+|---|---|---|
+| 124 | 1 | TGDN 66 mm |
+| 137 | 1 | LGYE 200 mm |
+| 138 | 1 | TGDN 67 mm |
+| 140 | 1 | LGYE 35 mm |
+| 151 | 1 | LGYE 111 mm |
+
+That distinction carries the weight. A bad *configuration* degrades every station
+on every day; bad *stations* degrade themselves. This is the second pattern.
+
+**TGDN is fully explained by session length**, and the 43% figure quoted from
+DOY 122 understated it — sessions vary enormously day to day:
+
+```
+DOY 123: 875 epochs    DOY 124: 124 epochs   (~1 hour)
+DOY 137: 1119 epochs   DOY 138: 112 epochs
+```
+
+Its two worst days are its two shortest. Nothing to fix in the pipeline.
+
+**LGYE is not explained by session length.** It has a **full 2880 epochs on
+every one of its bad days** (137, 140, 151). It is, however, **ruled out as a
+seismic event** by §4b.11's neighbour check: BLN2 sits 51 km away and stays
+within 3 mm on both of LGYE's worst days. A real earthquake large enough to
+move LGYE 200 mm would move BLN2 too. **This is open as a station/processing
+problem** — ambiguity resolution failing on that day, or a site-specific issue
+at LGYE — but closed as a possible earthquake.
+
+**ANTP** — 30.1 mm vertical with normal horizontals across the month, on
+full-length sessions. Elevated but never an outlier by the 30 mm horizontal test;
+older LEICA GRX1200GGPRO / LEIAT504 equipment.
+
+### 4b.11 A single-station threshold misses the signal this project exists to
+### detect — network coherence, checked properly
+
+§4b.10's "no day is bad network-wide" used a 30 mm **single-station** threshold.
+That is the wrong test for a seismic event: a real earthquake displaces several
+**nearby** stations **together**, often by amounts well under what would flag
+any one of them alone. `scripts/network_coherence_scan.py` checks for that
+directly — pairs of stations within 120 km both exceeding 8 mm horizontal
+(≈2.5× the median repeatability) in the same direction (cosine similarity >0.5).
+
+**It found what the single-station scan missed. DOY 126 (2025-05-06): 14
+stations moved together, 8–30 mm, dozens of coherent pairs across the entire
+southern-to-central Luzon cluster** — ALAB, ANTP, BLN2, CAC2, GUMA, GUNG, IBAZ,
+MAUB, MLPA, PIMO, SAPN, TANY, TGDN, and more. Smaller versions of the same
+pattern appear on DOY 129 (8 stations) and DOY 145 (13 stations). None of these
+were visible in §4b.10 — no single station on DOY 126 individually cleared
+30 mm by much (ANTP peaked at 29.8), so a network-wide 14-station shift hid
+inside a check built to catch one bad station.
+
+**Distinguishing a real event from a processing artifact: is it a step or a
+spike?** A coseismic offset is permanent — it persists in every subsequent
+day's solution because the ground actually moved. Reading the day-by-day series
+for the DOY 126 stations: DOY 125 is quiet (1–8 mm, ordinary), DOY 126 jumps to
+9–30 mm across nearly the whole network — including BLN2, IBAZ and TGDN in the
+north, so it is not confined to one geographic cluster — and **DOY 127 drops
+straight back to 1–5 mm.** That is a spike, not a step, and a spike that
+reverts completely in one day is the signature of something specific to that
+day's processing, not of ground motion.
+
+**Corroborated against the catalog.** A web search against PHIVOLCS/USGS
+reporting found **no earthquake recorded on 2025-05-06, 05-09, or 05-25** — the
+three flagged dates. There **is** a confirmed M4.6 near General Nakar, Quezon on
+**2025-05-27 (DOY 147)**, and checking the stations nearest that epicenter
+(POLI, MAUB, GUMA, and others) on that date shows **no anomaly at all** — 0.5 to
+6.8 mm, ordinary noise. That is a useful negative control: a real but small
+(M4.6) event at tens of km from the nearest station is below what daily static
+GNSS resolves, and the scan correctly stays quiet for it rather than
+manufacturing a signal out of noise. Both halves — flagging three unexplained
+network-wide days with no earthquake behind them, and staying silent for a
+real one too small to see — say the method is behaving sensibly.
+
+**The technical cause of the DOY 126/129/145 spikes is not identified.** Two
+candidates were checked and ruled out: the CODE SP3 orbit file for DOY 126 is a
+normal size (no truncation), and the fiducial-fixing list in `HLM_20251260.FIX`
+is identical to every ordinary day — just AIRA. Whatever produces a whole-day,
+whole-network, fully-reverting shift remains open. Recorded as unexplained
+rather than assigned a plausible-sounding cause, on the same principle as the
+S01R and LGYE findings above.
+
+**What this means for anyone using this pipeline for actual event detection**:
+a single-station outlier check is not sufficient and will miss a coordinated
+multi-station shift unless it happens to also blow past the single-station
+threshold. Any future monitoring built on this pipeline needs the coherence
+check as a matter of course, not as an afterthought — and needs the step/spike
+distinction made explicit, since an automated system that flags DOY 126 as
+"earthquake" without checking DOY 127 would have been wrong.
+
+**The month is a pipeline test under I20, not a comparison.** §4b.6 stands: I14
+cannot run on 5.4 at this epoch. Do not difference these coordinates against the
+`F1_25*` series and attribute the residual to a Bernese version change — the
+frame and antenna model both moved.
+
 ## 5. Open questions — resolvable only by running it
 
 Most of the original list closed during the 2026-08-05 configuration survey
@@ -658,3 +990,22 @@ it is why `scripts/sudo/processed_transfer.sh` copies it first and alone.
 
 Capturing the raw archive from staff machines is a separate and larger piece of
 work, and it is the precondition for ever reprocessing the full LUZON history.
+
+**Confirmed by census, 2026-08-06.** The claim above was carried forward from the
+transfer handover; it has now been checked directly against both trees:
+
+```bash
+find /srv/gnss-archive /home/gps3/GPSDATA -name '????[0-3][0-9][0-9]0.25[oOdD]' \
+  | sed 's|.*/....\([0-9]\{3\}\)0\.25.|\1|' | sort -u
+```
+
+Both return exactly DOY 121–151 and nothing else. Against 365 solved days in
+2025 alone, **the reproducible fraction of that year is 8.5%**, and of the
+sixteen-year series, well under 1%.
+
+Within the reproducible month, one day is itself short: **DOY 139 holds one
+RINEX2 station where its neighbours hold 25**, though she solved it — so even our
+"complete" month is 30 days, not 31 (§4b.8). Her `DATAPOOL/LUZON` is a rolling
+staging area holding roughly a month, not an archive; what was transferred is a
+snapshot of that window, which is why the boundary falls where it does rather
+than at anything meaningful in the data.
