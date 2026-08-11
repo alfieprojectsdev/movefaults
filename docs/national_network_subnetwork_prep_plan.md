@@ -163,6 +163,95 @@ within one run today, between regional campaigns at national scale.
   Cebu) inside a sparse national spread, rather than either pure strategy.
   Not yet checked against what `LUZON_DLY` currently uses.
 
+## Tier 2 findings — 2026-08-11/12
+
+**Read: DOCU52 §9.3.7 (pp. 220–222), §9.4.9 (pp. 233–236), §9.5.1 (p. 237),
+§10.2.2–10.2.3 (pp. 246–251), §22.12.3 (p. 529). Cross-checked against our own
+`R2S_FIN` panels and DOY 121/125/126/129/145 output, not just read.**
+
+### The datum-definition recipe, complete and concrete
+
+Four datum-definition types exist, ranked least to most rigid, and the manual
+is explicit about which is recommended:
+
+1. **Free network** — no datum info at all; only useful to produce NEQs whose
+   datum gets defined *later* in ADDNEQ2, or for PPP with fixed clocks. Unusable
+   on its own — "considerable translations for different days."
+2. **Minimum constraint** — Helmert conditions on the **barycenter of an
+   ensemble** of reference sites, not any single one. *"The best suited way for
+   the datum definition of a network... recommended method to estimate final
+   results, when the satellite orbits and EOPs are fixed."* Small errors at one
+   reference site don't distort the whole network — that's the whole point.
+3. **Constraining** — tunable tightness; a single-site constraint is a
+   *degenerate special case* of minimum constraint, explicitly flagged as
+   inferior: "an error in the position of the single reference site propagates
+   into the positions of all other sites in the network."
+4. **Fixing** — hardest, **not recommended**: removes the parameter from the
+   NEQ entirely, freezing the datum irreversibly. Use tight constraints (e.g.
+   0.01 mm) instead if a near-fixed effect is wanted.
+
+**§9.5.1's worked recipe for exactly the subnetwork-combination case**: cluster
+baselines with minimum inter-cluster overlap (to minimize the correlations
+being neglected) → run each cluster in GPSEST with `CORRECT` correlations and
+**"Stop program after NEQ saving"** enabled (panel `GPSEST 3.2`) so GPSEST
+produces only a cluster NEQ file, not a solved result → combine via ADDNEQ2
+using **minimum constraint**, not fixing → verify the reference-site set via
+**`HELMR1`** (Helmert-transform comparison of estimated vs. a priori
+coordinates) → exclude sites with significant deviations → **redo the
+combination with the verified set**. This is an explicit loop, not a one-shot
+combination.
+
+**§22.12.3 closes the loop mechanically**: `HELMR1` can write an outlier list
+directly, and the BPE can jump back to redefine the datum with the modified
+station selection automatically — and *this exact quality-monitoring feature
+is built into the stock `RNX2SNX.PCF`* that `derive_luzon_pcf.py` derives
+`LUZON_DLY` from. We inherited this mechanism; nobody built it for this
+project.
+
+### This explains our own `HLM_*.FIX` file, and inverts what it looked like at first
+
+Before reading this, `HLM_*.FIX` containing only `AIRA` on every day looked
+like it might be a single-station-fixed datum anchor — exactly the fragile
+pattern §10.2.2.3 warns against. **Checked against the actual `.PRC` output
+rather than left as a guess**: the HELMR1 table on DOY 121 shows **seven**
+fiducials evaluated (AIRA, ALIC, DAEJ, DARW, MCIL, PIMO, PNGM), flagged `I A`
+(AIRA) vs. `I W` (the other six). AIRA's residual (East −32.77 mm) dwarfs the
+ensemble RMS (East 3.38 mm); the other six sit within single digits.
+**`HLM_*.FIX` is `HELMR1`'s verification *output* — the excluded-outlier list,
+not an input anchor.** AIRA is being correctly identified and rejected every
+day; the datum is genuinely defined by the barycenter of the remaining six —
+the recommended minimum-constraint approach, working as designed, inherited
+for free from the stock PCF.
+
+**Checked whether AIRA's exclusion correlates with the DOY 126/129/145
+network-wide spikes (runbook §4b.11) — it doesn't.** AIRA's East residual
+across five spot-checked days: DOY 121 −32.8 mm, 125 −30.9 mm, **126 −28.5 mm**
+(the worst spike day shows the *smallest* AIRA deviation of the five), 129
+−32.7 mm, 145 −45.5 mm. Chronic, stable, day-independent. This rules out the
+hypothesis that a single AIRA glitch drives the spike days — it's a separate,
+real, still-unexplained finding (why is AIRA's a priori coordinate 30–45 mm
+off in East, consistently, every day?) worth investigating on its own, not
+folded into §4b.11's mystery.
+
+### Practical answers to the Tier 2 table's original questions
+
+- **Can `FIN_*.SNX` feed a later regional combination directly?** Only if
+  written with `Content of SINEX = NEQ` (not `COV`) — `COV` bakes constraints
+  into `SOLUTION/MATRIX_APRIORI`, complicating reuse. **Not yet checked what
+  our `R2S_FIN`'s `ADDNEQ2.INP` currently sets this to** — concrete next
+  action, not yet done. `SNX2NQ0` is the actual converter back to NEQ form for
+  combination, confirmed to exist and do what `ADDNEQ2.HLP` implied.
+- **A priori constraint matrix must be regular** for SINEX exchange — a
+  genuinely free/minimum-constraint solution can produce a singular one,
+  needing `Regularize a priori constraint matrix = YES` (adds ~1e-7 to the
+  diagonal) to be usable downstream. A real gotcha for combining regional
+  minimum-constraint solutions later, not just a theoretical footnote.
+- **How do regional subnetworks tie to one consistent datum?** Minimum
+  constraint on the barycenter of whichever fiducials/reference stations are
+  **shared across regions**, verified and pruned via the same HELMR1 loop each
+  region already inherits individually. Not a new mechanism to design — the
+  same one, applied to the union of each region's verified reference set.
+
 ## Explicitly out of scope for this plan
 
 - Anything already answered for the 31-day LUZON exercise (directory
