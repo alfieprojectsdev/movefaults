@@ -974,13 +974,78 @@ manufacturing a signal out of noise. Both halves — flagging three unexplained
 network-wide days with no earthquake behind them, and staying silent for a
 real one too small to see — say the method is behaving sensibly.
 
-**The technical cause of the DOY 126/129/145 spikes is not identified.** Two
-candidates were checked and ruled out: the CODE SP3 orbit file for DOY 126 is a
-normal size (no truncation), and the fiducial-fixing list in `HLM_20251260.FIX`
-is identical to every ordinary day — just AIRA. Whatever produces a whole-day,
-whole-network, fully-reverting shift remains open. Recorded as unexplained
-rather than assigned a plausible-sounding cause, on the same principle as the
-S01R and LGYE findings above.
+**The technical cause of the DOY 126/129/145 spikes is not identified.** Three
+candidates have now been checked and ruled out:
+
+1. The CODE SP3 orbit file for DOY 126 is a normal size — no truncation.
+2. `HLM_20251260.FIX` is identical to every ordinary day — just AIRA.
+   *(That file was described here as a "fiducial-fixing list" when this section
+   was written. It is not: it is `HELMR1`'s **rejected**-station output — see
+   §4b.12. The observation stands, the label was wrong.)*
+3. **AIRA's own residual does not spike on the spike days** — see §4b.12.
+   DOY 126, the worst spike day, carries AIRA's *smallest* East deviation of
+   five days checked.
+
+Whatever produces a whole-day, whole-network, fully-reverting shift remains
+open. Recorded as unexplained rather than assigned a plausible-sounding cause,
+on the same principle as the S01R and LGYE findings above.
+
+### 4b.12 AIRA is rejected from the datum every day — a separate open finding
+
+Surfaced 2026-08-12 while reading DOCU52 §10.2 on datum definition, and
+verified against the installed panels rather than inferred.
+
+**How the datum is actually defined here** — worth stating because the file
+names invite the opposite reading. `HELMR1` (PID in `R2S_FIN`) compares the
+estimated coordinates against the a priori reference frame by Helmert
+transformation with **three translations only** (`HLM_1/2/3 = 1`;
+`HLM_4/5/6/7 = 0` — no rotations, no scale), which is §10.2.2.2's recommended
+no-net-translation condition for a regional network. It writes two files:
+
+| file | panel field | contents |
+|---|---|---|
+| `HLM_<yyyyddd>0.FIX` | `LISTFIL`, *"List of rejected stations"* | **AIRA alone** |
+| `REF_<yyyyddd>0.FIX` | consumed by `ADDNEQ2` as `FREESTA_F` | **the other six** |
+
+So the geodetic datum is the **barycenter of six fiducials** (ALIC, DAEJ,
+DARW, MCIL, PIMO, PNGM) — a minimum-constraint solution, which §10.2.2.2 calls
+"the best suited way for the datum definition of a network." **This is not a
+fragile single-station anchor**, which is what `HLM_*.FIX` containing one name
+looks like at first glance.
+
+> Note for anyone checking this against the manual: DOCU52 §22.12.3 describes
+> HELMR1 as writing "a station selection file containing only those stations
+> that **passed** the outlier criterion" — the opposite of what this panel
+> does. The installed `DESCR_LISTFIL` and the actual file contents are
+> authoritative for this install.
+
+**The open finding: AIRA fails the outlier test every single day.** Its East
+residual runs −29 to −45 mm against a component RMS of ~3.4 mm:
+
+```
+DOY 121  N +13.25  E −32.77  U −19.04   (component RMS: 5.00 / 3.38 / 6.61)
+DOY 125  N +10.15  E −30.93  U −20.97
+DOY 126  N  +8.10  E −28.49  U  −5.68
+DOY 129  N +16.67  E −32.71  U −20.74
+DOY 145  N  +9.28  E −45.46  U  −9.67
+```
+
+AIRA is one of the nine staged fiducials, so this is not a marginal station
+quietly dropping out — it is a reference site whose a priori coordinate
+disagrees with the observations by an order of magnitude more than its peers,
+consistently.
+
+**The pipeline is handling it correctly** — detecting and excluding it daily,
+exactly as designed — so this is a data-quality question, not a processing
+failure, and it does not invalidate the 30-day solutions. Candidates not yet
+investigated: a stale or wrong entry for AIRA in the `IGS20_R.CRD`/`.VEL`
+reference files; an unmodelled discontinuity in its position history
+(equipment change or coseismic offset — AIRA is in Japan); or a genuine
+problem at the site.
+
+**Practical consequence if it is ever fixed:** the datum would gain a seventh
+station, which would slightly change every coordinate in the series. Worth
+knowing before anyone treats a re-run as directly comparable.
 
 **What this means for anyone using this pipeline for actual event detection**:
 a single-station outlier check is not sufficient and will miss a coordinated

@@ -1801,11 +1801,109 @@ manual) gives `MAXSTA=3000`, `MAXREC=1000` — real compiled Fortran
 `PARAMETER` limits, unlike `MAXPAR`. A ~135–425 station PH network is nowhere
 close.
 
-### 20.8 State at end of 2026-08-11
+### 20.8 All four tiers worked through — 2026-08-12
 
-- PRs this session: #67 (merged), #69 (merged, S01R sourcing), #70 (open —
-  the reading plan itself).
-- Manuals live at `/home/gps3/bernese-docs/`, indexed in memory.
-- Next: work through the reading plan's Tier 1, per the user's explicit
-  instruction, documenting durably at the end of each tier rather than only
-  in conversation.
+Findings are recorded per tier in the plan document itself rather than here;
+this is the summary and the corrections.
+
+**The answer to the question that prompted the plan: subnetworks, and the
+mechanism is one this pipeline already runs.** MKCLUS → GPSEST (with
+`CORRECT` correlations, stopping after NEQ save) → ADDNEQ2 under minimum
+constraint, with a HELMR1 reference-site verification loop. `LUZON_DLY`
+already does this inside one campaign; national scale is the same pattern at a
+coarser, independently-executed grain. **No new architecture to design, and no
+architecture decision left open.**
+
+**Two claims in my own plan were wrong and were corrected in place:**
+
+1. **Tier 1 — clustering is not the subnetwork boundary.** `SNGDIF` forms
+   baselines across the entire station set it is given, then assigns each
+   baseline to a cluster *afterward* by its first station. Clustering does not
+   prevent cross-region baselines; it only decides which GPSEST batch handles
+   one. The real boundary is simply **which stations are in the campaign when
+   `SNGDIF` runs** (§22.12.1) — an independent regional run given only that
+   region's roster cannot form a cross-region baseline at all.
+2. **Tier 3 — the double- vs. zero-difference "decision" was a false
+   premise.** `RNX2SNX.PCF` estimates coordinates, troposphere and velocities
+   for a regional network; `CLKDET.PCF` determines station and satellite
+   *clock* corrections. Different jobs, not two ways to do one. For
+   deformation monitoring `RNX2SNX.PCF` is straightforwardly correct, and
+   `LUZON_DLY`'s inheritance of it was right rather than accidental.
+
+**Two practical results worth carrying forward:**
+
+- **Our existing `FIN_*.SNX` can feed a subnetwork combination via `SNX2NQ0`
+  without reprocessing** — they are already in NEQ representation. Getting
+  this right required not trusting the obvious panel value: `R2S_FIN`'s
+  `SNXCONT="COV"` is **inert**, because its `SINEXRS` filename field is empty
+  and `SNXCONT` is gated on `activeif = SINEXRS /= _`. Only `R2S_RED` (PID
+  521) writes SINEX, with `SNXCONT=NEQ`. A panel value that is never consumed
+  reads exactly like one that is.
+- **FODITS substantially supersedes `scripts/network_coherence_scan.py`** —
+  significance testing, seasonal/periodic modelling, velocity changes,
+  equipment-change discontinuities from the `STA` file, a USGS-derived
+  earthquake list, and aftershock screening. Our script should be treated as a
+  stopgap. Caveat: FODITS targets multi-year series, so it becomes the right
+  tool as the reprocessed archive grows, not immediately.
+
+### 20.9 Verification pass — one real error, one confirmation that needed it
+
+All Tier 1–4 claims were re-checked against primary sources on request.
+
+**Error found and corrected: the DOY 147 step-test distances.** They were
+computed against General Nakar *town* (verified 14.763 N, 121.635 E) rather
+than the epicentre, which reporting placed **24 km northwest** of it
+(≈14.916 N, 121.477 E). Distances were wrong by up to 24 km — INFA is 26.3 km
+away, not 5.9 km, and POLI and PIMO fall *outside* the M4.6 detectability
+threshold rather than inside it. **The conclusion — no coseismic step at any
+station — is unchanged**, now resting on three in-threshold stations instead
+of four. The azimuth behind the epicentre estimate is an assumption from the
+word "northwest" and is now recorded as such rather than presented as exact.
+
+**Confirmation that genuinely needed the re-check: `HLM_*.FIX`.** DOCU52
+§22.12.3 says HELMR1 writes "a new station selection file containing only
+those stations that **passed** the outlier criterion" — which implies the
+opposite of the Tier 2 reading. The installed panel settles it:
+`DESCR_LISTFIL 1 "List of rejected stations"` in `R2S_FIN/HELMR1.INP`, and the
+file contents prove it end to end — `HLM_20251210.FIX` holds AIRA alone, while
+`REF_20251210.FIX`, which `ADDNEQ2` consumes as `FREESTA_F`, holds exactly the
+six others. **Trusting the manual's phrasing over the installed configuration
+would have inverted a load-bearing finding.**
+
+Confirmed unchanged: three-translation datum at panel level (`HLM_1/2/3=1`,
+`HLM_4–7=0`), `CORREL` values (`R2S_EDT`=BASELINE, `R2S_FIN`=CORRECT), AIRA's
+residuals to the digit (`13.25, −32.77, −19.04`; component RMS
+`5.00, 3.38, 6.61`), and the ambiguity ladder matching the manual's own
+example values exactly (6000/2000/200/20 km).
+
+### 20.10 New open item: AIRA's chronic a priori offset
+
+Surfaced during Tier 2, unrelated to anything previously tracked. **AIRA is
+rejected from the datum definition every single day**, with an East residual
+of −29 to −45 mm across five spot-checked days, against a component RMS of
+~3.4 mm. It is one of the nine fiducials, so this is not a marginal station.
+
+Checked and **ruled out** as the cause of the DOY 126/129/145 network-wide
+spikes (runbook §4b.11): AIRA's deviation is chronic and day-independent, and
+DOY 126 — the worst spike day — shows its *smallest* deviation of the five.
+
+The open question is why a fiducial's a priori coordinate is consistently tens
+of mm off in East. Candidates not yet investigated: a stale entry in the
+IGS20 reference coordinate/velocity files for AIRA, an unmodelled
+discontinuity (equipment change or coseismic offset) in its position history,
+or a genuine problem at the site. The pipeline is handling it correctly — it
+detects and excludes it daily — so this is a data-quality question, not a
+processing failure.
+
+### 20.11 State at end of 2026-08-12
+
+- PRs this session: #67, #69, #70 merged; **#71 open** — session log §20,
+  all four tiers, and the verification pass.
+- Manuals at `/home/gps3/bernese-docs/`, indexed in memory
+  (`reference_bernese_manuals.md`).
+- **Still open, carried forward:** the S01R exclusion mechanism (why that
+  station specifically — Tier 3 confirmed that *silent* dropout is a designed
+  robustness feature of this PCF, which explains the silence but not the
+  selection); AIRA's chronic offset (§20.10); the DOY 126/129/145 spike cause;
+  and the standing S01R-vs-PIMO reference-station decision, where the SOP
+  already grants permission to switch and nothing has acted on it.
