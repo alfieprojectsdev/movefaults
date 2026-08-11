@@ -11,6 +11,7 @@ ever leaves the browser. The server inserts with ON CONFLICT (client_uuid) DO NO
 so duplicate submissions (retry after partial network failure) are safe.
 """
 
+import hashlib
 import uuid
 from datetime import UTC, date, datetime
 
@@ -18,10 +19,11 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from pydantic import BaseModel, model_validator
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from field_ops.database import get_db
-from field_ops.models import LogSheet, LogSheetPhoto, User
+from field_ops.models import LogSheet, LogSheetObserver, LogSheetPhoto, User
 from field_ops.routers.auth import get_current_user
 from field_ops.storage import get_storage
 
@@ -44,6 +46,12 @@ class LogSheetIn(BaseModel):
     maintenance_performed: str | None = None
     equipment_status: str | None = None   # ok | issue_found | repaired
     notes: str | None = None
+
+    # Staff present for this visit. Pydantic ignores unknown keys by
+    # default, so before this field existed the PWA sent observer_ids and
+    # the server discarded them silently — a 201 with zero observers
+    # recorded, and no warning at any layer.
+    observer_ids: list[int] | None = None
 
     # Mode discriminator
     monitoring_method: str | None = None  # "campaign" | "continuous"
@@ -182,7 +190,27 @@ async def submit_logsheets(
     fetched = await db.execute(
         select(LogSheet).where(LogSheet.client_uuid.in_(client_uuids))
     )
-    return list(fetched.scalars().all())
+    rows = list(fetched.scalars().all())
+
+    # Observers. Written after the logsheets exist, because the junction needs
+    # their server-side ids. ON CONFLICT DO NOTHING keeps this idempotent under
+    # the same retry the logsheet upsert already tolerates.
+    id_by_uuid = {str(row.client_uuid): row.id for row in rows}
+    observer_values = [
+        {"logsheet_id": id_by_uuid[str(r.client_uuid)], "staff_id": sid}
+        for r in records
+        if r.observer_ids and str(r.client_uuid) in id_by_uuid
+        for sid in dict.fromkeys(r.observer_ids)  # de-dup, preserve order
+    ]
+    if observer_values:
+        await db.execute(
+            pg_insert(LogSheetObserver)
+            .values(observer_values)
+            .on_conflict_do_nothing(index_elements=["logsheet_id", "staff_id"])
+        )
+        await db.commit()
+
+    return rows
 
 
 @router.get("/logsheets", response_model=list[LogSheetOut])
@@ -232,6 +260,34 @@ async def upload_photo(
         raise HTTPException(status_code=404, detail="Logsheet not found")
 
     contents = await file.read()
+    digest = hashlib.sha256(contents).hexdigest()
+
+    # ── Idempotency ─────────────────────────────────────────────────────────
+    #
+    # A client cannot tell "the upload failed" from "the upload succeeded and
+    # the response was lost coming back" — the ordinary failure on a weak field
+    # link. Without a guard here, every retry of the second case stored the same
+    # image again: several R2 objects and several rows for one observation, and
+    # no way afterwards to say which was the photo the observer meant.
+    #
+    # Content hash rather than a client-supplied id, because it needs no
+    # cooperation from the client and it catches exactly the case that matters:
+    # a retry sends identical bytes.
+    existing = await db.execute(
+        select(LogSheetPhoto).where(
+            LogSheetPhoto.logsheet_id == logsheet_id,
+            LogSheetPhoto.content_sha256 == digest,
+        )
+    )
+    already = existing.scalar_one_or_none()
+    if already is not None:
+        # Return the original, and do NOT touch storage — writing the bytes
+        # again would create a second object even though the row is deduped.
+        return {
+            "photo_id": already.id,
+            "storage_path": already.storage_path,
+            "duplicate": True,
+        }
 
     # Store the bytes BEFORE the row. If this raises, the request fails and the
     # device keeps the photo queued for retry. The reverse order would commit a
@@ -245,8 +301,31 @@ async def upload_photo(
         logsheet_id=logsheet_id,
         filename=file.filename,
         storage_path=storage_ref,
+        content_sha256=digest,
     )
     db.add(photo)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Two concurrent uploads of the same bytes both passed the SELECT above.
+        # The unique index is the actual arbiter; the loser resolves to the
+        # winner's row rather than failing the operator's request.
+        await db.rollback()
+        winner = await db.execute(
+            select(LogSheetPhoto).where(
+                LogSheetPhoto.logsheet_id == logsheet_id,
+                LogSheetPhoto.content_sha256 == digest,
+            )
+        )
+        row = winner.scalar_one_or_none()
+        if row is None:
+            # The constraint fired but no row is visible — that is a genuine
+            # invariant violation, not a duplicate. Surface it.
+            raise
+        return {
+            "photo_id": row.id,
+            "storage_path": row.storage_path,
+            "duplicate": True,
+        }
 
-    return {"photo_id": photo.id, "storage_path": storage_ref}
+    return {"photo_id": photo.id, "storage_path": storage_ref, "duplicate": False}

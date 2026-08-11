@@ -4,7 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1a56a4" />
-    <link rel="manifest" href="/manifest.json" />
+    <!-- No manifest link here on purpose. vite-plugin-pwa injects the
+         correct <link rel="manifest" href="/manifest.webmanifest"> at
+         build time. A hardcoded /manifest.json shadowed it (the browser
+         takes the first such link) and, with vercel.json's catch-all
+         rewrite, resolved to index.html with HTTP 200 rather than 404 —
+         so parsing failed and the app could not be installed at all. -->
     <title>POGF Field Ops</title>
     <script>
       // Set the theme before first paint. Without this the page renders light

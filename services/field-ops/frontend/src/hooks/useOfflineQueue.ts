@@ -242,9 +242,16 @@ async function runFlush(): Promise<void> {
 
     // Both halves are on the server. Drop the blob to reclaim device storage;
     // keeping it would fill the quota with data that is already safe.
+    //
+    // _photoUploaded is set only where a photo actually existed. Setting it
+    // unconditionally made QueueView report "photo sent" for records that never
+    // carried one — including everything queued under store v1, when the
+    // offline path discarded the photo outright. Telling an operator their
+    // photo was sent is exactly the false reassurance this rewrite exists to
+    // remove, and it hides the one case where returning to the site still helps.
     await db.put("logsheet_queue", {
       ...fresh,
-      _photoUploaded: true,
+      ...(fresh._photo || fresh._photoUploaded ? { _photoUploaded: true } : {}),
       _status: "synced",
       _photo: undefined,
     });

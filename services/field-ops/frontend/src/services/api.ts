@@ -170,11 +170,25 @@ export async function fetchStaff(): Promise<Staff[]> {
 
 // ── Logsheets ───────────────────────────────────────────────────────────────
 
+/**
+ * Submit one logsheet.
+ *
+ * The endpoint takes a LIST — deliberately, so the offline queue can flush a
+ * whole day as one request. This wrapper previously POSTed a bare object, which
+ * FastAPI rejected 422 ("Input should be a valid list"). The form's catch then
+ * queued the record and told the operator "Saved offline", so the online path
+ * had never once worked: every submission was mislabelled and its delivery
+ * deferred until the app happened to reload.
+ */
 export async function submitLogSheet(record: LogSheetIn): Promise<LogSheetOut> {
-  return apiFetch<LogSheetOut>("/logsheets", {
-    method: "POST",
-    body: JSON.stringify(record),
-  });
+  const created = await submitLogSheets([record]);
+  if (created.length === 0) {
+    // The endpoint re-fetches by client_uuid and returns every row it saw, so
+    // an empty list means the record neither inserted nor already existed.
+    // Throwing routes it to the offline queue rather than reporting success.
+    throw new Error("Server accepted the request but returned no logsheet");
+  }
+  return created[0];
 }
 
 export async function submitLogSheets(records: LogSheetIn[]): Promise<LogSheetOut[]> {
