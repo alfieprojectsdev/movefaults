@@ -392,20 +392,31 @@ user-adjustable via "Earthquake factor A/B".)
 
 **Applied to the confirmed M4.6 near General Nakar, Quezon on DOY 147** — the
 event used earlier as a negative control for `network_coherence_scan.py` —
-this predicts detectability out to **~50 km**. Several of our stations are
-well inside that. So this was worth testing properly rather than assuming the
-earlier "no anomaly" conclusion held.
+this predicts detectability out to **~50 km** (solving Eqn. 11.3 for M=4.6:
+`d = 10^((4.6+5.60)/2.17)` = 50.2 km; this radius is independent of where the
+epicentre actually is). Several of our stations are inside that. So this was
+worth testing properly rather than assuming the earlier "no anomaly"
+conclusion held.
+
+**Epicentre caveat — the first version of this table was wrong.** It was
+computed against General Nakar *town* (verified at 14.763 N, 121.635 E) rather
+than the epicentre, which reporting placed **24 km northwest** of the town,
+i.e. ≈**14.916 N, 121.477 E** assuming a 315° azimuth. Every distance below is
+recomputed against that. The azimuth is an assumption from the word
+"northwest," so distances carry roughly ±10 km of uncertainty — enough to move
+a station across the threshold, not enough to change the conclusion.
 
 **A proper pre/post step test (mean of DOY 121–146 vs. 147–151) finds no
-coseismic signal at any station**, including the ones deepest inside the
-threshold:
+coseismic signal at any station**, including the three that sit inside the
+detectability threshold:
 
-| STA | dist (km) | M required | ΔN | ΔE | ΔU | \|ΔH\| |
-|---|---|---|---|---|---|---|
-| INFA | 5.9 | 2.58 | 1.9 | −0.1 | 6.9 | **1.9 mm** |
-| TANY | 32.5 | 4.19 | 0.5 | 0.1 | 1.2 | 0.5 mm |
-| POLI | 36.9 | 4.31 | 0.7 | −0.9 | 1.5 | 1.1 mm |
-| ANTP | 49.1 | 4.58 | 0.7 | 1.6 | 10.6 | 1.7 mm |
+| STA | dist (km) | M required | ΔN | ΔE | ΔU | \|ΔH\| | inside threshold? |
+|---|---|---|---|---|---|---|---|
+| INFA | 26.3 | 3.99 | 1.9 | −0.1 | 6.9 | **1.9 mm** | yes |
+| TANY | 38.9 | 4.36 | 0.5 | 0.1 | 1.2 | 0.5 mm | yes |
+| ANTP | 46.3 | 4.52 | 0.7 | 1.6 | 10.6 | 1.7 mm | yes |
+| PIMO | 53.0 | 4.65 | 1.2 | −1.1 | 1.8 | 1.6 mm | no (marginal) |
+| POLI | 54.3 | 4.68 | 0.7 | −0.9 | 1.5 | 1.1 mm | no (marginal) |
 
 **This is not a contradiction of the criterion — it is what the criterion is
 for.** Eqn. 11.3 is a *candidate-proposal* threshold: it decides which events
@@ -428,10 +439,40 @@ luck, and the method should not be reused as-is.
 
 One caution the step test itself surfaces: **LGYE shows a spurious 19.4 mm
 "step"** purely because its known-bad DOY 151 outlier (runbook §4b.10) falls
-inside the 5-day post-event window. At 202.8 km it is far below the threshold
-anyway. Short post-event windows are badly exposed to single-day outliers —
-another argument for using FODITS's tested outlier handling rather than
-hand-rolled window statistics.
+inside the 5-day post-event window. At 182 km it is far below the threshold
+anyway (M 5.81 required). Short post-event windows are badly exposed to
+single-day outliers — another argument for using FODITS's tested outlier
+handling rather than hand-rolled window statistics.
+
+### Verification pass, 2026-08-12
+
+All Tier 1–4 claims were re-checked against primary sources at the user's
+request. Results:
+
+- **`HLM_*.FIX` is the rejected-station list — CONFIRMED, and worth the
+  re-check.** DOCU52 §22.12.3's wording ("a new station selection file
+  containing only those stations that **passed** the outlier criterion")
+  suggested the opposite reading. The panel settles it:
+  `DESCR_LISTFIL 1 "List of rejected stations"` in `R2S_FIN/HELMR1.INP`.
+  Confirmed end-to-end by content: `HLM_20251210.FIX` holds AIRA alone;
+  `REF_20251210.FIX` — which `ADDNEQ2` consumes as `FREESTA_F` — holds exactly
+  the six others (ALIC, DAEJ, DARW, MCIL, PIMO, PNGM). The datum really is
+  the barycenter of six.
+- **Three-translation datum — CONFIRMED at panel level**, not just from the
+  manual: `HLM_1/2/3 = 1` (shifts), `HLM_4/5/6/7 = 0` (rotations, scale).
+- **`CORREL` values — CONFIRMED**: `R2S_EDT` = `BASELINE`, `R2S_FIN` =
+  `CORRECT`.
+- **AIRA residuals — CONFIRMED exactly**: `13.25, −32.77, −19.04` mm, flagged
+  `V`; component RMS `5.00, 3.38, 6.61`.
+- **Ambiguity ladder — CONFIRMED**: `V_BL_AMB=6000`, `V_BL_QIF=2000`,
+  `V_BL_L53=200`, `V_BL_L12=20` — identical to the manual's own example values.
+- **SINEX representation — CONFIRMED**: only `R2S_RED` sets `SINEXRS`; it
+  writes `NEQ`. `R2S_FIN`/`R2S_GEN` `COV` values are inert.
+- **Step-test distances — ERROR FOUND AND CORRECTED** (see the epicentre
+  caveat above). The conclusion — no coseismic step at any station — is
+  unchanged and now rests on three in-threshold stations rather than four.
+
+
 
 ## Explicitly out of scope for this plan
 
