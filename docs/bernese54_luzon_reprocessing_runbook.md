@@ -819,20 +819,68 @@ log, this time in Bernese rather than in our own tooling — and here it is
 regressing a real, long-standing contributor rather than excluding a
 marginal one.
 
-**Separately: is S01R needed at all?** Asked 2026-08-11, unresolved, and
-worth recording as a standing question rather than settling by inference.
-S01R (marker `IESAS` — Institute of Earth Sciences, Academia Sinica, Taiwan)
-is not one of the nine RINEX3 fiducials that define this network's datum
-(§1.1a) — removing it would not touch reference-frame integrity. Its only
-possible justification is scientific: its own multi-decade position/velocity
-series, at a site north of the main cluster, plausibly relevant to
-deformation near the Luzon Strait / Taiwan collision zone — but that is an
-inference from geography, not a confirmed reason, and this document has no
-record of why S01R was added to the network or whether its output is used in
-any current analysis. The ongoing cost is a periodic manual data-retrieval
-dependency on a foreign institution for one station. Resolving whether that
-cost is justified needs institutional history this document doesn't have,
-not more filesystem archaeology.
+**Separately: is S01R needed at all?** Answered — the guess two paragraphs
+above (Luzon Strait / Taiwan collision-zone science) was wrong. The real
+reason is documented twice in this repo: once at the source, in PHIVOLCS's own
+work instructions (authored by Cass, Dane and Abegail — GPS data-processing
+staff, not the user), and again in `docs/work_instructions_review.md` (the
+user's October 2025 technical review of that document).
+
+The source text, verbatim:
+
+> *"For this subsection until Subsection 5.5, we will keep using PHIVOLCS as
+> the active Campaign. We will also use the RINEX observation data from
+> multiple sites in the PHIVOLCS network, along with the S01R station in
+> Taiwan. The continuously operating station S01R, which sits on the stable
+> Chinese continental margin, will serve as the reference point for plotting
+> the time series."*
+
+> *"6.2.4.2. When prompted to 'Input the reference station', enter 'S01R'.
+> This site in Taiwan is used as the reference point for velocity
+> computations relative to the Eurasian Plate. Note that the choice of
+> reference station for velocity computations is not fixed, as other stations
+> may be used based on needs or the intended analysis. The resulting output is
+> an ENU file compiling the daily XYZ-to-ENU converted coordinates of all
+> sites, as well as individual files named after each site containing their
+> respective daily ENU coordinates."*
+
+Two things this adds beyond "S01R defines a Eurasia-relative velocity frame":
+the reference role is used for **both** the time-series plotting step and
+velocity computation, and mechanically it works by **converting every site's
+daily XYZ into local ENU coordinates using S01R's position as the origin** —
+an XYZ→ENU transform downstream of the daily positioning, not necessarily a
+Bernese-level fixed-station constraint inside GPSEST/ADDNEQ2 itself. That
+matters for how disruptive changing it would be: if reference-station choice
+is a parameter to that ENU-conversion step (Section 6.2.7's MATLAB processing,
+per `work_instructions_review.md`'s table of contents) rather than something
+baked into the Bernese adjustment, switching it is a parameter change to a
+downstream script, not a reprocessing-pipeline redesign — though this document
+has not confirmed that script's actual mechanics, so treat it as likely rather
+than verified.
+
+The document itself already answers the follow-up: **the choice is not
+fixed.** *"The choice of reference station for velocity computations is not
+fixed, as other stations may be used based on needs or the intended
+analysis"* — and the user's review names alternatives explicitly: **PIMO**
+(Luzon-specific studies), an IGS global-network average (plate-motion
+studies), or another PHIVOLCS site (relative baseline analysis).
+
+PIMO is one of this network's own nine RINEX3 fiducials — already flowing
+through this pipeline daily, with no foreign dependency. Switching the
+documented default from S01R to PIMO would preserve a defensible reference
+frame (Luzon-relative rather than Eurasia-relative — a real, different
+scientific choice, not a downgrade) while removing the Academia Sinica
+retrieval dependency and the pipeline regression in §4b.9 entirely, at zero
+new infrastructure cost.
+
+So: not superstition, but not a hard requirement either. The SOP already grants
+permission to change it; nothing has acted on that permission. Whether
+Eurasia-relative is scientifically preferable to Luzon-relative for PHIVOLCS's
+actual hazard/fault-slip analysis is a real judgment call outside what this
+document can settle — but continuing to retrieve S01R specifically, rather than
+either fixing today's regression or switching to the alternative the SOP
+itself already names, is the part that looks like inertia rather than an
+active, reaffirmed choice.
 
 ### 4b.10 Repeatability: the solutions are good, and that is not the same as correct
 
