@@ -235,17 +235,30 @@ folded into §4b.11's mystery.
 
 ### Practical answers to the Tier 2 table's original questions
 
-- **Can `FIN_*.SNX` feed a later regional combination directly?** Only if
-  written with `Content of SINEX = NEQ` (not `COV`) — `COV` bakes constraints
-  into `SOLUTION/MATRIX_APRIORI`, complicating reuse. **Not yet checked what
-  our `R2S_FIN`'s `ADDNEQ2.INP` currently sets this to** — concrete next
-  action, not yet done. `SNX2NQ0` is the actual converter back to NEQ form for
-  combination, confirmed to exist and do what `ADDNEQ2.HLP` implied.
-- **A priori constraint matrix must be regular** for SINEX exchange — a
-  genuinely free/minimum-constraint solution can produce a singular one,
+- **Can `FIN_*.SNX` feed a later regional combination directly? YES — checked
+  and confirmed, 2026-08-12.** Our 30 days of `FIN_*.SNX` are already in **NEQ
+  representation**, the form that reuses cleanly.
+
+  Getting this right required not trusting the first panel read. `R2S_FIN`'s
+  `ADDNEQ2.INP` has `SNXCONT = "COV"` — the *less* usable form — which looked
+  like the answer and would have been reported as such. But the produced file
+  contains `SOLUTION/NORMAL_EQUATION_VECTOR` and `..._MATRIX` blocks and **no**
+  `MATRIX_APRIORI`/`MATRIX_ESTIMATE` at all, contradicting that. Resolution:
+  **`R2S_FIN` writes no SINEX whatsoever.** Its `SINEXRS` filename field is
+  empty (`SINEXRS 0`), and `SNXCONT` is gated on `activeif = SINEXRS /= _`, so
+  its `COV` value is **inert**. The same is true of `R2S_GEN`. The only panel
+  with `SINEXRS` set is **`R2S_RED` (PID 521)**, which writes
+  `$(FIN)_*.SNX` with **`SNXCONT=NEQ`** and `SNXREG=NO`.
+
+  Lesson worth keeping: a panel value that is never consumed reads exactly like
+  one that is. Verify against produced output, not the template.
+- **A priori constraint matrix regularization** — §9.4.9 flags that a
+  free/minimum-constraint solution can produce a singular `MATRIX_APRIORI`,
   needing `Regularize a priori constraint matrix = YES` (adds ~1e-7 to the
-  diagonal) to be usable downstream. A real gotcha for combining regional
-  minimum-constraint solutions later, not just a theoretical footnote.
+  diagonal). **Does not currently apply to us**: that block only exists in the
+  `COV` representation, and we write `NEQ` (with `SNXREG=NO`). It becomes
+  relevant only if someone switches `R2S_RED` to `COV` for external exchange —
+  worth knowing before making that change, not a live issue.
 - **How do regional subnetworks tie to one consistent datum?** Minimum
   constraint on the barycenter of whichever fiducials/reference stations are
   **shared across regions**, verified and pruned via the same HELMR1 loop each
