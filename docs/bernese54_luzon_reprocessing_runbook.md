@@ -789,15 +789,50 @@ far, and present in hers. What is verified:
 - **No `***` message anywhere in the BPE logs names it.** It leaves the solution
   silently.
 
-What is *not* established is the cause. The obvious suspect — the 15 s sampling
-— does not survive contact: `V_SAMPL = 180`, and 180 divides evenly by both 15
-and 30, so decimation alone should not exclude it. **Do not record the sampling
-interval as the explanation until someone has traced the import step.**
+Two more hypotheses were checked 2026-08-11 and both ruled out:
 
-The consequence is worth stating plainly: a station in the network contributes
-to her results and nothing to ours, and the pipeline reports success either way.
-That is the same defect class as §19.3 of the session log, this time in Bernese
-rather than in our own tooling.
+- **Not a stale station-info entry.** `LUZON.STA` TYPE 002 has a clean,
+  unambiguous entry for S01R covering 2025-04-15 onward (`TRIMBLE ALLOY` /
+  `LEIAR25 LEIT`, serial `6318R40040` / `09120019`) that matches the RINEX
+  header exactly. (The log does have a real defect nearby — overlapping/
+  duplicate entries for the 2017-11-16–2025-04-14 period, one open-ended to
+  2099 and one properly closed — but that period predates our window and does
+  not touch it.)
+- **Not an unrecognized antenna model.** `LEIAR25 LEIT` is present in
+  `REF54/ANTENNA_I20.PCV` (line 184270).
+
+**What is now established, and changes the framing entirely: S01R is not a
+chronically-failing station.** It carries an estimated velocity in
+`LUZON.VEL` (`-0.02209 -0.00659 -0.01191` m/yr, EURA-relative), its equipment
+log runs continuously back to 2002-01-01, and it appears in **364 of the 365
+daily solutions she produced in 2025** — spot-checked across the full year,
+not just this window. **It fails in all ten of our I20 reprocessing runs and
+in none of her I14 runs over the identical calendar days.** The station is
+not the anomaly; this pipeline is. Something specific to the 5.4/I20
+derivation — not yet identified — regresses a station that has processed
+reliably for over two decades under 5.2.
+
+The consequence is worth stating plainly: a station that contributes to her
+results every day contributes nothing to ours, and the pipeline reports
+success either way. That is the same defect class as §19.3 of the session
+log, this time in Bernese rather than in our own tooling — and here it is
+regressing a real, long-standing contributor rather than excluding a
+marginal one.
+
+**Separately: is S01R needed at all?** Asked 2026-08-11, unresolved, and
+worth recording as a standing question rather than settling by inference.
+S01R (marker `IESAS` — Institute of Earth Sciences, Academia Sinica, Taiwan)
+is not one of the nine RINEX3 fiducials that define this network's datum
+(§1.1a) — removing it would not touch reference-frame integrity. Its only
+possible justification is scientific: its own multi-decade position/velocity
+series, at a site north of the main cluster, plausibly relevant to
+deformation near the Luzon Strait / Taiwan collision zone — but that is an
+inference from geography, not a confirmed reason, and this document has no
+record of why S01R was added to the network or whether its output is used in
+any current analysis. The ongoing cost is a periodic manual data-retrieval
+dependency on a foreign institution for one station. Resolving whether that
+cost is justified needs institutional history this document doesn't have,
+not more filesystem archaeology.
 
 ### 4b.10 Repeatability: the solutions are good, and that is not the same as correct
 
