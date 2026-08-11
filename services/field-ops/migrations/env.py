@@ -25,6 +25,7 @@ repo_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(repo_root))
 sys.path.insert(0, str(repo_root / "services/field-ops/src"))
 
+from field_ops.dburl import connect_args_for, to_asyncpg_url  # noqa: E402
 from field_ops.models import FieldOpsBase  # noqa: E402
 
 config = context.config
@@ -35,6 +36,20 @@ target_metadata = FieldOpsBase.metadata
 
 
 def get_url() -> str:
+    """
+    DATABASE_URL wins over the discrete POGF_DB_* fields, matching the runtime.
+
+    DEPLOY.md documents exporting DATABASE_URL and then running both alembic
+    trees. Before this precedence existed, that sequence migrated whatever
+    POGF_DB_* pointed at — by default a local container — while the hosted
+    database it was aimed at stayed empty. `alembic upgrade head` printed
+    success either way, so the first failure was a 500 from the deployed API
+    after the team had already been given the URL.
+    """
+    explicit = os.getenv("DATABASE_URL", "").strip()
+    if explicit:
+        return to_asyncpg_url(explicit)
+
     return (
         "postgresql+asyncpg://"
         f"{os.getenv('POGF_DB_USER', 'pogf_user')}:"
@@ -62,7 +77,15 @@ def do_run_migrations(connection):
 
 
 async def run_migrations_online() -> None:
-    engine = create_async_engine(get_url(), echo=False)
+    # connect_args carries the TLS requirement that get_url() had to strip for
+    # asyncpg. Without it a hosted database is reached over opportunistic TLS
+    # with no certificate verification — the migration would still succeed,
+    # which is exactly why it would go unnoticed.
+    engine = create_async_engine(
+        get_url(),
+        echo=False,
+        connect_args=connect_args_for(os.getenv("DATABASE_URL", "")),
+    )
     async with engine.begin() as conn:
         await conn.run_sync(do_run_migrations)
     await engine.dispose()

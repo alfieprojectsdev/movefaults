@@ -54,16 +54,31 @@ From this repo, with `DATABASE_URL` exported in your shell:
 
 ```bash
 export DATABASE_URL='postgresql://...'          # from Neon, pooled
+uv run alembic -c services/field-ops/alembic.ini upgrade head  # field_ops schema, 3 revisions
 uv run alembic upgrade head                                    # core schema, 13 revisions
-uv run alembic -c services/field-ops/alembic.ini upgrade head  # field_ops schema
 ```
 
-The two trees are independent — separate `alembic_version` tables (the field_ops
-one lives in the `field_ops` schema), no shared ordering. A revision must live in
-the tree that owns its table, or the order above cannot work: `fo003` alters
-`field_ops.logsheet_photos`, which `fo001` creates, so it has to run in the second
-command. It briefly shipped as root `014` and broke exactly this way on a fresh
-database.
+**The field_ops tree runs first.** The two trees keep separate `alembic_version`
+tables (the field_ops one lives in the `field_ops` schema) and neither knows
+about the other, but they are not independent in practice: root `008` extends
+`field_ops.logsheets` and `field_ops.staff`, which `fo001` creates. Run the root
+tree first on an empty database and `008` fails with `schema "field_ops" does not
+exist`.
+
+This order was documented backwards until 2026-08-11 and had never been run
+against a genuinely empty database — every environment that "worked" had the
+field_ops schema already in place from an earlier manual step.
+
+A revision must also live in the tree that owns its table. `fo003` alters
+`field_ops.logsheet_photos`, so it belongs here; it briefly shipped as root `014`
+and failed the same way for the same reason.
+
+Both trees read `DATABASE_URL` and fall back to the discrete `POGF_DB_*`
+variables. Until 2026-08-11 they read **only** `POGF_DB_*`, so the sequence above
+migrated whatever those pointed at — by default a local container — while the
+hosted database stayed empty and `alembic upgrade head` reported success either
+way. Confirm you migrated the right database with the `psql` checks below rather
+than trusting the exit status.
 
 > **If you already ran the old root `014`** on a database (T420, gps3): it is
 > stamped in the root `alembic_version` and the file no longer exists, so the next

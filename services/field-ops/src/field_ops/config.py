@@ -11,6 +11,8 @@ Set FIELD_OPS_JWT_SECRET to a real random value in production:
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from field_ops.dburl import connect_args_for, is_loopback, to_asyncpg_url
+
 
 class Settings(BaseSettings):
     # Database — same PostgreSQL instance as central POGF DB
@@ -62,33 +64,10 @@ class Settings(BaseSettings):
     @property
     def db_url(self) -> str:
         if self.database_url:
-            # Neon and most providers hand out a `postgresql://` (or `postgres://`)
-            # URL, but SQLAlchemy needs the async driver named explicitly or it
-            # loads psycopg2 and fails at import.
-            url = self.database_url
-            for prefix in ("postgresql+asyncpg://", "postgres://", "postgresql://"):
-                if url.startswith(prefix):
-                    if prefix != "postgresql+asyncpg://":
-                        url = "postgresql+asyncpg://" + url[len(prefix):]
-                    break
-            # asyncpg rejects libpq's ?sslmode= parameter; it negotiates TLS via
-            # its own `ssl` argument. Neon's copy-paste string includes it, and
-            # leaving it in produces a confusing connect error at first request.
-            #
-            # Stripping it is necessary, but stripping it ALONE would silently
-            # drop the requirement the operator asked for: asyncpg's default is
-            # opportunistic TLS with no certificate verification, so the DB
-            # password and every logsheet would cross the public internet with
-            # no MITM protection. db_connect_args below translates the
-            # requirement instead of discarding it.
-            if "?" in url:
-                base, _, query = url.partition("?")
-                kept = [
-                    kv for kv in query.split("&")
-                    if kv and not kv.startswith(("sslmode=", "channel_binding="))
-                ]
-                url = base + ("?" + "&".join(kept) if kept else "")
-            return url
+            # Translation lives in field_ops.dburl because the alembic migration
+            # environment needs exactly the same rewrite, and cannot import this
+            # module without triggering the deployment gate below.
+            return to_asyncpg_url(self.database_url)
 
         return (
             f"postgresql+asyncpg://{self.pogf_db_user}:{self.pogf_db_password}"
@@ -117,17 +96,7 @@ class Settings(BaseSettings):
         Note this is deliberately NOT applied to the discrete-field local dev
         path, where the database is a container on localhost with no certificate.
         """
-        import ssl as _ssl
-
-        source = self.database_url or ""
-        wants_tls = (
-            "sslmode=" in source
-            and "sslmode=disable" not in source
-        ) or (bool(source) and not _is_loopback(source))
-
-        if not wants_tls:
-            return {}
-        return {"ssl": _ssl.create_default_context()}
+        return connect_args_for(self.database_url or "")
 
     @property
     def is_dev_override(self) -> bool:
@@ -154,29 +123,7 @@ class Settings(BaseSettings):
             return False
         if self.field_ops_production == "1":
             return True
-        return bool(self.database_url) and not _is_loopback(self.database_url)
-
-
-_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", "[::1]", "db", "postgres", "host.docker.internal"}
-
-
-def _is_loopback(database_url: str) -> bool:
-    """
-    True when the URL points at a database on this machine or compose network.
-
-    Parsed rather than substring-matched: `postgres://u:p@ep-x.neon.tech/localhost`
-    contains "localhost" and is emphatically not local. urlsplit().hostname also
-    strips credentials and the port and lowercases the host for us.
-    """
-    from urllib.parse import urlsplit
-
-    try:
-        host = urlsplit(database_url).hostname
-    except ValueError:
-        # Unparseable — treat as remote. Failing towards the strict checks is
-        # the right direction for a malformed connection string.
-        return False
-    return host is not None and host in _LOOPBACK_HOSTS
+        return bool(self.database_url) and not is_loopback(self.database_url)
 
 
 _WEAK_JWT_SECRET = "change-me-in-production"
@@ -196,7 +143,7 @@ def _assert_deployable(s: Settings) -> None:
     from a remote DATABASE_URL, not declared by an environment variable that can
     be forgotten.
     """
-    if s.is_dev_override and s.database_url and not _is_loopback(s.database_url):
+    if s.is_dev_override and s.database_url and not is_loopback(s.database_url):
         # Say it plainly. This is a remote database being treated as scratch, and
         # a stray FIELD_OPS_DEV=1 in a deployment environment would disable every
         # check below — so it must never be silent.

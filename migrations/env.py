@@ -43,14 +43,29 @@ if config.config_file_name is not None:
 
 # Override the DB URL with environment variables so we never hard-code
 # credentials in a committed file.
-db_url = (
-    "postgresql://"
-    f"{os.getenv('POGF_DB_USER', 'pogf_user')}:"
-    f"{os.getenv('POGF_DB_PASSWORD', 'pogf_password')}@"
-    f"{os.getenv('POGF_DB_HOST', 'localhost')}:"
-    f"{os.getenv('POGF_DB_PORT', '5433')}/"
-    f"{os.getenv('POGF_DB_NAME', 'pogf_db')}"
-)
+#
+# DATABASE_URL takes precedence over the discrete POGF_DB_* fields, matching
+# how the services resolve their own connection (see field_ops.config.db_url).
+# Without that precedence, DEPLOY.md's documented sequence — export DATABASE_URL,
+# then run both alembic trees — quietly migrated whatever POGF_DB_* pointed at,
+# defaulting to a local container. The hosted database stayed empty, `alembic
+# upgrade head` reported success, and the first request to the deployed API was
+# the thing that finally failed.
+_explicit_url = os.getenv("DATABASE_URL", "").strip()
+if _explicit_url:
+    # This tree runs under a synchronous driver, so an async URL cannot be used
+    # verbatim, and libpq understands ?sslmode= — unlike asyncpg, nothing needs
+    # stripping here.
+    db_url = _explicit_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+else:
+    db_url = (
+        "postgresql://"
+        f"{os.getenv('POGF_DB_USER', 'pogf_user')}:"
+        f"{os.getenv('POGF_DB_PASSWORD', 'pogf_password')}@"
+        f"{os.getenv('POGF_DB_HOST', 'localhost')}:"
+        f"{os.getenv('POGF_DB_PORT', '5433')}/"
+        f"{os.getenv('POGF_DB_NAME', 'pogf_db')}"
+    )
 config.set_main_option("sqlalchemy.url", db_url)
 
 # The metadata object Alembic uses for --autogenerate comparison
