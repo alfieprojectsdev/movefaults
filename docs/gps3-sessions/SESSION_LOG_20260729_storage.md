@@ -1625,10 +1625,17 @@ extrapolated from the per-day figure:
   single-instance lock.
 - Scaling to the ~135-station national network is **estimated** at 4–8× per day
   and must be measured, not modelled.
-- `MAXPAR` is 1000 and 135 stations need ~405 parameters, so the ceiling sits
-  near 330 stations — but only because `TROPEST 0` pre-eliminates the troposphere
-  parameters, which would otherwise dominate. Worth knowing before anyone points
-  this at the 417-entry CRD.
+- **Correction, 2026-08-11.** This section originally read `MAXPAR` as a hard
+  ceiling near 330 stations. Wrong: `ADDNEQ2.HLP` states plainly that `MAXPAR`
+  "allocate[s] memory for the combined NEQ system. Specifying a number greater
+  than necessary does not harm if the computer has enough memory," and the
+  program's own default is **3000**, not the 1000 the R2S_FIN panel configures.
+  It is a runtime allocation, not a compiled-in limit, and raising it on a
+  62 GB machine costs nothing. The real question for scaling to a national
+  network is whether troposphere is estimated per-station (as it should be
+  across climate zones, unlike the near-uniform 100 km Luzon network where
+  `TROPEST 0` pre-elimination was a reasonable simplification) — that decision
+  drives the combined-NEQ dimension, not an arbitrary station-count ceiling.
 
 **None of this is the binding constraint.** We hold 31 days of observations. The
 compute budget for the full series is weeks, entirely tractable, and irrelevant
