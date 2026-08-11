@@ -265,6 +265,69 @@ folded into §4b.11's mystery.
   region already inherits individually. Not a new mechanism to design — the
   same one, applied to the union of each region's verified reference set.
 
+## Tier 3 findings — 2026-08-12
+
+**Read: DOCU52 §23.4.2.1 (p. 571) and §23.4.4.1 (pp. 607–608).**
+
+### The Tier 3 question was based on a false premise, and dissolves on reading
+
+This plan framed Tier 3 as "double- vs. zero-difference: `LUZON_DLY` inherited
+double-difference by default, compare before committing a national pipeline to
+it." **That comparison is not meaningful — the two example PCFs do different
+jobs, not the same job two ways.**
+
+- **`RNX2SNX.PCF` (§23.4.2, double-difference)** — *"designed for a
+  double-difference based analysis of RINEX GNSS observation data from a
+  **regional network**. Station coordinates and troposphere parameters are
+  estimated and stored in Bernese and SINEX format... For each session, the
+  corresponding normal equation information is saved for a subsequent
+  multi-session solution (allowing the estimation of **station velocities**)."*
+- **`CLKDET.PCF` (§23.4.4, zero-difference)** — *"a processing scheme for the
+  **determination of station and satellite clock corrections**... The result
+  file is a **clock RINEX file** including both station and satellite clock
+  corrections."*
+
+Coordinates and velocities versus clock corrections. For a deformation-
+monitoring network — which is what MOVE Faults is — **`RNX2SNX.PCF` is
+straightforwardly the right base, and it is what `LUZON_DLY` already derives
+from.** The inheritance was correct, not accidental. Zero-difference
+processing appears in this manual's examples for clock estimation and PPP, not
+as a competing way to get a coordinate/velocity solution for a regional
+network.
+
+**No architecture change is needed for national scale on this axis.** Drop
+this from consideration; it is not an open decision.
+
+### What §23.4.2.1 confirms about the pipeline we already run
+
+Three of its listed features map directly onto things this project has already
+observed empirically, which is reassuring rather than new:
+
+- **Automatic removal of observation files with gaps or large residuals** —
+  the documented, intended behavior behind stations dropping out. Directly
+  relevant to the still-open S01R question (runbook §4b.9): silent exclusion
+  is a *designed* robustness feature of this PCF, not necessarily a defect.
+  It does not explain *why* S01R specifically qualifies, but it does explain
+  why nothing errors loudly when it happens.
+- **The four-tier ambiguity-resolution ladder** (`V_BL_AMB` code-based WL →
+  `V_BL_L53` phase-based WL → `V_BL_QIF` QIF → `V_BL_L12` direct L1/L2), with
+  the manual's own example values 6000 / 200 / 2000 / 20 km. `LUZON_DLY`
+  carries exactly these variables at exactly these defaults — confirming the
+  earlier Tier 1 note that the tiered-AR design is inherited documented
+  practice, not local improvisation.
+- **Helmert comparison with three translations** for regional datum
+  definition, plus comparison against previous solutions. This is the HELMCHK/
+  COMPARF pair observed passing in the 30-day run, and the three-translation
+  choice matches §10.2.2.2's no-net-translation recommendation for regional
+  networks exactly.
+
+One line worth carrying into any subnetwork work: *"The resulting SINEX data
+should allow for both the reconstruction of the unconstrained, free network
+solution and for the straightforward extraction of station coordinates of the
+originally computed minimum-constraint solution."* That is a design guarantee
+that the SINEX we already produce is suitable for later recombination — which
+matches what was confirmed empirically about `SNXCONT=NEQ` above.
+
 ## Explicitly out of scope for this plan
 
 - Anything already answered for the 31-day LUZON exercise (directory
