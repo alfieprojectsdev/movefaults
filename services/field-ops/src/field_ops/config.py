@@ -47,9 +47,14 @@ class Settings(BaseSettings):
     # Railway) hands it over. Takes precedence over the discrete fields above.
     database_url: str = ""
 
-    # Set to "1" on any internet-reachable deployment. Turns the weak-default
-    # checks below from warnings into refusals — see _assert_deployable().
+    # Set to "1" to declare a deployment explicitly. Note this is no longer the
+    # only way to be in production — a remote DATABASE_URL infers it. See
+    # is_production() and _assert_deployable().
     field_ops_production: str = ""
+
+    # The one escape hatch: run locally against a remote database without the
+    # deployment checks. Deliberately not the default, and announced when used.
+    field_ops_dev: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -101,9 +106,13 @@ class Settings(BaseSettings):
         which is strictly weaker than what the connection string asked for.
 
         A verifying SSLContext is returned whenever the source URL requested TLS
-        or we are in production. `ssl.create_default_context()` verifies the
-        chain and the hostname, which is what `sslmode=verify-full` means and
-        what a managed provider over the public internet requires.
+        or the database is not on this machine. `ssl.create_default_context()`
+        verifies the chain and the hostname, which is what `sslmode=verify-full`
+        means and what a managed provider over the public internet requires.
+
+        Keyed on remoteness rather than on is_production deliberately: a
+        FIELD_OPS_DEV=1 run against Neon still crosses the public internet, and
+        the password should not.
 
         Note this is deliberately NOT applied to the discrete-field local dev
         path, where the database is a container on localhost with no certificate.
@@ -114,15 +123,60 @@ class Settings(BaseSettings):
         wants_tls = (
             "sslmode=" in source
             and "sslmode=disable" not in source
-        ) or (self.is_production and bool(self.database_url))
+        ) or (bool(source) and not _is_loopback(source))
 
         if not wants_tls:
             return {}
         return {"ssl": _ssl.create_default_context()}
 
     @property
+    def is_dev_override(self) -> bool:
+        return self.field_ops_dev == "1"
+
+    @property
     def is_production(self) -> bool:
-        return self.field_ops_production == "1"
+        """
+        True when this process should be held to deployment standards.
+
+        Inferred, not declared. Requiring FIELD_OPS_PRODUCTION=1 made the whole
+        fail-closed gate opt-in: forgetting one environment variable on the
+        hosting platform silently restored every weak default the gate exists to
+        catch — including the JWT secret that is published in this repository.
+        A safety check that has to be switched on is not a safety check.
+
+        The signal that a process is deployed is that it talks to a database
+        somewhere else. Nobody points local development at Neon by accident, and
+        in the rare case where it is deliberate, FIELD_OPS_DEV=1 says so out loud.
+        The discrete pogf_db_* path (a container on localhost) is untouched, so
+        `docker compose up` and pytest need no new configuration.
+        """
+        if self.is_dev_override:
+            return False
+        if self.field_ops_production == "1":
+            return True
+        return bool(self.database_url) and not _is_loopback(self.database_url)
+
+
+_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", "[::1]", "db", "postgres", "host.docker.internal"}
+
+
+def _is_loopback(database_url: str) -> bool:
+    """
+    True when the URL points at a database on this machine or compose network.
+
+    Parsed rather than substring-matched: `postgres://u:p@ep-x.neon.tech/localhost`
+    contains "localhost" and is emphatically not local. urlsplit().hostname also
+    strips credentials and the port and lowercases the host for us.
+    """
+    from urllib.parse import urlsplit
+
+    try:
+        host = urlsplit(database_url).hostname
+    except ValueError:
+        # Unparseable — treat as remote. Failing towards the strict checks is
+        # the right direction for a malformed connection string.
+        return False
+    return host is not None and host in _LOOPBACK_HOSTS
 
 
 _WEAK_JWT_SECRET = "change-me-in-production"
@@ -137,7 +191,25 @@ def _assert_deployable(s: Settings) -> None:
     open-source repo can mint a valid token for a public URL and post logsheets
     as any user. A service that boots happily in that state is worse than one
     that will not boot, because nobody finds out.
+
+    See Settings.is_production for how "production" is decided — it is inferred
+    from a remote DATABASE_URL, not declared by an environment variable that can
+    be forgotten.
     """
+    if s.is_dev_override and s.database_url and not _is_loopback(s.database_url):
+        # Say it plainly. This is a remote database being treated as scratch, and
+        # a stray FIELD_OPS_DEV=1 in a deployment environment would disable every
+        # check below — so it must never be silent.
+        import warnings
+
+        warnings.warn(
+            "FIELD_OPS_DEV=1: deployment checks SKIPPED against a non-local "
+            "DATABASE_URL. Weak defaults (JWT secret, local photo storage) are "
+            "in effect. Never set this on a deployed instance.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+
     if not s.is_production:
         return
 

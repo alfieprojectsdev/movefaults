@@ -18,7 +18,7 @@ import { useOfflineQueue, QueueRecord, storageHeadroom } from "../hooks/useOffli
 import { useOnline } from "../hooks/useOnline";
 
 export default function QueueView() {
-  const { getQueue, flushQueue, pendingCount } = useOfflineQueue();
+  const { getQueue, flushQueue, pendingCount, retryRecord } = useOfflineQueue();
   const [records, setRecords] = useState<QueueRecord[]>([]);
   const [storage, setStorage] = useState<string>("");
   const [busy, setBusy] = useState(false);
@@ -52,7 +52,13 @@ export default function QueueView() {
     }
   };
 
+  const onRetry = async (clientUuid: string) => {
+    await retryRecord(clientUuid);
+    await refresh();
+  };
+
   const pending = records.filter((r) => r._status === "pending");
+  const rejected = records.filter((r) => r._status === "error");
   const synced = records.filter((r) => r._status === "synced");
 
   return (
@@ -91,6 +97,25 @@ export default function QueueView() {
         </ul>
       )}
 
+      {/* Rejected records sit above the synced list, not hidden inside it: they
+          are the only ones that need the operator to do something, and they are
+          the reason a queue would otherwise appear to stall with no explanation. */}
+      {rejected.length > 0 && (
+        <>
+          <p className="msg msg-error">
+            <strong>{rejected.length}</strong> sheet{rejected.length === 1 ? " was" : "s were"}{" "}
+            refused by the server and will not sync until corrected. The reason is
+            shown against each. Nothing has been lost — photos are still held on
+            this device.
+          </p>
+          <ul className="queue-list">
+            {rejected.map((r) => (
+              <QueueItem key={r.client_uuid} rec={r} onRetry={onRetry} />
+            ))}
+          </ul>
+        </>
+      )}
+
       {synced.length > 0 && (
         <details className="queue-synced">
           <summary>{synced.length} synced</summary>
@@ -107,7 +132,13 @@ export default function QueueView() {
   );
 }
 
-function QueueItem({ rec }: { rec: QueueRecord }) {
+function QueueItem({
+  rec,
+  onRetry,
+}: {
+  rec: QueueRecord;
+  onRetry?: (clientUuid: string) => void | Promise<void>;
+}) {
   const queued = rec._queuedAt ? new Date(rec._queuedAt) : null;
   const photoState = !rec._photo && !rec._photoUploaded
     ? "no photo"
@@ -131,6 +162,15 @@ function QueueItem({ rec }: { rec: QueueRecord }) {
         </span>
       )}
       {rec._error && <span className="field-error">{rec._error}</span>}
+      {onRetry && rec._status === "error" && (
+        <button
+          type="button"
+          className="queue-retry"
+          onClick={() => void onRetry(String(rec.client_uuid))}
+        >
+          Try again
+        </button>
+      )}
     </li>
   );
 }

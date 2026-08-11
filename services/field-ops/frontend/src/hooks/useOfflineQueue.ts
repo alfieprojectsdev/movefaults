@@ -38,7 +38,13 @@
 
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import { useEffect, useState } from "react";
-import { LogSheetIn, submitLogSheets, uploadLogSheetPhoto } from "../services/api";
+import {
+  ApiError,
+  LogSheetIn,
+  LogSheetOut,
+  submitLogSheets,
+  uploadLogSheetPhoto,
+} from "../services/api";
 
 // ── IDB schema ──────────────────────────────────────────────────────────────
 
@@ -198,11 +204,26 @@ async function runFlush(): Promise<void> {
     const payload = pending.map(stripLocalFields);
     server = await submitLogSheets(payload);
   } catch (err) {
-    // Network still down, or auth expired. Records stay pending and retry on
-    // the next online event — deliberately no error status here, because a
-    // failed flush is the expected case in the field, not a fault.
-    console.warn("Offline queue flush failed:", err);
-    return;
+    if (err instanceof ApiError && err.isPermanent) {
+      // A validation rejection, not a network failure. Retrying the same batch
+      // will fail identically forever, and one bad record takes the whole day's
+      // work down with it — silently, because nothing here used to record an
+      // error and QueueView had nothing to show.
+      //
+      // Re-submit one at a time so the good records get through, and mark the
+      // offender so the operator can see which sheet is blocking and why.
+      server = await flushIndividually(db, pending);
+      if (server.length === 0) {
+        await refreshCount();
+        return;
+      }
+    } else {
+      // Network still down, or auth expired. Records stay pending and retry on
+      // the next online event — deliberately no error status here, because a
+      // failed flush is the expected case in the field, not a fault.
+      console.warn("Offline queue flush failed:", err);
+      return;
+    }
   }
 
   // Match server rows back to queued records by client_uuid.
@@ -261,6 +282,51 @@ async function runFlush(): Promise<void> {
 }
 
 /**
+ * Fallback for a batch the server rejected outright.
+ *
+ * Submits each pending record on its own, so that one unusable sheet — a stale
+ * observer id is the realistic case, after a week offline — cannot hold back
+ * every other sheet queued behind it. Records that fail permanently are moved
+ * to "error" with the server's own message attached, which takes them out of
+ * subsequent batches and puts them in front of the operator in QueueView.
+ *
+ * Returns the server rows for the records that did go through, in the same
+ * shape the batch call would have returned, so the caller's photo-upload pass
+ * needs no special case.
+ */
+async function flushIndividually(
+  db: IDBPDatabase<FieldOpsDB>,
+  pending: QueueRecord[]
+): Promise<LogSheetOut[]> {
+  const accepted: LogSheetOut[] = [];
+
+  for (const rec of pending) {
+    try {
+      const [row] = await submitLogSheets([stripLocalFields(rec)]);
+      if (row) accepted.push(row);
+    } catch (err) {
+      if (err instanceof ApiError && err.isPermanent) {
+        // Quarantine. Keep the photo blob — the record may still be repairable
+        // (refresh the staff list, re-pick observers) and discarding the only
+        // copy of the site photo to tidy up the queue would be the same data
+        // loss this store exists to prevent.
+        const fresh = (await db.get("logsheet_queue", String(rec.client_uuid))) ?? rec;
+        await db.put("logsheet_queue", {
+          ...fresh,
+          _status: "error",
+          _error: err.message,
+        });
+      } else {
+        // Transient — leave it pending for the next online event.
+        console.warn(`Deferred ${rec.client_uuid}:`, err);
+      }
+    }
+  }
+
+  return accepted;
+}
+
+/**
  * Single-flight flush. Concurrent callers join the run already in progress
  * rather than starting a second one — without this, the three mounted hook
  * instances would each upload every queued photo.
@@ -272,6 +338,22 @@ function flushQueue(): Promise<void> {
     });
   }
   return flushInFlight;
+}
+
+/**
+ * Move a quarantined record back into the queue.
+ *
+ * Nothing here fixes what the server objected to — that is the operator's job
+ * (refresh the staff list, correct the sheet). This only clears the error so
+ * the next flush tries again; if the cause is still there it will quarantine
+ * again with a fresh message, which is the honest outcome.
+ */
+async function retryRecord(clientUuid: string): Promise<void> {
+  const db = await getDb();
+  const rec = await db.get("logsheet_queue", clientUuid);
+  if (!rec || rec._status !== "error") return;
+  await db.put("logsheet_queue", { ...rec, _status: "pending", _error: undefined });
+  await refreshCount();
 }
 
 async function getQueue(): Promise<QueueRecord[]> {
@@ -293,7 +375,7 @@ function attachOnlineListener(): void {
   });
 }
 
-export { addToQueue, flushQueue, getQueue, refreshCount };
+export { addToQueue, flushQueue, getQueue, refreshCount, retryRecord };
 
 // ── Hook ────────────────────────────────────────────────────────────────────
 
@@ -317,7 +399,7 @@ export function useOfflineQueue() {
     };
   }, []);
 
-  return { addToQueue, flushQueue, getQueue, pendingCount, refreshCount };
+  return { addToQueue, flushQueue, getQueue, pendingCount, refreshCount, retryRecord };
 }
 
 /** Remove the underscore-prefixed local bookkeeping fields before sending. */

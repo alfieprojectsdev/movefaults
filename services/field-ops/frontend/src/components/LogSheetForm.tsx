@@ -296,10 +296,29 @@ export default function LogSheetForm() {
           // rather than asking the operator to remember to re-attach it later:
           // by then they have left the site. _photoUploaded stays false, so the
           // next flush re-POSTs the (idempotent) logsheet and retries the photo.
-          await addToQueue(record, photo);
-          setSubmitState("queued");
-          setErrorMsg("Log saved. Photo queued — it will upload on the next sync.");
-          reset();
+          try {
+            await addToQueue(record, photo);
+            setSubmitState("queued");
+            setErrorMsg("Log saved. Photo queued — it will upload on the next sync.");
+            reset();
+          } catch (queueErr) {
+            // Device storage is full, so the photo cannot be held either. This
+            // path was previously unguarded: the error escaped to the outer
+            // catch, which queued again, failed again, and told the operator
+            // "Could not save offline" — implying the whole submission was
+            // lost, when in fact the sheet was already on the server. Wrong in
+            // the direction that sends someone back to a monument for nothing.
+            //
+            // Say what is true of each half, and do NOT reset(): the form still
+            // holds the photo, so freeing space and retrying is possible.
+            setSubmitState("error");
+            setErrorMsg(
+              "Log saved on the server — but the photo could not be uploaded OR " +
+                "stored on this device" +
+                (queueErr instanceof Error ? ` (${queueErr.message})` : "") +
+                ". Free space, then attach the photo again from this form."
+            );
+          }
           return;
         }
       }

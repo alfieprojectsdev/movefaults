@@ -51,6 +51,23 @@ class PhotoStorage(ABC):
     async def save(self, logsheet_id: int, filename: str, content: bytes) -> str:
         """Persist and return the storage reference recorded in the database."""
 
+    @abstractmethod
+    async def delete(self, ref: str) -> None:
+        """
+        Remove a previously saved object.
+
+        Exists for one narrow case: the photo endpoint writes the bytes before
+        the row, so that a committed row can never point at an object that was
+        never stored. When two concurrent uploads of identical bytes race, both
+        write and one loses the unique index — leaving an object with nothing
+        referencing it. Unreferenced objects are invisible, unbounded, and paid
+        for, so the loser cleans up after itself.
+
+        Implementations must treat a missing object as success. The caller has
+        already resolved the operator's request; a cleanup failure must not turn
+        that into an error.
+        """
+
 
 class LocalDiskStorage(PhotoStorage):
     """Development backend. Not suitable for any deployment target."""
@@ -64,6 +81,9 @@ class LocalDiskStorage(PhotoStorage):
         dest = target_dir / _safe_key(filename)
         dest.write_bytes(content)
         return str(dest)
+
+    async def delete(self, ref: str) -> None:
+        Path(ref).unlink(missing_ok=True)
 
 
 class R2Storage(PhotoStorage):
@@ -111,6 +131,31 @@ class R2Storage(PhotoStorage):
         # database full of dead links is indistinguishable from lost data.
         # Read paths mint a fresh URL from this key on demand.
         return f"r2://{self.bucket}/{key}"
+
+    async def delete(self, ref: str) -> None:
+        import asyncio
+
+        bucket, key = _parse_r2_ref(ref)
+        if bucket is None or key is None:
+            # Not one of ours — a local-disk path left by an earlier backend, or
+            # a malformed row. Deleting by guesswork here could remove the wrong
+            # object, and the caller treats this as best-effort anyway.
+            return
+
+        # S3 DeleteObject is idempotent: deleting a key that is not there
+        # succeeds, which is exactly the semantics the ABC asks for.
+        await asyncio.to_thread(self._client.delete_object, Bucket=bucket, Key=key)
+
+
+def _parse_r2_ref(ref: str) -> tuple[str | None, str | None]:
+    """Split an ``r2://bucket/key`` reference. Returns (None, None) if it isn't one."""
+    prefix = "r2://"
+    if not ref.startswith(prefix):
+        return None, None
+    bucket, _, key = ref[len(prefix):].partition("/")
+    if not bucket or not key:
+        return None, None
+    return bucket, key
 
 
 def _safe_key(filename: str) -> str:

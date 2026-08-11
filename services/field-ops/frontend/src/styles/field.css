@@ -237,6 +237,23 @@ textarea {
   opacity: 0.7;
 }
 
+/* A record the server refused. Full opacity and the error colour, deliberately
+   louder than a pending record: pending resolves itself, this one will not
+   until someone acts on it. */
+.queue-item.is-error {
+  border-left-color: var(--field-error);
+}
+
+.queue-retry {
+  align-self: flex-start;
+  margin: 0.5rem 0 0;
+  width: auto;
+  /* Field-use minimum: a gloved thumb on a phone in sunlight. */
+  min-height: 48px;
+  padding: 0 1rem;
+  font-size: 0.9375rem;
+}
+
 .queue-station {
   font-weight: 700;
   font-family: var(--pico-font-family-monospace, monospace);

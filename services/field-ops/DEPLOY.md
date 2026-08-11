@@ -58,10 +58,26 @@ uv run alembic upgrade head                                    # core schema, 13
 uv run alembic -c services/field-ops/alembic.ini upgrade head  # field_ops schema
 ```
 
+The two trees are independent — separate `alembic_version` tables (the field_ops
+one lives in the `field_ops` schema), no shared ordering. A revision must live in
+the tree that owns its table, or the order above cannot work: `fo003` alters
+`field_ops.logsheet_photos`, which `fo001` creates, so it has to run in the second
+command. It briefly shipped as root `014` and broke exactly this way on a fresh
+database.
+
+> **If you already ran the old root `014`** on a database (T420, gps3): it is
+> stamped in the root `alembic_version` and the file no longer exists, so the next
+> `alembic upgrade head` will fail to resolve it. Run
+> `uv run alembic downgrade 013` **before** pulling this change, or
+> `uv run alembic stamp 013` after. The column and index it created are harmless
+> to leave in place — `fo003` re-creates them, so drop them first if you are
+> re-running from a stamped state.
+
 Verify before moving on — a partial migration surfaces as a confusing 500 later:
 
 ```bash
 psql "$DATABASE_URL" -c "\dt field_ops.*"
+psql "$DATABASE_URL" -c "\d field_ops.logsheet_photos"   # needs content_sha256
 ```
 
 Expect 7 tables: `users`, `logsheets`, `staff`, `logsheet_observers`,
@@ -122,14 +138,24 @@ fly secrets set \
   R2_BUCKET='pogf-field-ops'
 ```
 
-`FIELD_OPS_PRODUCTION=1` is the important one. It turns on a **fail-closed**
-startup check that refuses to boot if the JWT secret is the shipped default or
-under 32 characters, if storage is not R2, or if `DATABASE_URL` is missing.
+A **fail-closed** startup check refuses to boot if the JWT secret is the shipped
+default or under 32 characters, if storage is not R2, or if `DATABASE_URL` is
+missing.
 
 That check exists because this repo is **public**. With the default secret,
 anyone who reads it can mint a valid token for your URL and post logsheets as
 any user. A service that boots happily in that state is worse than one that
 refuses, because nobody finds out.
+
+`FIELD_OPS_PRODUCTION=1` used to be what switched that check on — which meant
+forgetting one variable silently disabled the whole thing, in exactly the
+situation it was written for. It is now **inferred**: any `DATABASE_URL` whose
+host is not local puts the process in production mode. Setting the variable is
+still fine and still documented above, but it is no longer load-bearing.
+
+The one way out is `FIELD_OPS_DEV=1`, for deliberately running a local build
+against a remote database. It skips the checks and warns loudly on startup.
+**Never set it on a deployed instance** — it re-enables every weak default.
 
 ```bash
 fly deploy

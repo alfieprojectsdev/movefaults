@@ -117,6 +117,70 @@ export function clearToken(): void {
   authListeners.forEach((fn) => fn());
 }
 
+// ── Errors ──────────────────────────────────────────────────────────────────
+
+/**
+ * An HTTP error from the API, carrying the status code.
+ *
+ * The offline queue has to tell two failures apart that a bare Error cannot:
+ * a network failure (expected in the field — retry forever, it will succeed
+ * when signal returns) and a 4xx (a rejection that will fail identically on
+ * every retry until the record itself changes). Retrying the second forever is
+ * how a week of fieldwork sits in the queue with the Sync button appearing to
+ * do nothing.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  /** Parsed `detail` from the response body, when the server sent a structured one. */
+  readonly detail: unknown;
+
+  constructor(status: number, message: string, detail?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.detail = detail;
+  }
+
+  /** True for a rejection that will not resolve itself on retry. */
+  get isPermanent(): boolean {
+    // 401 excluded: it is an auth failure, handled by clearToken/onAuthCleared,
+    // and it *does* resolve once the operator logs in again. 408 and 429 are
+    // explicitly transient.
+    return (
+      this.status >= 400 &&
+      this.status < 500 &&
+      this.status !== 401 &&
+      this.status !== 408 &&
+      this.status !== 429
+    );
+  }
+}
+
+/**
+ * Turn a FastAPI error body into a readable sentence.
+ *
+ * `detail` is a string for simple HTTPExceptions, but a dict for the structured
+ * ones (unknown staff ids) and a list for Pydantic validation failures. Showing
+ * "[object Object]" to someone standing at a monument is not a message.
+ */
+function describeDetail(detail: unknown, status: number): string {
+  if (typeof detail === "string") return detail;
+
+  if (detail && typeof detail === "object") {
+    const asRecord = detail as Record<string, unknown>;
+    if (typeof asRecord.message === "string") return asRecord.message;
+  }
+
+  if (Array.isArray(detail)) {
+    const msgs = detail
+      .map((d) => (d && typeof d === "object" ? (d as Record<string, unknown>).msg : null))
+      .filter((m): m is string => typeof m === "string");
+    if (msgs.length) return msgs.join("; ");
+  }
+
+  return `Request failed: ${status}`;
+}
+
 // ── Base fetch ──────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -131,12 +195,12 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (resp.status === 401) {
     clearToken();
-    throw new Error("Session expired — please log in again");
+    throw new ApiError(401, "Session expired — please log in again");
   }
 
   if (!resp.ok) {
-    const detail = await resp.json().catch(() => ({}));
-    throw new Error(detail.detail ?? `Request failed: ${resp.status}`);
+    const body = (await resp.json().catch(() => ({}))) as { detail?: unknown };
+    throw new ApiError(resp.status, describeDetail(body.detail, resp.status), body.detail);
   }
 
   return resp.json() as Promise<T>;
@@ -210,11 +274,15 @@ export async function uploadLogSheetPhoto(logsheetId: number, photo: File): Prom
   });
   if (resp.status === 401) {
     clearToken();
-    throw new Error("Session expired — please log in again");
+    throw new ApiError(401, "Session expired — please log in again");
   }
   if (!resp.ok) {
-    const detail = await resp.json().catch(() => ({})) as { detail?: string };
-    throw new Error(detail.detail ?? `Photo upload failed: ${resp.status}`);
+    const body = (await resp.json().catch(() => ({}))) as { detail?: unknown };
+    throw new ApiError(
+      resp.status,
+      typeof body.detail === "string" ? body.detail : `Photo upload failed: ${resp.status}`,
+      body.detail
+    );
   }
 }
 

@@ -12,6 +12,7 @@ so duplicate submissions (retry after partial network failure) are safe.
 """
 
 import hashlib
+import logging
 import uuid
 from datetime import UTC, date, datetime
 
@@ -23,9 +24,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from field_ops.database import get_db
-from field_ops.models import LogSheet, LogSheetObserver, LogSheetPhoto, User
+from field_ops.models import LogSheet, LogSheetObserver, LogSheetPhoto, Staff, User
 from field_ops.routers.auth import get_current_user
 from field_ops.storage import get_storage
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["logsheets"])
 
@@ -139,6 +142,53 @@ async def submit_logsheets(
     if not records:
         return []
 
+    # ── Validate observers BEFORE writing anything ──────────────────────────
+    #
+    # The junction rows used to be inserted after the logsheets were already
+    # committed, because they need the server-side ids. A staff_id the device
+    # cached and the server has since deleted — normal after a week offline —
+    # then raised IntegrityError on the FK *after* that commit, which FastAPI
+    # turned into a 500.
+    #
+    # The client cannot recover from that. runFlush() sees a failed batch and
+    # leaves every record pending, so the next flush replays the same batch,
+    # hits the same id, and 500s again: the queue wedges permanently and the
+    # only symptom is a Sync button that appears to do nothing.
+    #
+    # Checking first makes the failure atomic and diagnosable. Nothing is
+    # committed, the response names the offending record, and the client can
+    # quarantine that one sheet instead of stalling the whole day's work.
+    requested_staff = {
+        sid for r in records if r.observer_ids for sid in r.observer_ids
+    }
+    if requested_staff:
+        known = await db.execute(select(Staff.id).where(Staff.id.in_(requested_staff)))
+        unknown = requested_staff - set(known.scalars().all())
+        if unknown:
+            offenders = [
+                {
+                    "client_uuid": str(r.client_uuid),
+                    "unknown_staff_ids": sorted(set(r.observer_ids) & unknown),
+                }
+                for r in records
+                if r.observer_ids and set(r.observer_ids) & unknown
+            ]
+            raise HTTPException(
+                # 422, spelled without the constant: starlette renamed it to
+                # HTTP_422_UNPROCESSABLE_CONTENT and deprecated the old name, so
+                # either constant warns on one version or breaks on the other.
+                status_code=422,
+                detail={
+                    "error": "unknown_staff_ids",
+                    "message": (
+                        "These observer ids do not exist on the server. The staff "
+                        "list on this device is out of date — refresh it, correct "
+                        "the affected records, and sync again."
+                    ),
+                    "records": offenders,
+                },
+            )
+
     now = datetime.now(UTC)
 
     values = [
@@ -194,7 +244,9 @@ async def submit_logsheets(
 
     # Observers. Written after the logsheets exist, because the junction needs
     # their server-side ids. ON CONFLICT DO NOTHING keeps this idempotent under
-    # the same retry the logsheet upsert already tolerates.
+    # the same retry the logsheet upsert already tolerates. Every staff_id here
+    # was checked against the staff table above, before the commit — see the
+    # note there for why validating afterwards wedged the offline queue.
     id_by_uuid = {str(row.client_uuid): row.id for row in rows}
     observer_values = [
         {"logsheet_id": id_by_uuid[str(r.client_uuid)], "staff_id": sid}
@@ -322,6 +374,25 @@ async def upload_photo(
             # The constraint fired but no row is visible — that is a genuine
             # invariant violation, not a duplicate. Surface it.
             raise
+
+        # This request lost the race, so the object it wrote a moment ago is now
+        # referenced by nothing: the winner's row points at the winner's object.
+        # Unreferenced objects are invisible in the database, unbounded, and
+        # billed, so remove what this request created.
+        #
+        # Best effort by design. The operator's upload has already succeeded —
+        # failing it now over a storage cleanup would be a worse outcome than
+        # leaving one stray object behind, so this only logs.
+        try:
+            await get_storage().delete(storage_ref)
+        except Exception:  # noqa: BLE001 — cleanup must never fail the request
+            logger.warning(
+                "Could not remove orphaned photo object %s after a duplicate-upload "
+                "race on logsheet %s; it is unreferenced and safe to delete manually.",
+                storage_ref,
+                logsheet_id,
+            )
+
         return {
             "photo_id": row.id,
             "storage_path": row.storage_path,
