@@ -507,13 +507,34 @@ Worth rendering when the topic arises: 6.5 (p. 142, baseline strategies), 7.3
 (p. 186, GPSEST flow), 9.5 (p. 224, ADDNEQ2 flowchart), 10.2 (p. 251, datum
 options), 11.2 (p. 277, FODITS algorithm).
 
-### End matter, for lookups
+### End matter — and a warning: the indices are empty
 
-**Index of Programs** (p. 824), **Index of Program Panels** (p. 825), **Index
-of Keywords** (p. 825) — the fastest route from a panel or keyword seen in an
-installed `.INP` back to the section explaining it; prefer these to full-text
-grep when starting from a name. **List of Abbreviations** (p. 821) for the
-manual's dense acronyms. **Bibliography** (p. 809) for the underlying geodesy.
+PDF page numbers given directly (offset already applied), since that is what a
+viewer takes:
+
+| section | printed | PDF | state |
+|---|---|---|---|
+| Bibliography | 809 | **841–852** | populated |
+| List of Abbreviations | 821–824 | **853–856** | populated, useful |
+| Index of Program Panels | 825 | **857** | **EMPTY** |
+| Index of Programs | 824 (per TOC) | — | **does not exist** |
+| Index of Keywords | 825 (per TOC) | — | **does not exist** |
+
+**The table of contents promises three indices that this PDF does not
+contain.** PDF 857 has only the heading and the line "Bold printed page
+numbers indicate a figure of the panel"; the rest is blank, and PDF 858 (the
+last page) is blank. Printed page 824 is the final page of the abbreviations,
+not an Index of Programs.
+
+Verified by rendering PDF 857 to PNG and looking at it — text extraction alone
+showed an almost-empty page, which could have been a layout failure rather
+than a genuinely blank one. It is genuinely blank.
+
+**Practical consequence: `grep` on `/home/gps3/bernese-docs/DOCU52.txt` is the
+only working way to get from a program or panel name to its section.** Do not
+flip to p. 825 expecting an index. The **List of Abbreviations** (PDF 853–856)
+*is* populated and is worth using for the manual's dense acronyms; the
+**Bibliography** (PDF 841–852) is intact for the underlying geodesy.
 
 ### Installation verification
 
