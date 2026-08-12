@@ -1,0 +1,11 @@
+teqc -phc BTUN355*.obs > BTUN3551.17o
+teqc -phc BTUN356*.obs > BTUN3561.17o
+teqc -phc BTUN357*.obs > BTUN3571.17o
+teqc -phc BTUN358*.obs > BTUN3581.17o
+teqc -phc BTUN359*.obs > BTUN3591.17o
+teqc -phc BTUN360*.obs > BTUN3601.17o
+teqc -phc BTUN361*.obs > BTUN3611.17o
+teqc -phc BTUN362*.obs > BTUN3621.17o
+teqc -phc BTUN363*.obs > BTUN3631.17o
+teqc -phc BTUN364*.obs > BTUN3641.17o
+teqc -phc BTUN365*.obs > BTUN3651.17o

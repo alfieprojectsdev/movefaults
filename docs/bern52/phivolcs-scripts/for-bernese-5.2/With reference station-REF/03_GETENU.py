@@ -1,0 +1,17 @@
+import glob, os, numpy
+
+input('Press Enter to continue')
+print('Getting local ENU coordinates...')
+				
+sname = []
+				
+for lines in open('ENU'):
+		x = lines.split()
+		if len(x[0]) == 4:
+				if len(sname) == 0:
+						sname.append(x[0])
+				elif len(sname) == 1:
+						del sname[0]
+						sname.append(x[0])
+				open(sname[0], 'a').write(x[2]+'  '+x[3]+'  '+x[4]+'  '+x[5])
+				open(sname[0], 'a').write('\n')
