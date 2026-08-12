@@ -83,3 +83,64 @@ gfzrnx_2.2.0_lx64 -finp "$F" -stk_obs   # -> full multi-GNSS statistics
 *Binaries: gfzrnx from `~/Downloads/gfzrnx/` (Cass); teqc `2019Feb25` from UNAVCO's teqc page
 (https://www.unavco.org/software/data-processing/teqc/teqc.html). Neither binary is committed to the
 repo — gfzrnx is licensed software, teqc is an external download.*
+
+
+---
+
+## Installed on gps3 — 2026-08-12, and an unreconciled disagreement
+
+**Binary is now on the R740** at `/home/gps3/gfzrnx/gfzrnx_2.2.0_lx64`, relayed
+from the T420 (`~/T420_NOTE_20260812_gfzrnx.md`, zip md5
+`71f8cfe291a1c767bafa6e1cd0ec811e` — verified on arrival). **Not committed to
+the repo**, consistent with the note above: it is licensed software.
+
+Two T420 warnings, both confirmed here:
+- **The zip strips the execute bit.** A first run fails "permission denied"
+  with nothing pointing at the cause. `chmod +x` after unzipping.
+- **The manual is a version behind** — docs are `2.0-8219`, binary is `2.2.0`.
+  Check `-h` on the binary before believing a documented flag is broken.
+
+Verified working against our own data: `AIRA00JPN_R_20251210000_01D_30S_MO`
+(RINEX **3.02**, MIXED) decompressed with BSW's `CRX2RNX`, then
+`gfzrnx -finp ... -stk_obs` returns full per-satellite statistics including
+Galileo. Same result class as the CUSV test above, on a different fiducial.
+
+### The disagreement, stated plainly rather than resolved
+
+This document (2026-07-01) concludes the migration trigger is **MET**. The
+T420 note (2026-08-12) states the standing decision as **"teqc stays primary,
+gfzrnx is not a replacement and is not scheduled to become one,"** with the
+trigger being "the first RINEX 3/4 file that teqc fails to handle."
+
+**By that trigger's own wording, it has fired** — twice now, documented, on
+files already on disk. The two statements are not reconcilable as written.
+
+What they *do* agree on, and what is not in dispute:
+- teqc cannot read RINEX 3.x at all — it is a version limit, not a multi-GNSS
+  limit. The T420 note is right that "multi-GNSS alone is not the trigger."
+- gfzrnx reads it cleanly.
+- Local PHIVOLCS CORS still emit RINEX 2, which teqc handles.
+- IGS fiducials are RINEX 3, which teqc cannot touch.
+
+So in **practice** both tools are needed today and the disagreement is about
+framing, not about which tool to run on which file. The operational rule that
+follows from the facts: **teqc for the RINEX-2 local subset, gfzrnx for the
+RINEX-3 fiducials and IGS products.**
+
+### The part that actually blocks automation
+
+**Licensing.** The free GFZ scientific licence covers manual and research use —
+which is what PHIVOLCS (Cass) has done for years and what the verification
+above is. **Automated/operational pipeline use requires a commercial licence,
+which has not been obtained.** That is a hard constraint on the Stage 1
+automation described in `docs/bern52/workflow_automation_inventory.md`, and it
+is a procurement question, not an engineering one. **Raise it before wiring
+gfzrnx into any pipeline, not after.**
+
+### Missing from this repo
+
+Both this document and the T420 note reference **`gfzrnx_teqc_decision.md`** as
+the authoritative decision record. **It is not in this repository** — it lives
+in the T420 session's memory. That absence is why two sessions hold different
+views of the same decision. It should be brought into the repo so the decision
+travels with the evidence.
