@@ -1907,3 +1907,160 @@ processing failure.
   selection); AIRA's chronic offset (§20.10); the DOY 126/129/145 spike cause;
   and the standing S01R-vs-PIMO reference-station decision, where the SOP
   already grants permission to switch and nothing has acted on it.
+
+---
+
+## 21. The file server, the SOP, and a failed parallelism test — 2026-08-12
+
+### 21.1 The other server: 476 GiB of PH data, and the scripts that were nowhere else
+
+`\\192.168.48.99` (`WIN-8I2S1803RV5`, Windows, WORKGROUP) holds the PHIVOLCS
+Bernese 5.2 installation, the national campaign, and every project script.
+Reached over SMB with a **guest** session — anonymous is refused, guest works.
+No `smbclient` or `cifs-utils` on gps3; `uv run --with smbprotocol` needs
+neither, and needs no sudo.
+
+**Full datapool survey: 476.0 GiB across 330,754 files.** 314.5 GiB of that is
+the 2025–2026 working set sitting loose at the top level; 2010–2023 are in year
+directories; **the `2024` and `2025` subdirectories are empty** — current data
+does not live where the directory names suggest, so a transfer plan must follow
+the actual layout rather than the apparent one.
+
+**142 text artifacts snapshotted into the repo** (`docs/bern52/phivolcs-scripts/`)
+with `scripts/snapshot_phivolcs_scripts.py`, deliberately excluding installers
+and binaries. The one that matters most is the **`offsets` event catalog** —
+88 records, 70 sites, 2003.1259 to 2026.4353, classified 79 EQ / 5 UK / 3 CE /
+1 VE. Twenty-three years of accumulated judgement about which coordinate jumps
+were earthquakes versus equipment swaps. It existed only on that share and on
+staff machines, it cannot be regenerated, and it is exactly what FODITS
+consumes as an event list. Decoding validated against Taal (CACA 2020.0356 VE
+→ 13 January 2020).
+
+**Cass's caveat confirmed.** The work instruction renames scripts for
+readability ahead of PHIVOLCS peer review and the library archive. Real names:
+`filter-fncrd.bat` is `00_CRD_PIVS.bat` plus per-network variants (NAMRIA, NP,
+VFS); `plot_v2.py` is a `01_GETXYZ → 02_TRANSFORM → 03_GETENU → 04_PLOTFILES`
+pipeline driven by `RUN.py`/`RUNX_v*.py`; `vel_line_v8.m` is
+`vel_line_v8_newvelduetooffset_v4.m`. There are **five** workflow variants where
+the SOP describes one, and the campaign time series are already organised by
+region (CBPN, Cotabato-Sindangan, Eastern Mindanao, Luzon,
+Ragay-Bondoc-Marinduque-Masbate, Samar-Leyte) — PHIVOLCS' own subnetwork
+decomposition, which should drive any future partitioning rather than something
+invented here.
+
+### 21.2 The national campaign: 439 catalogued, 52 processed
+
+`CAMPAIGN52\PHIVOLCS` has all eight campaign files and a `PHIVOLCS.CRD` of
+**439 stations**. But a daily solution estimates **52** — 50 flagged `A`
+(PHIVOLCS) and 2 flagged `W` (IGS), verified by parsing the FLAG column of
+`F1_260900.CRD` after a first attempt using a last-character heuristic gave a
+wrong answer.
+
+That settles the clustering question Cass raised: 52 is comfortably under the
+SOP's "<100 files → cluster 1", under DOCU52 §9.5.1's ">100 stations becomes
+expensive", and under `MAXFLS=90`. **One cluster is genuinely fine for the
+national network as currently processed.** Subnetworking only becomes necessary
+if substantially more of the 439 catalogued sites are processed — which is what
+pulling the full network off staff machines would mean.
+
+### 21.3 The MATLAB port: exact, and it exposed two real defects
+
+`packages/pogf-geodetic-suite/.../timeseries/velocity.py` replaces
+`vel_line_v8_newvelduetooffset_v4.m`, the pipeline's only MATLAB dependency and
+the step that produces the project's actual scientific deliverable.
+
+**171 of 171 velocity components reproduce exactly, max difference
+0.000000000 mm/yr.**
+
+Two things had to be understood to get there:
+
+1. **The reference output is 20 days older than the event catalog** (output
+   2026-07-09, catalog 2026-07-29). A direct diff showed disagreement at four
+   sites and looked like port bugs. Reconstructing the catalog as it stood on
+   the reference date gave exact agreement. **A velocity file is only
+   reproducible alongside the exact catalog that produced it** — the concrete
+   argument for the provenance record.
+2. **BR14 and LUZD expose a genuine MATLAB bug.** Their offsets are recorded
+   out of chronological order, so the MATLAB builds a descending (empty)
+   segment range; its `for N=length(...)` loop then never executes, leaving the
+   *previous* segment's design matrix `G` in place, and the regression fits
+   stale timestamps against current data. Those two sites' published velocities
+   are wrong.
+
+Also settled the outlier question: `rmoutliers` computes `cleaned_d` and the
+regression **ignores it**. Outliers are listed, never excluded — which is
+exactly why the SOP needs a manual removal-and-rerun step. The port keeps that
+faithful by default and offers `--outlier-policy exclude` to close the loop.
+
+### 21.4 SUPERBPE: mechanically works, and our PCF cannot use it
+
+The plan was 12 parallel monthly runs. Investigating whether that was safe
+turned up something better and then something worse.
+
+**Better:** BSW has native multi-session parallelism. `SUPERBPE=1` is the
+documented "Run sessions in parallel" checkbox (§22.9), `RADIO_P=1` selects the
+recommended "Simple parallel multi session run" mode, and `MAXSESS` caps the
+overlap. `startBPE.pm` writes all three via the same `putKey` mechanism it
+already uses for `NUM_SESS` — first-class options our driver simply never set.
+No hand-rolled orchestration needed, and `$U` is redefined per client (§22.3.3)
+so the fixed-name scratch files (`GPSEST.SC1`, `ADDNEQ2.SCR`) do not collide.
+
+**Verified working mechanically:** all five sessions (1210–1250) genuinely in
+flight at once, peaking at **11 concurrent clients** — exactly `USER.CPU`'s
+`Maxj=11`.
+
+**Worse: 4 of 5 sessions failed.** `Sessions finished: OK: 1 Error: 4` in
+5m51s. All four died at PID 022 `CCRNXO_P` with
+`*** SR O_CCRNXO:concatenateOrMergeRinexFiles ... No input files`. Only
+session 1240 completed.
+
+Root cause is the precondition the manual states explicitly for single-campaign
+parallelism: *"all scripts and filenames (including all temporary files) must
+be fully sessions-independent."* **Ours are not.** `ORX/` was left holding 7
+stray files across three different sessions, and `RAW/` showed 1240 with 64
+files against 37–40 for the others — the sessions consumed each other's
+staging.
+
+**The documented remedy is "Each session in separate campaign"** (§22.9, via
+`${U}/PAN/NEWCAMP.INP`). Which vindicates the original per-campaign instinct —
+but obtained as a supported BSW mode rather than hand-rolled shell
+orchestration.
+
+**Nothing was lost.** The 30-day baseline was copied to
+`SAVEDISK/LUZON_BASELINE_20260806` before the test, and all 30 solutions were
+restored and verified identical afterward with the new
+`scripts/compare_solutions.sh` (30 identical, 0 differing).
+
+### 21.5 Also this session
+
+- **gfzrnx** installed at `/home/gps3/gfzrnx/` from the T420 relay, md5
+  verified, execute bit restored (the zip strips it), verified against our own
+  AIRA RINEX 3.02 fiducial. Not committed — licensed software. Direction given:
+  proceed, and document **actual usage** as a reproducibility record rather
+  than maintaining a speculative licence-exposure list.
+- **A decision conflict recorded rather than resolved**: the repo's
+  2026-07-01 evidence document concludes the teqc→gfzrnx trigger is *met*; the
+  T420's 2026-08-12 note states teqc stays primary. By the trigger's own
+  wording it has fired. The authoritative `gfzrnx_teqc_decision.md` is **not in
+  this repo** — it lives in T420 memory, which is why the two sessions
+  diverged.
+- **BSW 5.4 cannot currently be recompiled here.** `Makefile.template` invokes
+  `gfortran`/`cc`/`g++` unversioned; only `gfortran-12`/`gcc-12`/`g++-12` exist.
+  Nothing is broken today, but §25.3 updates and §25.4.2 compile-time limits
+  are unavailable. Fix prepared, not run:
+  `scripts/sudo/install_bsw_build_toolchain.sh` (`--check` is read-only).
+- **The BSW 5.2 manual's three indices are empty stubs** — the TOC promises
+  Index of Programs / Program Panels / Keywords; the PDF contains none of them.
+  `grep` on the extracted text is the only working lookup. Verified by
+  rendering the page, because text extraction alone could not distinguish a
+  blank page from a layout failure.
+
+### 21.6 State at end of 2026-08-12
+
+- PRs: #67, #69, #70 merged; **#71 open** and carrying this session's work.
+- **Next, in order:** (1) transfer the 476 GiB datapool to the empty array with
+  checksums at copy time; (2) re-test parallel sessions using "Each session in
+  separate campaign" rather than one shared campaign; (3) then the 2025 run.
+- Still open: S01R's exclusion mechanism, AIRA's chronic 30–45 mm East offset,
+  the DOY 126/129/145 spike cause, and the S01R→PIMO reference-station decision
+  the SOP already permits.
