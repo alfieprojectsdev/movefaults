@@ -8,6 +8,102 @@ diagnosis corrected), 07-15 (migration/scan kicked off), 07-14 (clean
 shutdown, VADASE PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze),
 07-07 (excavation+crossref), 07-04 (DA-005).**
 
+## 🔴 2026-07-30 (late) — iDRAC HAS NO IP; blocks two things
+
+`sudo ipmitool lan print 1` on gps3:
+
+```
+IP Address Source : DHCP Address
+IP Address        : 0.0.0.0        <-- asked DHCP, got nothing
+Default Gateway   : 0.0.0.0
+MAC Address       : b0:7b:25:fe:2c:38   (all four OS NICs are e4:3d:1a:... —
+                                         confirms a genuinely separate NIC)
+```
+
+The BMC is alive (`/dev/ipmi0`, 5 ipmi modules loaded, PowerEdge R740) but has
+**no network address**, so iDRAC is unreachable. Either the dedicated port is
+uncabled or it is on a VLAN with no DHCP. **Consequences:**
+
+1. **The patrol-read question cannot be answered** (see gps3's session log
+   §12.4) — and no vendor CLI exists on the box to answer it another way
+   (`storcli`/`perccli`/`megacli` have no apt candidate; backplane not exposed
+   via SES). If patrol read is disabled then **nothing performs a full-surface
+   read of the 16 members**, and a latent bad sector surfacing during a rebuild
+   is exactly what kills 16-wide RAID 5.
+2. **No remote recovery before the pending reboot.** Kernel `6.8.0-136` is
+   installed, `6.8.0-111` running; that first reboot is also the first real test
+   of the rewritten fstab. If it drops to an emergency shell, SSH cannot help —
+   SSH needs a booted OS. **Fix iDRAC BEFORE rebooting**, or accept a trip to
+   the server room.
+
+Fix (needs sudo on gps3; `ipmitool` is in the Ubuntu archive):
+```bash
+sudo ipmitool lan set 1 ipsrc static
+sudo ipmitool lan set 1 ipaddr 192.168.48.<free>
+sudo ipmitool lan set 1 netmask 255.255.255.0
+sudo ipmitool lan set 1 defgw ipaddr 192.168.48.5
+sudo ipmitool lan set 1 access on
+sudo ipmitool user list 1     # then CHANGE PASSWORDS
+```
+⚠ **Security first:** iDRAC has full control of the server (power, console,
+boot device). Dell's default login is well known and unprotected BMCs are a
+standard target. Change the password and the SNMP community string (currently
+the factory default `public`) BEFORE it touches a network, and keep it off
+anything internet-facing. Auth is MD5-only on this firmware.
+
+## ✅ 2026-07-30 — gps3 smartd COMPLETE, alert path proven
+
+All 16 members monitored (`smartd -q onecheck` = 16/16), `20log` hook installed,
+and the alert path **tested end to end** — a synthetic alert landed in both
+journald and `/var/log/smartd-alerts.log`. That test mattered: the log was 0
+bytes beforehand, so the path had never actually run.
+
+**Conceded to gps3 on `-m root`:** `COORDINATION.md` §7 told them not to use it.
+They used `-m root -M exec smartd-runner` anyway and were right — `-M exec`
+*replaces* mailing rather than supplementing it, `smartd-runner` run-parts
+`run.d/` where `20log` writes both sinks, and `10mail` merely exits 1 (noise,
+not lost alerts). It is also the distro-idiomatic form. §7's substance — an
+externally observable non-mail sink, proven working — is met.
+
+**Real remaining gap (theirs, honestly flagged):** no long self-tests are
+scheduled at all, only daily staggered short tests. The justification (PERC
+patrol read covers surface scanning) is **unverified** and cannot be verified
+until iDRAC works. If patrol read is off, add staggered long tests:
+`-s (S/../.././NN|L/../../6/NN)`.
+
+Housekeeping: `sudo truncate -s 0 /var/log/smartd-alerts.log` to clear the
+synthetic TEST entry so no future reader mistakes it for a real warning.
+
+## ⏸ 2026-07-30 — archive push to gps3: PLANNED, NOT STARTED
+
+gps3 proposed the push; receiving side is ready (idle, no BPE, 20 TB free).
+**Three corrections to that plan, from verifying it on the T420:**
+
+1. **`mount -o remount,ro` will likely fail.** DOSTB is `fuseblk` (ntfs-3g via
+   udisks2), and FUSE does not reliably honour `remount,ro`. Verify it actually
+   took effect (`findmnt -no OPTIONS`) rather than assuming; if it silently
+   stays rw, that is acceptable — rsync only reads the source — but do not
+   *believe* the source is protected when it is not.
+2. **Scope is 4 directories, not one.** `RECOVERED_SEAGATE_W2A0W9T2_DATA0`
+   (131 G), `RECOVERED_HD-LBU2_...` (14 G), `RECOVERED_DOSTB20150918_from_BackupPlus`
+   (9 G), `RECOVERED_GPS_1TB_2_...` (3 G) = **~157 G total**. Decide whether all
+   four go, and preserve the directory names — they encode provenance
+   (which drive each was recovered from), which is exactly what an archive
+   manifest needs.
+3. **Duration: ~4.4 h for all four** at the measured **10 MB/s** over
+   `GNSS_5G2` wifi. That link has dropped twice in one day. Use tmux (their
+   plan does) and expect at least one resume. A direct cable into one of gps3's
+   three unused gigabit NICs would cut this to ~30 min — worth considering
+   before committing 4+ hours to wifi.
+
+Their flag choices are sound: `-aH` (hardlinks), `--partial` (resumable), and
+**no `-z`** because the bottleneck is the drive and GNSS data is already
+largely compressed. Agreed on all three. Two additions:
+- Census source **and** destination and compare files/symlinks/dirs/bytes —
+  `rsync` exit=0 is not proof (this project lost a session to that).
+- Generate `sha256` manifests after landing. That is the Tier-0 fixity item and
+  the copy is worthless as a preservation copy without it.
+
 ## ✅ 2026-07-30 — branch split closed, branching policy adopted
 
 **PR #57 merged.** `main` advanced `bc7b5b9` → `11315ee` and now holds the
