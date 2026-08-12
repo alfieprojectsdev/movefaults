@@ -132,10 +132,18 @@ RINEX-3 fiducials and IGS products.**
 **Licensing.** The free GFZ scientific licence covers manual and research use —
 which is what PHIVOLCS (Cass) has done for years and what the verification
 above is. **Automated/operational pipeline use requires a commercial licence,
-which has not been obtained.** That is a hard constraint on the Stage 1
-automation described in `docs/bern52/workflow_automation_inventory.md`, and it
-is a procurement question, not an engineering one. **Raise it before wiring
-gfzrnx into any pipeline, not after.**
+which has not been obtained.**
+
+**Direction given 2026-08-12: proceed with gfzrnx in development and
+automation; do not treat the licence as a blocker. Document each place where a
+commercial licence would be required, so the procurement question can be
+answered once against a concrete list rather than re-litigated per script.**
+
+Accordingly, anything in this repo that invokes gfzrnx should carry a short
+`LICENCE:` note in its header naming it as commercial-licence-triggering if
+run operationally. A running list belongs in
+`docs/bern52/workflow_automation_inventory.md` so the total exposure is
+visible in one place.
 
 ### Missing from this repo
 
