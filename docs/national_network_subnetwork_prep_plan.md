@@ -474,6 +474,66 @@ request. Results:
 
 
 
+## Working with the BSW 5.2 manual (added 2026-08-12)
+
+**Terminology note:** the user refers to the suite as **BSW**, version-qualified
+where it matters — BSW 5.2 is the manual, BSW 5.4 is what runs on the R740.
+
+### Figures need rendering, not text extraction
+
+`pdftotext` silently destroys the flow diagrams, and several carry structure
+the prose leaves implicit. **Printed page + 32 = PDF page** (verified across
+both body and back matter: printed 9→41, 237→269, 821→853).
+
+```bash
+pdftoppm -f <pdfpage> -l <pdfpage> -r 130 -png /home/gps3/bernese-docs/DOCU52.pdf out
+```
+
+Two rendered so far, both of which changed or sharpened findings above:
+
+- **Figure 1.1 (printed p. 9)** — the master functional flow diagram. Four
+  input streams (orbit / EOP / observation / meta), five parts (ORBIT,
+  SIMULATION, TRANSFER-CONVERSION, PROCESSING, SERVICE), an explicit
+  **"iterations" feedback loop** from the session solution back to the ORBIT
+  PART, and *multi-session solution* drawn **dashed** — i.e. optional, which is
+  exactly the step a velocity series would need. Best single orientation
+  artifact in the manual.
+- **Figure 9.11 (printed p. 237)** — cluster combination. Confirms the Tier 2
+  recipe and makes two things explicit the prose only implied: the **feedback
+  arrow from HELMR1 back to ADDNEQ2**, and *"pre-eliminate parameters not
+  supported in ADDNEQ2, e.g. **AMB**"* as a GPSEST pipeline step.
+
+Worth rendering when the topic arises: 6.5 (p. 142, baseline strategies), 7.3
+(p. 186, GPSEST flow), 9.5 (p. 224, ADDNEQ2 flowchart), 10.2 (p. 251, datum
+options), 11.2 (p. 277, FODITS algorithm).
+
+### End matter, for lookups
+
+**Index of Programs** (p. 824), **Index of Program Panels** (p. 825), **Index
+of Keywords** (p. 825) — the fastest route from a panel or keyword seen in an
+installed `.INP` back to the section explaining it; prefer these to full-text
+grep when starting from a name. **List of Abbreviations** (p. 821) for the
+manual's dense acronyms. **Bibliography** (p. 809) for the underlying geodesy.
+
+### Installation verification
+
+§5.2 is "Preparation of Earth Orientation Parameters", not installation. The
+relevant sections are **§23.3 "Installation Verification Using the BPE
+Examples"** (p. 535) and **§25.2 "Installation Guide for UNIX/Linux/Mac"**
+(p. 784).
+
+§23.3 is **already effectively satisfied on this R740** — the EXAMPLE campaign
+RNX2SNX BPE ran clean against the T420 reference (0.0000 mm) on 2026-07-28. If
+it is ever re-run, note the ordering requirement: `PPP_BAS.PCF` first, and
+`CLKDET.PCF` after `RNX2SNX.PCF`.
+
+**One divergence found while checking:** §23.3 names `${X}/GEN/DE405.EPH` as a
+prerequisite. BSW 5.4 here uses **`DE421.EPH` in `$MODEL`**
+(`/home/gps3/BERN54/GLOBAL/MODEL`), per the shipped `README_JPL_EPH.md`. It is
+present and correct — **do not "fix" a missing DE405.** Another instance of the
+rule that where the 5.2 manual and the installed 5.4 files disagree on
+anything procedural, the installed files win.
+
 ## Explicitly out of scope for this plan
 
 - Anything already answered for the 31-day LUZON exercise (directory
