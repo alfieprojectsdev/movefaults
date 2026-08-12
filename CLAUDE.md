@@ -73,29 +73,101 @@ services/                      # Long-running deployable services
 tools/
   drive-archaeologist/         # CLI for excavating legacy GNSS data from old drives
 
-src/ingestion/                 # Simplified local ingestion module (SQLAlchemy + Celery) — OVERLAPS with services/ingestion-pipeline; consolidation pending
+scripts/                       # THE PRODUCTION PATH TODAY — campaign staging, PCF
+                               # derivation, BPE drivers, product fetch, QC, the
+                               # file-server transfer. See "How components connect".
+  sudo/                        #   privileged scripts, handed over by absolute path
+                               #   (Claude Code has no tty; never pasted between shells)
 
 analysis/                      # Numbered research scripts (01-10): RINEX conversion, time series, dislocation models, bootstrapping
 ```
 
 ### How components connect
 
+**Read this as two things: the pipeline as designed, and what actually runs
+today. They are not the same, and conflating them has cost real time.**
+
+#### The designed flow
+
 1. **drive-archaeologist** scans legacy drives → discovers GNSS files
-2. Files feed into the **ingestion-pipeline** (Celery + Redis) → validated via **pogf-geodetic-suite** RINEX QC (wraps `gfzrnx`)
-3. Validated data lands in **PostgreSQL + TimescaleDB + PostGIS** (docker-compose: port 5433)
+2. Files feed into the **ingestion-pipeline** (Celery + Redis) → validated via
+   **pogf-geodetic-suite** RINEX QC
+3. Validated data lands in **PostgreSQL + TimescaleDB + PostGIS**
+   (docker-compose: port 5433)
 4. **bernese-workflow** orchestrates Bernese BPE for post-processing
-5. **vadase-rt-monitor** independently ingests real-time NMEA streams from 35+ CORS stations for rapid earthquake detection
-6. **pogf-geodetic-suite** provides shared algorithms (coordinates, velocity estimation, IGS product downloading)
+5. **pogf-geodetic-suite** turns solved coordinates into ENU series and
+   velocities
+6. **vadase-rt-monitor** independently ingests real-time NMEA from 35+ CORS
+   stations for rapid earthquake detection — **not** part of the chain above
+
+#### What actually runs today (as of 2026-08-12)
+
+The production path is **`scripts/` + Bernese**, not the service chain. Steps 2
+and 3 above are aspirational: nothing currently writes solutions into
+TimescaleDB, and the ingestion pipeline is not in the loop.
+
+```
+\\192.168.48.99 (Windows file server, the system of record)
+    │  scripts/transfer_phivolcs_datapool.py   (SMB, sha256 at copy time)
+    ▼
+$D  DATAPOOL ──── scripts/fetch_igs_products.sh   (CODE products; AIUB FTP is
+    │                                              firewalled, use the SWITCH
+    │                                              S3 mirror)
+    │             scripts/merge_blq.py            (ocean loading)
+    │             scripts/stage_luzon_campaign.sh (RINEX 2 + RINEX 3 staging)
+    ▼
+$P  CAMPAIGN54/<CAMPAIGN>  ◄── scripts/derive_luzon_pcf.py  (generates the PCF
+    │                          from 5.4 stock; refuses dangling WAITs)
+    │  scripts/run_luzon_month.sh  →  perl $U/SCRIPT/*_pcs.pl  →  BSW BPE
+    ▼
+$S  SAVEDISK/<CAMPAIGN>/<year>/SOL/FIN_*.SNX|NQ0
+    │  scripts/coord_repeatability.py      (precision QC)
+    │  scripts/network_coherence_scan.py   (multi-station coherent motion)
+    │  scripts/compare_solutions.sh        (bit-for-bit run comparison)
+    ▼
+pogf_geodetic_suite.timeseries
+    crd_pipeline.py  CRD → ENU relative to a reference station
+    analysis.py      offset-aware segmented velocities (verified against
+                     PHIVOLCS' MATLAB output)
+```
+
+`services/bernese-workflow` **does** now invoke BSW for real —
+`backends.py` calls `startBPE.pm` over Perl — but the month-long production
+runs to date have gone through `scripts/`. Moving that logic into the service
+is the standing direction, not a completed migration.
+
+#### Corrections to earlier versions of this section
+
+- **RINEX QC wraps `teqc`, not `gfzrnx`.** `qc/rinex_qc.py` shells out to
+  `teqc +qc`. This matters: teqc **cannot read RINEX 3 at all** — it refuses on
+  line 1 — and every IGS fiducial is RINEX 3. See
+  `docs/project_documentation/gfzrnx_vs_teqc_rinex3_evidence.md`. `gfzrnx`
+  is installed at `/home/gps3/gfzrnx/` but is **not wired into any module**.
+- **`src/ingestion/` no longer exists** — the duplicate local ingestion module
+  is gone and that consolidation is done. Earlier versions of this file listed
+  it in the tree with a "consolidation pending" note.
+- **The file server is the system of record**, not this repo and not gps3.
+  `\\192.168.48.99` holds the national campaign (`CAMPAIGN52/PHIVOLCS`, 439
+  stations catalogued / ~52 estimated daily) and 476 GiB of observations back
+  to 2010.
 
 ### Implementation maturity
 
-| Component | Status |
-|---|---|
-| vadase-rt-monitor | ~80% (parser, handler, core logic, smart integration, leaky integrator) |
-| pogf-geodetic-suite | ~70% (QC, IGS downloader, coordinates work) |
-| drive-archaeologist | ~60% (Phase 1 scanner works, archive support partial) |
-| ingestion-pipeline | ~30% (architecture defined, tasks are stubs) |
-| bernese-workflow | ~10% (BPE integration not active) |
+*Measured 2026-08-12 (modules / LOC excluding tests / test files), not estimated.*
+
+| Component | Size | Status |
+|---|---|---|
+| drive-archaeologist | 26 / 3004 / 15 | ~60% — Phase 1 scanner works, archive support partial |
+| **bernese-workflow** | 10 / 2277 / 9 | **~60%, not ~10%** — 198 passing tests; `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config all implemented. **Not yet** the path production runs take (see above) |
+| vadase-rt-monitor | 23 / 1796 / 7 | ~80% — parser, handler, core logic, smart integration, leaky integrator |
+| **pogf-geodetic-suite** | 9 / 853 / 4 | ~75% — coordinates, IGS downloader, RINEX QC (teqc-based, RINEX 2 only), and `timeseries/` (CRD→ENU pipeline + segmented velocities **verified against PHIVOLCS' production MATLAB output**) |
+| ingestion-pipeline | 7 / 612 / 3 | ~30% — architecture defined, not in the production loop |
+
+**The maturity that matters is not module count.** `bernese-workflow` was
+listed at ~10% for months while carrying 198 tests, and the genuinely
+incomplete part is different from what that number implied: the code exists and
+is tested, but the month-long runs still go through `scripts/`. Treat "does
+production use it?" as the real axis.
 
 ---
 
@@ -166,8 +238,13 @@ uv run igs-downloader                     # IGS product downloader
 | Drive scanner | `tools/drive-archaeologist/src/drive_archaeologist/scanner.py` |
 | File classifier profiles | `tools/drive-archaeologist/src/drive_archaeologist/profiles.py` |
 | Coordinate transforms | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/modeling/coordinates.py` |
-| Celery tasks (ingestion) | `src/ingestion/tasks.py` |
-| DB models (ingestion) | `src/ingestion/db_models.py` |
+| BPE invocation (real) | `services/bernese-workflow/src/bernese_workflow/backends.py` |
+| PCF derivation | `scripts/derive_luzon_pcf.py` |
+| Month-long BPE driver | `scripts/run_luzon_month.sh` |
+| Segmented velocities | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/timeseries/analysis.py` |
+| CRD → ENU pipeline | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/timeseries/crd_pipeline.py` |
+| PHIVOLCS event catalog | `docs/bern52/phivolcs-scripts/event-catalog/offsets` |
+| Reprocessing runbook | `docs/bernese54_luzon_reprocessing_runbook.md` |
 | Project roadmap | `docs/project_documentation/roadmap.md` |
 
 ---
