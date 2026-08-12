@@ -1,0 +1,1 @@
+teqc -phc -O.r CJVC -O.dec 30s -O.mo LEYG -O.mn LEYG -O.pe 0 0 0 +C2 +obs + -tbin 1d LEYG 4778170*.dat

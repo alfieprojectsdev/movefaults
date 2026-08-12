@@ -1640,3 +1640,427 @@ extrapolated from the per-day figure:
 **None of this is the binding constraint.** We hold 31 days of observations. The
 compute budget for the full series is weeks, entirely tractable, and irrelevant
 until the data exists.
+
+---
+
+## 20. PR #67 lands, S01R resolved, and a reading plan for national scale — 2026-08-11
+
+### 20.1 Housekeeping: DOSTB unmounted, PR #67 merged properly
+
+`scripts/sudo/mount_dostb.sh --umount` already existed and was already correct
+(refuses if `lsof` finds open files, syncs before unmounting) — handed the
+absolute path to the user's own terminal rather than running it, per the
+standing sudo-via-script convention.
+
+PR #67 (the whole LUZON I20 reprocessing arc — 17 commits) was merged via
+`scripts/merge_pr.sh`, fast-forwarded onto `main`, and verified against
+`origin/main` directly rather than trusting the exit code. Branch deleted on
+GitHub, confirmed with a 404 on the branch API rather than assumed.
+
+### 20.2 Coordinate repeatability and network coherence: checking the numbers, not just the exit code
+
+Two scripts were added and used against the 30-day I20 run before this
+session, prompted by the observation that "`Sessions finished: OK`" verifies
+the pipeline ran, not that the output is any good:
+
+- `scripts/coord_repeatability.py` — day-to-day scatter of each station about
+  its own mean. Full-month result: median N 2.8 mm, E 3.0 mm, U 10.9 mm,
+  horizontal holding steady as the series grew from 10 to 30 days. First real
+  evidence the derived PCF is sound, not just executable. Explicit in the
+  docstring: this is PRECISION, not accuracy — a wrong reference frame would
+  look identical.
+- `scripts/network_coherence_scan.py` — added specifically because a
+  single-station outlier threshold is the wrong test for this project's actual
+  purpose (earthquake detection is several NEARBY stations moving TOGETHER,
+  often below any single-station threshold). It found what the single-station
+  scan missed: **DOY 126 moved 14 stations 8–30 mm together** across the whole
+  southern-to-central Luzon cluster, invisible to the earlier check because no
+  one station individually cleared 30 mm by much. DOY 129 and 145 showed
+  smaller versions of the same pattern.
+
+**Told apart from a real earthquake by reading the day-by-day series, not by
+running a script.** A coseismic offset is a permanent step; DOY 125 was quiet,
+126 spiked network-wide, 127 reverted completely — a spike, not a step.
+Corroborated against the actual PHIVOLCS/USGS catalog: no earthquake recorded
+on any of the three flagged dates. A confirmed M4.6 near Quezon on DOY 147
+produced no anomaly at the nearest stations — a useful negative control, since
+M4.6 at tens of km is below what daily static GNSS resolves, and the method
+correctly stayed quiet rather than manufacturing a signal from noise.
+
+**The technical cause of the DOY 126/129/145 spikes was not identified.**
+Orbit file size and the fiducial-fixing list were both checked and ruled out.
+Recorded as open rather than assigned a plausible guess.
+
+### 20.3 Full-year and national-network questions
+
+Asked what a full year, and eventually the full ~135-station PH network,
+would cost. Measured rather than modelled where possible: 333 s/day at 30
+stations, 3.94 of 24 cores (16% of the machine) — a year at this
+configuration is ~34 h serial or ~7 h at five concurrent days.
+
+**`MAXPAR` correction.** Originally recorded (this same session) as a hard
+ceiling near 330 stations. Wrong — `ADDNEQ2.HLP`, read directly rather than
+assumed from memory, states plainly it "allocate[s] memory for the combined
+NEQ system. Specifying a number greater than necessary does not harm if the
+computer has enough memory," and the program's own default is 3000, not the
+1000 the R2S_FIN panel configures. A runtime allocation, not a compiled
+limit. Corrected in both the runbook and this log rather than left standing.
+
+**The user's subnetwork-then-combine instinct was confirmed as Bernese's own
+intended architecture**, not a workaround: `ADDNEQ2.HLP` lists "combination of
+overlapping networks (regional with global networks)" and "combination of
+baseline-, or cluster-specific NEQs into a network solution" as core
+applications. The honest cost, from the same text: cluster/regional
+combination "neglect[s] the inter-baseline, or inter-cluster correlations" —
+a known, accepted approximation, the same one IGS/EPN combination centers
+accept at global scale.
+
+### 20.4 The Bernese manuals: downloaded, indexed, one version caveat
+
+User supplied two URLs directly (not guessed): `DOCU52.pdf` and
+`TERMINAL.pdf`. Downloaded to `/home/gps3/bernese-docs/` (858p and 150p,
+~38 MB with `pdftotext -layout` extractions for fast `grep`).
+
+**`DOCU52.pdf` is the Bernese 5.2 manual, not 5.4** — checked, not assumed,
+given how much of this week's trouble traced to exactly that version gap
+(PCF format change, `V_PCVINF` vs `V_PCV`, ANTEX SVN/PRN validation 5.2
+lacked). `TERMINAL.pdf` is 5.4-native (Dach & Arnold, Jan 2026) and better
+matched to how Bernese is actually run here — command-line, no GUI.
+
+Full reference recorded in memory (`reference_bernese_manuals.md`) rather
+than only in this log, since it needs to survive across sessions, not just
+within this one.
+
+### 20.5 Process note: two commits pushed directly to main
+
+While verifying the PR #67 merge, `git checkout main` was run and every edit
+afterward — including the S01R and MAXPAR corrections — was committed and
+pushed directly to `main`, bypassing the PR requirement. This is the same
+mistake §18.7 recorded once before (`c4bc867`). Flagged to the user plainly
+rather than left to be noticed later; content was sound, route was not.
+Branched properly for everything after.
+
+### 20.6 S01R: from "mystery" to "documented, and not acted on"
+
+Raised by the user twice, ten minutes apart, the second time sharper: *"do we
+need S01R... or has this slowly devolved into a 'let's not jinx the data
+processing' type of belief?"*
+
+**Three technical hypotheses checked and ruled out**, each cheaply, against
+real files rather than guessed:
+
+1. 15 s sampling vs. the network's 30 s — `V_SAMPL=180` divides both evenly;
+   doesn't explain exclusion.
+2. Stale `LUZON.STA` equipment entry — the 2025-04-15 entry (`TRIMBLE ALLOY`
+   / `LEIAR25 LEIT`) is clean and matches the RINEX header exactly. (A real,
+   separate defect — overlapping/duplicate entries for 2017–2025 — exists
+   nearby but predates the window that matters.)
+3. Unrecognized antenna model — `LEIAR25 LEIT` is present in
+   `REF54/ANTENNA_I20.PCV`.
+
+**What actually changed the picture**: S01R carries an estimated velocity in
+`LUZON.VEL` (`-0.02209 -0.00659 -0.01191` m/yr, EURA-relative) and appears in
+**364 of the 365 days** Abegail solved in 2025 — checked across the full
+year, not just the 31-day window. It fails in **all ten** of this session's
+I20 runs and **none** of hers over the identical days. The pipeline is the
+anomaly, not the station — something in the 5.4/I20 derivation regresses a
+station that has processed reliably since 2002. Cause still not identified.
+
+**Then the actual rationale surfaced, sourced rather than inferred.** An
+earlier guess in the runbook (Luzon Strait/Taiwan collision-zone tectonic
+interest) was wrong. The real answer was already written, twice, in this
+repo: in PHIVOLCS's own work instructions (Cass, Dane, Abegail) and in the
+user's own October 2025 technical review of that document
+(`docs/work_instructions_review.md`). Quoted verbatim in the runbook now.
+S01R is the fixed reference point for a **Eurasia-plate-relative velocity
+frame** (every station's velocity computed relative to it) and for
+XYZ-to-ENU time-series plotting — a different purpose from what the nine IGS
+fiducials do (absolute ITRF/IGS20 position). But the source document already
+grants permission to change it: *"the choice of reference station... is not
+fixed, as other stations may be used based on needs or the intended
+analysis,"* naming **PIMO** — already one of this network's own fiducials,
+already flowing through the pipeline daily, zero foreign dependency — as a
+named alternative.
+
+**Verdict, stated plainly in the runbook**: not superstition, but not a hard
+requirement either. The SOP already grants permission to change it; nothing
+has acted on that permission, including switching to a station that would
+make tonight's regression moot.
+
+### 20.7 A reading plan for the full PH network, not the reading itself
+
+`docs/national_network_subnetwork_prep_plan.md` — four tiers, each tied to a
+specific open question rather than "read the chapter": partitioning
+mechanics (Tier 1), combination and datum-tying mechanics (Tier 2), the
+double- vs. zero-difference architecture choice `LUZON_DLY` inherited by
+default rather than by decision (Tier 3), and FODITS/quality (Tier 4).
+
+One question closed before the plan was even needed: **station/receiver count
+is not a constraint.** `M_MAXDIM.f90` in the installed 5.4 source (not the 5.2
+manual) gives `MAXSTA=3000`, `MAXREC=1000` — real compiled Fortran
+`PARAMETER` limits, unlike `MAXPAR`. A ~135–425 station PH network is nowhere
+close.
+
+### 20.8 All four tiers worked through — 2026-08-12
+
+Findings are recorded per tier in the plan document itself rather than here;
+this is the summary and the corrections.
+
+**The answer to the question that prompted the plan: subnetworks, and the
+mechanism is one this pipeline already runs.** MKCLUS → GPSEST (with
+`CORRECT` correlations, stopping after NEQ save) → ADDNEQ2 under minimum
+constraint, with a HELMR1 reference-site verification loop. `LUZON_DLY`
+already does this inside one campaign; national scale is the same pattern at a
+coarser, independently-executed grain. **No new architecture to design, and no
+architecture decision left open.**
+
+**Two claims in my own plan were wrong and were corrected in place:**
+
+1. **Tier 1 — clustering is not the subnetwork boundary.** `SNGDIF` forms
+   baselines across the entire station set it is given, then assigns each
+   baseline to a cluster *afterward* by its first station. Clustering does not
+   prevent cross-region baselines; it only decides which GPSEST batch handles
+   one. The real boundary is simply **which stations are in the campaign when
+   `SNGDIF` runs** (§22.12.1) — an independent regional run given only that
+   region's roster cannot form a cross-region baseline at all.
+2. **Tier 3 — the double- vs. zero-difference "decision" was a false
+   premise.** `RNX2SNX.PCF` estimates coordinates, troposphere and velocities
+   for a regional network; `CLKDET.PCF` determines station and satellite
+   *clock* corrections. Different jobs, not two ways to do one. For
+   deformation monitoring `RNX2SNX.PCF` is straightforwardly correct, and
+   `LUZON_DLY`'s inheritance of it was right rather than accidental.
+
+**Two practical results worth carrying forward:**
+
+- **Our existing `FIN_*.SNX` can feed a subnetwork combination via `SNX2NQ0`
+  without reprocessing** — they are already in NEQ representation. Getting
+  this right required not trusting the obvious panel value: `R2S_FIN`'s
+  `SNXCONT="COV"` is **inert**, because its `SINEXRS` filename field is empty
+  and `SNXCONT` is gated on `activeif = SINEXRS /= _`. Only `R2S_RED` (PID
+  521) writes SINEX, with `SNXCONT=NEQ`. A panel value that is never consumed
+  reads exactly like one that is.
+- **FODITS substantially supersedes `scripts/network_coherence_scan.py`** —
+  significance testing, seasonal/periodic modelling, velocity changes,
+  equipment-change discontinuities from the `STA` file, a USGS-derived
+  earthquake list, and aftershock screening. Our script should be treated as a
+  stopgap. Caveat: FODITS targets multi-year series, so it becomes the right
+  tool as the reprocessed archive grows, not immediately.
+
+### 20.9 Verification pass — one real error, one confirmation that needed it
+
+All Tier 1–4 claims were re-checked against primary sources on request.
+
+**Error found and corrected: the DOY 147 step-test distances.** They were
+computed against General Nakar *town* (verified 14.763 N, 121.635 E) rather
+than the epicentre, which reporting placed **24 km northwest** of it
+(≈14.916 N, 121.477 E). Distances were wrong by up to 24 km — INFA is 26.3 km
+away, not 5.9 km, and POLI and PIMO fall *outside* the M4.6 detectability
+threshold rather than inside it. **The conclusion — no coseismic step at any
+station — is unchanged**, now resting on three in-threshold stations instead
+of four. The azimuth behind the epicentre estimate is an assumption from the
+word "northwest" and is now recorded as such rather than presented as exact.
+
+**Confirmation that genuinely needed the re-check: `HLM_*.FIX`.** DOCU52
+§22.12.3 says HELMR1 writes "a new station selection file containing only
+those stations that **passed** the outlier criterion" — which implies the
+opposite of the Tier 2 reading. The installed panel settles it:
+`DESCR_LISTFIL 1 "List of rejected stations"` in `R2S_FIN/HELMR1.INP`, and the
+file contents prove it end to end — `HLM_20251210.FIX` holds AIRA alone, while
+`REF_20251210.FIX`, which `ADDNEQ2` consumes as `FREESTA_F`, holds exactly the
+six others. **Trusting the manual's phrasing over the installed configuration
+would have inverted a load-bearing finding.**
+
+Confirmed unchanged: three-translation datum at panel level (`HLM_1/2/3=1`,
+`HLM_4–7=0`), `CORREL` values (`R2S_EDT`=BASELINE, `R2S_FIN`=CORRECT), AIRA's
+residuals to the digit (`13.25, −32.77, −19.04`; component RMS
+`5.00, 3.38, 6.61`), and the ambiguity ladder matching the manual's own
+example values exactly (6000/2000/200/20 km).
+
+### 20.10 New open item: AIRA's chronic a priori offset
+
+Surfaced during Tier 2, unrelated to anything previously tracked. **AIRA is
+rejected from the datum definition every single day**, with an East residual
+of −29 to −45 mm across five spot-checked days, against a component RMS of
+~3.4 mm. It is one of the nine fiducials, so this is not a marginal station.
+
+Checked and **ruled out** as the cause of the DOY 126/129/145 network-wide
+spikes (runbook §4b.11): AIRA's deviation is chronic and day-independent, and
+DOY 126 — the worst spike day — shows its *smallest* deviation of the five.
+
+The open question is why a fiducial's a priori coordinate is consistently tens
+of mm off in East. Candidates not yet investigated: a stale entry in the
+IGS20 reference coordinate/velocity files for AIRA, an unmodelled
+discontinuity (equipment change or coseismic offset) in its position history,
+or a genuine problem at the site. The pipeline is handling it correctly — it
+detects and excludes it daily — so this is a data-quality question, not a
+processing failure.
+
+### 20.11 State at end of 2026-08-12
+
+- PRs this session: #67, #69, #70 merged; **#71 open** — session log §20,
+  all four tiers, and the verification pass.
+- Manuals at `/home/gps3/bernese-docs/`, indexed in memory
+  (`reference_bernese_manuals.md`).
+- **Still open, carried forward:** the S01R exclusion mechanism (why that
+  station specifically — Tier 3 confirmed that *silent* dropout is a designed
+  robustness feature of this PCF, which explains the silence but not the
+  selection); AIRA's chronic offset (§20.10); the DOY 126/129/145 spike cause;
+  and the standing S01R-vs-PIMO reference-station decision, where the SOP
+  already grants permission to switch and nothing has acted on it.
+
+---
+
+## 21. The file server, the SOP, and a failed parallelism test — 2026-08-12
+
+### 21.1 The other server: 476 GiB of PH data, and the scripts that were nowhere else
+
+`\\192.168.48.99` (`WIN-8I2S1803RV5`, Windows, WORKGROUP) holds the PHIVOLCS
+Bernese 5.2 installation, the national campaign, and every project script.
+Reached over SMB with a **guest** session — anonymous is refused, guest works.
+No `smbclient` or `cifs-utils` on gps3; `uv run --with smbprotocol` needs
+neither, and needs no sudo.
+
+**Full datapool survey: 476.0 GiB across 330,754 files.** 314.5 GiB of that is
+the 2025–2026 working set sitting loose at the top level; 2010–2023 are in year
+directories; **the `2024` and `2025` subdirectories are empty** — current data
+does not live where the directory names suggest, so a transfer plan must follow
+the actual layout rather than the apparent one.
+
+**142 text artifacts snapshotted into the repo** (`docs/bern52/phivolcs-scripts/`)
+with `scripts/snapshot_phivolcs_scripts.py`, deliberately excluding installers
+and binaries. The one that matters most is the **`offsets` event catalog** —
+88 records, 70 sites, 2003.1259 to 2026.4353, classified 79 EQ / 5 UK / 3 CE /
+1 VE. Twenty-three years of accumulated judgement about which coordinate jumps
+were earthquakes versus equipment swaps. It existed only on that share and on
+staff machines, it cannot be regenerated, and it is exactly what FODITS
+consumes as an event list. Decoding validated against Taal (CACA 2020.0356 VE
+→ 13 January 2020).
+
+**Cass's caveat confirmed.** The work instruction renames scripts for
+readability ahead of PHIVOLCS peer review and the library archive. Real names:
+`filter-fncrd.bat` is `00_CRD_PIVS.bat` plus per-network variants (NAMRIA, NP,
+VFS); `plot_v2.py` is a `01_GETXYZ → 02_TRANSFORM → 03_GETENU → 04_PLOTFILES`
+pipeline driven by `RUN.py`/`RUNX_v*.py`; `vel_line_v8.m` is
+`vel_line_v8_newvelduetooffset_v4.m`. There are **five** workflow variants where
+the SOP describes one, and the campaign time series are already organised by
+region (CBPN, Cotabato-Sindangan, Eastern Mindanao, Luzon,
+Ragay-Bondoc-Marinduque-Masbate, Samar-Leyte) — PHIVOLCS' own subnetwork
+decomposition, which should drive any future partitioning rather than something
+invented here.
+
+### 21.2 The national campaign: 439 catalogued, 52 processed
+
+`CAMPAIGN52\PHIVOLCS` has all eight campaign files and a `PHIVOLCS.CRD` of
+**439 stations**. But a daily solution estimates **52** — 50 flagged `A`
+(PHIVOLCS) and 2 flagged `W` (IGS), verified by parsing the FLAG column of
+`F1_260900.CRD` after a first attempt using a last-character heuristic gave a
+wrong answer.
+
+That settles the clustering question Cass raised: 52 is comfortably under the
+SOP's "<100 files → cluster 1", under DOCU52 §9.5.1's ">100 stations becomes
+expensive", and under `MAXFLS=90`. **One cluster is genuinely fine for the
+national network as currently processed.** Subnetworking only becomes necessary
+if substantially more of the 439 catalogued sites are processed — which is what
+pulling the full network off staff machines would mean.
+
+### 21.3 The MATLAB port: exact, and it exposed two real defects
+
+`packages/pogf-geodetic-suite/.../timeseries/velocity.py` replaces
+`vel_line_v8_newvelduetooffset_v4.m`, the pipeline's only MATLAB dependency and
+the step that produces the project's actual scientific deliverable.
+
+**171 of 171 velocity components reproduce exactly, max difference
+0.000000000 mm/yr.**
+
+Two things had to be understood to get there:
+
+1. **The reference output is 20 days older than the event catalog** (output
+   2026-07-09, catalog 2026-07-29). A direct diff showed disagreement at four
+   sites and looked like port bugs. Reconstructing the catalog as it stood on
+   the reference date gave exact agreement. **A velocity file is only
+   reproducible alongside the exact catalog that produced it** — the concrete
+   argument for the provenance record.
+2. **BR14 and LUZD expose a genuine MATLAB bug.** Their offsets are recorded
+   out of chronological order, so the MATLAB builds a descending (empty)
+   segment range; its `for N=length(...)` loop then never executes, leaving the
+   *previous* segment's design matrix `G` in place, and the regression fits
+   stale timestamps against current data. Those two sites' published velocities
+   are wrong.
+
+Also settled the outlier question: `rmoutliers` computes `cleaned_d` and the
+regression **ignores it**. Outliers are listed, never excluded — which is
+exactly why the SOP needs a manual removal-and-rerun step. The port keeps that
+faithful by default and offers `--outlier-policy exclude` to close the loop.
+
+### 21.4 SUPERBPE: mechanically works, and our PCF cannot use it
+
+The plan was 12 parallel monthly runs. Investigating whether that was safe
+turned up something better and then something worse.
+
+**Better:** BSW has native multi-session parallelism. `SUPERBPE=1` is the
+documented "Run sessions in parallel" checkbox (§22.9), `RADIO_P=1` selects the
+recommended "Simple parallel multi session run" mode, and `MAXSESS` caps the
+overlap. `startBPE.pm` writes all three via the same `putKey` mechanism it
+already uses for `NUM_SESS` — first-class options our driver simply never set.
+No hand-rolled orchestration needed, and `$U` is redefined per client (§22.3.3)
+so the fixed-name scratch files (`GPSEST.SC1`, `ADDNEQ2.SCR`) do not collide.
+
+**Verified working mechanically:** all five sessions (1210–1250) genuinely in
+flight at once, peaking at **11 concurrent clients** — exactly `USER.CPU`'s
+`Maxj=11`.
+
+**Worse: 4 of 5 sessions failed.** `Sessions finished: OK: 1 Error: 4` in
+5m51s. All four died at PID 022 `CCRNXO_P` with
+`*** SR O_CCRNXO:concatenateOrMergeRinexFiles ... No input files`. Only
+session 1240 completed.
+
+Root cause is the precondition the manual states explicitly for single-campaign
+parallelism: *"all scripts and filenames (including all temporary files) must
+be fully sessions-independent."* **Ours are not.** `ORX/` was left holding 7
+stray files across three different sessions, and `RAW/` showed 1240 with 64
+files against 37–40 for the others — the sessions consumed each other's
+staging.
+
+**The documented remedy is "Each session in separate campaign"** (§22.9, via
+`${U}/PAN/NEWCAMP.INP`). Which vindicates the original per-campaign instinct —
+but obtained as a supported BSW mode rather than hand-rolled shell
+orchestration.
+
+**Nothing was lost.** The 30-day baseline was copied to
+`SAVEDISK/LUZON_BASELINE_20260806` before the test, and all 30 solutions were
+restored and verified identical afterward with the new
+`scripts/compare_solutions.sh` (30 identical, 0 differing).
+
+### 21.5 Also this session
+
+- **gfzrnx** installed at `/home/gps3/gfzrnx/` from the T420 relay, md5
+  verified, execute bit restored (the zip strips it), verified against our own
+  AIRA RINEX 3.02 fiducial. Not committed — licensed software. Direction given:
+  proceed, and document **actual usage** as a reproducibility record rather
+  than maintaining a speculative licence-exposure list.
+- **A decision conflict recorded rather than resolved**: the repo's
+  2026-07-01 evidence document concludes the teqc→gfzrnx trigger is *met*; the
+  T420's 2026-08-12 note states teqc stays primary. By the trigger's own
+  wording it has fired. The authoritative `gfzrnx_teqc_decision.md` is **not in
+  this repo** — it lives in T420 memory, which is why the two sessions
+  diverged.
+- **BSW 5.4 cannot currently be recompiled here.** `Makefile.template` invokes
+  `gfortran`/`cc`/`g++` unversioned; only `gfortran-12`/`gcc-12`/`g++-12` exist.
+  Nothing is broken today, but §25.3 updates and §25.4.2 compile-time limits
+  are unavailable. Fix prepared, not run:
+  `scripts/sudo/install_bsw_build_toolchain.sh` (`--check` is read-only).
+- **The BSW 5.2 manual's three indices are empty stubs** — the TOC promises
+  Index of Programs / Program Panels / Keywords; the PDF contains none of them.
+  `grep` on the extracted text is the only working lookup. Verified by
+  rendering the page, because text extraction alone could not distinguish a
+  blank page from a layout failure.
+
+### 21.6 State at end of 2026-08-12
+
+- PRs: #67, #69, #70 merged; **#71 open** and carrying this session's work.
+- **Next, in order:** (1) transfer the 476 GiB datapool to the empty array with
+  checksums at copy time; (2) re-test parallel sessions using "Each session in
+  separate campaign" rather than one shared campaign; (3) then the 2025 run.
+- Still open: S01R's exclusion mechanism, AIRA's chronic 30–45 mm East offset,
+  the DOY 126/129/145 spike cause, and the S01R→PIMO reference-station decision
+  the SOP already permits.
