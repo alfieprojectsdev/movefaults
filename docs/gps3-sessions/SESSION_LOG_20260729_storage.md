@@ -30,6 +30,10 @@ PAGENET sessions against the real DATAPOOL. Outstanding: the legacy archive is
 still single-copy on failing media, and `PAGENET_DLY.PCF` is still only on the
 T420.
 
+**Update (2026-08-12):** the PCF was captured on 2026-08-05 and PAGENET has
+since been scoped out — it is NAMRIA's network, relevant only to the June
+training (§21.7). The legacy archive is still single-copy; that one stands.
+
 ---
 
 ## 1. Starting state (verified this session)
@@ -1013,6 +1017,11 @@ half-updated.
 **Applied.** `pagenet_pcs.pl` is now at `$U/SCRIPT/`, byte-identical to the gold
 copy, and a second run reports no changes.
 
+> **Superseded — see §21.7.** This was true on 2026-07-29. The PCF was captured
+> on 2026-08-05 (`4e82eaa`) and verified on 2026-08-12; PAGENET has since been
+> scoped out as NAMRIA's network. Left as written because this is a historical
+> record.
+
 **Still blocked: `PAGENET_DLY.PCF`.** It exists only on the T420, where it drove
 the full training week. **It must be captured, not re-derived.** It is described
 as RNX2SNX modules 1–14 (PID 001→514). In stock `RNX2SNX.PCF`, `599 DUMMY` waits
@@ -1095,6 +1104,10 @@ side was read-only this session.
 - **Does a repo gold standard for `$U` exist?** It did not; it does now. (§14.5)
 
 ### 15.3 The one thing blocking progress
+
+> **Superseded — see §21.7.** Captured 2026-08-05, verified 2026-08-12, and
+> PAGENET is NAMRIA's network rather than a PHIVOLCS dependency. Retained as the
+> record of what was believed at the time.
 
 **`PAGENET_DLY.PCF` exists only on the T420.** Until it is committed to
 `config/bernese/gpsuser/PCF/`, no acceptance test can run on gps3 — the
@@ -2064,3 +2077,37 @@ restored and verified identical afterward with the new
 - Still open: S01R's exclusion mechanism, AIRA's chronic 30–45 mm East offset,
   the DOY 126/129/145 spike cause, and the S01R→PIMO reference-station decision
   the SOP already permits.
+
+### 21.7 The PAGENET blocker, closed twice over
+
+Two documents had carried `PAGENET_DLY.PCF` as *the* blocker since 2026-07-29.
+Both were stale, and checking turned up a third thing neither had noticed.
+
+**It was already captured.** `4e82eaa` (2026-08-05) put it on `main` at
+`config/bernese/gpsuser/PCF/PAGENET_DLY.PCF`, md5
+`b4d5c52ee6f3289fc5de4a1dcb6da5be`, byte-identical to the T420's live copy. The
+status documents simply had not caught up.
+
+**It is not a 5.2-era artefact.** The T420's own handover note described it as a
+specification to derive a 5.4 configuration from, "not a file to run unmodified
+under 5.4". Installed into `$U/PCF/` and run through our validators it is
+**52 of 52 rows in 5.4 keyword format with zero dangling WAITs** — structurally
+sound as it stands. The same note said `~/GPSUSER/PCF/` did not exist on this
+machine; it does, with ten PCFs in it.
+
+**The gap nobody was looking at**: the PCF references nine OPT directories and
+**eight are missing** from both the server and the repo — `PGN_GEN` (24 steps),
+`PGN_FIN` (6), `PGN_EDT` and `PGN_AMB` (3 each), `PGN_QIF`, `PGN_L53`,
+`PGN_L12`, `PGN_GE2` (2 each). The only PHIVOLCS panel directory held,
+`PGN_WK`, serves the *weekly* combination rather than the daily run.
+
+**And then the scope question dissolved it.** PAGENET is **NAMRIA's network** —
+the data and configuration exist only for the June training week. So the eight
+missing directories are not a PHIVOLCS blocker at all; they matter only if a
+NAMRIA pipeline is ever run here again. The equivalent PHIVOLCS path is
+`LUZON_DLY.PCF`, derived from 5.4 stock, which has processed a full month.
+
+Recorded because the sequence is instructive: a stale blocker was chased,
+corrected, researched into a more precise blocker, and then found to be out of
+scope entirely. The check that would have short-circuited all of it is *"whose
+network is this?"* — asked before *"what does this file need?"*

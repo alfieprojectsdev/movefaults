@@ -217,11 +217,27 @@ RINEX-3 handling is a live constraint, not hypothetical.
    > `maxjobs 2` bug found on gps3. `pagenet_pcs.pl` is deployed and the run is
    > idempotent.
    >
-   > **Outstanding: `PCF/PAGENET_DLY.PCF` must be captured from the T420, not
-   > re-derived.** Truncating RNX2SNX at PID 514 leaves `599 DUMMY` waiting on
-   > `522` — a dangling WAIT that hangs the BPE forever, and which the
-   > provisioner will now refuse. A re-derived PCF would not be the one that was
-   > validated during the training week.
+   > **`PCF/PAGENET_DLY.PCF` — CLEARED 2026-08-05, verified 2026-08-12.** It was
+   > captured from the T420 in `4e82eaa` and is on `main` at
+   > `config/bernese/gpsuser/PCF/PAGENET_DLY.PCF`
+   > (md5 `b4d5c52ee6f3289fc5de4a1dcb6da5be`, byte-identical to the T420's live
+   > copy). Installed into `$U/PCF/` on the R740 and checked against our own
+   > validators: **52 of 52 process rows in Bernese 5.4 keyword format, zero
+   > dangling WAITs.** It is structurally sound, not a 5.2-era artefact needing
+   > derivation.
+   >
+   > The reasoning for capturing rather than re-deriving still stands and is
+   > worth keeping: truncating RNX2SNX at PID 514 leaves `599 DUMMY` waiting on
+   > `522` — a dangling WAIT that hangs the BPE forever rather than failing, and
+   > which the provisioner now refuses.
+   >
+   > **Scope note (2026-08-12): PAGENET is NAMRIA's network.** The data and
+   > configuration exist only for the June training week. The eight `PGN_*` OPT
+   > directories the PCF references are absent from this machine and the repo,
+   > but that is not a PHIVOLCS blocker — it is only relevant if a NAMRIA
+   > pipeline is ever run here again. The equivalent PHIVOLCS path is
+   > `LUZON_DLY.PCF`, which was derived from 5.4 stock and has processed a full
+   > month (30/30 days).
 3. **Tune `USER.CPU` + clustering** for the R740 core count (P2-K/L) — `USER.CPU`
    **DONE 2026-08-03** (maxjobs 2 → 11 on 12 physical cores); `V_CLUFIN`
    clustering still untuned and still the other half of the 502 bottleneck.
