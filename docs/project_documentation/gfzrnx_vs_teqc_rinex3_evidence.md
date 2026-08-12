@@ -134,16 +134,38 @@ which is what PHIVOLCS (Cass) has done for years and what the verification
 above is. **Automated/operational pipeline use requires a commercial licence,
 which has not been obtained.**
 
-**Direction given 2026-08-12: proceed with gfzrnx in development and
-automation; do not treat the licence as a blocker. Document each place where a
-commercial licence would be required, so the procurement question can be
-answered once against a concrete list rather than re-litigated per script.**
+**Direction given 2026-08-12: proceed with gfzrnx; do not treat the licence as
+a blocker. Document all instances where it is *actually used* — as part of the
+reproducibility goals of the GNSS pipeline orchestration, not as a procurement
+exercise.**
 
-Accordingly, anything in this repo that invokes gfzrnx should carry a short
-`LICENCE:` note in its header naming it as commercial-licence-triggering if
-run operationally. A running list belongs in
-`docs/bern52/workflow_automation_inventory.md` so the total exposure is
-visible in one place.
+The distinction matters. A speculative list of "places a licence would be
+required" is a legal artifact that rots the moment the code changes. **A record
+of what actually ran is a scientific artifact**: it answers "which tool, at
+which version, with which flags, produced this file?" — the question a
+successor or a reviewer will ask about a coordinate series in 2031. The licence
+exposure is then a byproduct of that record rather than a separate thing to
+maintain.
+
+**What this means in practice.** Every pipeline stage that invokes an external
+binary — gfzrnx, teqc, CRX2RNX, runpkr00, the BSW programs — should emit a
+provenance record alongside its output, capturing at minimum:
+
+- tool name and **version as self-reported by the binary**, not as assumed
+- the exact argument vector
+- input file(s) with a checksum
+- output file(s) with a checksum
+- timestamp and host
+
+This is the same discipline the archive still lacks (no fixity — see the
+succession audit), applied at the point of processing rather than retrofitted
+afterward. It makes a run reproducible, makes a silent tool substitution
+detectable, and incidentally makes the gfzrnx usage question answerable by
+query instead of by memory.
+
+Not yet implemented. It belongs in whatever orchestration layer
+`services/bernese-workflow` grows into, and should be designed in rather than
+bolted on.
 
 ### Missing from this repo
 
