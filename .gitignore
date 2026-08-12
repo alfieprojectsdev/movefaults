@@ -33,6 +33,10 @@ Thumbs.db
 *.zip
 *.7z
 *.gz
+# ...except the archive fixity manifests. `*.gz` exists to keep GNSS data out
+# of the repo; these are checksums OF that data, and the whole point of a
+# fingerprint is that it lives somewhere other than the disk it describes.
+!docs/archive-manifests/*.gz
 *.rar
 *.exe
 *.mp4
