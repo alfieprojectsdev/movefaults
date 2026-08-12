@@ -330,25 +330,69 @@ is mirrored onto agency hardware. Nothing was changed; it was copied as-is.
 If anyone maintains a newer copy of `offsets` than the one on the share, please
 say so — that is the one we should be tracking.
 
+**Correction (2026-08-12): the file this section spent months asking for is
+already here.**
+
+`PAGENET_DLY.PCF` — the Process Control File that drove the training week — has
+been in version control since **2026-08-05**, and is byte-identical to the
+working copy on the T420. Earlier versions of this document, including one
+circulated the same day as this correction, said it existed only on the T420.
+That was out of date and is the kind of thing this project is supposed to catch,
+so it is corrected here rather than quietly edited away.
+
+It is now installed into the Bernese tree on the R740 as well
+(`md5 b4d5c52ee6f3289fc5de4a1dcb6da5be`), and it passes our own checks: **52 of
+52 process rows are in Bernese 5.4 format, with zero dangling wait conditions.**
+Structurally it is sound.
+
+**So the real gap turns out to be somewhere nobody was looking.** The PCF names
+nine panel directories, and **eight of them are missing** from both the server
+and the repository:
+
+| Needed by | Panel directory | Have it? |
+|---|---|---|
+| 24 steps | `PGN_GEN` | **no** |
+| 6 steps | `PGN_FIN` | **no** |
+| 3 steps each | `PGN_EDT`, `PGN_AMB` | **no** |
+| 2 steps each | `PGN_QIF`, `PGN_L53`, `PGN_L12`, `PGN_GE2` | **no** |
+| 8 steps | `NO_OPT` | yes (ships with Bernese) |
+| weekly combination only | `PGN_WK` | yes (already in the repository) |
+
+The one directory we *do* have from PHIVOLCS — `PGN_WK` — is for the **weekly**
+combination, not the daily run. Every panel directory the daily PAGENET
+processing actually needs is absent.
+
+This is worth saying plainly because the ask in this document was wrong in both
+directions: it asked for a file we already had, and did not ask for the eight
+directories we actually need.
+
 **Still genuinely useful to have:**
 
-1. **`PAGENET_DLY.PCF`** — the daily Process Control File that drove the training
-   week. It exists **only on the T420**. It is the sequence of BPE steps for a
-   PAGENET day, and it must be copied rather than rebuilt: reconstructing it by
-   trimming the stock `RNX2SNX.PCF` leaves a step waiting on another step that no
-   longer exists, and the BPE then waits forever rather than failing. A rebuilt
-   file would also not be the one that has actually been proven to work.
+1. **The eight `${U}/OPT/PGN_*` panel directories** listed above — `PGN_GEN`,
+   `PGN_FIN`, `PGN_EDT`, `PGN_AMB`, `PGN_QIF`, `PGN_L53`, `PGN_L12`, `PGN_GE2`.
+   These hold the actual processing settings for each PAGENET step. Without them
+   the PCF is a list of instructions with nothing to instruct.
 
-   *(For LUZON this is no longer blocking — a working 5.4 configuration was
-   derived and has now processed a full month. PAGENET still needs its own.)*
+   Expect our tooling to **reject some of them on the first attempt**: `PGN_WK`,
+   the one we already have, contains Windows-style `\` path separators (literal
+   characters on Linux), a reference to a step that was removed, and session
+   dates hardcoded from the instructor's demo week. Being rejected is the tool
+   doing its job; the offending lines get remapped once and then everybody uses
+   the corrected version.
 
-2. **`${U}/OPT/PGN_WK/`** — the weekly-combination panel directory, if it exists
-   on your machine. Expect our tooling to **reject it on the first attempt**: it
-   is known to contain Windows-style `\` path separators (literal characters on
-   Linux), a reference to a step that was removed, and session dates hardcoded
-   from the instructor's demo week. Being rejected is the tool doing its job.
-   The offending lines get remapped once, and then the corrected version is the
-   one everybody uses.
+2. **A newer `offsets`**, if anyone keeps one — as noted above.
+
+**Why the PCF must never be rebuilt from scratch**, since the reasoning still
+matters even though the file is now in hand: it is the version *proven to run
+end to end*. Deriving one instead by trimming the stock `RNX2SNX.PCF` leaves a
+step waiting on a step that no longer exists, and BPE's failure mode there is
+the worst kind — **it waits indefinitely instead of failing.** No error, no exit
+code, no timeout: a job that looks busy forever. Our provisioning tooling now
+refuses that condition, so it surfaces before a run rather than during one.
+
+*(For LUZON none of this is blocking — a working 5.4 configuration was derived
+and has processed a full month. PAGENET still needs its own 5.4 configuration;
+this PCF is the specification of the step sequence, not a drop-in for 5.4.)*
 
 **What we specifically do *not* want copied:**
 
@@ -356,8 +400,8 @@ say so — that is the one we should be tracking.
   does not exist (the file lives in `${U}/PAN/`). More importantly, it records
   **how many CPU cores to use**, which is a property of the machine, not of the
   processing. Copying it between machines is how the R740 came to be running the
-  laptop's setting of 2 — using two of its twelve cores on a step that already
-  takes forty minutes. It is now generated automatically from whatever hardware
+  laptop's setting of 2 — using two of its twenty-four cores on a step that
+  already takes forty minutes. It is now generated automatically from whatever hardware
   the job runs on.
 
 - **Stock Bernese panels.** `${U}/OPT` and `${U}/PCF` on the R740 are currently
