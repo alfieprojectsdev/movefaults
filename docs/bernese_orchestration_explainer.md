@@ -120,6 +120,33 @@ An orchestrated pipeline processes all stations in parallel, overnight, every ni
 33 seconds** on the R740 and uses about **4 of its 24 cores**. A full month —
 30 days — ran unattended in **2 hours 47 minutes, 30 of 30 days successful**.
 
+**The comparison that matters, and the honesty it needs.** Cass reprocessed the
+full 2025 PH network a few weeks ago on one of the Windows R740 servers, and it
+took **several weeks**. Our measured LUZON rate — 5m33s a day — would put a year
+at roughly a day and a half of machine time.
+
+That gap is large enough to be worth understanding rather than celebrating,
+because the two runs are **not the same job**:
+
+- Cass's run processed the national network (**~52 stations a day**); ours
+  processed LUZON (**30**).
+- Hers used the full production PCF including `FTP_DWLD`, which fetches IGS
+  products over the network for every session; ours had products pre-staged
+  locally.
+- Hers produced weekly and monthly combinations (`ADD_WK`, `ADD_MON`); ours did
+  not.
+- Hers ran attended, in working hours, on Windows; ours ran overnight on Linux.
+
+So the right conclusion today is **"this looks very promising and we should
+measure it properly"**, not "we are twenty times faster". A like-for-like run —
+same station set, same PCF, same products — is the honest way to find the real
+number, and it is worth doing precisely because if even part of that gap is
+real, it changes what is possible for reprocessing the full archive.
+
+If the difference turns out to be mostly `FTP_DWLD` waiting on remote servers,
+that is worth knowing too: it would mean the win is in **staging data once**
+rather than in the processing at all.
+
 Scaling that to the national network: `PHIVOLCS.CRD` catalogues **439 stations**,
 but a daily solution actually estimates **52** (50 PHIVOLCS + 2 IGS). That is
 comfortably inside every limit that matters, so the national daily processing
