@@ -292,6 +292,78 @@ async def get_logsheet(
     return logsheet
 
 
+# ── Upload limits ───────────────────────────────────────────────────────────
+#
+# A phone photo is 3–12 MB. 15 MB leaves room for a high-resolution camera
+# without letting an arbitrary body through.
+MAX_PHOTO_BYTES = 15 * 1024 * 1024
+_UPLOAD_CHUNK = 1024 * 1024
+
+# The types storage._content_type knows how to label. Anything else would be
+# stored with a generic content type and served back as an attachment, which is
+# not what "attach a photo" means.
+_ALLOWED_PHOTO_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/heic",
+    "image/webp",
+    "application/pdf",
+}
+
+
+def _reject_unsupported_type(file: UploadFile) -> None:
+    """
+    Refuse a declared content type the storage layer cannot label.
+
+    The declared type is client-supplied and therefore not trustworthy on its
+    own — this is a usability guard, not a security boundary. It catches the
+    ordinary case (a document picked by mistake in the file chooser) at the
+    point where the operator can still fix it.
+    """
+    declared = (file.content_type or "").split(";")[0].strip().lower()
+    if declared and declared not in _ALLOWED_PHOTO_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Unsupported file type {declared!r}. "
+                f"Accepted: {', '.join(sorted(_ALLOWED_PHOTO_TYPES))}."
+            ),
+        )
+
+
+async def _read_bounded(file: UploadFile) -> bytes:
+    """
+    Read the upload in chunks, refusing anything past MAX_PHOTO_BYTES.
+
+    `await file.read()` with no argument pulls the entire body into memory
+    before anything has a chance to object. On a small container that is a way
+    to be knocked over by one oversized request — accidental as easily as
+    deliberate, since a modern phone will happily produce a 100 MB burst or a
+    video file from the same picker.
+
+    Reading incrementally means the ceiling is enforced against what has
+    actually arrived, and the request is refused after one chunk past the limit
+    rather than after the whole body has been buffered.
+    """
+    chunks: list[bytes] = []
+    total = 0
+
+    while chunk := await file.read(_UPLOAD_CHUNK):
+        total += len(chunk)
+        if total > MAX_PHOTO_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"Photo exceeds the {MAX_PHOTO_BYTES // (1024 * 1024)} MB limit. "
+                    "Retake it at a lower resolution, or attach it from a device "
+                    "that compresses on capture."
+                ),
+            )
+        chunks.append(chunk)
+
+    return b"".join(chunks)
+
+
 @router.post("/logsheets/{logsheet_id}/photos", status_code=status.HTTP_201_CREATED)
 async def upload_photo(
     logsheet_id: int,
@@ -311,7 +383,8 @@ async def upload_photo(
     if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Logsheet not found")
 
-    contents = await file.read()
+    _reject_unsupported_type(file)
+    contents = await _read_bounded(file)
     digest = hashlib.sha256(contents).hexdigest()
 
     # ── Idempotency ─────────────────────────────────────────────────────────

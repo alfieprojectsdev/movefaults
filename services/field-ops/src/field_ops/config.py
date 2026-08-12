@@ -13,6 +13,21 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from field_ops.dburl import connect_args_for, is_loopback, to_asyncpg_url
 
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
+
+
+def _is_truthy(value: str) -> bool:
+    """
+    Accept the spellings a person actually types for a boolean env var.
+
+    Matching only the literal "1" meant FIELD_OPS_PRODUCTION=true read as *not*
+    production — someone who typed that plainly meant the opposite, and the
+    silence is the whole problem this gate exists to avoid. The remote-database
+    inference already covers the common case; this closes the last way to
+    believe the checks are on when they are not.
+    """
+    return value.strip().lower() in _TRUTHY
+
 
 class Settings(BaseSettings):
     # Database — same PostgreSQL instance as central POGF DB
@@ -100,7 +115,7 @@ class Settings(BaseSettings):
 
     @property
     def is_dev_override(self) -> bool:
-        return self.field_ops_dev == "1"
+        return _is_truthy(self.field_ops_dev)
 
     @property
     def is_production(self) -> bool:
@@ -121,7 +136,7 @@ class Settings(BaseSettings):
         """
         if self.is_dev_override:
             return False
-        if self.field_ops_production == "1":
+        if _is_truthy(self.field_ops_production):
             return True
         return bool(self.database_url) and not is_loopback(self.database_url)
 

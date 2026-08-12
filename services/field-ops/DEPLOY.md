@@ -3,7 +3,7 @@
 **Written 2026-08-06.** Target: a URL that field staff can open on their phones
 before they leave, and that keeps working when they have no signal.
 
-```
+```text
 Vercel        →  the PWA (static build)
 Fly / Railway →  FastAPI container (the existing Dockerfile)
 Neon          →  Postgres
@@ -141,17 +141,36 @@ fly launch --no-deploy --name pogf-field-ops --region sin
 
 Set secrets — **names here, values from your password manager**:
 
+Write them into a file and pipe it in, rather than passing them as arguments:
+
 ```bash
-fly secrets set \
-  FIELD_OPS_PRODUCTION=1 \
-  DATABASE_URL='...' \
-  FIELD_OPS_JWT_SECRET="$(python3 -c 'import secrets; print(secrets.token_hex(32))')" \
-  FIELD_OPS_STORAGE_BACKEND=r2 \
-  R2_ACCOUNT_ID='...' \
-  R2_ACCESS_KEY_ID='...' \
-  R2_SECRET_ACCESS_KEY='...' \
-  R2_BUCKET='pogf-field-ops'
+cat > /tmp/field-ops.env <<'ENV'
+FIELD_OPS_PRODUCTION=1
+DATABASE_URL=...
+FIELD_OPS_JWT_SECRET=...
+FIELD_OPS_STORAGE_BACKEND=r2
+R2_ACCOUNT_ID=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET=pogf-field-ops
+ENV
+
+# generate the JWT secret with the project interpreter, straight into the file
+printf 'FIELD_OPS_JWT_SECRET=%s\n' \
+  "$(uv run python -c 'import secrets; print(secrets.token_hex(32))')" \
+  >> /tmp/field-ops.env
+
+fly secrets import < /tmp/field-ops.env
+shred -u /tmp/field-ops.env      # or: rm -P  /  srm
 ```
+
+`fly secrets set KEY=value` on the command line puts every one of those values
+into your shell history and, while it runs, into the process table where any
+other user on the machine can read it. `import` reads stdin instead, so nothing
+sensitive is ever an argument.
+
+Generate with `uv run python`, not the system `python3` — bcrypt and the rest
+are project dependencies, and the bare interpreter will not have them.
 
 A **fail-closed** startup check refuses to boot if the JWT secret is the shipped
 default or under 32 characters, if storage is not R2, or if `DATABASE_URL` is
@@ -207,9 +226,13 @@ One per person, so `submitted_by` records who filed each sheet. There is no
 sign-up screen by design.
 
 ```bash
-python3 -c "import bcrypt,secrets; pw=secrets.token_urlsafe(9); \
+uv run python -c "import bcrypt,secrets; pw=secrets.token_urlsafe(9); \
 print('password:', pw); print('hash:', bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode())"
 ```
+
+`uv run python`, not `python3`: bcrypt is a project dependency, so the system
+interpreter raises `ModuleNotFoundError` here on any machine that has not had it
+installed globally.
 
 ```sql
 INSERT INTO field_ops.users (username, hashed_password, role)
@@ -280,8 +303,17 @@ Export before tearing anything down:
 
 ```bash
 pg_dump "$DATABASE_URL" --schema=field_ops --schema=public -Fc -f palawan-$(date +%Y%m%d).dump
-rclone sync r2:pogf-field-ops ./palawan-photos/     # or the R2 dashboard
+
+DEST="./palawan-photos-$(date +%Y%m%d)"
+rclone copy --dry-run r2:pogf-field-ops "$DEST"   # read the list first
+rclone copy r2:pogf-field-ops "$DEST"
 ```
+
+**`copy`, never `sync`.** `rclone sync` makes the destination match the source
+by *deleting* whatever the source no longer has — pointed at an archive
+directory, it removes the photos from the previous export. A dated destination
+per run means no export can overwrite another, and `--dry-run` first means you
+see what is about to move before it moves.
 
 Then follow the project's own rule: the archive needs a `sha256sum` manifest
 committed to git, not just the files. Fingerprints stored only beside the data

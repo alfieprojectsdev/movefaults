@@ -670,7 +670,7 @@ export default function LogSheetForm() {
 
       {!hasPhoto && !navigator.onLine && (
         <p className="msg msg-warn">
-          Your text entries are saved locally. Add a photo to submit.
+          Your text entries are saved locally.
         </p>
       )}
 

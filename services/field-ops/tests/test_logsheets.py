@@ -14,7 +14,9 @@ Key behaviours verified:
 import uuid
 
 import pytest
+import pytest_asyncio
 from field_ops.models import LogSheet, LogSheetObserver, LogSheetPhoto, Staff
+from field_ops.routers.logsheets import MAX_PHOTO_BYTES
 from sqlalchemy import func, select
 
 
@@ -235,3 +237,90 @@ async def test_reuploading_identical_photo_is_idempotent(
     # have written bytes at all, not merely have been deduped in the database.
     assert len(counting_storage.objects) == 1
     assert counting_storage.saves == 1
+
+
+@pytest_asyncio.fixture
+async def logsheet_id(client, auth_headers) -> int:
+    """A committed logsheet to hang photo tests off."""
+    resp = await client.post(
+        "/api/v1/logsheets",
+        json=[
+            {
+                "client_uuid": str(uuid.uuid4()),
+                "station_code": "PBIS",
+                "visit_date": "2026-02-24",
+            }
+        ],
+        headers=auth_headers,
+    )
+    return resp.json()[0]["id"]
+
+
+@pytest.mark.asyncio
+async def test_oversized_photo_is_refused(
+    client, auth_headers, db_session, counting_storage, logsheet_id
+):
+    """
+    A body past the ceiling is refused, and nothing is written.
+
+    `await file.read()` with no argument buffers the whole upload before any
+    check runs, so one oversized request could exhaust a small container's
+    memory. That is as easily an accident as an attack: the same picker that
+    offers a 4 MB photo will offer a 200 MB video.
+
+    The assertions that matter are the side effects — no stored object, no row.
+    A 413 that still wrote the bytes would have missed the point.
+    """
+    oversized = b"\xff\xd8\xff" + b"\x00" * (MAX_PHOTO_BYTES + 1)
+    resp = await client.post(
+        f"/api/v1/logsheets/{logsheet_id}/photos",
+        files=[("file", ("huge.jpg", oversized, "image/jpeg"))],
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 413
+    assert "MB limit" in resp.json()["detail"]
+    assert counting_storage.saves == 0
+    rows = await db_session.execute(select(func.count()).select_from(LogSheetPhoto))
+    assert rows.scalar_one() == 0
+
+
+@pytest.mark.asyncio
+async def test_photo_at_the_limit_is_accepted(
+    client, auth_headers, counting_storage, logsheet_id
+):
+    """Exactly at the ceiling must pass — the check is `>`, not `>=`."""
+    at_limit = b"\xff\xd8\xff" + b"\x00" * (MAX_PHOTO_BYTES - 3)
+    resp = await client.post(
+        f"/api/v1/logsheets/{logsheet_id}/photos",
+        files=[("file", ("big.jpg", at_limit, "image/jpeg"))],
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 201
+    assert counting_storage.saves == 1
+
+
+@pytest.mark.asyncio
+async def test_unsupported_content_type_is_refused(
+    client, auth_headers, db_session, counting_storage, logsheet_id
+):
+    """
+    A type the storage layer cannot label is rejected before anything is stored.
+
+    Catches the ordinary mistake — a document chosen by accident in the file
+    picker — while the operator is still at the station and can retake the
+    photo, rather than storing bytes that will be served back as an unusable
+    attachment.
+    """
+    resp = await client.post(
+        f"/api/v1/logsheets/{logsheet_id}/photos",
+        files=[("file", ("notes.docx", b"PK\x03\x04zip-ish", "application/zip"))],
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 415
+    assert "application/zip" in resp.json()["detail"]
+    assert counting_storage.saves == 0
+    rows = await db_session.execute(select(func.count()).select_from(LogSheetPhoto))
+    assert rows.scalar_one() == 0

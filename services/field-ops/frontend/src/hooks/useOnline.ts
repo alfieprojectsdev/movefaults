@@ -16,6 +16,13 @@ export function useOnline(): boolean {
   const [online, setOnline] = useState(navigator.onLine);
 
   useEffect(() => {
+    // Re-read before attaching. useState() sampled navigator.onLine during
+    // render; the listeners only exist from here on, so a transition in that
+    // gap would be missed entirely and the hook would stay wrong until the
+    // *next* one — which, on a device that just went offline as the app
+    // started, may be a long time coming.
+    setOnline(navigator.onLine);
+
     const up = () => setOnline(true);
     const down = () => setOnline(false);
     window.addEventListener("online", up);

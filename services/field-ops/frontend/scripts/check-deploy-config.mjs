@@ -22,7 +22,18 @@ let raw;
 try {
   raw = readFileSync(configPath, "utf8");
 } catch {
-  // No vercel.json — a local or container build, nothing to check.
+  // No vercel.json is normal for a local or container build — neither reads it.
+  // On Vercel it is not: the file carries the /api rewrite, so a build without
+  // it produces a PWA whose every request 404s. Passing here would let exactly
+  // the failure this script exists to catch reach the field silently.
+  if (process.env.VERCEL) {
+    console.error(
+      "\nvercel.json is missing or unreadable, but VERCEL=1 is set.\n" +
+        "The API rewrite lives in that file; without it the deployed PWA\n" +
+        "cannot reach the backend — see services/field-ops/DEPLOY.md section 4.\n"
+    );
+    process.exit(1);
+  }
   process.exit(0);
 }
 
