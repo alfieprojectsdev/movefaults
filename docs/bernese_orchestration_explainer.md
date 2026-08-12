@@ -3,10 +3,10 @@
 **Drafted:** 2026-02-27  **Revised:** 2026-08-03, **2026-08-12**
 
 > **What has changed since this was written.** In February this described a plan.
-> Since then: the NAMRIA training week (June) ran the whole PAGENET pipeline
-> unattended on live data; the Dell R740 has Bernese 5.4 installed and
-> verified; and in August a **full month of the LUZON network was reprocessed
-> end to end, unattended, 30 days with zero failures**.
+> Since then: a June training week proved a full pipeline could run unattended
+> on live data; the Dell R740 has Bernese 5.4 installed and verified; and in
+> August a **full month of the LUZON network was reprocessed end to end,
+> unattended, 30 days with zero failures**.
 >
 > Sections marked **[now real]** describe things that exist. Where something was
 > tried and *didn't* work, that is stated too — "A Test That Failed" is exactly
@@ -48,7 +48,7 @@ It is a **conductor** — a program that knows the correct sequence of steps, pe
 For our workflow, one orchestrated processing run looks like this:
 
 ```
-You specify:  Campaign = PAGENET, Year = 2026, Session = 0860
+You specify:  Campaign = LUZON, Year = 2025, Session = 1210
 
 Orchestrator:
   1. Downloads IGS precise orbits + clocks from CDDIS (with automatic fallback to IGN/BKG)
@@ -159,7 +159,11 @@ rather than anything invented for the software.
 
 ### 4. The Workstation Problem  **[now real]**
 
-A BPE run occupies whatever machine it runs on, and it is not a coffee break. Measured: the 54-station EXAMPLE campaign takes **11 minutes**, but a real **72-station PAGENET day took about 2 hours** on the T420 — roughly 40 minutes of it inside a single step (PID 502, GPSCLU_P) solving the final system on one core. Multiply by seven days of a processing week.
+A BPE run occupies whatever machine it runs on, and it is not a coffee break. On
+the T420 laptop a single real processing day took **about 2 hours** — roughly 40
+minutes of it inside one step, solving the final system on a single core.
+Multiply that by seven days of a processing week, and the machine is gone for
+the week.
 
 The orchestrated pipeline runs on the dedicated Dell server (R740). You submit a
 processing job from your desk, and your workstation is immediately free. The server
@@ -286,7 +290,7 @@ measure. That distinction needs someone who knows the site.
 
 **Before orchestration:**
 
-> Staff member spends 2–3 hours per campaign session on file management, downloads, and manual BPE setup. A real PAGENET day runs ~2 hours attended. Post-processing (SINEX extraction, spreadsheet update) takes another hour. Outlier review requires running a separate Windows script per station, right-clicking bad points, then manually editing PLOT files. One person's full day is consumed by a single session. Errors from manual steps (wrong `.STA` entry, stale orbit file, missed outlier epoch) are caught late.
+> Staff member spends 2–3 hours per campaign session on file management, downloads, and manual BPE setup. A real processing day runs ~2 hours attended. Post-processing (SINEX extraction, spreadsheet update) takes another hour. Outlier review requires running a separate Windows script per station, right-clicking bad points, then manually editing PLOT files. One person's full day is consumed by a single session. Errors from manual steps (wrong `.STA` entry, stale orbit file, missed outlier epoch) are caught late.
 
 **After orchestration:**
 
@@ -330,69 +334,21 @@ is mirrored onto agency hardware. Nothing was changed; it was copied as-is.
 If anyone maintains a newer copy of `offsets` than the one on the share, please
 say so — that is the one we should be tracking.
 
-**Correction (2026-08-12): the file this section spent months asking for is
-already here.**
+**What would genuinely help:**
 
-`PAGENET_DLY.PCF` — the Process Control File that drove the training week — has
-been in version control since **2026-08-05**, and is byte-identical to the
-working copy on the T420. Earlier versions of this document, including one
-circulated the same day as this correction, said it existed only on the T420.
-That was out of date and is the kind of thing this project is supposed to catch,
-so it is corrected here rather than quietly edited away.
+1. **A newer `offsets`**, if anyone keeps one — as noted above. That is the file
+   we least want to be tracking a stale copy of.
 
-It is now installed into the Bernese tree on the R740 as well
-(`md5 b4d5c52ee6f3289fc5de4a1dcb6da5be`), and it passes our own checks: **52 of
-52 process rows are in Bernese 5.4 format, with zero dangling wait conditions.**
-Structurally it is sound.
+2. **Any `.STA`, `.CRD` or panel settings you have changed** from what the
+   national campaign carries, especially for sites added or re-equipped
+   recently. We have the campaign files as they stand on the server; what we
+   cannot see is anything living only on a workstation.
 
-**So the real gap turns out to be somewhere nobody was looking.** The PCF names
-nine panel directories, and **eight of them are missing** from both the server
-and the repository:
-
-| Needed by | Panel directory | Have it? |
-|---|---|---|
-| 24 steps | `PGN_GEN` | **no** |
-| 6 steps | `PGN_FIN` | **no** |
-| 3 steps each | `PGN_EDT`, `PGN_AMB` | **no** |
-| 2 steps each | `PGN_QIF`, `PGN_L53`, `PGN_L12`, `PGN_GE2` | **no** |
-| 8 steps | `NO_OPT` | yes (ships with Bernese) |
-| weekly combination only | `PGN_WK` | yes (already in the repository) |
-
-The one directory we *do* have from PHIVOLCS — `PGN_WK` — is for the **weekly**
-combination, not the daily run. Every panel directory the daily PAGENET
-processing actually needs is absent.
-
-This is worth saying plainly because the ask in this document was wrong in both
-directions: it asked for a file we already had, and did not ask for the eight
-directories we actually need.
-
-**Still genuinely useful to have:**
-
-1. **The eight `${U}/OPT/PGN_*` panel directories** listed above — `PGN_GEN`,
-   `PGN_FIN`, `PGN_EDT`, `PGN_AMB`, `PGN_QIF`, `PGN_L53`, `PGN_L12`, `PGN_GE2`.
-   These hold the actual processing settings for each PAGENET step. Without them
-   the PCF is a list of instructions with nothing to instruct.
-
-   Expect our tooling to **reject some of them on the first attempt**: `PGN_WK`,
-   the one we already have, contains Windows-style `\` path separators (literal
-   characters on Linux), a reference to a step that was removed, and session
-   dates hardcoded from the instructor's demo week. Being rejected is the tool
-   doing its job; the offending lines get remapped once and then everybody uses
-   the corrected version.
-
-2. **A newer `offsets`**, if anyone keeps one — as noted above.
-
-**Why the PCF must never be rebuilt from scratch**, since the reasoning still
-matters even though the file is now in hand: it is the version *proven to run
-end to end*. Deriving one instead by trimming the stock `RNX2SNX.PCF` leaves a
-step waiting on a step that no longer exists, and BPE's failure mode there is
-the worst kind — **it waits indefinitely instead of failing.** No error, no exit
-code, no timeout: a job that looks busy forever. Our provisioning tooling now
-refuses that condition, so it surfaces before a run rather than during one.
-
-*(For LUZON none of this is blocking — a working 5.4 configuration was derived
-and has processed a full month. PAGENET still needs its own 5.4 configuration;
-this PCF is the specification of the step sequence, not a drop-in for 5.4.)*
+3. **Corrections to this document.** Two of its asks turned out to be wrong this
+   month — it requested a file that was already in hand, and described automatic
+   outlier detection as something still to build when it has been running for
+   years. If something here does not match what you actually do, that mismatch
+   is the useful part.
 
 **What we specifically do *not* want copied:**
 
@@ -404,9 +360,10 @@ this PCF is the specification of the step sequence, not a drop-in for 5.4.)*
   already takes forty minutes. It is now generated automatically from whatever hardware
   the job runs on.
 
-- **Stock Bernese panels.** `${U}/OPT` and `${U}/PCF` on the R740 are currently
-  byte-identical to what Bernese 5.4 ships. We only want the files PHIVOLCS has
-  actually changed; the vendor's own files we already have.
+- **Stock Bernese panels.** Everything in `${U}/OPT` on the R740 is byte-identical
+  to what Bernese 5.4 ships, and the only additions to `${U}/PCF` are the two
+  files we wrote ourselves. We only want the files PHIVOLCS has actually
+  changed; the vendor's own files we already have.
 
 Everything supplied is version-controlled at `config/bernese/gpsuser/` and applied
 by a single command, so the environment can be rebuilt from scratch if the server
