@@ -598,6 +598,43 @@ present and correct — **do not "fix" a missing DE405.** Another instance of th
 rule that where the 5.2 manual and the installed 5.4 files disagree on
 anything procedural, the installed files win.
 
+## PHIVOLCS' existing regional decomposition (2026-08-12)
+
+**The subnetworks already exist.** The campaign time series on the file server
+are organised by region, and this is PHIVOLCS' own partition — not something to
+be invented here. Any subnetwork design should start from it.
+
+| Directory | Region |
+|---|---|
+| `Luzon` | Luzon |
+| `Ragay-Bondoc-Marinduque-Masbate` | Bicol / southern Luzon island group |
+| **`CBPN`** | **Cebu, Bohol, Panay, Negros** — Central + Western Visayas |
+| `Samar-Leyte` | Eastern Visayas |
+| `Cotabato-Sindangan` | western / central Mindanao |
+| `Eastern Mindanao` | eastern Mindanao |
+
+`CBPN` is the only one whose meaning is not readable from the name, which is
+exactly why it is written down here.
+
+Together these span the archipelago, and the grouping follows island groups
+rather than administrative regions — i.e. it already reflects the geography
+that matters for a GNSS network, where baseline length and common satellite
+visibility are what constrain clustering (§6.4).
+
+Two consequences for this plan:
+
+- **The station roster per region is already curated.** Each directory has its
+  own `123` site index (snapshotted at
+  `docs/bern52/phivolcs-scripts/event-catalog/`), which is precisely the
+  "campaign roster" that Tier 1 established *is* the subnetwork boundary. The
+  partitioning work is largely done; what is missing is the campaign plumbing
+  around it.
+- **These are campaign-survey groupings**, from the time-series side of the
+  workflow. Whether the same partition suits the continuous (CORS) network,
+  which is what the daily BPE processes, is **not established** — the six
+  regional `123` files should be compared against the 52 stations actually
+  estimated daily before assuming they transfer.
+
 ## Explicitly out of scope for this plan
 
 - Anything already answered for the 31-day LUZON exercise (directory
