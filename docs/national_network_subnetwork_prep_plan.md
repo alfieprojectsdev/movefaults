@@ -536,7 +536,50 @@ flip to p. 825 expecting an index. The **List of Abbreviations** (PDF 853–856)
 *is* populated and is worth using for the manual's dense acronyms; the
 **Bibliography** (PDF 841–852) is intact for the underlying geodesy.
 
-### Installation verification
+### Installation verification — §23.3 and §25.2 checked against this R740
+
+**BSW 5.4 here passes every §25.2.1 system requirement except one, and the
+exception matters later rather than now.**
+
+| §25.2.1 requirement | state on gps3 |
+|---|---|
+| Perl 5 | v5.38.2 ✓ |
+| tar / gzip / make | all present ✓ |
+| Qt libraries | `QTBERN=/home/gps3/Qt4.8.7`, present; `MENU/menu` links cleanly ✓ |
+| directory structure (`$P $D $S $T $U $C`) | all six present ✓ |
+| **Fortran 90 compiler** | **only `gfortran-12`; no `gfortran`** ✗ |
+| **C++ compiler** | **only `g++-12`/`gcc-12`; no `g++`/`cc`** ✗ |
+
+**BSW 5.4 cannot currently be recompiled on this machine.**
+`SCRIPT/EXE/Makefile.template` (GNU branch, and `F_VERS=GNU` here) invokes
+`FC = gfortran`, `LD = gfortran`, `CC = cc` — all **unversioned**. Only the
+versioned binaries exist, with no unversioned symlinks and no
+`update-alternatives` entries; confirmed absent in a login shell too, so it is
+not a PATH artifact of the tool environment.
+
+**Nothing is broken today** — the binaries were built 2026-02-26 and the
+30-day LUZON run proves they work. What is blocked is every path that needs a
+rebuild:
+
+1. **§25.3 "Updating Your Installation"** — AIUB ships bug fixes as source to
+   recompile. Cannot be applied.
+2. **§25.4.2 "Maximum Dimensions"** — changing `M_MAXDIM.f90` (`MAXSTA`,
+   `MAXREC`, `MAXAMB`, `MAXSAT`) needs a rebuild. Not a live constraint, since
+   `MAXSTA=3000` is far above any PH network size — but it is the escape hatch
+   if a limit is ever hit, and it is currently unavailable.
+3. **§25.2.5 "Compilation of Individual Modules and Programs"** — any local
+   patch or debug build.
+
+Fix prepared but **not run**: `scripts/sudo/install_bsw_build_toolchain.sh`
+(`--check` is read-only and safe; the install path needs root). It adds
+`build-essential` and `gfortran` rather than hand-made symlinks, so the
+unversioned names come through the distribution's own alternatives mechanism
+and survive a gcc upgrade. It deliberately does **not** rebuild anything, and
+its output warns that a rebuild with a different compiler version than the
+original may produce numerically different binaries — so the §23.3 EXAMPLE
+verification should be re-run afterward.
+
+### §23.3 verification status
 
 §5.2 is "Preparation of Earth Orientation Parameters", not installation. The
 relevant sections are **§23.3 "Installation Verification Using the BPE
