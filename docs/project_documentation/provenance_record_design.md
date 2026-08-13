@@ -1,7 +1,7 @@
 # Provenance record — design for review
 
-**Status: PROPOSAL. Nothing is built. This exists to be argued with before code
-is written.**
+**Status: DECIDED 2026-08-13 — the open questions below are answered. Ready to
+build; nothing is built yet.**
 **Drafted:** 2026-08-13
 
 ---
@@ -115,17 +115,65 @@ Deliberately small enough to finish and be judged:
 Explicitly **not** in scope for the first pass: the git digest file, database
 ingestion, and instrumenting every script.
 
-## Open questions for you
+## Decisions (2026-08-13)
 
-1. **Granularity.** Per external-binary invocation is my proposal. Per BPE
-   *step* (~50 per session) would be far richer and much noisier. Which?
-2. **Hashing cost.** Hashing every RINEX input adds a full read per session.
-   For a 30-station day that is ~200 MB — negligible. At national scale with
-   the full archive it is not. Hash inputs always, or only when they are small
-   or have changed?
-3. **Does this belong in `bernese-workflow` instead?** It is orchestration, and
-   that service is the stated destination. I proposed `pogf-geodetic-suite`
-   only because the QC and velocity steps that need it live there.
-4. **Retention.** Solutions are archived indefinitely. Should provenance
-   records be too? They are small, and my instinct is yes, but it is a policy
-   question rather than a technical one.
+**1. Granularity — per external-binary invocation.** Not per BPE step. A
+session runs ~50 BPE steps, and recording all of them produces a file nobody
+reads. The boundary worth recording is where control leaves our code and
+enters someone else's binary.
+
+**2. Hashing — reference existing manifests; compute only what they do not
+cover.**
+
+The question as originally posed ("always, or only when small or changed?")
+was badly framed, and both alternatives were wrong:
+
+- *Only if small* is backwards. A large input that changes silently is exactly
+  the case worth catching; a size threshold skips precisely that.
+- *Only if changed* is better, but rests on mtime+size — a heuristic a
+  same-size edit defeats. Fine for a cache, not for a fixity claim.
+
+**The cost has largely evaporated since the question was written.** As of
+2026-08-12 every archived file carries a sha256 committed to git —
+**560,636** across the legacy archive, the datapool, and `processed/`. So:
+
+- **Inputs covered by a manifest**: record the manifest's hash and cite which
+  manifest. No re-read. If the file on disk has since diverged, manifest
+  verification catches it — duplicating that check inside every run buys
+  nothing.
+- **Inputs not covered** (freshly staged products, generated PCFs, the
+  `offsets` catalog): hash directly. Small, and `offsets` is the one whose
+  drift has already caused a real problem.
+- **Outputs**: always hash. New by definition, and small next to the
+  observations.
+
+This also makes records *composable*: an output hash in one step is the input
+hash of the next, and a disagreement between a provenance record and an
+archive manifest becomes the alarm rather than something to guard separately.
+
+**3. Home — `services/bernese-workflow`.** It is orchestration, and that
+service is the destination. One design consequence worth stating:
+`pogf-geodetic-suite` must not import it, so library code cannot call the
+recorder. Libraries **return** what they did — as `RINEXQCResult` already does
+with `tool` and `fallback_reason` — and the orchestrator records it. Better
+boundary regardless: the library computes, the orchestrator remembers.
+
+**4. Retention — indefinite**, matching the solutions. A record is a few KB
+against a solution set of hundreds of MB, and a coordinate series outliving its
+provenance is the exact situation this exists to prevent.
+
+## Revised first implementation
+
+1. `services/bernese-workflow/src/bernese_workflow/provenance.py` — a context
+   manager recording one external-binary invocation as one JSONL line,
+   resolving input hashes from `docs/archive-manifests/` where possible.
+2. Wire into the three call sites that have already caused real problems, via
+   returned metadata rather than library-side calls:
+   - the BPE invocation in `backends.py` (reference-frame / station-file drift)
+   - `RinexQC.run_qc` (tool substitution — already returns `tool`)
+   - velocity estimation (catalog drift)
+3. `verify_provenance.py` — re-hash recorded outputs, cross-check recorded
+   input hashes against the archive manifests, report divergence.
+
+Out of scope for the first pass: the git digest file, database ingestion, and
+instrumenting every script.
