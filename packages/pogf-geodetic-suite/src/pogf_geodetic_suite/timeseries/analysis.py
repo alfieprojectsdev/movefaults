@@ -310,8 +310,59 @@ class StepEstimate:
 
 
 @dataclass(frozen=True)
+class RateChange:
+    """
+    How much the secular rate changed at an event — the slope difference, not
+    the slope itself.
+
+    A large earthquake does not only displace a site, it can change how fast
+    the site is moving afterwards. ALBU across the 2017 Ormoc event is the
+    reference case: East goes from roughly -39 to -30 mm/yr and Up from about
+    +9 to +2 mm/yr. Assuming one rate through that is wrong, and assuming a
+    rate change everywhere costs precision where nothing changed — so it is
+    fitted and tested rather than decided in advance.
+    """
+    date: float
+    offset_type: OffsetType
+    dve_mm_yr: float            # change in East rate AFTER this event
+    dvn_mm_yr: float
+    dvu_mm_yr: float
+    sig_dve: float              # 1-sigma formal error, mm/yr
+    sig_dvn: float
+    sig_dvu: float
+
+    def significant(self, n_sigma: float = 3.0) -> tuple[bool, bool, bool]:
+        """Per-component: is the rate change distinguishable from zero?"""
+        return (
+            abs(self.dve_mm_yr) > n_sigma * self.sig_dve,
+            abs(self.dvn_mm_yr) > n_sigma * self.sig_dvn,
+            abs(self.dvu_mm_yr) > n_sigma * self.sig_dvu,
+        )
+
+    def any_significant(self, n_sigma: float = 3.0) -> bool:
+        return any(self.significant(n_sigma))
+
+
+@dataclass(frozen=True)
+class IntervalRate:
+    """The rate actually in force over one interval between events."""
+    t_start: float
+    t_end: float
+    ve_mm_yr: float
+    vn_mm_yr: float
+    vu_mm_yr: float
+
+
+@dataclass(frozen=True)
 class JointVelocityResult:
-    """Common-rate fit with explicit step amplitudes at each discontinuity."""
+    """
+    Joint fit: one baseline rate, a step at each discontinuity, and optionally
+    a rate change at each discontinuity.
+
+    `ve/vn/vu_mm_yr` is the rate over the FIRST interval — the baseline. With
+    `rate_changes=False` it is the rate everywhere. With `rate_changes=True`
+    later intervals differ, and `interval_rates()` is what you want.
+    """
     station: str
     ve_mm_yr: float
     vn_mm_yr: float
@@ -323,12 +374,37 @@ class JointVelocityResult:
     n_points: int
     t_start: float
     t_end: float
+    rate_changes: list[RateChange] = field(default_factory=list)
     outlier_epochs: tuple[float, ...] = field(default_factory=tuple)
 
     @property
     def unresolvable_steps(self) -> list[StepEstimate]:
         """Steps the data cannot actually constrain. Report these, never publish."""
         return [s for s in self.steps if not s.resolvable]
+
+    def interval_rates(self) -> list[IntervalRate]:
+        """
+        The velocity in force over each interval, with rate changes accumulated.
+
+        This is the "velocity before / velocity after" view — what a plot needs
+        to label, and what the segmented fit was reaching for without being able
+        to say whether the difference was real.
+        """
+        bounds = [self.t_start] + [rc.date for rc in self.rate_changes] + [self.t_end]
+        ve, vn, vu = self.ve_mm_yr, self.vn_mm_yr, self.vu_mm_yr
+        out = [IntervalRate(bounds[0], bounds[1], ve, vn, vu)]
+        for i, rc in enumerate(self.rate_changes):
+            ve, vn, vu = ve + rc.dve_mm_yr, vn + rc.dvn_mm_yr, vu + rc.dvu_mm_yr
+            out.append(IntervalRate(rc.date, bounds[i + 2], ve, vn, vu))
+        return out
+
+    def rate_at(self, when: float) -> tuple[float, float, float]:
+        """The ENU rate in force at a given decimal year."""
+        ve, vn, vu = self.ve_mm_yr, self.vn_mm_yr, self.vu_mm_yr
+        for rc in self.rate_changes:
+            if when >= rc.date:
+                ve, vn, vu = ve + rc.dve_mm_yr, vn + rc.dvn_mm_yr, vu + rc.dvu_mm_yr
+        return ve, vn, vu
 
 
 def estimate_velocity_joint(
@@ -378,18 +454,41 @@ def estimate_velocity_joint(
     the answer to "do we continue the slope or start a new epoch 0?": the slope
     continues, and the jump is a separate parameter.
 
-    It is NOT right where a large earthquake genuinely changed the rate, or
-    where post-seismic relaxation is present -- both real possibilities for a
-    site near an M6.5+ event. Pass `rate_changes=True` to add a slope-change
-    term per event:
+    It is NOT right where a large earthquake genuinely changed the rate, and
+    that is not an edge case. **ALBU is the reference example**: across the 2017
+    Ormoc M6.5 the East rate goes from roughly -39 to -30 mm/yr and Up from
+    about +9 to +2 mm/yr. A single rate through that fits neither interval.
+
+    Pass `rate_changes=True` to add a slope-change term per event:
 
         + Σ d_i · (t - t_i) · H(t - t_i)
 
-    Then a nonzero `d_i` relative to its sigma is evidence the rate did change,
-    which turns a modelling assumption into something testable. Post-seismic
-    decay is exponential or logarithmic rather than linear and is not modelled
-    here; a persistent `d_i` at a site near a large event is a signal to look
-    at the transient properly, not to trust the linear term.
+    `d_i` is returned as a `RateChange` with a formal sigma, so "did the rate
+    change?" becomes a test (`RateChange.significant`) rather than an
+    assumption in either direction. `interval_rates()` then gives the velocity
+    actually in force over each interval — the before/after view a plot needs.
+
+    WHY THIS IS NOT ENABLED BY DEFAULT
+    Fitting a rate change at every event costs precision where nothing changed,
+    and most events in the catalog are equipment changes. Turning it on
+    everywhere would inflate the uncertainty of rates that are currently well
+    determined. The intended use is: fit both, and let the significance test
+    decide per site.
+
+    THE CAVEAT THAT MATTERS MOST HERE
+    A changed slope after a large earthquake is usually **post-seismic
+    deformation** — afterslip and viscoelastic relaxation — which decays over
+    months to years. It is not a new secular rate. A straight line through the
+    post-event data is therefore the linear approximation to a decaying
+    transient, and **its value depends on how long after the event you fit**:
+    a window starting at the event averages in the fast early phase, one
+    starting two years later does not. Two analysts fitting the same site over
+    different windows will disagree, and both will be right about their window.
+
+    So `d_i` is the right tool for *detecting* that the rate changed, and the
+    wrong tool for publishing a post-seismic velocity. Exponential and
+    logarithmic transients are not modelled here; a large, significant `d_i`
+    near a major event is a signal to model the transient properly.
 
     Args:
         t:                  Decimal years, shape (N,).
@@ -482,6 +581,21 @@ def estimate_velocity_joint(
             )
         )
 
+    changes: list[RateChange] = []
+    if rate_changes:
+        base = 2 + len(events)      # slope-change columns follow the step columns
+        for i, e in enumerate(events):
+            d = model[base + i, :] * 1000.0     # (m/yr) → mm/yr
+            sd = sig[base + i, :] * 1000.0
+            changes.append(
+                RateChange(
+                    date=e.date,
+                    offset_type=e.offset_type,
+                    dve_mm_yr=float(d[0]), dvn_mm_yr=float(d[1]), dvu_mm_yr=float(d[2]),
+                    sig_dve=float(sd[0]), sig_dvn=float(sd[1]), sig_dvu=float(sd[2]),
+                )
+            )
+
     return JointVelocityResult(
         station=station,
         ve_mm_yr=float(rate[0]), vn_mm_yr=float(rate[1]), vu_mm_yr=float(rate[2]),
@@ -489,6 +603,7 @@ def estimate_velocity_joint(
         steps=steps,
         n_points=int(t.size),
         t_start=float(t[0]), t_end=float(t[-1]),
+        rate_changes=changes,
         outlier_epochs=outlier_epochs,
     )
 

@@ -164,3 +164,66 @@ def test_too_few_epochs_raises_rather_than_returning_nonsense():
         estimate_velocity_joint(
             t, enu, offsets=[OffsetEvent(2020.4, OffsetType.EQ)], station="SYN"
         )
+
+
+def test_rate_change_is_returned_not_discarded():
+    """The ALBU case: the post-event slope genuinely differs from the pre-event one."""
+    t = np.linspace(2014.4, 2025.8, 900)
+    # East -39 -> -30 mm/yr and Up +9 -> +2 mm/yr across the event, as ALBU shows.
+    pre = np.array([-0.039, 0.009, 0.009])
+    delta = np.array([0.009, 0.0, -0.007])
+    post = np.where(t >= 2017.512, t - 2017.512, 0.0)
+    enu = np.outer(t - t[0], pre) + np.outer(post, delta)
+    enu += np.outer((t >= 2017.512).astype(float), np.array([0.0, -0.085, 0.0]))
+
+    r = estimate_velocity_joint(
+        t, enu, offsets=[OffsetEvent(2017.512, OffsetType.EQ)],
+        station="ALBU", rate_changes=True,
+    )
+
+    assert len(r.rate_changes) == 1
+    rc = r.rate_changes[0]
+    assert rc.dve_mm_yr == pytest.approx(9.0, abs=1e-6)
+    assert rc.dvu_mm_yr == pytest.approx(-7.0, abs=1e-6)
+    assert rc.any_significant()
+    assert rc.significant()[0] and rc.significant()[2]
+
+    # Baseline rate is the FIRST interval, not an average of both.
+    assert r.ve_mm_yr == pytest.approx(-39.0, abs=1e-6)
+
+    intervals = r.interval_rates()
+    assert len(intervals) == 2
+    assert intervals[0].ve_mm_yr == pytest.approx(-39.0, abs=1e-6)
+    assert intervals[1].ve_mm_yr == pytest.approx(-30.0, abs=1e-6)
+    assert intervals[1].vu_mm_yr == pytest.approx(2.0, abs=1e-6)
+
+    assert r.rate_at(2016.0)[0] == pytest.approx(-39.0, abs=1e-6)
+    assert r.rate_at(2020.0)[0] == pytest.approx(-30.0, abs=1e-6)
+
+    # The step is still separable from the rate change.
+    assert r.steps[0].dn_mm == pytest.approx(-85.0, abs=1e-6)
+
+
+def test_unchanged_rate_is_not_reported_as_significant():
+    """A rate change fitted where none exists must fail its own test."""
+    t = np.linspace(2014.0, 2026.0, 900)
+    enu = synth(t, {2019.0: np.array([0.040, 0.0, 0.0])}, noise=0.004, seed=11)
+
+    r = estimate_velocity_joint(
+        t, enu, offsets=[OffsetEvent(2019.0, OffsetType.EQ)],
+        station="SYN", rate_changes=True,
+    )
+    assert not r.rate_changes[0].any_significant()
+    for a, b in zip(r.interval_rates()[0:1], r.interval_rates()[1:2], strict=True):
+        assert abs(a.ve_mm_yr - b.ve_mm_yr) < 3.0
+
+
+def test_interval_rates_without_rate_changes_is_one_interval():
+    t = np.linspace(2014.0, 2025.0, 300)
+    r = estimate_velocity_joint(
+        t, synth(t, {2019.0: np.array([0.03, 0.0, 0.0])}),
+        offsets=[OffsetEvent(2019.0, OffsetType.EQ)], station="SYN",
+    )
+    assert r.rate_changes == []
+    assert len(r.interval_rates()) == 1
+    assert r.rate_at(2024.0)[0] == pytest.approx(r.ve_mm_yr)
