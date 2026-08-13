@@ -23,6 +23,15 @@ The stage boundaries come from PHIVOLCS' own `Work_Instruction_ao20251030.docx`
 | **2** | §5 | RINEX → coordinates | ✅ **Largely automated** (2026-08) |
 | **3** | §6 | coordinates → velocities | 🔄 **Inverted** — the hard part is done, the plumbing is not |
 
+**Live defect, found 2026-08-13.** ALBU's continuous plot, generated
+2025-11-11, reports `V=-539 mm/yr` East and `V=-1846 mm/yr` Up against a true
+rate near -35 mm/yr. The 2025.7474 Bogo earthquake sits 7 days before the end
+of the record, so the published velocity is the slope of one week of scatter.
+This is the same defect as the six Luzon campaign sites in
+[`velocity_outlier_policy_delta.md`](velocity_outlier_policy_delta.md) — **but
+ALBU is a continuous site, so the defect is not confined to the campaign
+dataset and is reaching current plots.** Fixed by PR #86.
+
 **Stage 2 being the finished one is not a coincidence and not a plan.** It is
 where the LUZON reprocessing forced us: a 31-day run had to work, so it was
 made to work. The other two thirds were never chosen against — they were never
@@ -51,7 +60,7 @@ no version control before that.
 | Tool | References | Linux status |
 |---|---|---|
 | `teqc` | 2684 | Installed on gps3. **RINEX 2 only** — refuses RINEX 3 on line 1 |
-| `runpkr00` | 777 | Trimble raw unpacker. **Not evaluated on Linux** |
+| `runpkr00` | 777 | Trimble raw unpacker. **Linux binaries exist** — [UNAVCO KB 744](https://kb.unavco.org/article/trimble-runpkr00-latest-versions-744.html). Not yet tested on gps3 |
 | `gfzrnx` | 11 | Installed. Reads RINEX 3. Licence terms to be documented per use |
 | `crx2rnx` / `rnx2crx` | 6 | Hatanaka compression. Trivially available on Linux |
 | `campv5.exe`, `campv6.exe`, `campv5_mounted.exe`, `campv5_combine.exe` | — | Almost certainly PyInstaller builds of `campaign_v5.py`, `campaign_v6.py`, `campaign_v5_mounted.py`, `campaign_v5_combine.py` — the naming matches 4-for-4 and we hold the Python. **Verify before relying on it.** |
@@ -87,9 +96,11 @@ the script port is downstream of it.**
    half-day and it either closes a succession risk or reveals one. Do it soon —
    it is cheap and the answer changes the plan.
 2. **Identify `splname.exe` and `compress.exe`.** Same argument.
-3. **Evaluate `runpkr00` on Linux.** It is the one hard dependency with no
-   known substitute; if it does not run, stage 1 cannot leave Windows at all
-   and that fact should be known now rather than discovered later.
+3. **Test the `runpkr00` Linux build on gps3.** Located 2026-08-13 at
+   [UNAVCO KB 744](https://kb.unavco.org/article/trimble-runpkr00-latest-versions-744.html).
+   This was the dependency most likely to pin stage 1 to Windows, and it
+   apparently does not. Expect the same trial-and-error across builds that
+   teqc needed — verify against a real Trimble `.T0x`, not by `--version`.
 4. **Then** the digital logsheet, **then** the script port.
 
 ---
@@ -191,6 +202,40 @@ what it was actually doing.**
   production. That sprawl is the argument for version control, made by the
   filesystem.
 
+### What PHIVOLCS asked for (2026-08-13)
+
+Cass — who runs the manual processing side and set the de-facto standards this
+pipeline is encoding — was asked what she wanted automated. The answer was
+specific and it was **not** the file plumbing:
+
+> Delegating the **eyeballing of the gap/step amount** used to reconnect a
+> series across an earthquake — both algorithmically and in the plots:
+> automatic highlighting of when the event happened, and a before/after view
+> of the series for each site.
+
+This is a better-posed request than the question that prompted it. The original
+framing was *"do we continue the pre-event slope, or establish a new epoch 0 at
+the event, or both explicitly?"* — and the answer falls out of estimating the
+step properly rather than being a policy choice:
+
+**Fit one rate across the whole record with a step parameter per event**
+(`d(t) = a + b·(t−t₀) + Σ cᵢ·H(t−tᵢ)`). The slope continues, the jump is a
+separate fitted parameter with a formal uncertainty, and "epoch 0" never has to
+be declared. Where an event genuinely *did* change the rate, add a slope-change
+term and let the data say so — that converts the choice from an assumption into
+a testable claim. Implemented as `estimate_velocity_joint` (PR #86).
+
+**On IQR.** Cass adopted IQR over the years as a partial attempt at automating
+gap identification, and it earns its place — it is a sound *outlier* detector
+and it is why the flagged-epoch list exists at all. But it is worth being
+precise about what it cannot do: **a step is not an outlier.** An outlier is a
+point far from its neighbours; a step relocates every subsequent point, so the
+post-event population is perfectly self-consistent and IQR has no reason to
+flag any of it. IQR bounds the scatter; it cannot see a shift in the mean.
+Detecting *unknown* steps needs a different statistic — a moving-window mean
+test, CUSUM, or a model-selection approach like FODITS. Estimating *known*
+steps, which is what the catalog gives us, is the joint fit above.
+
 ### Should we go further?
 
 **Yes — this is the best remaining value per unit of effort in the project.**
@@ -208,6 +253,15 @@ Two things to decide before starting, both raised by the delta analysis:
 2. **Sort and validate the `offsets` catalog on read.** Out-of-order records
    silently corrupt the MATLAB's fits. Our implementation sorts and is immune,
    but anyone still running the MATLAB is exposed today.
+3. **Snapshot the *continuous* offsets catalog.** We rescued only the campaign
+   one. `scripts/snapshot_phivolcs_scripts.py` reads
+   `TIME SERIES (BERN52)\Campaign\FINAL PLOT FILES` and nothing else — ALBU is
+   a continuous site and appears in no file we hold. The succession argument
+   that justified rescuing the campaign catalog applies unchanged to the other
+   half, and we currently believe that risk is closed when it is not.
+4. **Build the visualisation half of the request**: event markers on the plot
+   and a before/after view per site. The numbers now exist to drive it; the
+   plotting does not.
 
 **Whether to evaluate FODITS is a genuine open question, not a foregone one.**
 It would handle seasonal terms, discontinuity detection and outliers natively,
