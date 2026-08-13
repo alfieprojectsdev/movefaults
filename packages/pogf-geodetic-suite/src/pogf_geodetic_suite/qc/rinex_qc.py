@@ -55,13 +55,49 @@ def _parse_teqc_output(text: str) -> RINEXQCResult:
                 return None
         return None
 
-    obs_count   = _first_int(r'#\s*obs\s*:\s*([0-9 ]+)')
+    # PRIMARY: the SUM row, which is where teqc 2019Feb25 actually puts these.
+    #
+    #   first epoch    last epoch    hrs   dt  #expt  #have   %   mp1   mp2 o/slps
+    #   SUM 25 5 1 00:00 25 5 1 23:59 24.00 30    -   46370   -  0.74  0.49    284
+    #
+    # Indexed from the RIGHT because the leading epoch fields vary in width
+    # between versions and configurations, while the trailing metrics do not.
+    # The earlier `key : value` patterns below never matched this format; the
+    # mismatch stayed invisible for as long as teqc was not installed here.
+    obs_count = cycle_slips = None
+    mp1_rms = mp2_rms = None
+    for line in text.splitlines():
+        if not line.startswith("SUM "):
+            continue
+        tok = line.split()
+        if len(tok) < 8:
+            continue
+
+        def _num(t: str):
+            try:
+                return float(t)
+            except ValueError:
+                return None  # teqc writes '-' for unavailable columns
+
+        slips = _num(tok[-1])
+        m2, m1 = _num(tok[-2]), _num(tok[-3])
+        have = _num(tok[-5])
+        cycle_slips = int(slips) if slips is not None else None
+        mp2_rms, mp1_rms = m2, m1
+        obs_count = int(have) if have is not None else None
+        break
+
+    # FALLBACK: `key : value` forms from other teqc versions.
+    if obs_count is None:
+        obs_count = _first_int(r'#\s*obs\s*:\s*([0-9 ]+)')
     if obs_count is None:
         obs_count = _first_int(r'total\s+obs\s*:\s*([0-9 ]+)')
-
-    cycle_slips = _first_int(r'#?\s*slips[^:]*:\s*([0-9 ]+)')
-    mp1_rms     = _first_float(r'MP1\s*:\s*([\d.]+)')
-    mp2_rms     = _first_float(r'MP2\s*:\s*([\d.]+)')
+    if cycle_slips is None:
+        cycle_slips = _first_int(r'#?\s*slips[^:]*:\s*([0-9 ]+)')
+    if mp1_rms is None:
+        mp1_rms = _first_float(r'MP1\s*:\s*([\d.]+)')
+    if mp2_rms is None:
+        mp2_rms = _first_float(r'MP2\s*:\s*([\d.]+)')
 
     return RINEXQCResult(
         obs_count=obs_count,
@@ -222,9 +258,26 @@ class RinexQC:
                     f"teqc exited {proc.returncode}: {proc.stderr[:500]}"
                 )
 
-            # Prefer the .S summary file; fall back to combined stdout+stderr
-            summary_file = tmp_path / (tmp_file.stem + ".S")
-            if summary_file.exists():
+            # teqc names its summary <basename>.<yy>S -- ALAB1210.25o yields
+            # ALAB1210.25S, NOT ALAB1210.S. Looking for stem + ".S" never
+            # matched, so this silently fell through to stdout, which carries
+            # the ASCII sky plot rather than the SUM line the parser needs.
+            # Verified 2026-08-13 against teqc 2019Feb25 on real data; the bug
+            # was invisible until teqc was actually installed on this machine.
+            summary_file = next(
+                (c for c in (
+                    tmp_path / (tmp_file.name.rsplit(".", 1)[0] + "." +
+                                tmp_file.suffix.lstrip(".")[:2] + "S"),
+                    tmp_path / (tmp_file.stem + ".S"),
+                ) if c.exists()),
+                None,
+            )
+            if summary_file is None:
+                # Last resort: any .*S teqc left behind.
+                found = sorted(tmp_path.glob("*S"))
+                summary_file = found[0] if found else None
+
+            if summary_file is not None:
                 text = summary_file.read_text(errors="replace")
             else:
                 text = proc.stdout + "\n" + proc.stderr

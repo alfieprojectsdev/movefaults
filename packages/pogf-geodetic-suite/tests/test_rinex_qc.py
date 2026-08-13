@@ -276,3 +276,49 @@ def test_result_defaults_to_teqc_provenance():
                       raw_output="")
     assert r.tool == "teqc"
     assert r.fallback_reason is None
+
+
+# ---------------------------------------------------------------------------
+# SUM-row parsing (added 2026-08-13)
+#
+# teqc 2019Feb25 reports #have / mp1 / mp2 / o-slps as COLUMNS of a SUM row,
+# not as "key : value" pairs. The original patterns never matched it, and the
+# mismatch was invisible for as long as teqc was not installed on the machine.
+# Fixture below is verbatim from a real run on ALAB1210.25o.
+# ---------------------------------------------------------------------------
+
+REAL_TEQC_SUM = (
+    "Total satellites w/ obs : 55\n"
+    "IOD slips               :    147\n"
+    "      first epoch    last epoch    hrs   dt  #expt  #have   %   mp1   mp2 o/slps\n"
+    "SUM 25  5  1 00:00 25  5  1 23:59 24.00  30     -   46370  -   0.74  0.49    284\n"
+)
+
+
+def test_sum_row_yields_all_four_metrics():
+    r = _parse_teqc_output(REAL_TEQC_SUM)
+    assert r.obs_count == 46370
+    assert r.cycle_slips == 284
+    assert r.mp1_rms == 0.74
+    assert r.mp2_rms == 0.49
+    assert r.tool == "teqc"
+
+
+def test_sum_row_tolerates_dash_columns():
+    """teqc writes '-' where a value is unavailable; that must not become 0."""
+    text = (
+        "      first epoch    last epoch    hrs   dt  #expt  #have   %   mp1   mp2 o/slps\n"
+        "SUM 25  5  1 00:00 25  5  1 23:59 24.00  30     -       -  -      -     -      0\n"
+    )
+    r = _parse_teqc_output(text)
+    assert r.obs_count is None
+    assert r.mp1_rms is None and r.mp2_rms is None
+    assert r.cycle_slips == 0
+
+
+def test_keyvalue_fallback_still_works_for_other_versions():
+    """Older/other teqc builds using 'key : value' must still parse."""
+    r = _parse_teqc_output("total obs : 12345\nMP1 : 0.31\nMP2 : 0.22\nslips : 7\n")
+    assert r.obs_count == 12345
+    assert r.mp1_rms == 0.31
+    assert r.cycle_slips == 7
