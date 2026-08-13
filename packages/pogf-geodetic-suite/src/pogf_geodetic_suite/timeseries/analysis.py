@@ -276,6 +276,223 @@ def estimate_velocity(
     return VelocityResult(station=station, segments=segments)
 
 
+# ---------------------------------------------------------------------------
+# Joint offset + rate estimation
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class StepEstimate:
+    """One estimated discontinuity: how far the series jumped, and how well known."""
+    date: float                 # decimal year of the event
+    offset_type: OffsetType
+    de_mm: float                # East step amplitude, mm (post minus pre)
+    dn_mm: float
+    du_mm: float
+    sig_de: float               # 1-sigma formal error, mm
+    sig_dn: float
+    sig_du: float
+    n_before: int               # epochs before the step
+    n_after: int                # epochs after it
+    span_before: float          # years of data before, used to judge resolvability
+    span_after: float
+
+    @property
+    def resolvable(self) -> bool:
+        """
+        Whether this step is constrained by enough data on BOTH sides to mean
+        anything. A step at the very end of a record is not measurable no matter
+        what the least squares returns -- the fit will happily report a number
+        with a large sigma, and the number will be read without the sigma.
+        """
+        return (self.n_before >= 3 and self.n_after >= 3
+                and self.span_before > 0.1 and self.span_after > 0.1)
+
+
+@dataclass(frozen=True)
+class JointVelocityResult:
+    """Common-rate fit with explicit step amplitudes at each discontinuity."""
+    station: str
+    ve_mm_yr: float
+    vn_mm_yr: float
+    vu_mm_yr: float
+    sig_ve: float
+    sig_vn: float
+    sig_vu: float
+    steps: list[StepEstimate]
+    n_points: int
+    t_start: float
+    t_end: float
+    outlier_epochs: tuple[float, ...] = field(default_factory=tuple)
+
+    @property
+    def unresolvable_steps(self) -> list[StepEstimate]:
+        """Steps the data cannot actually constrain. Report these, never publish."""
+        return [s for s in self.steps if not s.resolvable]
+
+
+def estimate_velocity_joint(
+    t: np.ndarray,
+    enu_m: np.ndarray,
+    *,
+    offsets: list[OffsetEvent] | None = None,
+    outlier_iqr_factor: float = 3.0,
+    station: str = "",
+    exclude_outliers: bool = True,
+    rate_changes: bool = False,
+) -> JointVelocityResult:
+    """
+    Fit one rate across the whole record, with a step parameter per offset.
+
+    WHY THIS EXISTS, AND WHY IT IS NOT THE SAME AS `estimate_velocity`
+    `estimate_velocity` fits every inter-offset segment INDEPENDENTLY, which is
+    what the source MATLAB does. That has two consequences the team has been
+    living with:
+
+      1. The step amplitude is never estimated. It is implicit in the gap
+         between two independent intercepts, so the only way to know "how far
+         did the site jump?" is to eyeball the plot. That is precisely the task
+         PHIVOLCS asked to have automated (2026-08-13).
+
+      2. A segment with few epochs produces a meaningless rate, and nothing
+         stops it being published. ALBU's continuous series, plotted
+         2025-11-11, carries `V=-539 mm/yr` East and `V=-1846 mm/yr` Up because
+         the 2025.7474 Bogo earthquake left a 7-day final segment. The number
+         is the slope of a week of scatter. Six Luzon campaign sites have the
+         same defect (see velocity_outlier_policy_delta.md).
+
+    This function fits the standard GNSS trajectory model instead:
+
+        d(t) = a + b·(t - t0) + Σ c_i · H(t - t_i)
+
+    one intercept, ONE rate `b` shared by the whole record, and one step
+    amplitude `c_i` per event, with `H` the Heaviside step. Both problems go
+    away at once: `c_i` is a fitted parameter with a formal uncertainty, and
+    `b` is constrained by every epoch rather than by whatever happens to follow
+    the last event.
+
+    WHAT THIS ASSUMES, AND WHEN IT IS WRONG
+    A single `b` asserts that the secular rate is unchanged by the events --
+    the site steps and then resumes its previous motion. That is the right
+    default for equipment changes and for most co-seismic offsets, and it is
+    the answer to "do we continue the slope or start a new epoch 0?": the slope
+    continues, and the jump is a separate parameter.
+
+    It is NOT right where a large earthquake genuinely changed the rate, or
+    where post-seismic relaxation is present -- both real possibilities for a
+    site near an M6.5+ event. Pass `rate_changes=True` to add a slope-change
+    term per event:
+
+        + Σ d_i · (t - t_i) · H(t - t_i)
+
+    Then a nonzero `d_i` relative to its sigma is evidence the rate did change,
+    which turns a modelling assumption into something testable. Post-seismic
+    decay is exponential or logarithmic rather than linear and is not modelled
+    here; a persistent `d_i` at a site near a large event is a signal to look
+    at the transient properly, not to trust the linear term.
+
+    Args:
+        t:                  Decimal years, shape (N,).
+        enu_m:              ENU displacements in metres, shape (N, 3).
+        offsets:            Discontinuities. None or empty → plain linear fit.
+        outlier_iqr_factor: IQR multiplier for outlier detection.
+        station:            Label.
+        exclude_outliers:   Drop flagged epochs from the fit. See module
+                            docstring -- the MATLAB computes them and does not.
+        rate_changes:       Also solve a slope change at each event.
+
+    Returns:
+        JointVelocityResult. Check `.unresolvable_steps` before using any step
+        amplitude: a step at the very edge of a record returns a number the
+        data does not support.
+
+    Raises:
+        ValueError: if fewer epochs remain than free parameters.
+    """
+    t = np.asarray(t, dtype=float)
+    enu_m = np.asarray(enu_m, dtype=float)
+    if t.ndim != 1 or enu_m.shape != (t.size, 3):
+        raise ValueError(f"Station {station!r}: expected t (N,) and enu_m (N, 3).")
+
+    order = np.argsort(t)
+    t, enu_m = t[order], enu_m[order]
+
+    outlier_epochs: tuple[float, ...] = ()
+    if len(t) >= 4:
+        mask = _detect_outliers_iqr(enu_m, outlier_iqr_factor)
+        outlier_epochs = tuple(float(x) for x in t[mask])
+        if exclude_outliers and mask.any() and (~mask).sum() >= 4:
+            t, enu_m = t[~mask], enu_m[~mask]
+
+    # Sorted and de-duplicated: an out-of-order catalog must not be able to
+    # produce a different answer here. See the KNOWN DEFECT note above -- the
+    # MATLAB's segment loop is order-sensitive and ours must not be.
+    events = sorted(offsets or [], key=lambda e: e.date)
+    # An event outside the observed span contributes an all-zero or all-one
+    # column, which is either useless or exactly collinear with the intercept.
+    events = [e for e in events if t[0] < e.date <= t[-1]]
+
+    t0 = float(t.mean())  # centring keeps the normal matrix well conditioned
+    cols = [np.ones(t.size), t - t0]
+    for e in events:
+        cols.append((t >= e.date).astype(float))
+    if rate_changes:
+        for e in events:
+            cols.append(np.where(t >= e.date, t - e.date, 0.0))
+    G = np.column_stack(cols)
+
+    n_params = G.shape[1]
+    if t.size <= n_params:
+        raise ValueError(
+            f"Station {station!r}: {t.size} epochs cannot constrain {n_params} "
+            f"parameters ({len(events)} event(s))."
+        )
+
+    model, _, rank, _ = np.linalg.lstsq(G, enu_m, rcond=None)
+    if rank < n_params:
+        raise ValueError(
+            f"Station {station!r}: design matrix is rank deficient "
+            f"({rank} < {n_params}) — events are likely too close to the "
+            f"record edges or to each other to be separable."
+        )
+
+    residual = enu_m - G @ model
+    mse = np.sum(residual ** 2, axis=0) / (t.size - n_params)
+    cov_unit = np.linalg.inv(G.T @ G)          # shared by all three components
+    var_param = np.outer(np.diag(cov_unit), mse)   # (n_params, 3)
+    sig = np.sqrt(var_param)
+
+    rate = model[1, :] * 1000.0                # m/yr → mm/yr
+    sig_rate = sig[1, :] * 1000.0
+
+    steps: list[StepEstimate] = []
+    for i, e in enumerate(events):
+        amp = model[2 + i, :] * 1000.0         # m → mm
+        s = sig[2 + i, :] * 1000.0
+        before, after = t < e.date, t >= e.date
+        steps.append(
+            StepEstimate(
+                date=e.date,
+                offset_type=e.offset_type,
+                de_mm=float(amp[0]), dn_mm=float(amp[1]), du_mm=float(amp[2]),
+                sig_de=float(s[0]), sig_dn=float(s[1]), sig_du=float(s[2]),
+                n_before=int(before.sum()), n_after=int(after.sum()),
+                span_before=float(np.ptp(t[before])) if before.sum() > 1 else 0.0,
+                span_after=float(np.ptp(t[after])) if after.sum() > 1 else 0.0,
+            )
+        )
+
+    return JointVelocityResult(
+        station=station,
+        ve_mm_yr=float(rate[0]), vn_mm_yr=float(rate[1]), vu_mm_yr=float(rate[2]),
+        sig_ve=float(sig_rate[0]), sig_vn=float(sig_rate[1]), sig_vu=float(sig_rate[2]),
+        steps=steps,
+        n_points=int(t.size),
+        t_start=float(t[0]), t_end=float(t[-1]),
+        outlier_epochs=outlier_epochs,
+    )
+
+
 def parse_offsets_file(path: Path) -> dict[str, list[OffsetEvent]]:
     """
     Parse a PHIVOLCS offsets text file into per-station OffsetEvent lists.
