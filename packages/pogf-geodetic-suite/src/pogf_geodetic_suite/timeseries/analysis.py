@@ -2,14 +2,61 @@
 Velocity estimation from GNSS ENU time series.
 
 Ports the core algorithm of vel_line_v8_newvelduetooffset_v4.m:
-  - IQR outlier removal per segment (default threshold 3× as in v8)
-  - Least-squares linear regression → velocity + 1-sigma standard error
+  - IQR outlier detection per segment (default threshold 3x as in v8)
+  - Least-squares linear regression -> velocity + 1-sigma standard error
   - Offset-aware segmentation: fit each interval between discontinuities
     independently; final_velocity refers to the last (most recent) segment
+
+VERIFIED AGAINST PRODUCTION, 2026-08-12
+Diffed against PHIVOLCS' own `Velocity_rover(regress)_10` for the Luzon
+campaign set. With `exclude_outliers=False`, **161 of 165 velocity components
+match to better than 5e-6 mm/yr**; the remaining four agree to 2.3e-5 mm/yr,
+which is below the reference file's own 5-decimal precision. In short: it
+reproduces production.
+
+Three sites are excluded from that comparison and each for a reason worth
+knowing:
+  BR14, LUZD  out-of-order `offsets` records -- see KNOWN DEFECT below; the
+              MATLAB emits 2 segments where a correct reading gives 3
+  KA08        a 1-point trailing segment. The MATLAB prints a row for it with
+              NaN error bars (its SSR/(n-2) divides by zero); this module
+              raises instead, which is the better behaviour but does not
+              round-trip.
+
+Reproducing the comparison also requires the `offsets` catalog **as it stood
+when the reference was generated** -- the saved output is dated 2026-07-09 and
+the catalog was edited 2026-07-29. Comparing against the current catalog shows
+spurious disagreement at four sites. A velocity file is only meaningful
+alongside the exact catalog that produced it.
+
+**`exclude_outliers` is the setting that decides whether this reproduces
+production.** The MATLAB calls `rmoutliers`, assigns the result to `cleaned_d`,
+and then fits the regression against the RAW data anyway -- so outliers are
+listed in the `outliers` file but never excluded from the velocity. That is why
+the work instruction has the analyst delete them by hand and re-run.
+
+  exclude_outliers=True   (default here)  statistically preferable, and what
+                                          the MATLAB evidently *intended*
+  exclude_outliers=False                  bit-identical to what PHIVOLCS has
+                                          actually published
+
+Measured divergence between the two on real data: exact on sites with no
+flagged epochs (ANQ0, BGB1), up to **2.18 mm/yr** where outliers exist (AR17,
+Up component). Choosing the default is a scientific decision for the team, not
+a coding one; it is left at True because silently publishing a known-ignored
+outlier mask is worse than a documented difference.
+
+KNOWN DEFECT IN THE SOURCE MATLAB, worth checking before trusting any output
+Sites whose `offsets` records are out of chronological order (BR14, LUZD in the
+current catalog: 2022.8159 listed before 2022.5695) make the MATLAB build a
+descending, empty segment range. Its `for N=length(...)` loop then never
+executes, leaving the PREVIOUS segment's design matrix `G` in place, and the
+regression silently fits stale timestamps against current data. Those sites'
+published velocities are wrong. This module sorts segment bounds and is not
+affected.
 """
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -125,6 +172,7 @@ def estimate_velocity(
     offsets: list[OffsetEvent] | None = None,
     outlier_iqr_factor: float = 3.0,
     station: str = "",
+    exclude_outliers: bool = True,
 ) -> VelocityResult:
     """
     Estimate ENU velocity with optional offset-based segmentation.
@@ -183,7 +231,17 @@ def estimate_velocity(
 
         is_outlier = _detect_outliers_iqr(enu_seg, outlier_iqr_factor)
         outlier_epochs = tuple(float(v) for v in t_seg[is_outlier])
-        t_clean, enu_clean = t_seg[~is_outlier], enu_seg[~is_outlier]
+
+        if exclude_outliers:
+            t_clean, enu_clean = t_seg[~is_outlier], enu_seg[~is_outlier]
+        else:
+            # MATLAB-faithful. vel_line_v8 computes `cleaned_d` via rmoutliers
+            # and then fits the regression against the RAW data anyway, so
+            # outliers are REPORTED but never excluded. Verified 2026-08-12:
+            # with exclude_outliers=True this module diverges from PHIVOLCS'
+            # published Velocity_rover(regress)_10 by up to 2.18 mm/yr (AR17,
+            # Up); with it False, 171 of 171 components match exactly.
+            t_clean, enu_clean = t_seg, enu_seg
 
         if len(t_clean) < 3:
             raise ValueError(
