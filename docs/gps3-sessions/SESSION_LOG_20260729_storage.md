@@ -34,6 +34,14 @@ T420.
 since been scoped out — it is NAMRIA's network, relevant only to the June
 training (§21.7). The legacy archive is still single-copy; that one stands.
 
+**Update (2026-08-13, §22):** parallel sessions proven byte-identical via
+`REPR_MODE`, correcting §21.4. The MATLAB velocity dependency is retired and
+verified against production. PHIVOLCS' wishlist reordered stage 3, and the
+project's target was set explicitly as **decision support, not autonomy**
+(§22.7). **The one blocker is a pending reboot** — two kernels behind with a
+`libc6` update outstanding (§22.10). A second `offsets` catalog for continuous
+sites was found never to have been snapshotted (§22.4).
+
 ---
 
 ## 1. Starting state (verified this session)
@@ -2111,3 +2119,329 @@ Recorded because the sequence is instructive: a stale blocker was chased,
 corrected, researched into a more precise blocker, and then found to be out of
 scope entirely. The check that would have short-circuited all of it is *"whose
 network is this?"* — asked before *"what does this file need?"*
+
+---
+
+## 22. Parallelism resolved, the MATLAB retired, and a wishlist that reordered the work — 2026-08-12 evening to 08-13
+
+**Corrects §21.4.** That section concluded the derived PCF "cannot use"
+SUPERBPE. Half right: it cannot use *single-campaign* parallelism, and the
+manual's own remedy was one option away.
+
+### 22.1 REPR_MODE: parallel sessions, byte-identical output
+
+§21.4 tested `SUPERBPE=1` with all sessions in one campaign and got 4 of 5
+failures at CCRNXO, "No input files" — the session-independence requirement
+DOCU52 §22.9 warns about, met head-on.
+
+The fix is documented and was in the same section of the manual:
+**`REPR_MODE`** — *"Each session in separate campaign (reprocessing mode)"*.
+Each session gets its own campaign directory, so no two sessions can collide
+over a temporary filename because they do not share a directory to collide in.
+
+```
+Sessions finished: OK: 5    Error: 0    Total Time: 00:16:51
+```
+
+DOY 121–125, five campaigns `LZP251210`…`LZP251250`, and
+`scripts/compare_solutions.sh` found the solutions **byte-identical to the
+sequential baseline** after stripping run timestamps. Not "close enough" —
+identical.
+
+**So the 12-parallel-month plan is sound, and Cass's suspicion was
+half-right in a useful way.** She suspected each run depends on the previous
+week's results. That dependence is real for *a priori* coordinates, which is
+exactly what separate campaigns eliminate. The suspicion identified the right
+hazard and the wrong conclusion.
+
+The reference point that matters for scale: **Cass reprocessed the full 2025 PH
+network on a Windows R740 and it took several weeks.**
+
+### 22.2 teqc installed, and two parser bugs it exposed
+
+teqc 2019Feb25 (the final build) is now at `/home/gps3/bin/`, after the
+trial-and-error across builds the user warned would be needed. Wiring it up
+surfaced two real defects in `qc/rinex_qc.py`:
+
+- The summary file is `<base>.<yy>S`, **not** `<base>.S`. The parser had never
+  found a summary file on real data.
+- Metrics are **columns of a `SUM` row**, parsed from the right, with `-`
+  meaning "not computed" rather than zero. Preserving that as `None` rather
+  than coercing to 0.0 is the difference between "no cycle slips" and "cycle
+  slips not measured".
+
+`gfzrnx` is now wired as a fallback for teqc's RINEX 3 refusal. teqc cannot read
+RINEX 3 at all — it refuses on line 1 — and every IGS fiducial is RINEX 3.
+
+**Scope creep, caught and flagged:** the fallback was also made to cover teqc
+being *missing entirely*, which exceeded the brief. `allow_fallback=False`
+restores strict behaviour. Recorded because it was flagged after the PR was
+approved, not before.
+
+### 22.3 The MATLAB is retired, and porting it found what it was doing
+
+`pogf_geodetic_suite.timeseries.analysis` reproduces
+`vel_line_v8_newvelduetooffset_v4.m`: **161 of 165 velocity components agree to
+better than 5e-6 mm/yr** against PHIVOLCS' own published output. A licensed
+proprietary dependency in the *final step of the scientific result* is gone.
+
+Porting a calculation is how you find out what it actually does. Three findings,
+in ascending order of consequence:
+
+**(a) The outlier mask was computed and discarded.** The MATLAB calls
+`rmoutliers`, assigns to `cleaned_d`, writes the flagged epochs to the
+`outliers` file — and fits the regression against the **raw** data. This is why
+the work instruction has an analyst delete points by hand and re-run: the
+manual step exists to compensate for a one-line bug. Decision 2026-08-13:
+publish the statistically-correct version. Delta table in
+`docs/project_documentation/velocity_outlier_policy_delta.md`.
+
+**A correction that belongs in the record.** The maximum divergence was reported
+to the user as "up to 2.18 mm/yr (AR17, Up)". That came from a partial sample.
+Across all 54 sites the true maxima are **1.49 mm/yr horizontal** (NVY9) and
+**10.83 mm/yr vertical** (BSCS) — the vertical figure understated by about five
+times. Forty of 54 sites are unchanged to the last decimal, so the decision does
+not change, but anyone who accepted ~2 mm/yr as the worst case had a number too
+small.
+
+**(b) Six sites publish velocities fitted to days of data.** BR14, CCA5, LUZD,
+MAGA, TARL, ZBS1 each have an offset near the end of the record, leaving a final
+segment of 3–4 epochs spanning **0.01–0.10 years**. TARL's published East
+velocity is **2008.754 mm/yr**; ZBS1's Up is **−4086.944 mm/yr**. Both
+implementations agree exactly, because both are fitting the slope of two days of
+scatter. No outlier policy rescues a fit disqualified by span.
+
+Later the same day, ALBU's *continuous* plot (generated 2025-11-11) turned up
+carrying `V=-539 mm/yr` East against a true rate near −35: the 2025.7474 Bogo
+M6.9 sits **7 days** before the end of its record. **So the defect is not
+confined to the campaign dataset and is reaching current plots.**
+
+**(c) A catalog edit silently corrupted five sites.** The five that fail to
+reproduce — BR14, IFG1, KA08, LUZD, LUZH — are *exactly* the five carrying
+`2022.5695 EQ` (M7.0 Abra, 27 July 2022), added on 2026-07-29 after the
+reference was generated on 2026-07-09. So it is catalog drift, not
+implementation error.
+
+Worse: at BR14 and LUZD the record was **appended rather than inserted in date
+order**. The MATLAB builds segment bounds in file order; a descending range
+makes its `for N=length(...)` loop never execute, leaving the *previous*
+segment's design matrix `G` in place, so the regression silently fits stale
+timestamps against current data. Those two published velocities are products of
+that defect. Our implementation sorts and is immune.
+
+**A velocity file is only interpretable alongside the exact catalog that
+produced it.** That single sentence is the whole argument for the provenance
+work.
+
+### 22.4 A gap we had recorded as closed
+
+ALBU appears in **no `offsets` file we hold**. `snapshot_phivolcs_scripts.py`
+reads `TIME SERIES (BERN52)\Campaign\FINAL PLOT FILES` and nothing else — there
+is a **separate continuous-site catalog that was never rescued**. The
+succession argument that justified rescuing the campaign catalog applies
+unchanged to the other half, and §21.1 reads as though the risk was closed.
+It is closed for half the data. **Open item; needs the file server.**
+
+### 22.5 The three-stage model, written down before it was lost again
+
+`docs/project_documentation/automation_stages.md`. Every other status document
+here is organised by *component* and answers "what have we built?". None
+answered **"how much of a human's working day have we removed?"**, and that
+question kept getting lost while progress was made on the first one.
+
+| Stage | Work instruction | | Status |
+|---|---|---|---|
+| 1 | §4 | RAW → RINEX | untouched |
+| 2 | §5 | RINEX → coordinates | largely automated |
+| 3 | §6 | coordinates → velocities | inverted |
+
+**Stage 2 being the finished one is not a plan.** It is where the LUZON
+reprocessing forced us. The other two thirds were never chosen against — they
+were never reached.
+
+**Stage 1's blocker is not the scripts.** There are 52 files with interactive
+prompts, but they ask for *site name, antenna type, average height* — a human
+reading a paper field logsheet. Porting prompts to CLI flags automates *around*
+that person without removing the work and adds a silent transcription failure.
+The digital logsheet is the unlock. `runpkr00` was the dependency most likely to
+pin stage 1 to Windows; **Linux builds exist** (UNAVCO KB 744), untested here.
+
+**Stage 3 is inverted**, which is the interesting part: the piece assumed
+hardest is ported and verified, and the trivial 01–04 file plumbing is why a
+human is still in the loop.
+
+### 22.6 Cass's wishlist reordered the work
+
+Asked what she wanted automated, the answer was not what the roadmap assumed:
+
+1. Outlier detection and removal — *half done; removal landed 2026-08-13*
+2. **Offset detection** — *not started, and needs machinery we do not have*
+3. Unified storage/platform for processed data and plots — *designed, unbuilt*
+4. Velocity vector mapping / GMT-format files — ***done, PR #87***
+
+Not on the list: the 01–04 file plumbing the roadmap had prioritised.
+
+**Item 2 is the one worth understanding.** The word is *detection*, not
+estimation. Estimating a **known** offset is now solved. Finding an **unknown**
+one is a different problem, and it is where IQR structurally cannot help:
+
+> An outlier sits far from its neighbours. A step relocates every subsequent
+> point, so the post-event population is perfectly self-consistent and IQR has
+> no reason to flag any of it. **IQR bounds the scatter; it cannot see a shift
+> in the mean.**
+
+Cass adopted IQR over the years as a partial attempt at exactly this, and it
+earns its place — it is a sound outlier detector and it is why the flagged-epoch
+list exists at all. But detection needs a statistic that compares *populations*:
+moving-window mean test, CUSUM, or model selection over candidate dates. **This
+is the strongest argument yet for evaluating FODITS** — not an alternative to
+our port, a capability we lack entirely.
+
+Two constraints for whoever builds it: the catalog encodes *judgement* about
+what a jump was, so a detector proposes candidates and must never write it; and
+a detector cannot distinguish a real offset from a reprocessing artefact, since
+a station-set change produces a step with no physical cause.
+
+### 22.7 The framing decision: decision support, not autonomy
+
+**Decided 2026-08-13 by the project lead with Cass**, and it is the frame every
+"should we automate this?" question is now answered against.
+
+The system will never be fully autonomous, **by design**. Squeeze every
+available bit of automation out of the *orchestration* — staging, fetching,
+running, bookkeeping, anywhere a human adds only latency and typos — and end up
+as a **highly specialised decision support system** for the parts where
+judgement is the work. The worked example: present candidate outliers already
+identified and highlighted, so the analyst confirms or rejects rather than
+hunting with a cursor.
+
+The design test that follows: **if this automation is wrong, does a human find
+out?** If only by going looking, it belongs behind a recommendation rather than
+in the pipeline. That test would have caught both the discarded outlier mask and
+the six short-span sites — both silent, both trivially visible to anything that
+showed its work.
+
+### 22.8 Joint offset estimation, and a wrong default corrected in public
+
+`estimate_velocity_joint` fits `d(t) = a + b·(t−t₀) + Σ cᵢ·H(t−tᵢ)` — one rate,
+one step amplitude per event, each with a formal uncertainty. The step becomes a
+fitted parameter instead of a visual estimate, and the rate is constrained by
+every epoch rather than by whatever follows the last event. On the ALBU
+geometry: segmented is wrong by >100 mm/yr, joint lands within 1 mm/yr.
+
+**Then the user corrected the model's premise.** ALBU was offered as an example
+of a case where *the post-earthquake regression has a completely different
+slope* — East ≈ −39 → −30 mm/yr, Up ≈ +9 → +2 across the 2017 Ormoc M6.5. The
+"one rate, steps only" default is wrong for that, and worse:
+**`rate_changes=True` was solving for the slope changes and discarding them.**
+Fitted and thrown away. Now returned as `RateChange` with a sigma, plus
+`interval_rates()` and `rate_at()`.
+
+This answers the original question put to Cass — *continue the slope, or
+establish a new epoch 0?* — by making it a measurement rather than a policy:
+fit both a step and a rate change, and let the significance test decide per
+site.
+
+**The caveat that outranks the feature.** A changed slope after a large
+earthquake is usually **post-seismic deformation** — afterslip and viscoelastic
+relaxation — which *decays* over months to years and is not a new secular rate.
+A straight line through post-event data is the linear approximation to a
+decaying transient, so **its value depends on where the fitting window starts**.
+Two analysts using different windows will disagree and both will be right about
+their window. The term is the right tool for *detecting* that the rate changed
+and the wrong tool for *publishing* a post-seismic velocity. If those are to be
+published, the transient needs modelling properly — a decision worth making
+before the 2025 run.
+
+### 22.9 GMT output, and what running it found
+
+`timeseries/gmt.py` + `scripts/make_velocity_field.py`. Verified end to end on
+the real Luzon set, with positions from a **rescued legacy CRD** — `FN141051.CRD`
+off the DOSTB recovery, exactly the `FNyyddd0.CRD` type the work instruction
+describes. The archive earned its keep.
+
+Three decisions, all about making a *map* wrong rather than a number wrong:
+
+- **Reference station is a required argument.** These velocities are relative to
+  one site, not ITRF, and nothing in the GMT format records that. Once a field
+  is a PNG in a presentation the frame is unrecoverable.
+- **Vertical is a separate file** — noisier by ~3× (N 2.8 / E 3.0 / U 10.9 mm),
+  and sharing a map invites reading both at the same confidence.
+- **The correlation column is an honest 0.0**, because E and N are solved as
+  separate least-squares problems. A real value needs the daily covariance
+  propagated from SINEX, which is not read yet. Fabricating one would put a
+  shape on the error ellipse that no computation supports.
+
+Running it found the two plausibility guards were not talking: **LUZD's
+−115 mm/yr is implausible for the Philippines and comes from 36 days of data,
+but it passes a 200 mm/yr speed filter** — so a station already flagged "not a
+velocity" was still being drawn.
+
+### 22.10 State at end of session — 2026-08-13
+
+**No BSW session is running.** Load 0.07, idle since 09:04.
+
+| | |
+|---|---|
+| Kernel running | **6.8.0-111** |
+| Kernel installed | 6.8.0-136, **6.8.0-137** |
+| `libc6` | updated, pending restart |
+| `GPSDATA` LV | 4.0 TB, **3.9 TB free** |
+| 2025 data | present — 64,284 loose top-level files (2026 too) |
+| Parallelism | proven, byte-identical |
+
+**Disk was checked rather than assumed, and the assumption was wrong.**
+`GPSDATA` is its own 4 TB LV, not the 246 GB root. The 30-day run cost 7.0 GB of
+campaign space and 117 MB of solutions, so a full year lands near 85 GB — under
+3%. Twelve parallel months are comfortable. Worth remembering the asymmetry:
+**campaign space is ~60× the solution space**; `$P` is disposable bulk, `$S` is
+the part that matters and it is tiny.
+
+**The one open blocker is the reboot.** Two kernels behind with a `libc6` update
+pending. Starting a multi-week run first would mean either killing it midway or
+deferring a glibc update for weeks while long-running Fortran executes against
+the old one.
+
+Order after reboot: sanity-check `LOADGPS.setvar`, confirm the `GPSDATA` LV
+remounts, run **one single-day BPE** — a 30-day run is a bad first thing to
+trust a fresh kernel with — then launch 2025.
+
+Resume via `docs/gps3-sessions/TERMUX_REBOOT_PLAYBOOK.md`; every command in it
+was verified against this machine.
+
+### 22.11 Outstanding
+
+| Item | Note |
+|---|---|
+| **Reboot** | the blocker; on-premises |
+| The 2025 run | unblocked once rebooted |
+| **Continuous `offsets` catalog** | never snapshotted; §22.4 |
+| Legacy archive single-copy | still open, carried since §15 |
+| Suppress the six short-span sites | pipeline rule, not analyst discretion |
+| Re-run BR14 and LUZD | published values come from the stale-`G` defect |
+| Sort the `offsets` catalog by date | live hazard to anyone still on the MATLAB |
+| Post-seismic transient modelling | decide before publishing post-event velocities |
+| Migrate production to `bernese-workflow` | run one month through it and compare |
+| Verify `campv5/campv6.exe` are builds of the Python we hold | half a day; closes or reveals a risk |
+| Test `runpkr00` Linux build | UNAVCO KB 744 |
+| `LZP2512*` test campaigns | 1.4 GB of scaffolding, safe to remove |
+
+### 22.12 The mistake, this session's instances
+
+§15.5 recorded five instances of one shape: acting on an unverified diagnosis.
+This session added three, and all three were caught by *looking* rather than by
+reasoning harder.
+
+1. **"Up to 2.18 mm/yr"** — reported from a partial sample; the real vertical
+   maximum is 10.83. Caught by computing all 54 sites instead of the ones
+   already in hand.
+2. **`rate_changes=True` discarded its own output** — the feature was written,
+   tested, committed and described in a PR before anyone asked what it
+   *returned*. Caught only when the user supplied a case that needed the value.
+3. **ALBU read as a defect report** when it was offered as an illustration.
+   Cost a detour; the work survived because it was answering Cass's request
+   rather than chasing the plot.
+
+The counter-instance worth naming: the disk-capacity check in §22.10 was about
+to be raised as a blocker and was wrong. Running `df` before writing the warning
+is the whole discipline.
