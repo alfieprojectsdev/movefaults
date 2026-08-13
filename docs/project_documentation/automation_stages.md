@@ -15,6 +15,62 @@ The stage boundaries come from PHIVOLCS' own `Work_Instruction_ao20251030.docx`
 
 ---
 
+## The target is decision support, not autonomy
+
+**Decided 2026-08-13, by the project lead with Cass.** This is the framing every
+"should we automate this?" question in this document is answered against, so it
+comes before the status table.
+
+This system will never be fully autonomous, and that is a design choice rather
+than a limitation to be engineered away. The goal is to **squeeze every
+available bit of automation out of the orchestration** — the staging, the
+fetching, the running, the bookkeeping, the parts where a human adds nothing but
+latency and typos — while ending up as a **highly specialised decision support
+system** for the parts where judgement is the actual work.
+
+The worked example, in the project lead's own framing: the system should present
+candidate outliers *already identified and highlighted* on the time series, so
+the analyst confirms or rejects them — instead of hunting for them with a cursor.
+The analyst still decides. What disappears is the manual labour of finding the
+thing to decide about.
+
+### What this rules in and out
+
+| | |
+|---|---|
+| **In** | Detect, rank, highlight, pre-fill, explain, and record the decision |
+| **In** | Refuse to publish something the data cannot support, *visibly* |
+| **Out** | Silently removing, correcting, or excluding data |
+| **Out** | Writing to the `offsets` catalog without a human |
+
+### Why this is not just caution
+
+Three concrete reasons, each already demonstrated in this project:
+
+1. **The judgement is the scientific content.** The `offsets` catalog does not
+   record *that* a jump happened, it records *what it was* — earthquake,
+   eruption, equipment change, unknown. That attribution is years of
+   accumulated institutional knowledge and cannot be recovered from the
+   coordinates.
+2. **Statistics cannot separate a real offset from an artefact.** A station-set
+   change produces a step with no physical cause (see
+   `provenance_record_design.md`). A detector run over a partially reprocessed
+   series will find it, and it will look exactly like an earthquake.
+3. **Silent automation is how the current defects survived.** The MATLAB
+   computes an outlier mask and quietly discards it; six sites publish rates
+   fitted to days of data with nothing objecting. Both failures are silent, and
+   both would have been caught in a minute by anything that *showed its work*.
+
+### The design test
+
+For any proposed automation: **if it is wrong, does a human find out?**
+
+If the answer is "only if they go looking", it belongs behind a recommendation
+rather than in the pipeline. `make_velocity_field.py` is the reference
+implementation of this posture — stations it cannot vouch for become commented
+rows carrying their reason, so reinstating one is uncommenting a line and the
+omission is visible in the artefact itself, not only in a log nobody opens.
+
 ## Status at a glance
 
 | Stage | Work instruction | What it does | Status |
@@ -214,7 +270,7 @@ in particular it does not include the 01–04 file plumbing.
 | 1 | Outlier detection and removal | 🔄 **Half done** | `_detect_outliers_iqr` + `exclude_outliers=True` |
 | 2 | **Offset detection** | ⏳ **Not started** — and harder than it looks | — |
 | 3 | Unified storage/platform for processed data and plots | ⏳ Not started | designed as TimescaleDB; nothing writes to it |
-| 4 | Velocity vector mapping / GMT-format input files | ⏳ Not started | smallest item, no blockers |
+| 4 | Velocity vector mapping / GMT-format input files | ✅ **Done** (PR #87) | `timeseries/gmt.py`, `scripts/make_velocity_field.py` |
 
 She separately described the concrete task behind items 1–2: delegating the
 **eyeballing of the gap/step amount** used to reconnect a series across an
@@ -275,13 +331,31 @@ unprompted**; it had been carried as architecture rather than as a user need.
 Scope it against what she actually wants — processed data *and plots* in one
 place, retrievable — rather than against the full designed schema.
 
-#### 4. Velocity vectors / GMT — smallest item, no blockers
+#### 4. Velocity vectors / GMT — done (PR #87)
 
-GMT-formatted output (`psvelo`: lon, lat, Ve, Vn, sigmas, correlation, label)
-is a writer over data `estimate_velocity` already returns. Nothing blocks it,
-it has no external dependency, and it produces something the group can look at.
-**The best first item on this list**, and a good check that the ported pipeline
-gives numbers people recognise.
+`timeseries/gmt.py` writes `psvelo -Se` for the horizontal field and a separate
+file for vertical rates; `scripts/make_velocity_field.py` drives it end to end.
+Verified against the real Luzon set using positions from a rescued legacy CRD.
+
+Three decisions worth knowing, each about making a *map* wrong rather than a
+number wrong:
+
+- **The reference station is a required argument.** These velocities are
+  relative to one site, not ITRF, and nothing in the GMT format records that.
+  Once a field is a PNG in a presentation the frame is unrecoverable, so a map
+  captioned "PH GNSS velocities" without it is misleading rather than merely
+  incomplete.
+- **Vertical is a separate file**, because it is noisier by roughly three times
+  and sharing a map invites reading both at the same confidence.
+- **The correlation column is an honest 0.0.** East and North are solved as
+  separate least-squares problems, so their formal errors are uncorrelated
+  under this model. A real value needs the daily covariance propagated from
+  SINEX, which this pipeline does not yet read.
+
+Running it immediately found something the analysis had missed: **LUZD's
+-115 mm/yr passes a 200 mm/yr plausibility filter but comes from 36 days of
+data.** Two guards that did not talk to each other, and a station already
+flagged "not a velocity" was still being drawn.
 
 #### The question this list answers implicitly
 
