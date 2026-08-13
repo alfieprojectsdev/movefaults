@@ -5,16 +5,12 @@ import os
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from pogf_geodetic_suite.igs_downloader import (
     ProductDownloader,
-    _build_long_filename,
     _build_legacy_filename,
+    _build_long_filename,
     _day_of_year,
-    _gps_week,
 )
-
 
 # ---------------------------------------------------------------------------
 # Filename construction
