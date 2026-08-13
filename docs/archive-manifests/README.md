@@ -16,13 +16,14 @@ close it.
 | `legacy-sha256-20260812-163812.txt.gz` | `/srv/gnss-archive/legacy` — the legacy GNSS archive rescued off the DOSTB drive | 162,328 | 2026-08-12 |
 | `datapool-sha256-20260812-084209.txt.gz` | `datapool/PHIVOLCS/2010` — the transfer proof run | 5,224 | 2026-08-12 |
 | `datapool-sha256-20260812-084854.txt.gz` | `datapool/PHIVOLCS` — the full PH observation archive, 2010 to present | 325,530 | 2026-08-12 |
+| `processed-sha256-20260813-035031.txt.gz` | `/srv/gnss-archive/processed` — Abegail's sixteen-year `SOL/` series | 67,554 | 2026-08-13 |
 
-Together: **493,082 files**. The two datapool manifests are disjoint (the second
+Together: **560,636 files**. The two datapool manifests are disjoint (the second
 skipped 2010 as already present), so they sum to the full 330,754-file set
 surveyed on the source server.
 
-`processed/` (Abegail's sixteen-year `SOL/` series) is being hashed separately —
-its manifest belongs here too once complete.
+`processed/` is now covered too — it was the gap that `verify_archive.sh`'s
+hardcoded target created, and it went unnoticed for six weeks.
 
 ## How the datapool manifest differs from the others
 
