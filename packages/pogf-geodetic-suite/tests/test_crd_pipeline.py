@@ -5,13 +5,11 @@ from pathlib import Path
 
 import pytest
 from pogf_geodetic_suite.timeseries.crd_pipeline import (
-    StationEpoch,
     _extract_session_from_filename,
     crd_directory_to_enu,
     read_crd_file,
     session_to_decimal_year,
 )
-
 
 # ---------------------------------------------------------------------------
 # Minimal CRD file fixture

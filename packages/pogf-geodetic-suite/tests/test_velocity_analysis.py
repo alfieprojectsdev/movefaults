@@ -1,8 +1,6 @@
 """Tests for timeseries.analysis — velocity estimation from ENU time series."""
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 import pytest
 from pogf_geodetic_suite.timeseries.analysis import (
@@ -15,7 +13,6 @@ from pogf_geodetic_suite.timeseries.analysis import (
     estimate_velocity,
     parse_offsets_file,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

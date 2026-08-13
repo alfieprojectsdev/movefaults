@@ -1,8 +1,9 @@
+
 import pymap3d
-from typing import Tuple
+
 
 def geodetic_to_enu(lat: float, lon: float, alt: float, 
-                    lat0: float, lon0: float, alt0: float) -> Tuple[float, float, float]:
+                    lat0: float, lon0: float, alt0: float) -> tuple[float, float, float]:
     """
     Converts geodetic coordinates (lat, lon, alt) to local ENU (East, North, Up).
     
@@ -17,6 +18,6 @@ def geodetic_to_enu(lat: float, lon: float, alt: float,
     """
     return pymap3d.geodetic2enu(lat, lon, alt, lat0, lon0, alt0, deg=True)
 
-def ecef_to_geodetic(x: float, y: float, z: float) -> Tuple[float, float, float]:
+def ecef_to_geodetic(x: float, y: float, z: float) -> tuple[float, float, float]:
     """Converts ECEF coordinates (x, y, z) to geodetic (lat, lon, alt)."""
     return pymap3d.ecef2geodetic(x, y, z, deg=True)

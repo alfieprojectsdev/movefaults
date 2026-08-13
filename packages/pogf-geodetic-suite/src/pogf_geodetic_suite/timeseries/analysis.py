@@ -9,7 +9,6 @@ Ports the core algorithm of vel_line_v8_newvelduetooffset_v4.m:
 """
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path

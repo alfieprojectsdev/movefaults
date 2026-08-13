@@ -1,9 +1,8 @@
 """Tests for RinexQC / teqc +qc wrapper."""
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pogf_geodetic_suite.qc.rinex_qc import RinexQC, RINEXQCResult, _parse_teqc_output

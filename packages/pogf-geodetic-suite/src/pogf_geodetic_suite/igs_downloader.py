@@ -2,7 +2,6 @@ import gzip
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Optional
 
 import click
 import requests
@@ -58,7 +57,7 @@ def _build_legacy_filename(ac: str, gps_week: int, gps_dow: int, content: str) -
 
 
 class ProductDownloader:
-    def __init__(self, base_dir: str = "data/igs", mirrors: Optional[list[str]] = None):
+    def __init__(self, base_dir: str = "data/igs", mirrors: list[str] | None = None):
         self.base_dir = base_dir
         self.mirrors = mirrors or _DEFAULT_MIRRORS
         self.session = requests.Session()
@@ -69,7 +68,7 @@ class ProductDownloader:
         ac: str = "COD",
         content: str = "ORB",
         force: bool = False,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Download an IGS/CODE orbit or clock product for *date*.
 
         Returns the local path to the decompressed file, or None on failure.
@@ -132,8 +131,8 @@ class ProductDownloader:
 @click.option("--output-dir", default="data/igs", show_default=True, help="Base directory for downloads")
 @click.option("--force", is_flag=True, help="Force re-download even if file exists")
 def main(
-    date_str: Optional[datetime],
-    days_ago: Optional[int],
+    date_str: datetime | None,
+    days_ago: int | None,
     ac: str,
     content: str,
     output_dir: str,
