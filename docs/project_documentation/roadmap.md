@@ -13,6 +13,14 @@
 
 ---
 
+## 0. Where the human's day actually goes
+
+This roadmap is organised by dependency tier — what must be built before what.
+For the complementary view, organised by the analyst's workflow and tracking
+how much manual work has actually been removed, see
+[`automation_stages.md`](automation_stages.md). The two do not correlate as
+well as you would hope, which is why both exist.
+
 ## 1. Introduction
 
 This document outlines the roadmap for the Philippine Open Geodesy Framework (POGF) monorepo,
