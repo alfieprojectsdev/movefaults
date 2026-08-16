@@ -9,7 +9,21 @@ services:
       POSTGRES_USER: pogf_user
       POSTGRES_PASSWORD: ${POGF_DB_PASSWORD:-pogf_password} # Use env var or default
     volumes:
-      - db_data:/var/lib/postgresql/data
+      # /home/postgres/pgdata/data, NOT /var/lib/postgresql/data. The
+      # timescaledb-ha image sets PGDATA to the former; the latter is the plain
+      # `postgres` image's path and does not exist here. Mounted at the wrong
+      # path the volume stayed empty and the entire database lived in the
+      # container's writable layer — so `docker compose up --force-recreate`
+      # silently destroyed it, and `docker compose ps` reported healthy
+      # throughout. A named volume in the file is not the same as a named
+      # volume holding the data; check PGDATA before trusting it.
+      #
+      # Fixing this also fixes the older symptom recorded against this stack:
+      # POSTGRES_DB/POSTGRES_USER appeared to be ignored, because the image
+      # ships a pre-initialised PGDATA and the entrypoint only runs initdb when
+      # PGDATA is empty. With the volume mounted at the real path, a fresh
+      # volume initialises properly and pogf_db is created as configured.
+      - db_data:/home/postgres/pgdata/data
     ports:
       - "5433:5432"
     command: postgres -c unix_socket_directories=''
