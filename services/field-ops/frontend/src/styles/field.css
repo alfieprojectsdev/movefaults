@@ -118,6 +118,41 @@ textarea {
   margin-bottom: 0;
 }
 
+/* ── Station picker ─────────────────────────────────────────────────────────
+   Option colours are a desktop-only enhancement: iOS ignores them entirely and
+   Android is inconsistent, because the OS draws the option list itself. The
+   <optgroup> headings and the " · under maintenance" / " · closed" suffixes in
+   StationPicker.tsx are what actually carry the status on a phone — these rules
+   only sharpen it where the browser cooperates. Nothing here is load-bearing. */
+.station-select {
+  width: 100%;
+  padding: 0.4rem;
+  font-size: 1rem;
+}
+
+.station-opt-maintenance { color: var(--field-warn); }
+.station-opt-closed      { color: var(--pico-muted-color); }
+
+/* Restated below the collapsed control, where a phone will actually show it. */
+.station-status-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  padding: 0.4rem 0.6rem;
+  border-left: 3px solid currentcolor;
+  border-radius: var(--pico-border-radius);
+}
+
+.station-status-note.is-maintenance {
+  color: var(--field-warn);
+  background: var(--field-warn-bg);
+}
+
+.station-status-note.is-closed {
+  color: var(--pico-muted-color);
+  background: var(--pico-card-sectioning-background-color, transparent);
+}
+
 /* Theme toggle — icon-sized, but still a full 48px tap target. */
 .theme-toggle {
   --pico-background-color: transparent;

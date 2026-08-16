@@ -38,7 +38,20 @@ async def list_stations(
     _current_user: User = Depends(get_current_user),
 ) -> list[StationOut]:
     """
-    Return all active stations from the central stations table.
+    Return every station from the central stations table, whatever its status.
+
+    Previously filtered to `status = 'active'`, which hid 15 sites the field
+    team can legitimately be sent to: a station under maintenance is one they
+    are visiting *because* it needs work, and a decommissioned site still gets
+    occupied to recover equipment or close it out properly. An observer standing
+    at a monument that is not in the picker cannot file a sheet at all.
+
+    Status travels with each row so the picker can show it rather than imply
+    everything is healthy — see StationPicker.tsx.
+
+    Ordering puts active sites first, then under maintenance, then the closed
+    ones, so the common case stays at the top of a 140-entry list; within each
+    group, by code.
 
     Uses raw SQL with ST_Y/ST_X to extract lat/lon from the PostGIS geometry
     column — the ORM model for public.stations lives in src/db/models.py,
@@ -55,8 +68,13 @@ async def list_stations(
                 fault_segment,
                 status
             FROM stations
-            WHERE status = 'active'
-            ORDER BY station_code
+            ORDER BY
+                CASE status
+                    WHEN 'active'            THEN 0
+                    WHEN 'under_maintenance' THEN 1
+                    ELSE 2
+                END,
+                station_code
         """)
     )
     rows = result.mappings().all()
