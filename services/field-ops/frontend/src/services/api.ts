@@ -183,6 +183,55 @@ function describeDetail(detail: unknown, status: number): string {
 
 // ── Base fetch ──────────────────────────────────────────────────────────────
 
+/**
+ * Request timeouts.
+ *
+ * `fetch` has none by default: a connection that opens and then goes quiet
+ * hangs until the browser gives up, which can be minutes. That is not a corner
+ * case for this app — it is the normal shape of a weak field link, and of a
+ * captive portal at a barangay hall that accepts the TCP connection and never
+ * answers. Without a ceiling the Sync button sits on "Syncing…" indefinitely
+ * and the operator has no way to tell a slow sync from a dead one.
+ *
+ * Generous on purpose. These exist to end a *hung* request, not to cut short a
+ * genuinely slow one — a 15 MB photo over 2G is legitimately slow, and killing
+ * it would lose the upload this whole queue exists to protect.
+ */
+const JSON_TIMEOUT_MS = 45_000;
+const UPLOAD_TIMEOUT_MS = 180_000;
+
+export class TimeoutError extends Error {
+  constructor(ms: number) {
+    super(
+      `No response after ${Math.round(ms / 1000)}s — the connection is up but ` +
+        `the server is not answering. Your data is still saved on this device.`
+    );
+    this.name = "TimeoutError";
+  }
+}
+
+/** fetch with a hard ceiling, translating an abort into a readable error. */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  // AbortSignal.timeout is cleaner but leaves the reason as a bare
+  // TimeoutError DOMException; wrapping keeps the message operator-readable.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new TimeoutError(timeoutMs);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -191,7 +240,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  const resp = await fetch(apiUrl(path), { ...init, headers });
+  const resp = await fetchWithTimeout(apiUrl(path), { ...init, headers }, JSON_TIMEOUT_MS);
 
   if (resp.status === 401) {
     clearToken();
@@ -267,11 +316,11 @@ export async function uploadLogSheetPhoto(logsheetId: number, photo: File): Prom
   const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
   const form = new FormData();
   form.append("file", photo);
-  const resp = await fetch(apiUrl(`/logsheets/${logsheetId}/photos`), {
-    method: "POST",
-    headers,
-    body: form,
-  });
+  const resp = await fetchWithTimeout(
+    apiUrl(`/logsheets/${logsheetId}/photos`),
+    { method: "POST", headers, body: form },
+    UPLOAD_TIMEOUT_MS
+  );
   if (resp.status === 401) {
     clearToken();
     throw new ApiError(401, "Session expired — please log in again");

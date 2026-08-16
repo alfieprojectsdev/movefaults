@@ -121,7 +121,7 @@ async function getDb(): Promise<IDBPDatabase<FieldOpsDB>> {
 // So the listener, the in-flight lock and the pending count live at module
 // scope, and the hook subscribes to them.
 
-let flushInFlight: Promise<void> | null = null;
+let flushInFlight: Promise<FlushResult> | null = null;
 const countSubscribers = new Set<(n: number) => void>();
 let lastPendingCount = 0;
 
@@ -192,10 +192,28 @@ async function addToQueue(record: LogSheetIn, photo?: File): Promise<void> {
   await refreshCount();
 }
 
-async function runFlush(): Promise<void> {
+/**
+ * What a flush attempt did, so the UI can say so.
+ *
+ * The flush used to swallow a network failure into a console.warn and return.
+ * That is right about the *data* — records stay pending and retry — but wrong
+ * about the operator, who clicks Sync, sees the button settle back, sees the
+ * count unchanged, and has no way to tell "still no signal" from "the app is
+ * broken". On a weak link that ambiguity is the difference between waiting and
+ * driving back to a site.
+ */
+export interface FlushResult {
+  attempted: number;
+  synced: number;
+  quarantined: number;
+  /** Set when the batch could not be delivered at all — transient. */
+  error?: string;
+}
+
+async function runFlush(): Promise<FlushResult> {
   const db = await getDb();
   const pending = await db.getAllFromIndex("logsheet_queue", "by_status", "pending");
-  if (pending.length === 0) return;
+  if (pending.length === 0) return { attempted: 0, synced: 0, quarantined: 0 };
 
   let server;
   try {
@@ -215,19 +233,29 @@ async function runFlush(): Promise<void> {
       server = await flushIndividually(db, pending);
       if (server.length === 0) {
         await refreshCount();
-        return;
+        return {
+          attempted: pending.length,
+          synced: 0,
+          quarantined: pending.length,
+        };
       }
     } else {
       // Network still down, or auth expired. Records stay pending and retry on
       // the next online event — deliberately no error status here, because a
       // failed flush is the expected case in the field, not a fault.
       console.warn("Offline queue flush failed:", err);
-      return;
+      return {
+        attempted: pending.length,
+        synced: 0,
+        quarantined: 0,
+        error: err instanceof Error ? err.message : "Could not reach the server.",
+      };
     }
   }
 
   // Match server rows back to queued records by client_uuid.
   const idByUuid = new Map(server.map((r) => [String(r.client_uuid), r.id]));
+  let synced = 0;
 
   for (const rec of pending) {
     const serverId = idByUuid.get(String(rec.client_uuid));
@@ -276,9 +304,16 @@ async function runFlush(): Promise<void> {
       _status: "synced",
       _photo: undefined,
     });
+    synced += 1;
   }
 
-  await refreshCount();
+  const still = await refreshCount();
+  return {
+    attempted: pending.length,
+    synced,
+    // Anything no longer pending and not synced this pass was quarantined.
+    quarantined: pending.length - synced - still.length,
+  };
 }
 
 /**
@@ -331,9 +366,12 @@ async function flushIndividually(
  * rather than starting a second one — without this, the three mounted hook
  * instances would each upload every queued photo.
  */
-function flushQueue(): Promise<void> {
+function flushQueue(): Promise<FlushResult> {
   if (!flushInFlight) {
     flushInFlight = runFlush().finally(() => {
+      // Cleared in `finally` so a rejected run cannot wedge the lock: without
+      // it one failure would leave every later flushQueue() returning the same
+      // settled promise, and Sync would be dead for the rest of the session.
       flushInFlight = null;
     });
   }

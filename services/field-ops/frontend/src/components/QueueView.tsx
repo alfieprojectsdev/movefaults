@@ -22,6 +22,12 @@ export default function QueueView() {
   const [records, setRecords] = useState<QueueRecord[]>([]);
   const [storage, setStorage] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  // Outcome of the last manual sync. Without this a failed flush looked
+  // identical to a successful no-op: the button settled back, the count stayed
+  // put, and nothing said whether the server had been reached at all.
+  const [syncNote, setSyncNote] = useState<{ kind: "ok" | "warn"; text: string } | null>(
+    null
+  );
   const online = useOnline();
 
   const refresh = useCallback(async () => {
@@ -44,9 +50,28 @@ export default function QueueView() {
 
   const onSync = async () => {
     setBusy(true);
+    setSyncNote(null);
     try {
-      await flushQueue();
+      const r = await flushQueue();
+      if (r.error) {
+        setSyncNote({ kind: "warn", text: `${r.error} Nothing was lost — tap Sync again once you have signal.` });
+      } else if (r.attempted === 0) {
+        setSyncNote({ kind: "ok", text: "Nothing waiting to sync." });
+      } else {
+        const parts = [`${r.synced} of ${r.attempted} sheet${r.attempted === 1 ? "" : "s"} synced`];
+        if (r.quarantined > 0) parts.push(`${r.quarantined} refused — see below`);
+        setSyncNote({ kind: r.quarantined > 0 ? "warn" : "ok", text: parts.join("; ") + "." });
+      }
       await refresh();
+    } catch (err) {
+      // flushQueue rejecting is not expected — runFlush handles its own
+      // failures — but an unhandled rejection here would leave the operator
+      // with a button that just stops spinning and says nothing.
+      setSyncNote({
+        kind: "warn",
+        text: (err instanceof Error ? err.message : "Sync failed.") +
+          " Your data is still on this device.",
+      });
     } finally {
       setBusy(false);
     }
@@ -86,6 +111,11 @@ export default function QueueView() {
           >
             {busy ? "Syncing…" : online ? "Sync now" : "Sync now (offline)"}
           </button>
+          {syncNote && (
+            <p className={`msg msg-${syncNote.kind === "ok" ? "ok" : "warn"}`}>
+              {syncNote.text}
+            </p>
+          )}
         </>
       )}
 
