@@ -421,7 +421,12 @@ export default function LogSheetForm() {
           >
             {staffList.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.full_name} ({s.initials}) — {s.role}
+                {/* Observers are seeded as initials, so full_name and initials
+                    are usually the same string — printing both gave "ARP (ARP)".
+                    Show the pair only when the name actually adds something. */}
+                {s.full_name === s.initials
+                  ? `${s.initials} — ${s.role}`
+                  : `${s.full_name} (${s.initials}) — ${s.role}`}
               </option>
             ))}
           </select>

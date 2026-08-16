@@ -54,7 +54,14 @@ export default function QueueView() {
     try {
       const r = await flushQueue();
       if (r.error) {
-        setSyncNote({ kind: "warn", text: `${r.error} Nothing was lost — tap Sync again once you have signal.` });
+        // Punctuate defensively: r.error comes from several places and may or
+        // may not end a sentence. Two messages run together read as noise.
+        const why = r.error.replace(/\s*$/, "");
+        const sep = /[.!?]$/.test(why) ? "" : ".";
+        setSyncNote({
+          kind: "warn",
+          text: `${why}${sep} Nothing was lost — everything is still on this device. Tap Sync again once you have signal.`,
+        });
       } else if (r.attempted === 0) {
         setSyncNote({ kind: "ok", text: "Nothing waiting to sync." });
       } else {

@@ -178,7 +178,12 @@ function describeDetail(detail: unknown, status: number): string {
     if (msgs.length) return msgs.join("; ");
   }
 
-  return `Request failed: ${status}`;
+  // No usable detail from the server. A bare status code means nothing to
+  // someone standing at a monument, and 5xx here is almost always "the API is
+  // not answering" rather than anything they did — say that instead.
+  if (status >= 500) return "The server is not responding.";
+  if (status === 404) return "That request went somewhere the server does not recognise.";
+  return `The server rejected the request (${status}).`;
 }
 
 // ── Base fetch ──────────────────────────────────────────────────────────────
