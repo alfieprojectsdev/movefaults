@@ -1,0 +1,139 @@
+station_code,name,monitoring_method,status,latitude,longitude,municipality,province,region,land_owner,network,agency,date_installed,date_decommissioned,last_visit,project,collaborator,period_constructed_raw,source
+ABUY,"Abuyog Municipal Office, Abuyog, Leyte",continuous,active,10.7470000,125.0130583,Abuyog,Leyte,Eastern Visayas (VIII),Government,NCKU Leyte,PHIVOLCS,2017-09-28,,,RP-Taiwan Project,NCKU,"September 28, 2017",phivolcs_inventory
+ADMA,"DOST Taguig Main Compound (AdMaTeL Building), Bicutan, Taguig City, Metro Manila",continuous,active,14.4906030,121.0531410,Taguig City,Metro Manila,National Capital Region (NCR),DOST,VFS Single Frequency,PHIVOLCS,2016-09-07,,2026-01-07,RP-Taiwan Project,NCKU,"September 7, 2016",phivolcs_inventory
+AGUS,"San Agustin Municipal Town Hall, San Agustin, Romblon",continuous,active,12.5676360,122.1332290,San Agustin,Romblon,MIMAROPA Region,Government,NCKU Romblon,PHIVOLCS,,,2026-03-04,RP-Taiwan Project,NCKU,2018 (?),phivolcs_inventory
+ALAB,"Alabat Municipal Hall, Alabat, Quezon",continuous,under_maintenance,14.1024228,122.0134832,Alabat,Quezon,CALABARZON (IV-A),Government,IESAS Luzon,PHIVOLCS,2013-11-18,,2026-04-17,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+ALBU,"Albuera Municipal Hall, Albuera, Leyte",continuous,active,10.9166844,124.6941344,Albuera,Leyte,Eastern Visayas (VIII),Government,NCKU Leyte,PHIVOLCS,,,2026-02-03,RP-Taiwan Project,NCKU,2014 (?),phivolcs_inventory
+ALCA,"Alcantara Town Hall, Alcantara, Romblon",continuous,active,12.2585490,122.0549210,Alcantara,Romblon,MIMAROPA Region,Government,NCKU Romblon,PHIVOLCS,,,2026-03-03,RP-Taiwan Project,NCKU,2018 (?),phivolcs_inventory
+ALCO,"Alcoy Municipal Hall, Alcoy, Cebu",continuous,active,9.7087797,123.5076502,Alcoy,Cebu,Central Visayas (VII),Government,PHIVOLCS,PHIVOLCS,2022-06-11,,2026-07-20,,,"June 6-11, 2022",phivolcs_inventory
+ANTP,"Bagong Nayon Barangay Hall, Antipolo, Rizal",continuous,under_maintenance,14.6259600,121.1684100,Antipolo,Rizal,CALABARZON (IV-A),Government,IESAS Luzon,PHIVOLCS,,,2026-04-22,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+AROY,"MDRRM Office, Aroroy, Masbate",continuous,active,12.5117133,123.3986397,Aroroy,Masbate,Bicol Region (V),Government,NCKU Masbate,PHIVOLCS,,,2026-01-28,RP-Taiwan Project,NCKU,2015 (?),phivolcs_inventory
+ATIM,"Atimonan Old Municipal Hall Compound, Atimonan, Quezon",continuous,active,13.9961616,121.9122135,Atimonan,Quezon,CALABARZON (IV-A),Government,IESAS Luzon,PHIVOLCS,,,2026-04-14,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+AURA,"DepED School Division of Aurora, San Luis, Baler, Aurora",continuous,active,15.7470585,121.5323561,Baler,Aurora,Central Luzon (III),Government,IESAS Luzon,PHIVOLCS,,,2026-04-20,RP-Taiwan Project,IESAS,2012 (?),phivolcs_inventory
+BACO,"Baco Municipal Hall, Baco, Oriental Mindoro",continuous,active,13.3593457,121.0967180,Baco,Oriental Mindoro,MIMAROPA Region,Government,NCKU Mindoro,PHIVOLCS,,,,RP-Taiwan Project,NCKU,2010 (?),phivolcs_inventory
+BALA,"Office of the Prov'l Agriculturist, Provincial Capitol, Balanga City, Bataan",continuous,active,14.6748317,120.5303655,Balanga City,Bataan,Central Luzon (III),Government,IESAS Luzon,PHIVOLCS,,,2026-04-17,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+BALU,"Children's Multi-purpose Center, Balud, Masbate",continuous,under_maintenance,12.0391613,123.1921800,Balud,Masbate,Bicol Region (V),Government,NCKU Masbate,PHIVOLCS,,,,RP-Taiwan Project,NCKU,2015 (?),phivolcs_inventory
+BASC,"Assessor's Office, Provincial Capitol, Basco, Batanes",continuous,active,20.4500633,121.9694570,Basco,Batanes,Cagayan Valley (II),Government,IESAS Luzon,PHIVOLCS,,,2026-04-13,RP-Taiwan Project,IESAS,2012 (?),phivolcs_inventory
+BATO,"Bato Institute of Science and Technology, Bato, Leyte",continuous,active,10.3358250,124.7851889,Bato,Leyte,Eastern Visayas (VIII),School,NCKU Leyte,PHIVOLCS,,,2026-02-03,RP-Taiwan Project,NCKU,2017,phivolcs_inventory
+BATU,"Batuan Municipal Hall, Batuan, Masbate",continuous,active,12.4206940,123.7804640,Batuan,Masbate,Bicol Region (V),Government,NCKU Masbate,PHIVOLCS,,,,RP-Taiwan Project,NCKU,2018,phivolcs_inventory
+BAYA,"Bayanihan Elementary School, Paltok, Quezon City, Metro Manila",continuous,active,14.6451000,121.0216150,Quezon City,Metro Manila,National Capital Region (NCR),School,VFS Single Frequency,PHIVOLCS,,,2026-01-09,RP-Taiwan Project,NCKU,2016,phivolcs_inventory
+BILI,"Biliran Municipal Hall, Biliran, Biliran",continuous,active,11.4656361,124.4739528,Biliran,Biliran,Eastern Visayas (VIII),Government,NCKU Leyte,PHIVOLCS,,,2026-02-02,RP-Taiwan Project,NCKU,2017,phivolcs_inventory
+BLN2,,continuous,active,16.3787168,119.9147204,Bolinao,Pangasinan,Ilocos Region (I),DOST-PHIVOLCS,IESAS Luzon,PHIVOLCS,,,2026-04-16,RP-Taiwan Project,IESAS,,phivolcs_inventory
+BLNA,"Bolinao Seismic Station, Bolinao, Pangasinan",continuous,archived,16.3786876,119.9146828,Bolinao,Pangasinan,Ilocos Region (I),DOST-PHIVOLCS,IESAS Luzon,PHIVOLCS,,,,RP-Taiwan Project,IESAS,2012 (?),phivolcs_inventory
+BMJR,"Mabini Barangay Hall, Mabini, Mandaluyong, Metro Manila",continuous,active,14.5854600,121.0211440,Mandaluyong,Metro Manila,National Capital Region (NCR),Government,VFS Single Frequency,PHIVOLCS,,,2026-01-07,RP-Taiwan Project,NCKU,2016,phivolcs_inventory
+BOAC,"Municipal Government of Boac, Boac, Marinduque",continuous,active,13.4466980,121.8417300,Boac,Marinduque,MIMAROPA Region,Government,NCKU Marinduque,PHIVOLCS,,,2026-04-22,RP-Taiwan Project,NCKU,2018 (?),phivolcs_inventory
+BOST,"Boston Fire Station, Boston, Davao Oriental",continuous,active,7.8658800,126.3796280,Boston,Davao Oriental,Davao Region (XI),Government,PHIVOLCS,PHIVOLCS,2021-03-12,,2026-04-21,,,"March 8-12, 2021",phivolcs_inventory
+BRGC,"House along Pan-Philippine Hi-way, Burgos, Ilocos Norte",continuous,active,18.5203490,120.6007455,Burgos,Ilocos Norte,Ilocos Region (I),Private,IESAS Luzon,PHIVOLCS,,,2026-04-15,RP-Taiwan Project,IESAS,2012 (?),phivolcs_inventory
+BSLN,"Basilan Provincial Capitol, Isabela City, Basilan",continuous,under_maintenance,6.7038370,121.9713970,Isabela City,Basilan,Bangsamoro Autonomous Region in Muslim Mindanao (BARMM),Government,PHIVOLCS,PHIVOLCS,2018-06-28,,,,,"June 25-28, 2018",phivolcs_inventory
+BTU2,"DOST - Caraga, Butuan City, Agusan del Norte",continuous,active,8.9530610,125.5979890,Butuan City,Agusan del Norte,Caraga (XIII),DOST-CARAGA,PHIVOLCS,PHIVOLCS,2021-05-28,,2026-07-15,,,"May 24-28, 2021",phivolcs_inventory
+BUG2,"Buguias Municipal Hall, Buguias, Benguet",continuous,active,16.8001802,120.8220577,Buguias,Benguet,Cordillera Administrative Region  (CAR),Government,PHIVOLCS,PHIVOLCS,2023-06-17,,2026-07-06,,,"June 14-17, 2023",phivolcs_inventory
+BULA,"Bulalacao Municipal Hall, Bulalacao Municipal Hall, Oriental Mindoro",continuous,active,12.3253948,121.3439113,Bulalacao,Oriental Mindoro,MIMAROPA Region,Government,NCKU Mindoro,PHIVOLCS,,,2026-01-28,RP-Taiwan Project,NCKU,2010,phivolcs_inventory
+BYBY,Visayas State University - Main Campus,continuous,active,10.7443083,124.7920611,Baybay,Leyte,Eastern Visayas (VIII),University,NCKU Leyte,PHIVOLCS,,,2026-02-03,RP-Taiwan Project,NCKU,2017,phivolcs_inventory
+CAC2,,continuous,active,13.9302707,120.8129498,Calaca,Batangas,CALABARZON (IV-A),Government,IESAS Luzon,PHIVOLCS,,,2026-04-21,RP-Taiwan Project,IESAS,,phivolcs_inventory
+CACA,"Calaca Municipal Hall, Calaca, Batangas",continuous,archived,13.9303073,120.8127971,Calaca,Batangas,CALABARZON (IV-A),Government,IESAS Luzon,PHIVOLCS,,,,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+CADZ,"Cadiz City CDRRMC Command Center, Cadiz City, Negros Occidental",continuous,under_maintenance,10.9569666,123.3098912,Cadiz City,Negros Occidental,Negros Island Region (NIR),Government,PHIVOLCS,PHIVOLCS,2022-06-24,,2026-03-25,,,"June 21-24, 2022",phivolcs_inventory
+CALU,"Multi-purpose bldg., Calubian, Leyte",continuous,under_maintenance,11.4463333,124.4292806,Calubian,Leyte,Eastern Visayas (VIII),Government,NCKU Leyte,PHIVOLCS,,,,RP-Taiwan Project,NCKU,2018 (?),phivolcs_inventory
+CASI,"Pantawid Pamilya Office, DSWD, Casiguran, Aurora",continuous,under_maintenance,16.2782238,122.1234766,Casiguran,Aurora,Central Luzon (III),DSWD,PHIVOLCS,PHIVOLCS,2023-06-24,,2026-07-06,,,"June 19-24, 2023",phivolcs_inventory
+CATA,"Cataingan NHS, Poblacion, Cataingan",continuous,active,12.0054818,123.9895020,Cataingan,Masbate,Bicol Region (V),School,NCKU Masbate,PHIVOLCS,,,2026-01-27,RP-Taiwan Project,NCKU,2015 (?),phivolcs_inventory
+CBIM,"Rural Health Unit, Claveria, Burias Island, Masbate",continuous,active,12.9021034,123.2460717,Claveria (Burias Island),Masbate,Bicol Region (V),Government,PHIVOLCS,PHIVOLCS,2023-07-18,,2026-04-14,,,"July 11-18, 2023",phivolcs_inventory
+CDO2,"Cagayan de Oro City Hall, Cagayan de Oro, Misamis Oriental",continuous,active,8.4771560,124.6411540,Cagayan de Oro,Misamis Oriental,Northern Mindanao (X),Government,PHIVOLCS,PHIVOLCS,2021-08-27,,2026-07-27,,,"August 23-27, 2021",phivolcs_inventory
+CEMB,"Cembo Health Center, Cembo, Makati City, Metro Manila",continuous,active,14.5640280,121.0517700,Taguig City,Metro Manila,National Capital Region (NCR),Government,VFS Single Frequency,PHIVOLCS,2016-08-26,,,RP-Taiwan Project,NCKU,"August 26, 2016",phivolcs_inventory
+CLAV,"Claveria Grass Roots Multi-purpose Cooperative, Centro 3, Claveria, Cagayan",continuous,active,18.6069283,121.0838950,Claveria,Cagayan,Cagayan Valley (II),Government,IESAS Luzon,PHIVOLCS,,,2026-04-14,RP-Taiwan Project,IESAS,2012 (?),phivolcs_inventory
+CMWL,"Commonwealth Barangay Hall, Commonwealth, Quezon City, Metro Manila",continuous,active,14.6969820,121.0880160,Quezon City,Metro Manila,National Capital Region (NCR),Government,VFS Single Frequency,PHIVOLCS,2016-07-04,,2026-01-12,RP-Taiwan Project,NCKU,"July 4, 2016",phivolcs_inventory
+CNTA,"People's Center in front of municipal building, Cainta, Rizal",continuous,decommissioned,14.5796700,121.1148100,Cainta,Rizal,CALABARZON (IV-A),Government,PHIVOLCS,PHIVOLCS,,,,,,2015 (?),phivolcs_inventory
+CTNU,,continuous,active,,,Catanauan,Quezon,CALABARZON (IV-A),,PHIVOLCS,PHIVOLCS,,,2026-04-15,,,,phivolcs_inventory
+DGOS,"New Digos City Hall, Digos City, Davao del Sur",continuous,active,6.7445530,125.3560550,Digos City,Davao del Sur,Davao Region (XI),Government,PHIVOLCS,PHIVOLCS,2021-05-22,,2026-06-15,,,"May 18-22, 2021",phivolcs_inventory
+DIMA,"Dimasalang Municipal Hall, Poblacion, Dimasalang, Masbate",continuous,active,12.1922734,123.8570730,Dimasalang,Masbate,Bicol Region (V),Government,NCKU Masbate,PHIVOLCS,,,2026-01-27,RP-Taiwan Project,NCKU,2015 (?),phivolcs_inventory
+DLPZ,"De la Paz Elementary School, De la Paz, Pasig City, Metro Manila",continuous,under_maintenance,14.6151410,121.0952490,Pasig City,Metro Manila,National Capital Region (NCR),School,VFS Single Frequency,PHIVOLCS,2016-10-18,,,RP-Taiwan Project,NCKU,"October 18, 2016",phivolcs_inventory
+DNGT,"San Jose Municipal Hall, San Jose, Dinagat Islands",continuous,active,10.0211990,125.5757830,San Jose,Dinagat Islands,Caraga (XIII),Government,PHIVOLCS,PHIVOLCS,2019-12-13,,2026-07-14,,,"December 9-13, 2019",phivolcs_inventory
+ELNA,"Santa Elena Municipal Hall, Santa Elena, Camarines Norte",continuous,under_maintenance,14.1803529,122.3909672,Santa Elena,Camarines Norte,Bicol Region (V),Government,IESAS Luzon,PHIVOLCS,,,2026-04-15,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+GUES,"DOST-PAGASA Guiuan Doppler Radar and Synoptic Weather Station, Guiuan, Eastern Samar",continuous,active,11.0453830,125.7554840,Guiuan,Eastern Samar,Eastern Visayas (VIII),DOST-PAGASA,PHIVOLCS,PHIVOLCS,2018-07-17,,2026-06-30,,,"July 17, 2018",phivolcs_inventory
+GUMA,"Gumaca Municipal Agriculture Office, Gumaca, Quezon",continuous,active,13.9215028,122.0984972,Gumaca,Quezon,CALABARZON (IV-A),Government,IESAS Luzon,PHIVOLCS,,,2026-04-16,RP-Taiwan Project,IESAS,2014 (?),phivolcs_inventory
+GUNG,"Guinayangan Seismic Station, Guinayangan, Quezon",continuous,active,13.9064350,122.4453492,Guinayangan,Quezon,CALABARZON (IV-A),DOST-PHIVOLCS,IESAS Luzon,PHIVOLCS,,,2026-04-15,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+HINU,"Southern Leyte State University - Hinunangan Campus, Hinunangan, Southern Leyte",continuous,active,10.4030417,125.1868111,Hinunangan,Southern Leyte,Eastern Visayas (VIII),University,NCKU Leyte,PHIVOLCS,,,2026-02-03,RP-Taiwan Project,NCKU,2017,phivolcs_inventory
+IBAZ,"Estrada Building, Zone 6, Iba, Zambales",continuous,active,15.3218358,119.9850959,Iba,Zambales,Central Luzon (III),Government,IESAS Luzon,PHIVOLCS,,,2026-06-08,RP-Taiwan Project,IESAS,2012 (?),phivolcs_inventory
+INFA,"Infanta Municipal Hall, Infanta, Quezon",continuous,active,14.7464619,121.6487310,Infanta,Quezon,CALABARZON (IV-A),Government,IESAS Luzon,PHIVOLCS,,,2026-04-18,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+INOP,"Inopacan Fire Station, Inopacan, Leyte",continuous,active,10.5019750,124.7398778,Inopocan,Leyte,Eastern Visayas (VIII),Government,NCKU Leyte,PHIVOLCS,2018-02-07,,2026-02-03,RP-Taiwan Project,NCKU,"February 7, 2018",phivolcs_inventory
+ISAB,"Isabel Municipal Hall, Isabel, Leyte",continuous,active,10.9266385,124.4346219,Isabel,Leyte,Eastern Visayas (VIII),Government,NCKU Leyte,PHIVOLCS,,,2026-02-02,RP-Taiwan Project,NCKU,2014 (?),phivolcs_inventory
+JARO,"Office of the MDRRM, Jaro, Leyte",continuous,active,11.1900278,124.7827611,Jaro,Leyte,Eastern Visayas (VIII),Government,NCKU Leyte,PHIVOLCS,,,2026-02-02,RP-Taiwan Project,NCKU,2013 (?),phivolcs_inventory
+LABO,"Labo Municipal Hall, Labo, Camarines Norte",continuous,decommissioned,14.1541714,122.8301474,Labo,Camarines Norte,Bicol Region (V),,IESAS Luzon,PHIVOLCS,,,2026-04-15,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+LBAN,"Lubang Tsunami Station (old), Lubang Island, Occidental Mindoro",continuous,active,13.8636780,120.0941739,Lubang Island,Occidental Mindoro,MIMAROPA Region,DOST-PHIVOLCS,IESAS Luzon,PHIVOLCS,,,,RP-Taiwan Project,IESAS,2012,phivolcs_inventory
+LGYE,"DOST - Provincial Science and Technology Center, Maniboc, Lingayen, Pangasinan",continuous,active,16.0325890,120.2344773,Lingayen,Pangasinan,Ilocos Region (I),DOST,IESAS Luzon,PHIVOLCS,,,2026-04-16,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+LLOR,"Llorente Municipal Hall, Llorente, Eastern Samar",continuous,active,11.4132090,125.5476550,Llorente,Eastern Samar,Eastern Visayas (VIII),Government,NCKU Samar,PHIVOLCS,,,2026-07-01,RP-Taiwan Project,NCKU,2019,phivolcs_inventory
+LLOY,"Liloy Municipal Hall, Liloy, Zamboanga del Norte",continuous,active,8.1212720,122.6735970,Liloy,Zamboanga del Norte,Zamboanga Peninsula (IX),Government,PHIVOLCS,PHIVOLCS,2021-10-22,,2026-04-06,,,"October 18-22, 2021",phivolcs_inventory
+LLPS,"Lapu-lapu Seismic Station, Lapu-lapu City, Cebu",continuous,active,10.3169200,123.9661600,Lapu-Lapu City,Cebu,Central Visayas (VII),DOST-PHIVOLCS,PHIVOLCS,PHIVOLCS,,,2026-07-23,,,2014 (?),phivolcs_inventory
+LMSA,"La Mesa Water Treatment Plant, Quezon City, Metro Manila",continuous,under_maintenance,14.7162540,121.0709460,Quezon City,Metro Manila,National Capital Region (NCR),"Maynilad Water Services, Inc.",VFS Single Frequency,PHIVOLCS,2016-08-12,,,RP-Taiwan Project,NCKU,"August 12, 2016",phivolcs_inventory
+LORE,"Loreto Municipal Library, Loreto, Agusan del Sur",continuous,active,8.1792570,125.8587810,Loreto,Agusan del Sur,Caraga (XIII),Government,PHIVOLCS,PHIVOLCS,2021-03-05,,2026-04-22,,,"March 1-5, 2021",phivolcs_inventory
+LUCB,,continuous,,14.1139234,121.5548779,,,,,IESAS Luzon,PHIVOLCS,,,,RP-Taiwan Project,IESAS,,phivolcs_inventory
+MABN,"Mabini Municipal Hall, Mabini, Pangasinan",continuous,active,16.0692302,119.9406210,Mabini,Pangasinan,Ilocos Region (I),Government,IESAS Luzon,PHIVOLCS,,,2026-04-16,RP-Taiwan Project,IESAS,2012,phivolcs_inventory
+MAGU,"New Maguindanao Provincial Capitol, Buluan, Maguindanao",continuous,active,6.7141995,124.7842621,Buluan,Maguindanao del Sur,Bangsamoro Autonomous Region in Muslim Mindanao (BARMM),Government,PHIVOLCS,PHIVOLCS,2020-01-31,,2026-04-29,,,"January 27-31, 2020",phivolcs_inventory
+MALY,"Maly Elementary School, San Mateo, Rizal",continuous,active,14.7086100,121.1314600,San Mateo,Rizal,CALABARZON (IV-A),School,PHIVOLCS,PHIVOLCS,,,2026-01-19,,,2008,phivolcs_inventory
+MAMB,"Provincial Engineer's Office, Mamburao, Occidental Mindoro",continuous,active,13.2223233,120.6078939,Mamburao,Occidental Mindoro,MIMAROPA Region,Government,NCKU Mindoro,PHIVOLCS,,,2026-01-27,RP-Taiwan Project,NCKU,2010,phivolcs_inventory
+MAR2,"Marilao Municipal Hall, Marilao, Bulacan",continuous,active,14.7741800,120.9592000,Marilao,Bulacan,Central Luzon (III),Government,PHIVOLCS,PHIVOLCS,,,2026-01-13,,,2016,phivolcs_inventory
+MARK,"San Roque Barangay Hall, Marikina, Metro Manila",continuous,active,14.6291000,121.0984400,Marikina,Metro Manila,National Capital Region (NCR),Government,IESAS Luzon,PHIVOLCS,,,2026-04-19,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+MASM,"Maasim Municipal Hall, Maasim, Sarangani",continuous,active,5.8625793,124.9969199,Maasim,Sarangani,SOCCSKSARGEN (XII),Government,PHIVOLCS,PHIVOLCS,2019-12-20,,2026-06-12,,,"December 16-20, 2019",phivolcs_inventory
+MAUB,"Mauban Municipal Hall, Mauban, Quezon",continuous,active,14.1899713,121.7316475,Mauban,Quezon,CALABARZON (IV-A),Government,IESAS Luzon,PHIVOLCS,,,2026-04-20,RP-Taiwan Project,IESAS,2013 (?),phivolcs_inventory
+MILA,"Milagros Fire Station, Milagros, Masbate",continuous,active,12.2436250,123.5164222,Milagros,Masbate,Bicol Region (V),Government,NCKU Masbate,PHIVOLCS,2018-09-05,,2026-01-28,RP-Taiwan Project,NCKU,"September 5, 2018",phivolcs_inventory
+MLBY,"Malaybalay City Hall, Malaybalay, Bukidnon",continuous,active,8.1265760,125.1255520,Malaybalay,Bukidnon,Northern Mindanao (X),Government,PHIVOLCS,PHIVOLCS,2021-09-10,,2026-07-28,,,"September 6-10, 2021",phivolcs_inventory
+MLPA,"Muntinlupa City Technical Institute (TESDA), Muntinlupa City, Metro Manila",continuous,active,14.4034500,121.0510000,Muntinlupa City,Metro Manila,National Capital Region (NCR),School,IESAS Luzon,PHIVOLCS,2020-02-12,,2026-04-22,RP-Taiwan Project,IESAS,"February 12, 2020",phivolcs_inventory
+MLRA,"Malaria Fire Sub Station, Malaria, Caloocan City, Metro Manila",continuous,active,14.7694340,121.0797760,Caloocan City,Metro Manila,National Capital Region (NCR),Government,VFS Single Frequency,PHIVOLCS,2016-07-04,,2026-01-12,RP-Taiwan Project,NCKU,"July 4, 2016",phivolcs_inventory
+MNAY,"Manay Municipal Hall, Manay, Davao Oriental",continuous,under_maintenance,7.2103223,126.5391751,Manay,Davao Oriental,Davao Region (XI),Government,PHIVOLCS,PHIVOLCS,,,,,,2013 (?),phivolcs_inventory
+MONT,"Montevista NHS, Montevista, Davao de Oro",continuous,active,7.7011140,125.9906710,Montevista,Davao de Oro,Davao Region (XI),School,PHIVOLCS,PHIVOLCS,2021-02-25,,2026-04-22,,,"February 22-26, 2021",phivolcs_inventory
+MSBT,"Masbate Provincial Health Office, Masbate City, Masbate",continuous,active,12.3720306,123.6231000,Masbate City,Masbate,Bicol Region (V),Government,NCKU Masbate,PHIVOLCS,,,2026-01-29,RP-Taiwan Project,NCKU,2017,phivolcs_inventory
+MUNZ,"Philippine Carabao Center, Science City of Muñoz, Muñoz, Nueva Ecija",continuous,active,15.7441984,120.9430044,Muñoz,Nueva Ecija,Central Luzon (III),DA-PCC,IESAS Luzon,PHIVOLCS,,,2026-04-18,RP-Taiwan Project,IESAS,2012 (?),phivolcs_inventory
+NAST,"Science Heritage Building, Taguig City, Metro Manila",continuous,active,14.4903750,121.0505010,Taguig City,Metro Manila,National Capital Region (NCR),DOST,VFS Single Frequency,PHIVOLCS,,,2026-01-07,RP-Taiwan Project,NCKU,2016,phivolcs_inventory
+NAUJ,"Bahay Tuklasan Conference Hall, Naujan, Oriental Mindoro",continuous,active,13.3194151,121.3006950,Naujan,Oriental Mindoro,MIMAROPA Region,Government,NCKU Mindoro,PHIVOLCS,,,2026-01-28,RP-Taiwan Project,NCKU,2010,phivolcs_inventory
+NCPC,"North Cotabato Provincial Capitol, Matalam, North Cotabato",continuous,active,7.0625090,124.9682730,Matalam,Cotabato,SOCCSKSARGEN (XII),Government,PHIVOLCS,PHIVOLCS,2021-09-17,,2026-07-29,,,"September 13-17, 2021",phivolcs_inventory
+ORAS,"Oras Municipal Hall, Oras, Eastern Samar",continuous,active,12.1408720,125.4402220,Oras,Eastern Samar,Eastern Visayas (VIII),Government,NCKU Samar,PHIVOLCS,,,2026-02-03,RP-Taiwan Project,NCKU,2018 (?),phivolcs_inventory
+ORMO,"Ormoc Rescue Forward Base/Community Evacuation Center, Ormoc City, Leyte",continuous,active,11.0127889,124.6030194,Ormoc City,Leyte,Eastern Visayas (VIII),Government,NCKU Leyte,PHIVOLCS,,,2026-06-02,RP-Taiwan Project,NCKU,2017,phivolcs_inventory
+PAGP,"Pagudpud Municipal Hall, Pagudpud, Ilocos Norte",continuous,,,,,,,,,PHIVOLCS,,,,,,2013 (?),phivolcs_inventory
+PALA,"MDRRM Operations Center, Palanas, Masbate",continuous,,,,,,,,,PHIVOLCS,,,,,,2016 (?),phivolcs_inventory
+PALM,"Palompon Municipal Hall, Palompon, Leyte",continuous,,,,,,,,,PHIVOLCS,,,,,,2014 (?),phivolcs_inventory
+PALO,"PHIVOLCS Seismic Station, Palo, Leyte",continuous,,,,,,,,,PHIVOLCS,,,,,,2018 (?),phivolcs_inventory
+PAND,"Pandan Municipal Hall, Pandan, Antique",continuous,,,,,,,,,PHIVOLCS,,,,,,"May 30 - June 3, 2022",phivolcs_inventory
+PEMB,"Pembo Barangay Hall & Community Complex, Pembo, Makati City, Metro Manila",continuous,,,,,,,,,PHIVOLCS,,,,,,"August 31, 2016",phivolcs_inventory
+PIBU,"Pintong Bukawe Barangay Hall, San Mateo, Rizal",continuous,,,,,,,,,PHIVOLCS,,,,,,2015 (?),phivolcs_inventory
+PKLY,"Kalayaan, Palawan",continuous,,11.05260556,114.2856083,,Palawan,MIMAROPA Region,,,NAMRIA,,,,,,,namria_pagenet_list
+PLAR,"Pilar Municipal Hall, Pilar, Sorsogon",continuous,,,,,,,,,PHIVOLCS,,,,,,"July 11-17, 2023",phivolcs_inventory
+PLWN,"Brooke's Point Municipal Hall, Brooke's Point, Palawan",continuous,,,,,,,,,PHIVOLCS,,,,,,2018 (?),phivolcs_inventory
+PMPL,"Pamplona Municipal Hall, Pamplona, Negros Oriental",continuous,,,,,,,,,PHIVOLCS,,,,,,"June 24-29, 2022",phivolcs_inventory
+PNBO,"Panabo City Hall, Panabo, Davao del Norte",continuous,,,,,,,,,PHIVOLCS,,,,,,2013 (?),phivolcs_inventory
+PNDO,"El Nido, Palawan",continuous,,11.19975844,119.4173775,,Palawan,MIMAROPA Region,,,NAMRIA,,,,,,,namria_pagenet_list
+POLI,"Polillo Municipal Disaster Office Bldg., Polillo, Quezon",continuous,,,,,,,,,PHIVOLCS,,,,,,2014 (?),phivolcs_inventory
+PPPC,"Puerto Princesa City, Palawan",continuous,,9.772889812,118.7402093,,Palawan,MIMAROPA Region,,,NAMRIA,,,,,,,namria_pagenet_list
+PRJ4,"Project 4 Health Center, P.Tuazon, Cubao, Quezon City, Metro Manila",continuous,,,,,,,,,PHIVOLCS,,,,,,"September 2, 2016",phivolcs_inventory
+PTBN,"Pantabangan Town Hall, Pantabangan, Nueva Ecija",continuous,,,,,,,,,PHIVOLCS,,,,,,2012 (?),phivolcs_inventory
+PUER,"Puerto Galera Parish, Puerto Galera, Oriental Mindoro",continuous,,,,,,,,,PHIVOLCS,,,,,,2010 (?),phivolcs_inventory
+RCSS,"RCP Roxas City Seismic Station, Milibili, Roxas City, Capiz",continuous,,,,,,,,,PHIVOLCS,,,,,,"August 3, 2017",phivolcs_inventory
+RGMH,"Rodriguez Municipal Hall, Rodriquez, Rizal",continuous,,,,,,,,,PHIVOLCS,,,,,,"July 5, 2016",phivolcs_inventory
+ROXA,"Roxas City Port/Phil. Ports Authority, Dangay Port, Roxas, Oriental Mindoro",continuous,,,,,,,,,PHIVOLCS,,,,,,2010,phivolcs_inventory
+SABL,"Sablayan Municipal Hall, Sablayan, Occidental Mindoro",continuous,,,,,,,,,PHIVOLCS,,,,,,2010 (?),phivolcs_inventory
+SAPN,"Sapang Bato Barangay Hall, Angeles City, Pampanga",continuous,,,,,,,,,PHIVOLCS,,,,,,"May 12, 2017",phivolcs_inventory
+SINI,"Laguna State Polytechnic University - Siniloan Campus, Siniloan, Laguna",continuous,,,,,,,,,PHIVOLCS,,,,,,2014 (?),phivolcs_inventory
+SJDB,"Antique Provincial Capitol, San Jose de Buenavista, Antique",continuous,,,,,,,,,PHIVOLCS,,,,,,"December 2-6, 2019",phivolcs_inventory
+SJSE,"MDRRM Office, San Jose, Occidental Mindoro",continuous,,,,,,,,,PHIVOLCS,,,,,,"August 14, 2023",phivolcs_inventory
+SMTC,"San Mateo Regional Trial Court and Municipal Trial Court, San Mateo, Rizal",continuous,,,,,,,,,PHIVOLCS,,,,,,"July 5, 2016",phivolcs_inventory
+SNFO,"San Francisco Municipal Hall, San Francisco, Southern Leyte",continuous,,,,,,,,,PHIVOLCS,,,,,,2018 (?),phivolcs_inventory
+SOGO,"Sogod Municipal Hall, Sogod, Southern Leyte",continuous,,,,,,,,,PHIVOLCS,,,,,,2017,phivolcs_inventory
+SPAB,"San Pablo City Hall, San Pablo City, Laguna",continuous,,,,,,,,,PHIVOLCS,,,,,,2013,phivolcs_inventory
+SPLY,"Sipalay City Hall/New Sipalay Government Center, Sipalay, Negros Occidental",continuous,,,,,,,,,PHIVOLCS,,,,,,"August 14, 2018",phivolcs_inventory
+SQJR,"Siquijor Provincial Capitol, Siquijor, Siquijor",continuous,,,,,,,,,PHIVOLCS,,,,,,"July 24-28, 2023",phivolcs_inventory
+STCV,"Santa Teresita Municipal Hall, Santa Teresita, Cagayan",continuous,,,,,,,,,PHIVOLCS,,,,,,"June 19-23, 2023",phivolcs_inventory
+SULT,"Sulat Municipal Hall, Sulat, Eastern Samar",continuous,,,,,,,,,PHIVOLCS,,,,,,2019 (?),phivolcs_inventory
+TANY,"Tanay Sypnotic and Upper Air Station (PAGASA), Sitio Mayagay, Brgy. Sampaloc, Tanay, Rizal",continuous,,,,,,,,,PHIVOLCS,,,,,,November 2013,phivolcs_inventory
+TAW2,"Tawi-tawi Provincial Capitol, Bongao, Tawi-tawi",continuous,,,,,,,,,PHIVOLCS,,,,,,"November 8-12, 2021",phivolcs_inventory
+TCDR,"CDRRMO, USAID Bldg., Tacloban City, Leyte",continuous,,,,,,,,,PHIVOLCS,,,,,,"September 3, 2019",phivolcs_inventory
+TCGN,"Municipal Hall Building, Purok 1, Del Monte, Talacogon, Agusan del Sur",continuous,,,,,,,,,PHIVOLCS,,,,,,2013 (?),phivolcs_inventory
+TCSS,"Tagbilaran City Seismic Station, Tagbilaran City, Bohol",continuous,,,,,,,,,PHIVOLCS,,,,,,2014 (?),phivolcs_inventory
+TGDN,"Office of the Provincial Prosecutor Tagudin Sub-office, Tagudin, Ilocos Sur",continuous,,,,,,,,,PHIVOLCS,,,,,,2012 (?),phivolcs_inventory
+TNDG,"North Eastern Mindanao State University, Tandag City, Surigao del Sur",continuous,,,,,,,,,PHIVOLCS,,,,,,2013 (?),phivolcs_inventory
+TNHS,"Tandang Sora NHS, Quezon City, Metro Manila",continuous,,,,,,,,,PHIVOLCS,,,,,,"July 4, 2016",phivolcs_inventory
+TRIN,"Trinidad Municipal Hall, Trinidad, Bohol",continuous,,,,,,,,,PHIVOLCS,,,,,,"June 12-17, 2022",phivolcs_inventory
+TRSA,"Teresa Municipal Hall, Teresa, Rizal",continuous,,,,,,,,,PHIVOLCS,,,,,,"July 7, 2016",phivolcs_inventory
+TUA2,"Tuao Municipal Hall, Tuao, Cagayan",continuous,,,,,,,,,PHIVOLCS,,,,,,"June 14-18, 2023",phivolcs_inventory
+TYTY,"Taytay Municipal Hall, Taytay, Rizal",continuous,,,,,,,,,PHIVOLCS,,,,,,"July 7, 2016",phivolcs_inventory
+VCAC,"Alert Center of Valenzuela, Valenzuela City, Metro Manila",continuous,,,,,,,,,PHIVOLCS,,,,,,"July 6, 2016",phivolcs_inventory
+VICT,"Victoria Municipal Hall, Victoria, Eastern Samar",continuous,,,,,,,,,PHIVOLCS,,,,,,2019 (?),phivolcs_inventory
+VIGN,"College of Engineering, University of Northern Philippines, Brgy. Tamag, Vigan City, Ilocos Sur",continuous,,,,,,,,,PHIVOLCS,,,,,,2012 (?),phivolcs_inventory
+VNHS,"Valenzuela NHS, Valenzuela City, Metro Manila",continuous,,,,,,,,,PHIVOLCS,,,,,,"June 27, 2019",phivolcs_inventory
+VRAC,"Virac Municipal Hall, Virac, Catanduanes",continuous,,,,,,,,,PHIVOLCS,,,,,,"October 2-4, 2019",phivolcs_inventory

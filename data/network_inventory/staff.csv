@@ -1,0 +1,14 @@
+full_name,initials,role,is_active
+ABB,ABB,field_staff,true
+ADSP,ADSP,field_staff,true
+ARLA,ARLA,data_processor,true
+ARP,ARP,field_staff,true
+CJVC,CJVC,field_staff,true
+ERPE,ERPE,field_staff,true
+NJTM,NJTM,field_staff,true
+PDFB,PDFB,field_staff,true
+PPG,PPG,field_staff,true
+RAEN,RAEN,field_staff,true
+RDR,RDR,field_staff,true
+TCB,TCB,admin,true
+ZAGR,ZAGR,field_staff,true
