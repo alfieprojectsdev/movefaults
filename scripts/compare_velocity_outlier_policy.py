@@ -153,9 +153,15 @@ def main() -> int:
             else:
                 worst = max(abs(pub.ve_mm_yr - r[0]), abs(pub.vn_mm_yr - r[1]),
                             abs(pub.vu_mm_yr - r[2]))
-                # The reference file carries 5 decimals, so agreement can only
-                # be claimed to that precision.
-                ref_ok = "ok" if worst < 1e-4 else f"DIFF {worst:.5f}"
+                # The reference file carries 5 decimals, so two values agree
+                # exactly when they round to the same 5-decimal number -- that
+                # is |diff| <= 5e-6, half of the last retained place. The
+                # threshold here was 1e-4, which is TEN TIMES COARSER than the
+                # file it is checking against: a difference of 0.00009 mm/yr
+                # prints its reference value differently and was still reported
+                # `ok`. Reproduction has to be claimed at the precision of the
+                # thing being reproduced, or the claim means nothing.
+                ref_ok = "ok" if worst <= 5e-6 else f"DIFF {worst:.5f}"
         rows.append((site, len(pub.outlier_epochs), pub, new, d, ref_ok))
 
     rows.sort(key=lambda r: -max(abs(x) for x in r[4]))

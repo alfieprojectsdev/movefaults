@@ -246,10 +246,17 @@ def estimate_velocity(
         else:
             # MATLAB-faithful. vel_line_v8 computes `cleaned_d` via rmoutliers
             # and then fits the regression against the RAW data anyway, so
-            # outliers are REPORTED but never excluded. Verified 2026-08-12:
-            # with exclude_outliers=True this module diverges from PHIVOLCS'
-            # published Velocity_rover(regress)_10 by up to 2.18 mm/yr (AR17,
-            # Up); with it False, 171 of 171 components match exactly.
+            # outliers are REPORTED but never excluded.
+            #
+            # For the size of the divergence this setting causes, and how it
+            # was measured, see the module docstring — do not restate the
+            # figures here. An earlier version of this comment quoted "up to
+            # 2.18 mm/yr (AR17, Up)" and "171 of 171 components match exactly"
+            # from a partial sample; the full 54-site comparison found the
+            # vertical maximum to be roughly five times larger, and by then the
+            # docstring had been corrected while this comment had not. Two
+            # verification claims in one file, disagreeing, and no way to tell
+            # from here which one was current.
             t_clean, enu_clean = t_seg, enu_seg
 
         if len(t_clean) < 3:

@@ -9,7 +9,7 @@ something the team decided rather than something a colleague discovers.
 Regenerate at any time:
 
 ```bash
-scripts/compare_velocity_outlier_policy.py --data <plotfiles-dir> \
+uv run python scripts/compare_velocity_outlier_policy.py --data <plotfiles-dir> \
     --check '<...>/Velocity_rover(regress)_10'
 ```
 
@@ -183,7 +183,25 @@ reproduces published (exclude_outliers=False): 49/54   MISMATCH: KA08 BR14 IFG1 
 
 `DIFF` values in `repro` are the catalog-drift sites explained above, not
 implementation error. The remaining 49 of 54 reproduce the published file to
-better than 1e-4 mm/yr, which is the reference file's own precision.
+better than 1e-4 mm/yr.
+
+> **The table above was generated with a `repro` tolerance of 1e-4 mm/yr, and
+> that tolerance was wrong.** The reference file carries five decimals, so two
+> values agree only when they round to the same 5-decimal number — a bar of
+> 5e-6 mm/yr, ten times finer. A difference of 0.00009 mm/yr prints as a
+> different reference value and was still being reported `ok`. The module
+> docstring of `analysis.py` already states its agreement at 5e-6 ("161 of 165
+> components ... the remaining four agree to 2.3e-5"), so this document was
+> claiming reproduction at a looser standard than the code it documents.
+>
+> `compare_velocity_outlier_policy.py` now uses 5e-6. **The `repro` column
+> above predates that change and has not been regenerated** — the plot files
+> live on gps3, not in this repository. Expect the 49/54 count to fall: by the
+> docstring's own figures at least four components sit between 5e-6 and 2.3e-5
+> and will move from `ok` to `DIFF`. Re-run before quoting the count again.
+> Nothing else in this document depends on it: the outlier-policy deltas, the
+> short-span findings and the catalog-drift diagnosis are all independent of
+> the reference-comparison threshold.
 
 ## What to do with this
 
