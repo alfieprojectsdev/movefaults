@@ -181,6 +181,44 @@ textarea {
 
 .station-toggle:hover { background: none; }
 
+/* ── Observers ──────────────────────────────────────────────────────────────
+   A scrolling list of checkboxes rather than a <select multiple>: on a phone
+   the native multi-select hides its state behind a picker and offers no hint
+   that more than one choice is allowed. Capped in height so 13 names do not
+   push the rest of the form off the screen, but each row stays a full-width
+   48px target. */
+.observer-field {
+  border: 1px solid var(--pico-form-element-border-color);
+  border-radius: var(--pico-border-radius);
+  padding: 0.5rem 0.75rem 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.observer-field legend {
+  padding: 0 0.35rem;
+  font-size: 0.875rem;
+  color: var(--pico-muted-color);
+}
+
+.observer-list {
+  max-height: 15rem;
+  overflow-y: auto;
+  /* Momentum scrolling inside the box on iOS, so a thumb-flick does not drag
+     the whole page instead. */
+  -webkit-overflow-scrolling: touch;
+}
+
+.observer-row {
+  margin: 0;
+  padding: 0 0.25rem;
+  border-bottom: 1px solid var(--pico-form-element-border-color);
+  cursor: pointer;
+}
+
+.observer-row:last-child { border-bottom: none; }
+
+.observer-role { color: var(--pico-muted-color); }
+
 /* Theme toggle — icon-sized, but still a full 48px tap target. */
 .theme-toggle {
   --pico-background-color: transparent;

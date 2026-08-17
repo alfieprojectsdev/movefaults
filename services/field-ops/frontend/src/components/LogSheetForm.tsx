@@ -155,6 +155,7 @@ export default function LogSheetForm() {
   const slantS         = watch("slant_s_m");
   const slantW         = watch("slant_w_m");
   const photoFiles     = watch("photo");
+  const observerIds    = watch("observer_ids");
 
   // ── Staff query ────────────────────────────────────────────────────────────
 
@@ -401,42 +402,58 @@ export default function LogSheetForm() {
         </label>
       </div>
 
-      {/* ── Observers ── */}
-      <label>
-        Observers
+      {/* ── Observers ──
+          Checkboxes, not <select multiple>. There is no Ctrl key at a monument,
+          and that was the only instruction telling anyone more than one
+          observer could be recorded — so a team of four would file sheets
+          naming one person. A multi-select also hides its state behind a
+          native picker on a phone; here every name and every tick is visible
+          at a glance, on 48px rows a gloved thumb can hit. */}
+      <fieldset className="observer-field">
+        <legend>Observers</legend>
         {staffLoading ? (
-          <select disabled style={inputStyle}>
-            <option>Loading staff…</option>
-          </select>
+          <p className="hint">Loading staff…</p>
         ) : staffList && staffList.length > 0 ? (
-          <select
-            multiple
-            style={inputStyle}
-            onChange={(e) => {
-              const selected = Array.from(e.target.selectedOptions).map((o) =>
-                parseInt(o.value, 10)
-              );
-              setValue("observer_ids", selected);
-            }}
-          >
-            {staffList.map((s) => (
-              <option key={s.id} value={s.id}>
-                {/* Observers are seeded as initials, so full_name and initials
-                    are usually the same string — printing both gave "ARP (ARP)".
-                    Show the pair only when the name actually adds something. */}
-                {s.full_name === s.initials
-                  ? `${s.initials} — ${s.role}`
-                  : `${s.full_name} (${s.initials}) — ${s.role}`}
-              </option>
-            ))}
-          </select>
+          <>
+            <div className="observer-list">
+              {staffList.map((s) => {
+                const checked = observerIds.includes(s.id);
+                return (
+                  <label key={s.id} className="checkbox-row observer-row">
+                    <input
+                      type="checkbox"
+                      value={s.id}
+                      checked={checked}
+                      onChange={(e) => {
+                        // Rebuilt from the current array rather than toggled in
+                        // place, so the stored order stays stable and a double
+                        // tap cannot leave a duplicate id behind.
+                        const next = e.target.checked
+                          ? [...observerIds, s.id]
+                          : observerIds.filter((id) => id !== s.id);
+                        setValue("observer_ids", next, { shouldDirty: true });
+                      }}
+                    />
+                    <span>
+                      {s.full_name === s.initials
+                        ? s.initials
+                        : `${s.full_name} (${s.initials})`}
+                      <span className="observer-role"> — {s.role}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <small>
+              {observerIds.length === 0
+                ? "Tick everyone who was present — more than one is normal."
+                : `${observerIds.length} selected`}
+            </small>
+          </>
         ) : (
-          <select disabled style={inputStyle}>
-            <option>Staff unavailable (offline?)</option>
-          </select>
+          <p className="hint">Staff unavailable (offline?)</p>
         )}
-        <small>Hold Ctrl / Cmd to select multiple</small>
-      </label>
+      </fieldset>
 
       {/* ── Equipment status ── */}
       <label>
