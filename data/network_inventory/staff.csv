@@ -7,7 +7,7 @@ CJVC,CJVC,admin,true
 ERPE,ERPE,field_staff,true
 NJTM,NJTM,field_staff,true
 PDFB,PDFB,admin,true
-PPG,PPG,data_processor,true
+PPG,PPG,field_staff,true
 RAEN,RAEN,data_processor,true
 RDR,RDR,field_staff,true
 TCB,TCB,admin,true

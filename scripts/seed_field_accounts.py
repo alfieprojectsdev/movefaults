@@ -123,11 +123,19 @@ def main() -> None:
                 return
 
             surnames = load_surnames(args.surnames)
+            # The role travels with the account, not just with the staff row.
+            # Until now every account was created as "field_staff" regardless of
+            # what staff.csv said, so the roles someone had carefully edited
+            # reached the observer picker and nothing else — and any UI that
+            # gated on the signed-in role saw everyone as field staff.
             with ROSTER.open(encoding="utf-8") as fh:
-                roster = [r["initials"].strip().upper() for r in csv.DictReader(fh)]
+                roster = [
+                    (r["initials"].strip().upper(), (r.get("role") or "").strip() or "field_staff")
+                    for r in csv.DictReader(fh)
+                ]
 
-            created, skipped, missing = 0, 0, []
-            for initials in roster:
+            created, skipped, rerolled, missing = 0, 0, 0, []
+            for initials, role in roster:
                 surname = surnames.get(initials)
                 if not surname:
                     missing.append(initials)
@@ -141,6 +149,17 @@ def main() -> None:
                     # Never silently rewrite a password: an account whose holder
                     # has already changed it must not be reverted to a guessable
                     # one by a re-run of the seed.
+                    #
+                    # The role is different — it is ours, sourced from the
+                    # roster, and a promotion has to be able to take effect
+                    # without deleting the account. So it updates while the
+                    # password does not.
+                    cur.execute(
+                        "UPDATE field_ops.users SET role = %s "
+                        "WHERE lower(username) = %s AND role IS DISTINCT FROM %s",
+                        (role, initials.lower(), role),
+                    )
+                    rerolled += cur.rowcount
                     skipped += 1
                     continue
 
@@ -150,12 +169,15 @@ def main() -> None:
                     (
                         initials,
                         bcrypt.hashpw(surname.encode(), bcrypt.gensalt()).decode(),
-                        "field_staff",
+                        role,
                     ),
                 )
                 created += 1
 
-            print(f"accounts: {created} created, {skipped} already existed")
+            print(
+                f"accounts: {created} created, {skipped} already existed"
+                f"{f', {rerolled} role(s) updated' if rerolled else ''}"
+            )
             if missing:
                 # Initials only — printing the surname would put a live password
                 # into a terminal scrollback and any CI log.

@@ -274,6 +274,17 @@ export async function login(username: string, password: string): Promise<void> {
   setToken(data.access_token);
 }
 
+// ── Identity ────────────────────────────────────────────────────────────────
+
+export interface Me {
+  username: string;
+  role: string;
+}
+
+export async function fetchMe(): Promise<Me> {
+  return apiFetch<Me>("/me");
+}
+
 // ── Stations ────────────────────────────────────────────────────────────────
 
 export async function fetchStations(): Promise<Station[]> {
