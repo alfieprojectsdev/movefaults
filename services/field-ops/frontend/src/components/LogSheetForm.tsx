@@ -62,13 +62,13 @@ const ANTENNA_CONSTANTS: Record<string, AntennaConstants> = {
   "TRM115000":      { A: 6.519,  B: 2.085, C: 0.16981, VO: 0.04434 },
 };
 
-function computeRH(avgSH: number, C: number, VO: number): number {
+export function computeRH(avgSH: number, C: number, VO: number): number {
   return Math.sqrt(avgSH ** 2 - C ** 2) - VO;
 }
 
 // ── Julian DOY helper ────────────────────────────────────────────────────────
 
-function toDOY(dateStr: string): number {
+export function toDOY(dateStr: string): number {
   const d = new Date(dateStr + "T00:00:00");
   const start = new Date(d.getFullYear(), 0, 0);
   const diff = d.getTime() - start.getTime();
