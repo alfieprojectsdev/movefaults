@@ -40,11 +40,20 @@ the work instruction has the analyst delete them by hand and re-run.
   exclude_outliers=False                  bit-identical to what PHIVOLCS has
                                           actually published
 
-Measured divergence between the two on real data: exact on sites with no
-flagged epochs (ANQ0, BGB1), up to **2.18 mm/yr** where outliers exist (AR17,
-Up component). Choosing the default is a scientific decision for the team, not
-a coding one; it is left at True because silently publishing a known-ignored
-outlier mask is worse than a documented difference.
+Measured divergence between the two across all 54 Luzon sites: exact on the 40
+with no flagged epochs in the final segment, and elsewhere up to **1.49 mm/yr
+horizontally** (NVY9, North) and **10.83 mm/yr vertically** (BSCS, Up).
+
+  An earlier version of this docstring quoted "up to 2.18 mm/yr (AR17, Up)".
+  That came from a partial sample and understated the vertical maximum by
+  roughly five times. The horizontal figure was unaffected.
+
+The team decided on 2026-08-13 to publish the `exclude_outliers=True` column.
+The full per-site delta, plus two findings that matter more than this setting
+(six sites whose published velocity is fitted to days of data, and five whose
+reference disagreement is catalog drift rather than implementation error), is
+in `docs/project_documentation/velocity_outlier_policy_delta.md`. Regenerate it
+with `scripts/compare_velocity_outlier_policy.py`.
 
 KNOWN DEFECT IN THE SOURCE MATLAB, worth checking before trusting any output
 Sites whose `offsets` records are out of chronological order (BR14, LUZD in the
@@ -237,10 +246,17 @@ def estimate_velocity(
         else:
             # MATLAB-faithful. vel_line_v8 computes `cleaned_d` via rmoutliers
             # and then fits the regression against the RAW data anyway, so
-            # outliers are REPORTED but never excluded. Verified 2026-08-12:
-            # with exclude_outliers=True this module diverges from PHIVOLCS'
-            # published Velocity_rover(regress)_10 by up to 2.18 mm/yr (AR17,
-            # Up); with it False, 171 of 171 components match exactly.
+            # outliers are REPORTED but never excluded.
+            #
+            # For the size of the divergence this setting causes, and how it
+            # was measured, see the module docstring — do not restate the
+            # figures here. An earlier version of this comment quoted "up to
+            # 2.18 mm/yr (AR17, Up)" and "171 of 171 components match exactly"
+            # from a partial sample; the full 54-site comparison found the
+            # vertical maximum to be roughly five times larger, and by then the
+            # docstring had been corrected while this comment had not. Two
+            # verification claims in one file, disagreeing, and no way to tell
+            # from here which one was current.
             t_clean, enu_clean = t_seg, enu_seg
 
         if len(t_clean) < 3:
