@@ -51,15 +51,18 @@ from pogf_geodetic_suite.timeseries.analysis import (  # noqa: E402
     parse_offsets_file,
 )
 from pogf_geodetic_suite.timeseries.gmt import (  # noqa: E402
+    MIN_SPAN_YEARS,
     station_positions,
     to_vectors,
     write_psvelo,
     write_vertical,
 )
 
-# Below this, a fitted rate is the slope of a few days of scatter rather than a
-# velocity. Deliberately permissive; see velocity_outlier_policy_delta.md.
-MIN_SPAN_YEARS = 1.0
+# MIN_SPAN_YEARS is imported, not redefined here. Below it, a fitted rate is the
+# slope of a few days of scatter rather than a velocity; deliberately
+# permissive, see velocity_outlier_policy_delta.md. It used to be a second copy
+# of the constant living in this script, which is how the threshold and the
+# quarantine it drives could drift apart without anything failing.
 
 
 def main() -> int:
@@ -160,15 +163,23 @@ def main() -> int:
         f"sites requested: {len(sites)}   mapped: {len(vectors)}",
     ]
 
-    psvelo = args.out.with_suffix(".psvelo")
-    vert = args.out.with_suffix(".vert")
-    logfile = args.out.with_suffix(".log")
+    # `--out` is a basename, so the extension is APPENDED. with_suffix would
+    # replace an existing one: `--out luzon_v1.2` wrote luzon_v1.psvelo and
+    # `--out 2026.1` wrote 2026.psvelo, so two runs distinguished only by a
+    # dotted version silently overwrote each other's output.
+    psvelo = args.out.with_name(args.out.name + ".psvelo")
+    vert = args.out.with_name(args.out.name + ".vert")
+    logfile = args.out.with_name(args.out.name + ".log")
 
     n_h, quarantined = write_psvelo(
         vectors, psvelo, reference_station=args.ref,
         max_speed_mm_yr=(args.max_speed or None), withhold=short_span, notes=notes,
     )
-    n_v = write_vertical(vectors, vert, reference_station=args.ref, notes=notes)
+    # Same withhold set as the horizontal file. Passing it to only one writer
+    # published the questioned stations in the noisier component.
+    n_v, _ = write_vertical(
+        vectors, vert, reference_station=args.ref, withhold=short_span, notes=notes,
+    )
 
     for site in quarantined:
         if site not in short_span:

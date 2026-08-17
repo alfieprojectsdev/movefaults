@@ -138,7 +138,8 @@ def test_vertical_file_is_separate_and_carries_the_frame(tmp_path):
     v = VelocityVector("ANQ0", 121.05, 14.65, -74.5, 38.7, 0.9, 1.4,
                        vu_mm_yr=30.9, sig_vu=9.8)
     out = tmp_path / "vert.xyz"
-    assert write_vertical([v], out, reference_station="S01R") == 1
+    n, quarantined = write_vertical([v], out, reference_station="S01R")
+    assert (n, quarantined) == (1, [])
 
     text = out.read_text()
     assert "REFERENCE FRAME" in text
@@ -151,7 +152,8 @@ def test_vertical_file_is_separate_and_carries_the_frame(tmp_path):
 def test_vertical_skips_stations_without_a_vertical_rate(tmp_path):
     v = VelocityVector("ANQ0", 121.05, 14.65, -74.5, 38.7, 0.9, 1.4)
     out = tmp_path / "vert.xyz"
-    assert write_vertical([v], out, reference_station="S01R") == 0
+    n, quarantined = write_vertical([v], out, reference_station="S01R")
+    assert (n, quarantined) == (0, [])
 
 
 def test_notes_reach_the_header(tmp_path):
@@ -201,3 +203,94 @@ def test_withhold_reason_wins_over_the_speed_message(tmp_path):
     text = out.read_text()
     assert "final interval spans 3 days" in text
     assert "exceeds 200" not in text
+
+
+# ── The quarantine must reach both files ─────────────────────────────────────
+#
+# `write_vertical` originally took no `withhold`, so a station the pipeline had
+# already judged "not a velocity" was written into the vertical file as an
+# ordinary data row while the horizontal file commented it out. Vertical is the
+# noisier component by roughly three, so the unguarded file was the more
+# misleading of the two — and nothing in it hinted the value was questioned.
+
+def _vec(station="ANQ0", span=9.0, vu=30.9):
+    return VelocityVector(station, 121.05, 14.65, -74.5, 38.7, 0.9, 1.4,
+                          vu_mm_yr=vu, sig_vu=9.8, final_span_yr=span)
+
+
+def test_withheld_station_is_commented_in_the_vertical_file(tmp_path):
+    out = tmp_path / "vert.xyz"
+    n, quarantined = write_vertical(
+        [_vec()], out, reference_station="S01R",
+        withhold={"ANQ0": "final interval spans 36 days"},
+    )
+
+    assert (n, quarantined) == (0, ["ANQ0"])
+    text = out.read_text()
+    assert "# WITHHELD (final interval spans 36 days)" in text
+    # Commented, never deleted — the row is still recoverable by hand.
+    assert "ANQ0" in text
+    data_rows = [ln for ln in text.splitlines() if ln and not ln.startswith("#")]
+    assert data_rows == []
+
+
+def test_vertical_withhold_matches_the_horizontal_file(tmp_path):
+    # The two writers must be able to take the same mapping, so a caller cannot
+    # hold one file to a standard and forget the other.
+    vectors = [_vec("ANQ0"), _vec("AR17")]
+    withhold = {"ANQ0": "final interval spans 36 days"}
+
+    h, h_q = write_psvelo(vectors, tmp_path / "h.psvelo",
+                          reference_station="S01R", withhold=withhold)
+    v, v_q = write_vertical(vectors, tmp_path / "v.vert",
+                            reference_station="S01R", withhold=withhold)
+
+    assert h_q == v_q == ["ANQ0"]
+    assert h == v == 1
+
+
+def test_vertical_withhold_is_case_insensitive(tmp_path):
+    n, quarantined = write_vertical(
+        [_vec("ANQ0")], tmp_path / "v.vert", reference_station="S01R",
+        withhold={"anq0": "short span"},
+    )
+    assert quarantined == ["ANQ0"]
+    assert n == 0
+
+
+# ── The span guard belongs to the library ────────────────────────────────────
+#
+# A rate change near the end of a record yields a rate fitted from days, and the
+# sigma published beside it is the baseline sigma rather than the post-event
+# one — so the error ellipse understates rather than advertises the problem.
+# When this check lived only in make_velocity_field.py, every other caller of
+# to_vectors published that vector unguarded.
+
+def test_to_vectors_records_the_span_the_rate_was_fitted_over():
+    t = np.linspace(2015.0, 2025.0, 400)
+    enu = np.column_stack([-0.035 * (t - 2015), 0.010 * (t - 2015),
+                           0.002 * (t - 2015)])
+    r = estimate_velocity(t, enu, station="ANQ0")
+
+    vectors, _ = to_vectors([r], POSITIONS)
+
+    assert vectors[0].final_span_yr == pytest.approx(10.0, abs=0.05)
+
+
+def test_short_final_interval_flags_only_the_short_ones():
+    from pogf_geodetic_suite.timeseries.gmt import short_final_interval
+
+    vectors = [_vec("ANQ0", span=9.0), _vec("TARL", span=36 / 365.25)]
+    withhold = short_final_interval(vectors)
+
+    assert set(withhold) == {"TARL"}
+    assert "36 days" in withhold["TARL"]
+
+
+def test_short_final_interval_does_not_flag_an_unrecorded_span():
+    # Absence of the measurement is not evidence the span is adequate; hiding a
+    # station on missing metadata would withhold it for the wrong reason.
+    from pogf_geodetic_suite.timeseries.gmt import short_final_interval
+
+    bare = VelocityVector("ANQ0", 121.05, 14.65, -74.5, 38.7, 0.9, 1.4)
+    assert short_final_interval([bare]) == {}

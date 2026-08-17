@@ -527,6 +527,19 @@ def estimate_velocity_joint(
     # produce a different answer here. See the KNOWN DEFECT note above -- the
     # MATLAB's segment loop is order-sensitive and ours must not be.
     events = sorted(offsets or [], key=lambda e: e.date)
+    # One step column per distinct date. Two events on the same day are not two
+    # steps: a step column is `t >= date`, so a duplicate date produces a column
+    # identical to its neighbour, G loses rank, and the station dies with
+    # "design matrix is rank deficient" — a message that points at event spacing
+    # and says nothing about the actual cause. This is not a hypothetical bad
+    # catalog either: an earthquake and an equipment change recorded on the same
+    # day are two legitimate entries describing one discontinuity, and the fit
+    # can only ever resolve one amplitude for them.
+    deduped: list[OffsetEvent] = []
+    for e in events:
+        if not deduped or e.date != deduped[-1].date:
+            deduped.append(e)
+    events = deduped
     # An event outside the observed span contributes an all-zero or all-one
     # column, which is either useless or exactly collinear with the intercept.
     events = [e for e in events if t[0] < e.date <= t[-1]]

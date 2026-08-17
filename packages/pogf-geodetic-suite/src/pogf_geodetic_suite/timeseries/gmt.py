@@ -66,10 +66,53 @@ class VelocityVector:
     vu_mm_yr: float | None = None
     sig_vu: float | None = None
     corr_en: float = 0.0
+    #: Years of data the published rate was actually fitted over — for a joint
+    #: fit, the span since the last rate change; otherwise the final segment.
+    #: Carried because it is the single most important thing to know about a
+    #: vector and cannot be recovered from the numbers on the map: a rate fitted
+    #: to 36 days looks exactly like one fitted to nine years once it is an
+    #: arrow. `None` only for vectors built by hand, e.g. in tests.
+    final_span_yr: float | None = None
 
     @property
     def speed_mm_yr(self) -> float:
         return (self.ve_mm_yr ** 2 + self.vn_mm_yr ** 2) ** 0.5
+
+
+#: Below this, a fitted rate is scatter rather than secular motion. One year is
+#: the shortest span over which the annual signal common to GNSS height and
+#: horizontal series averages out rather than aliasing into the trend.
+MIN_SPAN_YEARS = 1.0
+
+
+def short_final_interval(
+    vectors: Iterable[VelocityVector],
+    min_years: float = MIN_SPAN_YEARS,
+) -> dict[str, str]:
+    """
+    Which vectors were fitted over too little data to carry a velocity.
+
+    Returns a `{station: reason}` mapping shaped for the `withhold` parameter of
+    `write_psvelo` and `write_vertical`.
+
+    This lives here rather than in a calling script on purpose. A rate change
+    near the end of a record produces a `RateChange` fitted from a handful of
+    days; `rate_at(t_end)` then adopts it, and the sigma reported alongside is
+    the baseline rate sigma, not the sigma of the post-event rate — so the error
+    ellipse understates the uncertainty rather than advertising it. Nothing
+    about the resulting vector looks wrong. When the only guard against that
+    lived in one script, every other caller of `to_vectors` silently published
+    the unresolved rate.
+
+    Vectors with no recorded span are not flagged: absence of the measurement is
+    not evidence that the span is adequate, and silently withholding on missing
+    metadata would hide stations for the wrong reason.
+    """
+    return {
+        v.station: f"final interval spans {v.final_span_yr * 365.25:.0f} days"
+        for v in vectors
+        if v.final_span_yr is not None and v.final_span_yr < min_years
+    }
 
 
 def station_positions(crd_path: Path) -> dict[str, tuple[float, float, float]]:
@@ -120,16 +163,21 @@ def to_vectors(
         if isinstance(r, JointVelocityResult):
             ve, vn, vu = r.rate_at(r.t_end)
             sig_ve, sig_vn, sig_vu = r.sig_ve, r.sig_vn, r.sig_vu
+            # The rate in force at t_end was fitted from the last rate change
+            # onwards, not from the start of the record.
+            span = r.t_end - (r.rate_changes[-1].date if r.rate_changes
+                              else r.t_start)
         else:
             seg = r.final_velocity
             ve, vn, vu = seg.ve_mm_yr, seg.vn_mm_yr, seg.vu_mm_yr
             sig_ve, sig_vn, sig_vu = seg.sig_ve, seg.sig_vn, seg.sig_vu
+            span = seg.t_end - seg.t_start
 
         vectors.append(
             VelocityVector(
                 station=r.station.upper(), lon_deg=lon, lat_deg=lat,
                 ve_mm_yr=ve, vn_mm_yr=vn, sig_ve=sig_ve, sig_vn=sig_vn,
-                vu_mm_yr=vu, sig_vu=sig_vu,
+                vu_mm_yr=vu, sig_vu=sig_vu, final_span_yr=float(span),
             )
         )
 
@@ -225,8 +273,9 @@ def write_vertical(
     path: Path,
     *,
     reference_station: str,
+    withhold: Mapping[str, str] | None = None,
     notes: Iterable[str] = (),
-) -> int:
+) -> tuple[int, list[str]]:
     """
     Write vertical rates as `lon lat Vu sigVu station`, for plotting with
     `psxy -Sc` sized by rate or coloured through a CPT.
@@ -235,15 +284,48 @@ def write_vertical(
     component by roughly a factor of three (measured: median daily repeatability
     N 2.8 / E 3.0 / U 10.9 mm), and putting it on the same map as the horizontal
     field invites reading the two at the same confidence.
+
+    Args:
+        withhold:   {station: reason}, exactly as `write_psvelo` takes it. This
+                    parameter did not exist at first, and its absence meant the
+                    quarantine applied to the horizontal file only: a station
+                    the pipeline had already judged "not a velocity" — fitted to
+                    36 days of data — was written into the vertical file as a
+                    plain data row. Vertical is the noisier component, so the
+                    unguarded output was the more misleading of the two, and it
+                    carried no sign that anything had been questioned.
+
+    Returns:
+        (n_written, quarantined) -- matching `write_psvelo`, so a caller cannot
+        hold one file to a standard and forget the other.
     """
+    vectors = list(vectors)
     lines = _header(reference_station, notes)
     lines.append("# lon  lat  Vu  sigVu  station   (mm/yr, positive up)")
+
+    withhold = {k.upper(): v for k, v in (withhold or {}).items()}
+    quarantined: list[str] = []
+    body: list[str] = []
     n = 0
     for v in sorted(vectors, key=lambda x: x.station):
         if v.vu_mm_yr is None:
             continue
-        lines.append(f"{v.lon_deg:11.6f} {v.lat_deg:11.6f} "
-                     f"{v.vu_mm_yr:9.3f} {(v.sig_vu or 0.0):7.3f} {v.station}")
-        n += 1
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return n
+        row = (f"{v.lon_deg:11.6f} {v.lat_deg:11.6f} "
+               f"{v.vu_mm_yr:9.3f} {(v.sig_vu or 0.0):7.3f} {v.station}")
+        reason = withhold.get(v.station)
+        if reason:
+            quarantined.append(v.station)
+            # Commented, never dropped — same posture as the horizontal file.
+            body.append(f"# WITHHELD ({reason}) {row}")
+        else:
+            body.append(row)
+            n += 1
+
+    if quarantined:
+        lines.append(f"# {len(quarantined)} station(s) WITHHELD — written as comments")
+        lines.append("# below, with the reason. Nothing has been deleted: uncomment a")
+        lines.append("# row to reinstate it. Review before drawing the map.")
+        lines.append(f"# withheld: {' '.join(quarantined)}")
+
+    path.write_text("\n".join(lines + body) + "\n", encoding="utf-8")
+    return n, quarantined

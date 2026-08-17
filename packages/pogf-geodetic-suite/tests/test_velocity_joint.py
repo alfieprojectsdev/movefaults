@@ -227,3 +227,68 @@ def test_interval_rates_without_rate_changes_is_one_interval():
     assert r.rate_changes == []
     assert len(r.interval_rates()) == 1
     assert r.rate_at(2024.0)[0] == pytest.approx(r.ve_mm_yr)
+
+
+# ── Duplicate catalog dates ──────────────────────────────────────────────────
+#
+# Two entries on the same day are two legitimate catalog records describing one
+# discontinuity — an earthquake and an equipment change on the same date is the
+# realistic case. A step column is `t >= date`, so a duplicate date builds a
+# column identical to its neighbour: G loses rank and the station dies with
+# "design matrix is rank deficient", a message that blames event spacing and
+# says nothing about the real cause.
+
+def test_duplicate_event_dates_do_not_break_the_fit():
+    t = np.linspace(2015.0, 2025.0, 400)
+    enu = synth(t, steps={2019.5: np.array([0.02, -0.01, 0.005])})
+
+    dup = [
+        OffsetEvent(date=2019.5, offset_type=OffsetType.EQ),
+        OffsetEvent(date=2019.5, offset_type=OffsetType.CE),
+    ]
+    r = estimate_velocity_joint(t, enu, offsets=dup, station="DUP")
+
+    # One step, not two: the duplicate collapses rather than raising.
+    assert len(r.steps) == 1
+    assert r.steps[0].date == pytest.approx(2019.5)
+
+
+def test_duplicate_dates_give_the_same_answer_as_a_single_entry():
+    t = np.linspace(2015.0, 2025.0, 400)
+    enu = synth(t, steps={2019.5: np.array([0.02, -0.01, 0.005])})
+
+    one = [OffsetEvent(date=2019.5, offset_type=OffsetType.EQ)]
+    dup = [*one, OffsetEvent(date=2019.5, offset_type=OffsetType.CE)]
+
+    a = estimate_velocity_joint(t, enu, offsets=one, station="A")
+    b = estimate_velocity_joint(t, enu, offsets=dup, station="B")
+
+    assert b.ve_mm_yr == pytest.approx(a.ve_mm_yr)
+    assert b.vn_mm_yr == pytest.approx(a.vn_mm_yr)
+    assert b.vu_mm_yr == pytest.approx(a.vu_mm_yr)
+
+
+def test_three_entries_on_one_date_still_collapse_to_one_step():
+    t = np.linspace(2015.0, 2025.0, 400)
+    enu = synth(t, steps={2019.5: np.array([0.02, -0.01, 0.005])})
+    events = [
+        OffsetEvent(date=2019.5, offset_type=OffsetType.EQ),
+        OffsetEvent(date=2019.5, offset_type=OffsetType.CE),
+        OffsetEvent(date=2019.5, offset_type=OffsetType.UK),
+    ]
+    r = estimate_velocity_joint(t, enu, offsets=events, station="TRIP")
+    assert len(r.steps) == 1
+
+
+def test_distinct_nearby_dates_are_still_two_steps():
+    # De-duplication must key on the date, not on "close enough" — two events a
+    # month apart are separately resolvable in a ten-year record.
+    t = np.linspace(2015.0, 2025.0, 800)
+    enu = synth(t, steps={2019.5: np.array([0.02, -0.01, 0.005]),
+                          2019.6: np.array([0.01, 0.02, -0.003])})
+    events = [
+        OffsetEvent(date=2019.5, offset_type=OffsetType.EQ),
+        OffsetEvent(date=2019.6, offset_type=OffsetType.EQ),
+    ]
+    r = estimate_velocity_joint(t, enu, offsets=events, station="TWO")
+    assert len(r.steps) == 2
