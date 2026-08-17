@@ -80,16 +80,43 @@ export interface QueueRecord extends LogSheetIn {
   _queuedAt?: string;
 }
 
+/**
+ * Upload progress, kept apart from the record it describes.
+ *
+ * Progress has to be persisted after every photo — that is the difference
+ * between resuming at photo four and re-sending all six over a field link. But
+ * IndexedDB has no partial update: `put` rewrites the whole value, and a queue
+ * record's value contains the photo blobs. Writing progress onto the record
+ * therefore rewrote ~18 MB of image data per photo, six times for a six-photo
+ * batch — on the same memory-constrained handset whose blob writes are what
+ * froze the submit button in the first place.
+ *
+ * Split out, a progress write is a few dozen bytes. The record itself is
+ * written twice per flush regardless of photo count: never during the batch,
+ * once when it is marked synced.
+ */
+interface PhotoProgress {
+  client_uuid: string;
+  /** Photos uploaded so far, counted from the start of `_photos`. */
+  uploaded: number;
+}
+
 interface FieldOpsDB extends DBSchema {
   logsheet_queue: {
     key: string; // client_uuid
     value: QueueRecord;
     indexes: { by_status: string };
   };
+  photo_progress: {
+    key: string; // client_uuid
+    value: PhotoProgress;
+  };
 }
 
 const DB_NAME = "field-ops";
-const DB_VERSION = 2; // v1 → v2 adds _photo / _photoUploaded
+// v1 → v2 adds _photo / _photoUploaded
+// v2 → v3 adds the photo_progress store
+const DB_VERSION = 3;
 
 /**
  * Nothing in this module may hang forever.
@@ -142,6 +169,9 @@ async function getDb(): Promise<IDBPDatabase<FieldOpsDB>> {
             keyPath: "client_uuid",
           });
           store.createIndex("by_status", "_status");
+        }
+        if (oldVersion < 3) {
+          db.createObjectStore("photo_progress", { keyPath: "client_uuid" });
         }
       },
       blocked() {
@@ -379,7 +409,12 @@ async function runFlush(): Promise<FlushResult> {
 
     // Batch: upload from where the last attempt stopped.
     if (fresh._photos && fresh._photos.length > 0) {
-      let uploaded = fresh._photosUploaded ?? 0;
+      const uuid = String(fresh.client_uuid);
+      // The progress row is authoritative when present; `_photosUploaded` on
+      // the record is the fallback for batches queued before that store
+      // existed, and is refreshed on the final synced write.
+      const saved = await db.get("photo_progress", uuid);
+      let uploaded = saved?.uploaded ?? fresh._photosUploaded ?? 0;
       let stalled = false;
 
       for (let i = uploaded; i < fresh._photos.length; i++) {
@@ -392,8 +427,9 @@ async function runFlush(): Promise<FlushResult> {
           uploaded = i + 1;
           // Persisted after every single photo, not once at the end of the
           // batch. On a link that drops mid-upload, the difference is between
-          // resuming at photo 4 and re-sending all six.
-          await db.put("logsheet_queue", { ...fresh, _photosUploaded: uploaded });
+          // resuming at photo 4 and re-sending all six. Written to the sibling
+          // store, not onto the record — see PhotoProgress above for why.
+          await db.put("photo_progress", { client_uuid: uuid, uploaded });
         } catch (err) {
           console.warn(
             `Photo ${i + 1}/${fresh._photos.length} failed for ${fresh.client_uuid}:`,
@@ -428,6 +464,11 @@ async function runFlush(): Promise<FlushResult> {
       _photo: undefined,
       _photos: undefined,
     });
+    // The progress row described a batch that no longer exists. Left behind it
+    // would be read by a later flush of a record queued under the same uuid —
+    // which is exactly what a retried submit now is, since client_uuid is
+    // stable per sheet — and would skip photos that were never sent.
+    await db.delete("photo_progress", String(fresh.client_uuid));
     synced += 1;
   }
 

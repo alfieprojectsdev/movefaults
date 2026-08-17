@@ -25,7 +25,7 @@
  *   - Remains editable so operators can append -01, -02 suffixes for multi-session days.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import StationPicker from "./StationPicker";
@@ -157,6 +157,29 @@ export default function LogSheetForm() {
   >("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
+  /**
+   * One identity per sheet, not per submit attempt.
+   *
+   * client_uuid is what makes sync idempotent: the server inserts
+   * ON CONFLICT (client_uuid) DO NOTHING, so the same sheet arriving twice
+   * lands once. That only holds if a retry carries the *same* uuid. Minting it
+   * inside onSubmit gave every attempt a new one, which turned a retry after a
+   * slow save into two station visits for one trip to the monument — and the
+   * IndexedDB write has a 30 s timeout that rejects without being able to
+   * cancel the underlying transaction, so "it failed, tap again" is a normal
+   * thing for an operator to do.
+   *
+   * A new uuid is minted only when the form is cleared for the next sheet,
+   * via resetForm() below.
+   */
+  const clientUuidRef = useRef<string>(generateUUID());
+
+  /** Clear the form for the next sheet and start a new sheet identity. */
+  const resetForm = () => {
+    reset();
+    clientUuidRef.current = generateUUID();
+  };
+
   // ── Watched values ─────────────────────────────────────────────────────────
 
   const stationCode    = watch("station_code");
@@ -253,7 +276,7 @@ export default function LogSheetForm() {
     setErrorMsg("");
 
     const record: LogSheetIn = {
-      client_uuid: generateUUID(),
+      client_uuid: clientUuidRef.current,
       station_code: values.station_code,
       monitoring_method: values.monitoring_method || undefined,
       visit_date: values.visit_date,
@@ -302,7 +325,7 @@ export default function LogSheetForm() {
       try {
         await addToQueue(record, photos);
         setSubmitState("queued");
-        reset();
+        resetForm();
       } catch (err) {
         // Out of device storage — do NOT reset(), the operator still has the
         // form and the photo and can retry after syncing.
@@ -333,7 +356,7 @@ export default function LogSheetForm() {
                 ? "Log saved. Photo queued — it will upload on the next sync."
                 : `Log saved. ${photos.length} photos queued — they will upload on the next sync.`
             );
-            reset();
+            resetForm();
           } catch (queueErr) {
             // Device storage is full, so the photo cannot be held either. This
             // path was previously unguarded: the error escaped to the outer
@@ -357,13 +380,13 @@ export default function LogSheetForm() {
       }
 
       setSubmitState("saved");
-      reset();
+      resetForm();
     } catch (err) {
       // Network error mid-submit — queue both halves as the fallback.
       try {
         await addToQueue(record, photos);
         setSubmitState("queued");
-        reset();
+        resetForm();
       } catch (queueErr) {
         setSubmitState("error");
         setErrorMsg(
@@ -693,7 +716,15 @@ export default function LogSheetForm() {
               UTC start *
               <input
                 type="datetime-local"
-                {...register("utc_start", { required: "UTC start is required" })}
+                {...register("utc_start", {
+                  // Conditional, matching antenna_model above: the field only
+                  // applies to campaign sheets. react-hook-form skips validation
+                  // for unmounted fields, so an unconditional rule here happens
+                  // to be harmless today — but it is still a claim about a field
+                  // this mode does not have, and it would start biting the day
+                  // the section is hidden with CSS rather than unmounted.
+                  required: method === "campaign" ? "UTC start is required" : false,
+                })}
                 style={inputStyle}
               />
               {errors.utc_start && (
