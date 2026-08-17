@@ -217,7 +217,24 @@ textarea {
 
 .observer-row:last-child { border-bottom: none; }
 
-.observer-role { color: var(--pico-muted-color); }
+/* Sticky so the group a name belongs to stays visible while scrolling the
+   list on a short phone screen — otherwise the heading scrolls away and the
+   remaining names lose the only thing that identified their group. */
+.observer-group-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0.35rem 0.25rem;
+  background: var(--pico-background-color);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pico-muted-color);
+  border-bottom: 1px solid var(--pico-form-element-border-color);
+}
+
+.observer-group + .observer-group { margin-top: 0.5rem; }
 
 /* Theme toggle — icon-sized, but still a full 48px tap target. */
 .theme-toggle {

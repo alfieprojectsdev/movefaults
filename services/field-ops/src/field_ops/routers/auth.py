@@ -39,6 +39,13 @@ class Token(BaseModel):
     token_type: str
 
 
+class Me(BaseModel):
+    """Who the caller is, according to the server."""
+
+    username: str
+    role: str
+
+
 def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
@@ -105,3 +112,49 @@ async def login(
 
     token = create_access_token(user.username, user.role)
     return Token(access_token=token, token_type="bearer")
+
+
+# ── Role enforcement ────────────────────────────────────────────────────────
+
+
+def require_role(*allowed: str):
+    """
+    Dependency that refuses a caller whose role is not in `allowed`.
+
+    This exists because hiding a control in the frontend is not a security
+    boundary. A view the UI declines to render is still a reachable endpoint —
+    devtools, curl, or a stale bundle all bypass it. Anything that actually
+    needs restricting has to be refused here, on the server, and the UI gating
+    is decluttering on top of that.
+
+    Deliberately unused so far: nothing in this app is admin-only yet. It is
+    added with the roles so that the first genuinely privileged endpoint has an
+    obvious thing to reach for, rather than inventing a check under deadline.
+    """
+
+    async def _check(user: User = Depends(get_current_user)) -> User:
+        if user.role not in allowed:
+            # 403, not 404: the caller is authenticated and we are telling them
+            # this is not theirs. Hiding the endpoint's existence buys nothing
+            # here — the frontend bundle names every route it can call.
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"This action requires one of: {', '.join(sorted(allowed))}",
+            )
+        return user
+
+    return _check
+
+
+@router.get("/me", response_model=Me)
+async def read_me(user: User = Depends(get_current_user)) -> Me:
+    """
+    The signed-in account and its role.
+
+    The role is already inside the JWT, and the frontend could decode it — a JWT
+    is signed, not encrypted. It is served here instead so the server stays the
+    authority: a role changed in the database takes effect on the next call
+    rather than at the next login, which on an 8-hour field session could be
+    the next day.
+    """
+    return Me(username=user.username, role=user.role)

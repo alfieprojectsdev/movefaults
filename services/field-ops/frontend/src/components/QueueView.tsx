@@ -169,6 +169,36 @@ export default function QueueView() {
   );
 }
 
+/**
+ * What this record's photos are doing, in words an operator can act on.
+ *
+ * Both queue shapes are covered. `_photo` is the single-photo shape from before
+ * batch capture; `_photos` is what every new sheet uses. Reading only the
+ * legacy field — which is what this did — reported "no photo" for every batch
+ * record in the queue, telling an observer their site photos were missing at
+ * the exact moment they were sitting safely on the device. Wrong in the
+ * direction that sends someone back to a monument.
+ *
+ * A synced record has had its blobs dropped, so the count comes from
+ * `_photosUploaded`, which survives that write for exactly this reason.
+ */
+function describePhotos(rec: QueueRecord): string {
+  const held = rec._photos?.length ?? 0;
+  const sent = rec._photosUploaded ?? 0;
+
+  if (held > 0) {
+    if (sent >= held) return `${held} photo${held === 1 ? "" : "s"} sent`;
+    if (sent > 0) return `${sent} of ${held} photos sent`;
+    return `${held} photo${held === 1 ? "" : "s"} held`;
+  }
+  if (sent > 0) return `${sent} photo${sent === 1 ? "" : "s"} sent`;
+
+  // Legacy single-photo records.
+  if (rec._photoUploaded) return "photo sent";
+  if (rec._photo) return "photo held";
+  return "no photo";
+}
+
 function QueueItem({
   rec,
   onRetry,
@@ -177,11 +207,7 @@ function QueueItem({
   onRetry?: (clientUuid: string) => void | Promise<void>;
 }) {
   const queued = rec._queuedAt ? new Date(rec._queuedAt) : null;
-  const photoState = !rec._photo && !rec._photoUploaded
-    ? "no photo"
-    : rec._photoUploaded
-      ? "photo sent"
-      : "photo held";
+  const photoState = describePhotos(rec);
 
   return (
     <li className={`queue-item is-${rec._status}`}>

@@ -107,8 +107,25 @@ export default function App() {
         </nav>
       </header>
 
-      {view === "logsheet" && <LogSheetForm />}
-      {view === "queue" && <QueueView />}
+      {/* Both stay mounted; only visibility changes.
+
+          Unmounting the form threw away everything typed into it. An operator
+          who tapped Queue mid-sheet — to check whether an earlier one had
+          synced, which is a reasonable thing to do — came back to an empty
+          form and had to start the station visit again from memory. On a
+          phone, at a monument, that is the kind of loss that ends with the
+          sheet not being filed at all.
+
+          `hidden` rather than conditional rendering keeps react-hook-form's
+          state, the selected photos, and any in-flight submit alive across the
+          switch. Two small views make this cheap; if a third arrives that is
+          expensive to keep mounted, revisit it then. */}
+      <div hidden={view !== "logsheet"}>
+        <LogSheetForm />
+      </div>
+      <div hidden={view !== "queue"}>
+        <QueueView />
+      </div>
 
       <footer className="app-footer">
         <button type="button" className="link-btn" onClick={signOut}>
