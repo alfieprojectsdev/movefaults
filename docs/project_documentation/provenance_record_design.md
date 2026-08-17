@@ -177,3 +177,87 @@ provenance is the exact situation this exists to prevent.
 
 Out of scope for the first pass: the git digest file, database ingestion, and
 instrumenting every script.
+
+---
+
+## Amendment, 2026-08-13: reprocessing with data found later
+
+Raised in review: *what happens when RINEX files previously assumed missing
+turn up, and whole subnetworks are reprocessed with them?*
+
+This is not hypothetical. Retrieving the full PH network from staff computers
+is planned work, and the `2024/`/`2025/` layout trap on the file server is
+proof that "we have all of it" has already been wrong once. The design above
+handles part of this and misses the part that actually bites.
+
+### What the design already handles
+
+**Same filename, different science.** `FIN_20251390.SNX` computed from 4
+stations and from 25 stations occupy the same path. Because a record lists its
+inputs, the two runs are distinguishable — and the second one does not
+retroactively invalidate the first, it simply supersedes it. No change needed.
+
+### Correction to decision 2: manifest lookup is a lookup, never a gate
+
+Decision 2 says "reference the manifest hash for covered inputs, hash directly
+otherwise". Correct, but the dangerous implementation of it is:
+
+```python
+h = manifest.get(path)          # WRONG
+record.inputs.append(h)         # h is None for anything found later
+```
+
+Newly-found files are by definition absent from every manifest. **Absence must
+trigger a hash, never a null and never a skip.** A record that silently omits
+an input is worse than no record: it asserts completeness it does not have.
+
+```python
+h = manifest.get(path) or sha256_file(path)   # and mark which one it was
+```
+
+Records must also carry *how* each hash was obtained — `from_manifest` versus
+`computed` — so a later audit can tell "verified against the archive" from
+"trusted at the time".
+
+### The part that bites: a station-set change is an apparent offset
+
+Adding stations changes network geometry, datum realisation, and ambiguity
+resolution. **Stations whose own data did not change still move**, typically at
+the few-mm level, because the network around them changed.
+
+So reprocessing 2015–2018 with newly-found data while leaving 2019–2025 as it
+stands puts a **step in the coordinate series at the reprocessing boundary that
+has no physical cause**. It will look exactly like the equipment changes and
+earthquakes the `offsets` catalog exists to record, and the honest analyst
+looking at it will add a catalog entry for an event that never happened.
+
+That failure is self-concealing: once the offset is in the catalog, the
+segmented velocity fit accommodates it, the residuals look fine, and nothing
+downstream complains. The velocity delta analysis
+(`velocity_outlier_policy_delta.md`) shows the neighbouring hazard is already
+real — a catalog edit on 2026-07-29 silently changed five sites' published
+velocities and corrupted two of them outright. (That count comes from the
+reference comparison in that document, whose tolerance was subsequently
+tightened to the reference file's actual precision; the count is expected to
+grow when it is regenerated. The corrupted two, BR14 and LUZD, are a separate
+finding and are unaffected.)
+
+**Two mitigations, both cheap:**
+
+1. **Station-set fingerprint per solution.** Sorted 4-character station codes,
+   hashed, recorded alongside the solution. Grouping solutions by that
+   fingerprint turns "when did the processing configuration change?" into one
+   query instead of an archaeology session. It is a dozen lines and it is the
+   single highest-value field in the record.
+
+2. **Reprocess a whole span or none of it.** An operational rule, not code: a
+   coordinate series must be internally consistent in its station set, because
+   a partially-reprocessed series is not comparable to itself. If new data
+   justifies reprocessing, it justifies reprocessing the series.
+
+Where a partial reprocess is genuinely unavoidable, the boundary must be
+recorded in the `offsets` catalog **as a processing discontinuity, not an
+EQ/CE/VE**. The current type codes have no way to say "this jump is ours" —
+which means today the catalog cannot distinguish an artefact from an
+earthquake. A `PR` (reprocessing) code would fix that, and is worth adding
+before the 2025 run rather than after.
