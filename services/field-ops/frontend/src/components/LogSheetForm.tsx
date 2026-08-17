@@ -30,6 +30,7 @@ import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import StationPicker from "./StationPicker";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
+import { groupByRole } from "../utils/roles";
 import {
   submitLogSheet,
   uploadLogSheetPhoto,
@@ -416,33 +417,42 @@ export default function LogSheetForm() {
         ) : staffList && staffList.length > 0 ? (
           <>
             <div className="observer-list">
-              {staffList.map((s) => {
-                const checked = observerIds.includes(s.id);
-                return (
-                  <label key={s.id} className="checkbox-row observer-row">
-                    <input
-                      type="checkbox"
-                      value={s.id}
-                      checked={checked}
-                      onChange={(e) => {
-                        // Rebuilt from the current array rather than toggled in
-                        // place, so the stored order stays stable and a double
-                        // tap cannot leave a duplicate id behind.
-                        const next = e.target.checked
-                          ? [...observerIds, s.id]
-                          : observerIds.filter((id) => id !== s.id);
-                        setValue("observer_ids", next, { shouldDirty: true });
-                      }}
-                    />
-                    <span>
-                      {s.full_name === s.initials
-                        ? s.initials
-                        : `${s.full_name} (${s.initials})`}
-                      <span className="observer-role"> — {s.role}</span>
-                    </span>
-                  </label>
-                );
-              })}
+              {/* Grouped under headings rather than filtered by a control.
+                  With 13 names a filter costs more taps than it saves, and a
+                  station visit routinely mixes groups — a filter would have to
+                  be switched mid-selection every time. Headings show the same
+                  information for free and keep every name one scroll away. */}
+              {groupByRole(staffList).map((group) => (
+                <div key={group.role} className="observer-group">
+                  <p className="observer-group-label">{group.label}</p>
+                  {group.members.map((s) => {
+                    const checked = observerIds.includes(s.id);
+                    return (
+                      <label key={s.id} className="checkbox-row observer-row">
+                        <input
+                          type="checkbox"
+                          value={s.id}
+                          checked={checked}
+                          onChange={(e) => {
+                            // Rebuilt from the current array rather than toggled
+                            // in place, so the stored order stays stable and a
+                            // double tap cannot leave a duplicate id behind.
+                            const next = e.target.checked
+                              ? [...observerIds, s.id]
+                              : observerIds.filter((id) => id !== s.id);
+                            setValue("observer_ids", next, { shouldDirty: true });
+                          }}
+                        />
+                        <span>
+                          {s.full_name === s.initials
+                            ? s.initials
+                            : `${s.full_name} (${s.initials})`}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
             <small>
               {observerIds.length === 0
