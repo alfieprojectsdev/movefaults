@@ -40,7 +40,12 @@ export default defineConfig({
   server: {
     proxy: {
       // Proxy API calls to the FastAPI backend during development
-      "/api": { target: "http://localhost:8001", changeOrigin: true },
+      // 127.0.0.1, NOT localhost. Node 17+ stopped reordering DNS results, so
+      // `localhost` resolves to ::1 (IPv6) first — while the API binds 0.0.0.0,
+      // which is IPv4 only. The proxy then hangs on a refused IPv6 connection
+      // and every request through it stalls until the client gives up, which
+      // looks exactly like a broken app rather than a broken address.
+      "/api": { target: "http://127.0.0.1:8001", changeOrigin: true },
     },
   },
 });

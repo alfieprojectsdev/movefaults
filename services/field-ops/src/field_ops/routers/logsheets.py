@@ -11,6 +11,8 @@ ever leaves the browser. The server inserts with ON CONFLICT (client_uuid) DO NO
 so duplicate submissions (retry after partial network failure) are safe.
 """
 
+import hashlib
+import logging
 import uuid
 from datetime import UTC, date, datetime
 
@@ -18,12 +20,15 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from pydantic import BaseModel, model_validator
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from field_ops.config import settings
 from field_ops.database import get_db
-from field_ops.models import LogSheet, LogSheetPhoto, User
+from field_ops.models import LogSheet, LogSheetObserver, LogSheetPhoto, Staff, User
 from field_ops.routers.auth import get_current_user
+from field_ops.storage import get_storage
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["logsheets"])
 
@@ -44,6 +49,12 @@ class LogSheetIn(BaseModel):
     maintenance_performed: str | None = None
     equipment_status: str | None = None   # ok | issue_found | repaired
     notes: str | None = None
+
+    # Staff present for this visit. Pydantic ignores unknown keys by
+    # default, so before this field existed the PWA sent observer_ids and
+    # the server discarded them silently — a 201 with zero observers
+    # recorded, and no warning at any layer.
+    observer_ids: list[int] | None = None
 
     # Mode discriminator
     monitoring_method: str | None = None  # "campaign" | "continuous"
@@ -131,6 +142,53 @@ async def submit_logsheets(
     if not records:
         return []
 
+    # ── Validate observers BEFORE writing anything ──────────────────────────
+    #
+    # The junction rows used to be inserted after the logsheets were already
+    # committed, because they need the server-side ids. A staff_id the device
+    # cached and the server has since deleted — normal after a week offline —
+    # then raised IntegrityError on the FK *after* that commit, which FastAPI
+    # turned into a 500.
+    #
+    # The client cannot recover from that. runFlush() sees a failed batch and
+    # leaves every record pending, so the next flush replays the same batch,
+    # hits the same id, and 500s again: the queue wedges permanently and the
+    # only symptom is a Sync button that appears to do nothing.
+    #
+    # Checking first makes the failure atomic and diagnosable. Nothing is
+    # committed, the response names the offending record, and the client can
+    # quarantine that one sheet instead of stalling the whole day's work.
+    requested_staff = {
+        sid for r in records if r.observer_ids for sid in r.observer_ids
+    }
+    if requested_staff:
+        known = await db.execute(select(Staff.id).where(Staff.id.in_(requested_staff)))
+        unknown = requested_staff - set(known.scalars().all())
+        if unknown:
+            offenders = [
+                {
+                    "client_uuid": str(r.client_uuid),
+                    "unknown_staff_ids": sorted(set(r.observer_ids) & unknown),
+                }
+                for r in records
+                if r.observer_ids and set(r.observer_ids) & unknown
+            ]
+            raise HTTPException(
+                # 422, spelled without the constant: starlette renamed it to
+                # HTTP_422_UNPROCESSABLE_CONTENT and deprecated the old name, so
+                # either constant warns on one version or breaks on the other.
+                status_code=422,
+                detail={
+                    "error": "unknown_staff_ids",
+                    "message": (
+                        "These observer ids do not exist on the server. The staff "
+                        "list on this device is out of date — refresh it, correct "
+                        "the affected records, and sync again."
+                    ),
+                    "records": offenders,
+                },
+            )
+
     now = datetime.now(UTC)
 
     values = [
@@ -182,7 +240,29 @@ async def submit_logsheets(
     fetched = await db.execute(
         select(LogSheet).where(LogSheet.client_uuid.in_(client_uuids))
     )
-    return list(fetched.scalars().all())
+    rows = list(fetched.scalars().all())
+
+    # Observers. Written after the logsheets exist, because the junction needs
+    # their server-side ids. ON CONFLICT DO NOTHING keeps this idempotent under
+    # the same retry the logsheet upsert already tolerates. Every staff_id here
+    # was checked against the staff table above, before the commit — see the
+    # note there for why validating afterwards wedged the offline queue.
+    id_by_uuid = {str(row.client_uuid): row.id for row in rows}
+    observer_values = [
+        {"logsheet_id": id_by_uuid[str(r.client_uuid)], "staff_id": sid}
+        for r in records
+        if r.observer_ids and str(r.client_uuid) in id_by_uuid
+        for sid in dict.fromkeys(r.observer_ids)  # de-dup, preserve order
+    ]
+    if observer_values:
+        await db.execute(
+            pg_insert(LogSheetObserver)
+            .values(observer_values)
+            .on_conflict_do_nothing(index_elements=["logsheet_id", "staff_id"])
+        )
+        await db.commit()
+
+    return rows
 
 
 @router.get("/logsheets", response_model=list[LogSheetOut])
@@ -212,6 +292,78 @@ async def get_logsheet(
     return logsheet
 
 
+# ── Upload limits ───────────────────────────────────────────────────────────
+#
+# A phone photo is 3–12 MB. 15 MB leaves room for a high-resolution camera
+# without letting an arbitrary body through.
+MAX_PHOTO_BYTES = 15 * 1024 * 1024
+_UPLOAD_CHUNK = 1024 * 1024
+
+# The types storage._content_type knows how to label. Anything else would be
+# stored with a generic content type and served back as an attachment, which is
+# not what "attach a photo" means.
+_ALLOWED_PHOTO_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/heic",
+    "image/webp",
+    "application/pdf",
+}
+
+
+def _reject_unsupported_type(file: UploadFile) -> None:
+    """
+    Refuse a declared content type the storage layer cannot label.
+
+    The declared type is client-supplied and therefore not trustworthy on its
+    own — this is a usability guard, not a security boundary. It catches the
+    ordinary case (a document picked by mistake in the file chooser) at the
+    point where the operator can still fix it.
+    """
+    declared = (file.content_type or "").split(";")[0].strip().lower()
+    if declared and declared not in _ALLOWED_PHOTO_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Unsupported file type {declared!r}. "
+                f"Accepted: {', '.join(sorted(_ALLOWED_PHOTO_TYPES))}."
+            ),
+        )
+
+
+async def _read_bounded(file: UploadFile) -> bytes:
+    """
+    Read the upload in chunks, refusing anything past MAX_PHOTO_BYTES.
+
+    `await file.read()` with no argument pulls the entire body into memory
+    before anything has a chance to object. On a small container that is a way
+    to be knocked over by one oversized request — accidental as easily as
+    deliberate, since a modern phone will happily produce a 100 MB burst or a
+    video file from the same picker.
+
+    Reading incrementally means the ceiling is enforced against what has
+    actually arrived, and the request is refused after one chunk past the limit
+    rather than after the whole body has been buffered.
+    """
+    chunks: list[bytes] = []
+    total = 0
+
+    while chunk := await file.read(_UPLOAD_CHUNK):
+        total += len(chunk)
+        if total > MAX_PHOTO_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"Photo exceeds the {MAX_PHOTO_BYTES // (1024 * 1024)} MB limit. "
+                    "Retake it at a lower resolution, or attach it from a device "
+                    "that compresses on capture."
+                ),
+            )
+        chunks.append(chunk)
+
+    return b"".join(chunks)
+
+
 @router.post("/logsheets/{logsheet_id}/photos", status_code=status.HTTP_201_CREATED)
 async def upload_photo(
     logsheet_id: int,
@@ -221,29 +373,103 @@ async def upload_photo(
 ) -> dict:
     """
     Attach a photo to a logsheet (antenna install, equipment, site conditions).
-    Saves to disk at settings.field_ops_upload_dir.
-    """
-    from pathlib import Path
 
+    Storage backend is configured, not hardcoded: local disk in development,
+    Cloudflare R2 in deployment. See field_ops/storage.py — a container's
+    filesystem does not survive a restart, so a deployed instance writing to
+    disk would leave rows pointing at files that no longer exist.
+    """
     result = await db.execute(select(LogSheet).where(LogSheet.id == logsheet_id))
     if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Logsheet not found")
 
-    upload_dir = Path(settings.field_ops_upload_dir) / str(logsheet_id)
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    _reject_unsupported_type(file)
+    contents = await _read_bounded(file)
+    digest = hashlib.sha256(contents).hexdigest()
 
-    safe_name = f"{uuid.uuid4().hex}_{file.filename}"
-    dest = upload_dir / safe_name
+    # ── Idempotency ─────────────────────────────────────────────────────────
+    #
+    # A client cannot tell "the upload failed" from "the upload succeeded and
+    # the response was lost coming back" — the ordinary failure on a weak field
+    # link. Without a guard here, every retry of the second case stored the same
+    # image again: several R2 objects and several rows for one observation, and
+    # no way afterwards to say which was the photo the observer meant.
+    #
+    # Content hash rather than a client-supplied id, because it needs no
+    # cooperation from the client and it catches exactly the case that matters:
+    # a retry sends identical bytes.
+    existing = await db.execute(
+        select(LogSheetPhoto).where(
+            LogSheetPhoto.logsheet_id == logsheet_id,
+            LogSheetPhoto.content_sha256 == digest,
+        )
+    )
+    already = existing.scalar_one_or_none()
+    if already is not None:
+        # Return the original, and do NOT touch storage — writing the bytes
+        # again would create a second object even though the row is deduped.
+        return {
+            "photo_id": already.id,
+            "storage_path": already.storage_path,
+            "duplicate": True,
+        }
 
-    contents = await file.read()
-    dest.write_bytes(contents)
+    # Store the bytes BEFORE the row. If this raises, the request fails and the
+    # device keeps the photo queued for retry. The reverse order would commit a
+    # row referencing an object that was never written — the DB would look
+    # correct and the photo would be gone.
+    storage_ref = await get_storage().save(
+        logsheet_id, file.filename or "photo.jpg", contents
+    )
 
     photo = LogSheetPhoto(
         logsheet_id=logsheet_id,
         filename=file.filename,
-        storage_path=str(dest),
+        storage_path=storage_ref,
+        content_sha256=digest,
     )
     db.add(photo)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Two concurrent uploads of the same bytes both passed the SELECT above.
+        # The unique index is the actual arbiter; the loser resolves to the
+        # winner's row rather than failing the operator's request.
+        await db.rollback()
+        winner = await db.execute(
+            select(LogSheetPhoto).where(
+                LogSheetPhoto.logsheet_id == logsheet_id,
+                LogSheetPhoto.content_sha256 == digest,
+            )
+        )
+        row = winner.scalar_one_or_none()
+        if row is None:
+            # The constraint fired but no row is visible — that is a genuine
+            # invariant violation, not a duplicate. Surface it.
+            raise
 
-    return {"photo_id": photo.id, "filename": safe_name}
+        # This request lost the race, so the object it wrote a moment ago is now
+        # referenced by nothing: the winner's row points at the winner's object.
+        # Unreferenced objects are invisible in the database, unbounded, and
+        # billed, so remove what this request created.
+        #
+        # Best effort by design. The operator's upload has already succeeded —
+        # failing it now over a storage cleanup would be a worse outcome than
+        # leaving one stray object behind, so this only logs.
+        try:
+            await get_storage().delete(storage_ref)
+        except Exception:  # noqa: BLE001 — cleanup must never fail the request
+            logger.warning(
+                "Could not remove orphaned photo object %s after a duplicate-upload "
+                "race on logsheet %s; it is unreferenced and safe to delete manually.",
+                storage_ref,
+                logsheet_id,
+            )
+
+        return {
+            "photo_id": row.id,
+            "storage_path": row.storage_path,
+            "duplicate": True,
+        }
+
+    return {"photo_id": photo.id, "storage_path": storage_ref, "duplicate": False}

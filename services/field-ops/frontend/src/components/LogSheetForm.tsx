@@ -9,8 +9,8 @@
  *   2. If online → submits text payload to POST /api/v1/logsheets, then uploads
  *      photo to POST /api/v1/logsheets/{id}/photos.
  *   3. If offline → saves to IndexedDB via useOfflineQueue.
- *      Photo cannot be uploaded offline; the UI warns the user to re-attach it
- *      after connectivity returns. Text data is never lost.
+ *      The photo blob is queued with it and uploaded on sync, so
+ *      nothing is lost while out of signal.
  *
  * Conditional sections:
  *   - Top-level "monitoring_method" dropdown controls which fields are rendered.
@@ -106,39 +106,16 @@ interface FormValues {
 
 // ── Shared styles ────────────────────────────────────────────────────────────
 
-const inputStyle: React.CSSProperties = { width: "100%", boxSizing: "border-box" };
+// Presentation now lives in src/styles/field.css. Pico styles bare
+// <input>/<select>/<textarea> globally, so these are intentionally empty —
+// keeping the names means the ~20 `style={inputStyle}` call sites below need
+// no edit, and there is one obvious place to reintroduce an override if a
+// single control ever genuinely needs one.
+const inputStyle: React.CSSProperties = {};
 
-const readonlyStyle: React.CSSProperties = {
-  width: "100%",
-  boxSizing: "border-box",
-  background: "#f0f0f0",
-  border: "none",
-  fontFamily: "monospace",
-  padding: "0.3rem 0.4rem",
-};
+// Computed fields (avg slant, RINEX height) are styled via `input[readonly]`.
+const readonlyStyle: React.CSSProperties = {};
 
-const sectionHeaderStyle: React.CSSProperties = {
-  marginTop: "1.5rem",
-  marginBottom: "0.25rem",
-  fontSize: "1rem",
-  color: "#333",
-};
-
-const btnStyle: React.CSSProperties = {
-  padding: "0.75rem",
-  fontSize: "1rem",
-  background: "#1a56a4",
-  color: "#fff",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-};
-
-const btnDisabledStyle: React.CSSProperties = {
-  ...btnStyle,
-  background: "#888",
-  cursor: "not-allowed",
-};
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -178,6 +155,7 @@ export default function LogSheetForm() {
   const slantS         = watch("slant_s_m");
   const slantW         = watch("slant_w_m");
   const photoFiles     = watch("photo");
+  const observerIds    = watch("observer_ids");
 
   // ── Staff query ────────────────────────────────────────────────────────────
 
@@ -289,10 +267,21 @@ export default function LogSheetForm() {
         : undefined;
     }
 
+    // The photo is queued WITH the record. Before this it was dropped on the
+    // offline path while the UI still reported a successful save.
+    const photo = hasPhoto && photoFiles !== null ? photoFiles[0] : undefined;
+
     if (!navigator.onLine) {
-      await addToQueue(record);
-      setSubmitState("queued");
-      reset();
+      try {
+        await addToQueue(record, photo);
+        setSubmitState("queued");
+        reset();
+      } catch (err) {
+        // Out of device storage — do NOT reset(), the operator still has the
+        // form and the photo and can retry after syncing.
+        setSubmitState("error");
+        setErrorMsg(err instanceof Error ? err.message : "Could not save offline.");
+      }
       return;
     }
 
@@ -300,14 +289,37 @@ export default function LogSheetForm() {
       const created = await submitLogSheet(record);
 
       // Upload photo as a separate request after logsheet is created
-      if (hasPhoto && photoFiles !== null) {
+      if (photo) {
         try {
-          await uploadLogSheetPhoto(created.id, photoFiles[0]);
+          await uploadLogSheetPhoto(created.id, photo);
         } catch {
-          // Photo upload failed — logsheet was saved; user can re-attach later
-          setSubmitState("saved");
-          setErrorMsg("Log saved, but photo upload failed. Re-attach photo when reconnected.");
-          reset();
+          // Logsheet is on the server but the photo is not. Queue the photo
+          // rather than asking the operator to remember to re-attach it later:
+          // by then they have left the site. _photoUploaded stays false, so the
+          // next flush re-POSTs the (idempotent) logsheet and retries the photo.
+          try {
+            await addToQueue(record, photo);
+            setSubmitState("queued");
+            setErrorMsg("Log saved. Photo queued — it will upload on the next sync.");
+            reset();
+          } catch (queueErr) {
+            // Device storage is full, so the photo cannot be held either. This
+            // path was previously unguarded: the error escaped to the outer
+            // catch, which queued again, failed again, and told the operator
+            // "Could not save offline" — implying the whole submission was
+            // lost, when in fact the sheet was already on the server. Wrong in
+            // the direction that sends someone back to a monument for nothing.
+            //
+            // Say what is true of each half, and do NOT reset(): the form still
+            // holds the photo, so freeing space and retrying is possible.
+            setSubmitState("error");
+            setErrorMsg(
+              "Log saved on the server — but the photo could not be uploaded OR " +
+                "stored on this device" +
+                (queueErr instanceof Error ? ` (${queueErr.message})` : "") +
+                ". Free space, then attach the photo again from this form."
+            );
+          }
           return;
         }
       }
@@ -315,10 +327,17 @@ export default function LogSheetForm() {
       setSubmitState("saved");
       reset();
     } catch (err) {
-      // Network error mid-submit — save text payload to queue as fallback
-      await addToQueue(record);
-      setSubmitState("queued");
-      reset();
+      // Network error mid-submit — queue both halves as the fallback.
+      try {
+        await addToQueue(record, photo);
+        setSubmitState("queued");
+        reset();
+      } catch (queueErr) {
+        setSubmitState("error");
+        setErrorMsg(
+          queueErr instanceof Error ? queueErr.message : "Could not save offline."
+        );
+      }
     }
   };
 
@@ -329,9 +348,9 @@ export default function LogSheetForm() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+      className="logsheet-form"
     >
-      <h2 style={{ margin: 0 }}>Station Visit Log</h2>
+      <h2>Station Visit Log</h2>
 
       {/* ── Monitoring method ── */}
       <label>
@@ -345,7 +364,7 @@ export default function LogSheetForm() {
           <option value="continuous">Continuous (CORS Maintenance)</option>
         </select>
         {errors.monitoring_method && (
-          <span style={{ color: "#c00" }}>Required</span>
+          <span className="field-error">Required</span>
         )}
       </label>
 
@@ -358,7 +377,7 @@ export default function LogSheetForm() {
           disabled={isSubmitting}
         />
         {errors.station_code && (
-          <span style={{ color: "#c00" }}>Required</span>
+          <span className="field-error">Required</span>
         )}
       </label>
 
@@ -372,7 +391,7 @@ export default function LogSheetForm() {
         />
       </label>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+      <div className="form-grid-2">
         <label>
           Arrival time
           <input type="time" {...register("arrival_time")} style={inputStyle} />
@@ -383,37 +402,58 @@ export default function LogSheetForm() {
         </label>
       </div>
 
-      {/* ── Observers ── */}
-      <label>
-        Observers
+      {/* ── Observers ──
+          Checkboxes, not <select multiple>. There is no Ctrl key at a monument,
+          and that was the only instruction telling anyone more than one
+          observer could be recorded — so a team of four would file sheets
+          naming one person. A multi-select also hides its state behind a
+          native picker on a phone; here every name and every tick is visible
+          at a glance, on 48px rows a gloved thumb can hit. */}
+      <fieldset className="observer-field">
+        <legend>Observers</legend>
         {staffLoading ? (
-          <select disabled style={inputStyle}>
-            <option>Loading staff…</option>
-          </select>
+          <p className="hint">Loading staff…</p>
         ) : staffList && staffList.length > 0 ? (
-          <select
-            multiple
-            style={{ ...inputStyle, height: "7rem" }}
-            onChange={(e) => {
-              const selected = Array.from(e.target.selectedOptions).map((o) =>
-                parseInt(o.value, 10)
-              );
-              setValue("observer_ids", selected);
-            }}
-          >
-            {staffList.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.full_name} ({s.initials}) — {s.role}
-              </option>
-            ))}
-          </select>
+          <>
+            <div className="observer-list">
+              {staffList.map((s) => {
+                const checked = observerIds.includes(s.id);
+                return (
+                  <label key={s.id} className="checkbox-row observer-row">
+                    <input
+                      type="checkbox"
+                      value={s.id}
+                      checked={checked}
+                      onChange={(e) => {
+                        // Rebuilt from the current array rather than toggled in
+                        // place, so the stored order stays stable and a double
+                        // tap cannot leave a duplicate id behind.
+                        const next = e.target.checked
+                          ? [...observerIds, s.id]
+                          : observerIds.filter((id) => id !== s.id);
+                        setValue("observer_ids", next, { shouldDirty: true });
+                      }}
+                    />
+                    <span>
+                      {s.full_name === s.initials
+                        ? s.initials
+                        : `${s.full_name} (${s.initials})`}
+                      <span className="observer-role"> — {s.role}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <small>
+              {observerIds.length === 0
+                ? "Tick everyone who was present — more than one is normal."
+                : `${observerIds.length} selected`}
+            </small>
+          </>
         ) : (
-          <select disabled style={inputStyle}>
-            <option>Staff unavailable (offline?)</option>
-          </select>
+          <p className="hint">Staff unavailable (offline?)</p>
         )}
-        <small style={{ color: "#666" }}>Hold Ctrl / Cmd to select multiple</small>
-      </label>
+      </fieldset>
 
       {/* ── Equipment status ── */}
       <label>
@@ -445,7 +485,7 @@ export default function LogSheetForm() {
         <textarea
           {...register("notes")}
           rows={3}
-          style={{ ...inputStyle, resize: "vertical" }}
+          style={inputStyle}
         />
       </label>
 
@@ -454,7 +494,7 @@ export default function LogSheetForm() {
       ════════════════════════════════════════════════════════════ */}
       {method === "continuous" && (
         <>
-          <h3 style={sectionHeaderStyle}>Power &amp; Battery</h3>
+          <h3 className="section-header">Power &amp; Battery</h3>
 
           <label>
             Power notes
@@ -462,7 +502,7 @@ export default function LogSheetForm() {
               {...register("power_notes")}
               rows={2}
               placeholder="Solar panel condition, UPS status, etc."
-              style={{ ...inputStyle, resize: "vertical" }}
+              style={inputStyle}
             />
           </label>
 
@@ -486,7 +526,7 @@ export default function LogSheetForm() {
       ════════════════════════════════════════════════════════════ */}
       {method === "campaign" && (
         <>
-          <h3 style={sectionHeaderStyle}>Antenna Setup</h3>
+          <h3 className="section-header">Antenna Setup</h3>
 
           <label>
             Antenna model *
@@ -502,16 +542,16 @@ export default function LogSheetForm() {
               ))}
             </select>
             {errors.antenna_model && (
-              <span style={{ color: "#c00" }}>Required for campaign</span>
+              <span className="field-error">Required for campaign</span>
             )}
           </label>
 
-          <p style={{ margin: "0.25rem 0", fontSize: "0.875rem", color: "#555" }}>
+          <p className="hint">
             Slant heights (metres) — measure from mark to antenna reference point
           </p>
 
           <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}
+            className="form-grid-2"
           >
             <label>
               Slant N (m)
@@ -561,7 +601,7 @@ export default function LogSheetForm() {
 
           {/* Live computation readouts */}
           <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}
+            className="form-grid-2"
           >
             <label>
               Avg slant height (m)
@@ -583,7 +623,7 @@ export default function LogSheetForm() {
             </label>
           </div>
 
-          <h3 style={sectionHeaderStyle}>Session Details</h3>
+          <h3 className="section-header">Session Details</h3>
 
           <label>
             Session ID
@@ -593,13 +633,13 @@ export default function LogSheetForm() {
               placeholder="e.g. BUCA342 or BUCA342-01"
               style={inputStyle}
             />
-            <small style={{ color: "#666" }}>
+            <small>
               Auto-filled from station + DOY. Append -01, -02 for multiple sessions.
             </small>
           </label>
 
           <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}
+            className="form-grid-2"
           >
             <label>
               UTC start
@@ -611,7 +651,7 @@ export default function LogSheetForm() {
             </label>
           </div>
 
-          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <label className="checkbox-row">
             <input type="checkbox" {...register("bubble_centred")} />
             Bubble centred (level confirmed)
           </label>
@@ -631,7 +671,7 @@ export default function LogSheetForm() {
       )}
 
       {/* ── Photo ── */}
-      <h3 style={sectionHeaderStyle}>Site Photo</h3>
+      <h3 className="section-header">Site Photo</h3>
 
       <label>
         Photo *
@@ -640,24 +680,24 @@ export default function LogSheetForm() {
           accept="image/*"
           capture="environment"
           {...register("photo")}
-          style={{ marginTop: "0.25rem" }}
+          
         />
       </label>
 
       {hasPhoto && photoFilename && (
-        <p style={{ margin: 0, color: "#1a56a4", fontSize: "0.875rem" }}>
+        <p className="msg msg-info">
           Photo selected: {photoFilename}
         </p>
       )}
 
       {!hasPhoto && !navigator.onLine && (
-        <p style={{ margin: 0, color: "#a06000", fontSize: "0.875rem" }}>
-          Your text entries are saved locally. Add a photo to submit.
+        <p className="msg msg-warn">
+          Your text entries are saved locally.
         </p>
       )}
 
       {!hasPhoto && (
-        <p style={{ margin: 0, color: "#c00", fontSize: "0.875rem" }}>
+        <p className="msg msg-error">
           Add a photo to submit.
         </p>
       )}
@@ -665,26 +705,31 @@ export default function LogSheetForm() {
       {/* ── Submit ── */}
       <button
         type="submit"
+        className="submit-btn"
         disabled={isSubmitting || !hasPhoto}
-        style={isSubmitting || !hasPhoto ? btnDisabledStyle : btnStyle}
       >
         {isSubmitting ? "Saving…" : "Submit Log Sheet"}
       </button>
 
       {/* ── Status messages ── */}
       {submitState === "saved" && (
-        <p style={{ color: "green", margin: 0 }}>Saved and synced to server.</p>
+        <p className="msg msg-ok">Saved and synced to server.</p>
       )}
       {submitState === "saved" && errorMsg && (
-        <p style={{ color: "#a06000", margin: 0 }}>{errorMsg}</p>
+        <p className="msg msg-warn">{errorMsg}</p>
       )}
       {submitState === "queued" && (
-        <p style={{ color: "#a06000", margin: 0 }}>
-          Saved offline. Will sync automatically when connected.
+        <p className="msg msg-warn">
+          {/* errorMsg is set on the partial path, where the logsheet DID reach
+              the server and only the photo is queued. Telling that operator
+              "Saved offline" would be the same class of false reassurance this
+              form was rewritten to remove. */}
+          {errorMsg ||
+            "Saved offline — including the photo. Will sync automatically when connected."}
         </p>
       )}
       {submitState === "error" && (
-        <p style={{ color: "#c00", margin: 0 }}>Error: {errorMsg}</p>
+        <p className="msg msg-error">Error: {errorMsg}</p>
       )}
     </form>
   );

@@ -204,7 +204,11 @@ class LogSheetPhoto(FieldOpsBase):
     id = Column(Integer, primary_key=True, autoincrement=True)
     logsheet_id = Column(Integer, ForeignKey(f"{SCHEMA}.logsheets.id"), nullable=False)
     filename = Column(Text, nullable=False)
-    storage_path = Column(Text)             # local path or future S3 key
+    storage_path = Column(Text)             # local path or R2 key
+    # sha256 of the uploaded bytes. Unique per logsheet (partial index,
+    # migration 014) so a retry after a lost response returns the existing
+    # row instead of storing the same image again.
+    content_sha256 = Column(Text)
     taken_at = Column(TIMESTAMP(timezone=True))
     uploaded_at = Column(TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 

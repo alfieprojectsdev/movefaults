@@ -22,7 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from field_ops.config import settings
@@ -87,7 +87,13 @@ async def login(
     form: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> Token:
-    result = await db.execute(select(User).where(User.username == form.username))
+    # Case-insensitive on the username. Usernames are staff initials, and a
+    # phone keyboard capitalises the first letter of a field by default — so
+    # "Arp" is what an observer actually types when the account is "ARP".
+    # Rejecting that is a lockout with no diagnosis available in the field.
+    result = await db.execute(
+        select(User).where(func.lower(User.username) == form.username.strip().lower())
+    )
     user = result.scalar_one_or_none()
 
     if user is None or not verify_password(form.password, user.hashed_password):

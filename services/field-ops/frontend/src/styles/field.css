@@ -1,0 +1,490 @@
+/* ==========================================================================
+   POGF Field Ops — styling
+   ==========================================================================
+
+   Base is Pico.css (classless): it styles semantic <label>/<input>/<select>
+   markup directly, so the form's JSX stays readable and the diff stays small.
+
+   Everything below is the layer Pico does NOT give you, and every rule here
+   exists because of how this app is actually used: outdoors, on a phone, by
+   someone standing at a GNSS monument who may be wearing gloves and squinting
+   into tropical sunlight. Field usability is the whole point — if a rule here
+   looks fussy, that is why.
+   ========================================================================== */
+
+@import "@picocss/pico/css/pico.blue.min.css";
+
+:root {
+  /* Roomier vertical rhythm than Pico's default — thumbs, not mice. */
+  --pico-form-element-spacing-vertical: 0.75rem;
+  --pico-spacing: 1rem;
+  --pico-border-radius: 0.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   Theme tokens
+   Every custom colour is declared once per theme, never inline, so dark mode
+   cannot drift out of sync with light. Follows Pico's own cascade:
+
+     :root                                     light defaults
+     @media (prefers-color-scheme: dark)       system dark, unless pinned light
+     [data-theme="dark"] / [data-theme="light"]  explicit user choice wins
+
+   The explicit selectors come last on purpose — an operator who pins a theme
+   must beat the OS in BOTH directions, not just one.
+   -------------------------------------------------------------------------- */
+
+:root,
+[data-theme="light"] {
+  --field-ok: #0a7d33;
+  --field-ok-bg: #eaf6ee;
+  --field-warn: #a06000;
+  --field-warn-bg: #fdf4e3;
+  --field-error: #c00;
+  --field-error-bg: #fdecec;
+  --field-computed-bg: #eef4fc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* Lifted lightness, lowered saturation: saturated colour on a dark
+       background haloes badly on OLED phones, which is most field hardware. */
+    --field-ok: #5fd08a;
+    --field-ok-bg: #14301f;
+    --field-warn: #e6b357;
+    --field-warn-bg: #33270f;
+    --field-error: #ff8a8a;
+    --field-error-bg: #3a1a1a;
+    --field-computed-bg: #16242f;
+  }
+}
+
+[data-theme="dark"] {
+  --field-ok: #5fd08a;
+  --field-ok-bg: #14301f;
+  --field-warn: #e6b357;
+  --field-warn-bg: #33270f;
+  --field-error: #ff8a8a;
+  --field-error-bg: #3a1a1a;
+  --field-computed-bg: #16242f;
+}
+
+/* --------------------------------------------------------------------------
+   1. Touch targets
+   Apple HIG and Material both put the floor at ~44px; 48px survives gloves
+   and a moving boat/vehicle. Applies to the tap target, not the font.
+   -------------------------------------------------------------------------- */
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+button,
+[role="button"] {
+  min-height: 48px;
+}
+
+input[type="checkbox"] {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* iOS zooms the viewport if an input's font-size is under 16px on focus.
+   That zoom is disorienting one-handed in the field. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+/* --------------------------------------------------------------------------
+   2. Layout
+   -------------------------------------------------------------------------- */
+
+.app-shell {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 4rem;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.app-header h1 {
+  font-size: 1.25rem;
+  margin-bottom: 0;
+}
+
+/* ── Station picker ─────────────────────────────────────────────────────────
+   Option colours are a desktop-only enhancement: iOS ignores them entirely and
+   Android is inconsistent, because the OS draws the option list itself. The
+   <optgroup> headings and the " · under maintenance" / " · closed" suffixes in
+   StationPicker.tsx are what actually carry the status on a phone — these rules
+   only sharpen it where the browser cooperates. Nothing here is load-bearing. */
+.station-select {
+  width: 100%;
+  padding: 0.4rem;
+  font-size: 1rem;
+}
+
+.station-opt-maintenance { color: var(--field-warn); }
+.station-opt-closed      { color: var(--pico-muted-color); }
+
+/* Restated below the collapsed control, where a phone will actually show it. */
+.station-status-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  padding: 0.4rem 0.6rem;
+  border-left: 3px solid currentcolor;
+  border-radius: var(--pico-border-radius);
+}
+
+.station-status-note.is-maintenance {
+  color: var(--field-warn);
+  background: var(--field-warn-bg);
+}
+
+.station-status-note.is-closed {
+  color: var(--pico-muted-color);
+  background: var(--pico-card-sectioning-background-color, transparent);
+}
+
+/* Hint line under the station picker: what the list is showing, and why. */
+.station-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--pico-muted-color);
+}
+
+.station-hint.is-error { color: var(--field-error); }
+
+/* An inline control, not a button-shaped block: it sits mid-sentence in the
+   hint. Padded vertically so the tap target still clears 44px on a phone even
+   though the text is small. */
+.station-toggle {
+  display: inline;
+  width: auto;
+  margin: 0;
+  padding: 0.5rem 0;
+  background: none;
+  border: none;
+  color: var(--pico-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.station-toggle:hover { background: none; }
+
+/* ── Observers ──────────────────────────────────────────────────────────────
+   A scrolling list of checkboxes rather than a <select multiple>: on a phone
+   the native multi-select hides its state behind a picker and offers no hint
+   that more than one choice is allowed. Capped in height so 13 names do not
+   push the rest of the form off the screen, but each row stays a full-width
+   48px target. */
+.observer-field {
+  border: 1px solid var(--pico-form-element-border-color);
+  border-radius: var(--pico-border-radius);
+  padding: 0.5rem 0.75rem 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.observer-field legend {
+  padding: 0 0.35rem;
+  font-size: 0.875rem;
+  color: var(--pico-muted-color);
+}
+
+.observer-list {
+  max-height: 15rem;
+  overflow-y: auto;
+  /* Momentum scrolling inside the box on iOS, so a thumb-flick does not drag
+     the whole page instead. */
+  -webkit-overflow-scrolling: touch;
+}
+
+.observer-row {
+  margin: 0;
+  padding: 0 0.25rem;
+  border-bottom: 1px solid var(--pico-form-element-border-color);
+  cursor: pointer;
+}
+
+.observer-row:last-child { border-bottom: none; }
+
+.observer-role { color: var(--pico-muted-color); }
+
+/* Theme toggle — icon-sized, but still a full 48px tap target. */
+.theme-toggle {
+  --pico-background-color: transparent;
+  --pico-border-color: var(--pico-muted-border-color);
+  --pico-color: var(--pico-muted-color);
+  width: 48px;
+  min-height: 48px;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+/* Segmented view switcher, thumb-reachable. */
+.view-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.view-nav button {
+  margin: 0;
+}
+
+/* Pico's `.secondary` gives the unselected state; `.outline` reads as
+   unselected without vanishing in sunlight. */
+.view-nav button.is-inactive {
+  --pico-background-color: transparent;
+  --pico-color: var(--pico-primary);
+  --pico-border-color: var(--pico-primary);
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 0.75rem;
+}
+
+/* One column below ~26rem — side-by-side time inputs get unusable on a
+   small phone in portrait. */
+@media (max-width: 26rem) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.logsheet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* Pico gives <label> a bottom margin; inside a flex column that doubles up. */
+.logsheet-form label {
+  margin-bottom: 0;
+}
+
+.logsheet-form textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+  /* The whole row is the tap target, not just the 24px box. */
+  min-height: 48px;
+}
+
+.checkbox-row input[type="checkbox"] {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.hint {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.875rem;
+  color: var(--pico-muted-color);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 22rem;
+}
+
+.conn-banner {
+  margin-bottom: 1rem;
+}
+
+/* ── Queue ── */
+
+.queue-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.queue-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--pico-border-radius);
+  border-left: 4px solid var(--field-warn);
+  background: var(--pico-card-background-color, var(--field-computed-bg));
+}
+
+.queue-item.is-synced {
+  border-left-color: var(--field-ok);
+  opacity: 0.7;
+}
+
+/* A record the server refused. Full opacity and the error colour, deliberately
+   louder than a pending record: pending resolves itself, this one will not
+   until someone acts on it. */
+.queue-item.is-error {
+  border-left-color: var(--field-error);
+}
+
+.queue-retry {
+  align-self: flex-start;
+  margin: 0.5rem 0 0;
+  width: auto;
+  /* Field-use minimum: a gloved thumb on a phone in sunlight. */
+  min-height: 48px;
+  padding: 0 1rem;
+  font-size: 0.9375rem;
+}
+
+.queue-station {
+  font-weight: 700;
+  font-family: var(--pico-font-family-monospace, monospace);
+}
+
+.queue-meta {
+  font-size: 0.875rem;
+  color: var(--pico-muted-color);
+}
+
+.queue-synced summary {
+  cursor: pointer;
+  color: var(--pico-muted-color);
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+.app-footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--pico-muted-border-color);
+  text-align: center;
+}
+
+.link-btn {
+  --pico-background-color: transparent;
+  --pico-border-color: transparent;
+  --pico-color: var(--pico-muted-color);
+  width: auto;
+  margin: 0;
+  text-decoration: underline;
+}
+
+.section-header {
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--pico-muted-color);
+}
+
+/* --------------------------------------------------------------------------
+   3. Computed fields — avg slant height and RINEX height (RH)
+   These are derived, not typed, and they are the numbers that silently
+   corrupt the vertical component if wrong. They should look different from
+   an editable field and be legible at arm's length.
+   -------------------------------------------------------------------------- */
+
+input[readonly] {
+  background: var(--field-computed-bg);
+  border-color: transparent;
+  font-family: var(--pico-font-family-monospace, monospace);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: default;
+}
+
+/* --------------------------------------------------------------------------
+   4. Status messaging
+   -------------------------------------------------------------------------- */
+
+.msg {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--pico-border-radius);
+  border-left: 4px solid;
+  font-size: 0.9375rem;
+}
+
+.msg-ok    { border-color: var(--field-ok);     background: var(--field-ok-bg);    color: var(--field-ok); }
+.msg-warn  { border-color: var(--field-warn);   background: var(--field-warn-bg);  color: var(--field-warn); }
+.msg-error { border-color: var(--field-error);  background: var(--field-error-bg); color: var(--field-error); }
+.msg-info  { border-color: var(--pico-primary); background: var(--field-computed-bg); }
+
+.field-error {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--field-error);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   5. Submit — the one control that must never be mis-tapped
+   -------------------------------------------------------------------------- */
+
+.submit-btn {
+  width: 100%;
+  min-height: 56px;
+  margin-top: 1.5rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   6. Sunlight and accessibility
+   Screens wash out badly outdoors. Where the OS reports a contrast
+   preference, honour it rather than guessing.
+   -------------------------------------------------------------------------- */
+
+@media (prefers-contrast: more) {
+  :root {
+    --pico-form-element-border-color: #000;
+    --pico-muted-color: #333;
+  }
+
+  input,
+  select,
+  textarea {
+    border-width: 2px;
+  }
+}
+
+/* Keyboard and switch-control users need a focus ring that survives
+   the high-contrast case above. */
+:focus-visible {
+  outline: 3px solid var(--pico-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

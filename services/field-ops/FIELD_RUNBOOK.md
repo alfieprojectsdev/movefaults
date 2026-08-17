@@ -1,0 +1,109 @@
+# Field Ops runbook — recording a station visit
+
+**Audience:** the observer holding the phone. Provisioning the URL, database and
+photo storage is a different job and lives in `DEPLOY.md`.
+
+A rendered version for sharing with staff is published as an Artifact; this file
+is the source of truth and the two are generated together.
+
+---
+
+## Read this first
+
+**Your sheets live on the phone until they sync.** Clearing browsing data,
+clearing site storage, or uninstalling the app deletes every unsynced sheet *and
+its photo*. There is no copy anywhere else. Do none of those things until the
+Queue screen shows nothing waiting.
+
+---
+
+## 1. Before you leave — at the office, on wifi
+
+The app must be opened once with a working connection. That first load caches
+the app itself and downloads the station and observer lists. Skip it and the app
+will not open at the monument.
+
+- [ ] Open the URL you were sent. **Install it to the home screen** when offered.
+- [ ] Sign in with the account issued to you. One account per person.
+- [ ] Check the **Station** dropdown lists the sites you are actually visiting.
+- [ ] Check your initials appear under **Observers**.
+- [ ] File one throwaway sheet and confirm *"Saved and synced to server."*
+- [ ] Charge the phone.
+
+**Sign in each morning.** A session lasts 8 hours and can expire while you are
+out. Nothing is lost when it does, but the app will ask you to sign in again
+before it can sync.
+
+## 2. At the station — signal or no signal
+
+**Monitoring method** decides the rest of the form: *Campaign GPS* asks for
+antenna model, four slant heights and session times; *Continuous (CORS
+Maintenance)* asks for power and battery.
+
+**Station** is grouped Active / Under maintenance / Decommissioned–archived. All
+are selectable — a station under maintenance is one you were sent to because it
+needs work.
+
+**The photo is not optional.** Submit stays disabled until one is attached. It
+is the only record of what the site looked like and the one thing nobody can
+reconstruct later.
+
+Offline, a yellow banner says sheets are saved on the device. That is normal;
+submitting offline is not a degraded mode.
+
+**If it says there is not enough storage:** nothing was saved — not the sheet,
+not the photo. The form keeps what you typed. Sync pending sheets to free space,
+then submit again before leaving the station.
+
+## 3. When signal comes back
+
+Sync happens by itself the moment the phone has a connection. **Sync now** on
+the Queue screen exists because signal often returns as a brief window.
+
+A sheet is marked synced only once *both* the form and its photo have reached
+the server.
+
+**Before leaving the area, get the Queue to nothing waiting.** A sheet still
+pending when you go back out of coverage stays pending until the next time you
+have signal.
+
+## 4. What the app is telling you
+
+| The app says | What it means | What to do |
+|---|---|---|
+| Saved and synced to server. | Form and photo are on the server. | Nothing. |
+| Saved offline — including the photo. | On the phone, not the server. Normal offline. | Check the Queue when you have signal. |
+| Log saved. Photo queued. | Sheet reached the server; photo held on the phone. | Nothing — photo goes on the next sync. |
+| Log saved on the server — but the photo could not be uploaded or stored. | Sheet is safe. **Photo is not saved anywhere.** Phone is out of space. | Free space, re-attach the photo from the form. Do not leave the site. |
+| The server is not responding. | Connection is up; server did not answer. | Nothing lost. Sync again later. |
+| N sheets were refused by the server. | Something on those sheets is wrong — usually an observer no longer on the staff list. | Reason is printed under each. Correct, then **Try again**. |
+| Not enough device storage. | Nothing was saved. | Sync to free space, submit again. |
+| Please sign in again | The 8-hour session expired. | Sign in; queued sheets sync straight after. |
+
+## 5. Back at the office — same day
+
+- [ ] Confirm the Queue shows **nothing waiting**.
+- [ ] Report anything still *refused* — those need database access.
+- [ ] Only then clear the phone or pass it on.
+
+A phone wiped with sheets still queued loses them permanently, and silently.
+
+## 6. Known gaps — decide before departure
+
+**The station list is continuous CORS only.** All 138 seeded stations are
+continuous. No campaign sites are loaded; if the team is doing campaign
+occupations, those sites must be added first.
+
+**Palawan coverage is thin.** `PLWN` (Brooke's Point) is the only Palawan site
+in PHIVOLCS' own inventory and has no coordinates. `PPPC`, `PNDO` and `PKLY` are
+NAMRIA's, marked as theirs.
+
+**Antenna height arithmetic is unverified.** The campaign form computes RINEX
+height from the four slant heights, with no automated test behind it, and a
+wrong result looks plausible on screen. Until it is tested, **write the four raw
+slant measurements in the paper log as well.**
+
+**Offline launch is untested on a real phone.** Filing and syncing offline are
+verified. Opening the app from the home screen with no signal depends on the
+service worker, which has not been exercised on a handset — test it before
+departure: install, airplane mode, open.

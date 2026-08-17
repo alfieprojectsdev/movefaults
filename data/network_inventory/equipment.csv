@@ -1,0 +1,118 @@
+station_code,date_installed,date_removed,vadase,manufacturer,model,antenna_manufacturer,antenna_model,radome_type,antenna_location,num_channels,power_source,has_internet,has_lightning_rod,housing_notes
+ABUY,,,false,,,Trimble Inc.,TRM41249.00,NONE,Rooftop,,,false,false,within the same building / The floor below the rooftop of a 2 storey building
+ADMA,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+AGUS,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+ALAB,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM57971.00,NONE,Rooftop,440,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+ALBU,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+ALCA,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+ALCO,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 2 storey building
+ANTP,,,false,,,Leica Geosystems AG,LEIAT504,NONE,Rooftop,,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+AROY,,,false,Trimble Inc.,Trimble NetR8,Trimble Inc.,TRM57971.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+ATIM,,,false,Leica Geosystems AG,GRX1200GG,Leica Geosystems AG,AT504GG,NONE,Rooftop,72,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+AURA,,,false,Leica Geosystems AG,GRX1200 Pro,Trimble Inc.,TRM41249.00,NONE,Rooftop,12,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+BACO,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+BALA,,,false,Leica Geosystems AG,GRX1200GG Pro,Trimble Inc.,TRM57971.00,NONE,Rooftop,72,battery backup system,false,false,in a nearby building / The floor below the rooftop of the adjacent building
+BALU,,,false,,,,,,Rooftop,,,false,false,within the same building / The floor below the rooftop of a multi-storey building
+BASC,,,false,Trimble Inc.,Trimble Alloy,Trimble Inc.,TRM11500.00,NONE,Rooftop,672,AC to DC power adapter,true,false,within the same building / The floor below the rooftop of a 2 storey building
+BATO,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+BATU,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+BAYA,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 3 storey building
+BILI,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+BLNA,,,false,Leica Geosystems AG,GRX1200 GNSS,Trimble Inc.,TRM57971.00,NONE,On the ground,12,Solar,false,false,within the same compound / Same floor as the pillar
+BMJR,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+BOAC,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / The floor below the rooftop of a 3 storey building
+BOST,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,false,within the same building / The floor below the rooftop of a 2 storey building
+BRGC,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM57971.00,NONE,Rooftop,440,battery backup system,false,false,in a nearby building / The floor below the adjacent structure
+BSLN,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,false,within the same building / The floor below the rooftop of a multi-storey building
+BTU2,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 2 storey building
+BUG2,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a multi-storey building
+BULA,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM57971.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+BYBY,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+CACA,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM11500.00,NONE,Rooftop,440,battery backup system,false,false,within the same building / The floor below the rooftop of a 4 storey building
+CADZ,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a multi-storey building
+CALU,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+CASI,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 3 storey building
+CATA,,,false,Trimble Inc.,Trimble NetR8,Trimble Inc.,TRM57971.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+CBIM,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 3 storey building
+CDO2,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / Same floor as the rooftop of a multi-storey building
+CEMB,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a multi-storey building
+CLAV,,,false,Trimble Inc.,Trimble Alloy,Trimble Inc.,TRM11500.00,NONE,Rooftop,672,battery backup system,true,false,within the same building / The floor below the rooftop of a 3 storey building
+CMWL,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 4 storey building
+CNTA,,,false,,,,,,Rooftop,,,true,false,within the same building / Below the roof of a 1 storey building.
+DGOS,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 4 storey building
+DIMA,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM57971.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+DLPZ,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a multi-storey building
+DNGT,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 2 storey building
+ELNA,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM57971.00,NONE,Rooftop,440,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+GUES,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 2 storey building
+GUMA,,,false,Leica Geosystems AG,GRX1200GG Pro,Leica Geosystems AG,LEIAT504,NONE,Rooftop,72,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+GUNG,,,false,Leica Geosystems AG,GRX1200+,Leica Geosystems AG,LEIAT504,NONE,Rooftop,12,battery backup system,false,false,in a nearby building / Below the roof of an adjacent 1 storey building.
+HINU,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+IBAZ,,,false,Leica Geosystems AG,GRX1200 Pro,Leica Geosystems AG,LEIAS10,NONE,Rooftop,12,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+INFA,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM57971.00,NONE,Rooftop,440,battery backup system,false,false,within the same building / The floor below the rooftop of a 4 storey building
+INOP,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+ISAB,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+JARO,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+LBAN,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM57971.00,NONE,Rooftop,440,Solar,false,false,within the same compound / Below the roof of a 1 storey building.
+LGYE,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM55971.00,NONE,Rooftop,440,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+LLOR,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / Below the roof of a 1 storey building.
+LLOY,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 2 storey building
+LLPS,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,true,false,within the same building / The floor below the rooftop of a 2 storey building
+LMSA,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / Below the roof of a 1 storey building.
+LORE,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 3 storey building
+MABN,,,false,Leica Geosystems AG,GRX1200GG Pro,Leica Geosystems AG,LEIAS10,NONE,Rooftop,72,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+MAGU,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 3 storey bulding.
+MALY,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM57971.00,NONE,Rooftop,440,AC to DC power adapter,true,false,within the same building / The floor below the rooftop of a 2 storey building
+MAMB,,,false,Trimble Inc.,Trimble NetR8,Trimble Inc.,TRM55971.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+MAR2,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM57971.00,NONE,Rooftop,440,AC to DC power adapter,true,false,within the same building / The floor below the rooftop of a 3 storey building
+MARK,,,false,Leica Geosystems AG,GRX1200+ GNSS,Leica Geosystems AG,LEIAT504,NONE,Rooftop,120,battery backup system,false,false,within the same building / The floor below the rooftop of a 3 storey building
+MASM,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 3 storey building
+MAUB,,,false,Leica Geosystems AG,GRX1200GG Pro,Leica Geosystems AG,LEIAT504,NONE,Rooftop,72,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+MILA,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / Below the roof of a 1 storey building.
+MLBY,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / Same floor as the rooftop of a 3 storey bulding.
+MLPA,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM57971.00,NONE,Rooftop,440,AC to DC power adapter,false,false,within the same building / The ground floor of a multi-storey building
+MLRA,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+MNAY,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,Trimble 5700,NONE,Rooftop,440,battery backup system,true,false,within the same building / The floor below the rooftop of a 2 storey building
+MONT,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / Same floor as the rooftop of a 3 storey bulding.
+MSBT,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a multi-storey building
+MUNZ,,,false,Leica Geosystems AG,GRX1200 Pro,Leica Geosystems AG,LEIAS10,NONE,Rooftop,12,battery backup system,false,false,within the same building / The floor below the rooftop of a 4 storey building
+NAST,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / Below the roof of a 1 storey building.
+NAUJ,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / Below the roof of a 1 storey building.
+NCPC,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / Same floor as the rooftop of a 3 storey bulding.
+ORAS,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM57971.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+ORMO,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+PAGP,,,false,Leica Geosystems AG,GRX1200GG Pro,Leica Geosystems AG,TRM41249.00,NONE,Rooftop,72,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+PALA,,,false,Trimble Inc.,Trimble NetR8,Trimble Inc.,TRM57971.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+PALM,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+PALO,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / The ground floor of a 2 storey building
+PAND,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 5 storey bulding
+PEMB,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / The floor below the rooftop of a 2 storey building
+PIBU,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM55971.00,NONE,Rooftop,440,AC to DC power adapter,true,false,within the same building / The floor below the rooftop of a 2 storey building
+PLAR,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 3 storey building
+PLWN,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,Solar,false,true,within the same building / The floor below the rooftop of a 2 storey building
+PMPL,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / Floor below the rooftop of a 2 storey building
+PNBO,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM57971.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / Floor below the rooftop of a 3 storey building
+POLI,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM57971.00,NONE,Rooftop,440,battery backup system,false,false,within the same building / 2 floors below the rooftop of a 3 storey building
+PRJ4,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / Floor below the rooftop of a 2 storey building
+PTBN,,,false,Leica Geosystems AG,GRX1200+GNSS,Leica Geosystems AG,LEIAS10,NONE,Rooftop,120,battery backup system,false,false,within the same building / Floor below the rooftop of a 3 storey building
+PUER,,,false,Trimble Inc.,Trimble NetR8,Trimble Inc.,TRM39105.00,NONE,Rooftop,24,battery backup system,false,false,in a nearby building / Below the rooftop of a 1 storey building
+RCSS,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM115000.00,NONE,Rooftop,440,battery backup system,true,false,within the same building / Below the rooftop of a 1 storey building
+RGMH,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / Floor below the rooftop of a 2 storey building
+ROXA,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / Floor below the rooftop of a 2 storey building
+SABL,,,false,Trimble Inc.,Trimble NetR8,Trimble Inc.,TRM55971.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / Floor below the rooftop of a 3 storey building
+SAPN,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM57971.00,NONE,Rooftop,440,AC to DC power adapter,false,false,within the same building / Floor below the rooftop of a 3 storey building
+SJDB,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / Floor below the rooftop of a 2 storey building
+SJSE,,,false,PMGNSS International LTD.,PMG2,,,NONE,Rooftop,184,AC to DC power adapter,false,false,within the same building / Floor below the rooftop of a 2 storey building
+SMTC,,,false,Allis Communications,MG700,Allis Communications,W540C,NONE,Rooftop,11,AC to DC power adapter,false,false,within the same building / Floor below the rooftop of a 2 storey building
+SNFO,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM41249.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / Floor below the rooftop of a 3 storey building
+SOGO,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM57971.00,NONE,Rooftop,24,AC to DC power adapter,false,false,within the same building / Floor below the rooftop of a 2 storey building
+SPAB,,,false,Leica Geosystems AG,GRX1200GG Pro,Leica Geosystems AG,LEIAT504,NONE,Rooftop,72,battery backup system,false,false,within the same building / Floor below the rooftop of a 7 storey building
+SPLY,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / Floor below the rooftop of a 3 storey building
+SQJR,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / Same floor as the pillar of the antenna
+STCV,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / Floor below the rooftop of a 3 storey building
+SULT,,,false,Trimble Inc.,Trimble 5700,Trimble Inc.,TRM57971.00,NONE,Rooftop,24,battery backup system,false,false,within the same building / Ground floor of a 2 storey building
+TANY,,,false,Leica Geosystems AG,GRX1200+GNSS,Leica Geosystems AG,LEIAX1202GG,NONE,Rooftop,120,battery backup system,false,false,within the same building / Ground floor of a 2 storey building
+TAW2,,,true,Leica Geosystems AG,Leica GR50,Leica Geosystems AG,Leica AR20,LEIM,Rooftop,555,Solar,true,true,within the same building / The floor below the rooftop of a 2 storey building
+TCDR,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM41249.00,NONE,Rooftop,440,AC to DC power adapter,false,false,within the same building / Ground floor of a 2 storey building
+TCGN,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM29659.00,NONE,Rooftop,440,battery backup system,false,false,within the same building / The floor below the rooftop of a 2 storey building
+TCSS,,,false,Trimble Inc.,Trimble NetR9,Trimble Inc.,TRM41249.00,NONE,Rooftop,440,battery backup system,false,false,in a nearby building / Same floor as the pillar of the antenna

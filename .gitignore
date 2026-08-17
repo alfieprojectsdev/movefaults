@@ -16,6 +16,9 @@ dist/
 htmlcov/
 *.bak
 
+# Node / frontend
+node_modules/
+
 # OS / Editor
 .DS_Store
 .AppleDouble
@@ -74,3 +77,8 @@ scripts/deploy_r740.secrets
 
 # sudo run-script output — the scripts are committed, their logs are not
 scripts/sudo/logs/
+
+# Field account credential lists (INITIALS,surname). Both halves of every
+# login live here — never commit. See scripts/seed_field_accounts.py.
+*surnames*.csv
+*surnames*.txt
