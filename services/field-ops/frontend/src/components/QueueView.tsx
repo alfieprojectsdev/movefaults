@@ -182,7 +182,7 @@ export default function QueueView() {
  * A synced record has had its blobs dropped, so the count comes from
  * `_photosUploaded`, which survives that write for exactly this reason.
  */
-function describePhotos(rec: QueueRecord): string {
+export function describePhotos(rec: QueueRecord): string {
   const held = rec._photos?.length ?? 0;
   const sent = rec._photosUploaded ?? 0;
 
