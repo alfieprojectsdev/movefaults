@@ -153,6 +153,34 @@ textarea {
   background: var(--pico-card-sectioning-background-color, transparent);
 }
 
+/* Hint line under the station picker: what the list is showing, and why. */
+.station-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--pico-muted-color);
+}
+
+.station-hint.is-error { color: var(--field-error); }
+
+/* An inline control, not a button-shaped block: it sits mid-sentence in the
+   hint. Padded vertically so the tap target still clears 44px on a phone even
+   though the text is small. */
+.station-toggle {
+  display: inline;
+  width: auto;
+  margin: 0;
+  padding: 0.5rem 0;
+  background: none;
+  border: none;
+  color: var(--pico-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.station-toggle:hover { background: none; }
+
 /* Theme toggle — icon-sized, but still a full 48px tap target. */
 .theme-toggle {
   --pico-background-color: transparent;
