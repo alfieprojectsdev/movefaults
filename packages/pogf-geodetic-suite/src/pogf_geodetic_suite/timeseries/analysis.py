@@ -292,6 +292,411 @@ def estimate_velocity(
     return VelocityResult(station=station, segments=segments)
 
 
+# ---------------------------------------------------------------------------
+# Joint offset + rate estimation
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class StepEstimate:
+    """One estimated discontinuity: how far the series jumped, and how well known."""
+    date: float                 # decimal year of the event
+    offset_type: OffsetType
+    de_mm: float                # East step amplitude, mm (post minus pre)
+    dn_mm: float
+    du_mm: float
+    sig_de: float               # 1-sigma formal error, mm
+    sig_dn: float
+    sig_du: float
+    n_before: int               # epochs before the step
+    n_after: int                # epochs after it
+    span_before: float          # years of data before, used to judge resolvability
+    span_after: float
+
+    @property
+    def resolvable(self) -> bool:
+        """
+        Whether this step is constrained by enough data on BOTH sides to mean
+        anything. A step at the very end of a record is not measurable no matter
+        what the least squares returns -- the fit will happily report a number
+        with a large sigma, and the number will be read without the sigma.
+        """
+        return (self.n_before >= 3 and self.n_after >= 3
+                and self.span_before > 0.1 and self.span_after > 0.1)
+
+
+@dataclass(frozen=True)
+class RateChange:
+    """
+    How much the secular rate changed at an event — the slope difference, not
+    the slope itself.
+
+    A large earthquake does not only displace a site, it can change how fast
+    the site is moving afterwards. ALBU across the 2017 Ormoc event is the
+    reference case: East goes from roughly -39 to -30 mm/yr and Up from about
+    +9 to +2 mm/yr. Assuming one rate through that is wrong, and assuming a
+    rate change everywhere costs precision where nothing changed — so it is
+    fitted and tested rather than decided in advance.
+    """
+    date: float
+    offset_type: OffsetType
+    dve_mm_yr: float            # change in East rate AFTER this event
+    dvn_mm_yr: float
+    dvu_mm_yr: float
+    sig_dve: float              # 1-sigma formal error, mm/yr
+    sig_dvn: float
+    sig_dvu: float
+
+    def significant(self, n_sigma: float = 3.0) -> tuple[bool, bool, bool]:
+        """Per-component: is the rate change distinguishable from zero?"""
+        return (
+            abs(self.dve_mm_yr) > n_sigma * self.sig_dve,
+            abs(self.dvn_mm_yr) > n_sigma * self.sig_dvn,
+            abs(self.dvu_mm_yr) > n_sigma * self.sig_dvu,
+        )
+
+    def any_significant(self, n_sigma: float = 3.0) -> bool:
+        return any(self.significant(n_sigma))
+
+
+@dataclass(frozen=True)
+class IntervalRate:
+    """The rate actually in force over one interval between events."""
+    t_start: float
+    t_end: float
+    ve_mm_yr: float
+    vn_mm_yr: float
+    vu_mm_yr: float
+
+
+@dataclass(frozen=True)
+class JointVelocityResult:
+    """
+    Joint fit: one baseline rate, a step at each discontinuity, and optionally
+    a rate change at each discontinuity.
+
+    `ve/vn/vu_mm_yr` is the rate over the FIRST interval — the baseline. With
+    `rate_changes=False` it is the rate everywhere. With `rate_changes=True`
+    later intervals differ, and `interval_rates()` is what you want.
+    """
+    station: str
+    ve_mm_yr: float
+    vn_mm_yr: float
+    vu_mm_yr: float
+    sig_ve: float
+    sig_vn: float
+    sig_vu: float
+    steps: list[StepEstimate]
+    n_points: int
+    t_start: float
+    t_end: float
+    rate_changes: list[RateChange] = field(default_factory=list)
+    outlier_epochs: tuple[float, ...] = field(default_factory=tuple)
+
+    # Retained so `rate_sigma_at` can propagate uncertainty properly. The rate
+    # in force after a change is b + Σd_i, and the sigma of a SUM of fitted
+    # parameters is not any one of their sigmas — the parameters are strongly
+    # correlated, because the same epochs constrain all of them. Without the
+    # covariance the only number available is sig_ve, the baseline sigma, which
+    # is the smaller one: reporting it beside a post-change rate understates
+    # the uncertainty rather than advertising it.
+    #
+    # `_rate_cov_unit` is (G'G)^-1 restricted to the slope column and the
+    # slope-change columns, in that order; `_mse` is the per-component residual
+    # variance. Excluded from comparison and repr: they are numerical
+    # bookkeeping, and array equality would make the dataclass's __eq__ raise.
+    _rate_cov_unit: np.ndarray | None = field(
+        default=None, compare=False, repr=False
+    )
+    _mse: np.ndarray | None = field(default=None, compare=False, repr=False)
+
+    @property
+    def unresolvable_steps(self) -> list[StepEstimate]:
+        """Steps the data cannot actually constrain. Report these, never publish."""
+        return [s for s in self.steps if not s.resolvable]
+
+    def interval_rates(self) -> list[IntervalRate]:
+        """
+        The velocity in force over each interval, with rate changes accumulated.
+
+        This is the "velocity before / velocity after" view — what a plot needs
+        to label, and what the segmented fit was reaching for without being able
+        to say whether the difference was real.
+        """
+        bounds = [self.t_start] + [rc.date for rc in self.rate_changes] + [self.t_end]
+        ve, vn, vu = self.ve_mm_yr, self.vn_mm_yr, self.vu_mm_yr
+        out = [IntervalRate(bounds[0], bounds[1], ve, vn, vu)]
+        for i, rc in enumerate(self.rate_changes):
+            ve, vn, vu = ve + rc.dve_mm_yr, vn + rc.dvn_mm_yr, vu + rc.dvu_mm_yr
+            out.append(IntervalRate(rc.date, bounds[i + 2], ve, vn, vu))
+        return out
+
+    def rate_at(self, when: float) -> tuple[float, float, float]:
+        """The ENU rate in force at a given decimal year."""
+        ve, vn, vu = self.ve_mm_yr, self.vn_mm_yr, self.vu_mm_yr
+        for rc in self.rate_changes:
+            if when >= rc.date:
+                ve, vn, vu = ve + rc.dve_mm_yr, vn + rc.dvn_mm_yr, vu + rc.dvu_mm_yr
+        return ve, vn, vu
+
+    def rate_sigma_at(self, when: float) -> tuple[float, float, float]:
+        """
+        The 1-sigma formal error of `rate_at(when)`.
+
+        The rate in force after k changes is b + d_1 + ... + d_k, and those
+        parameters are estimated together from the same epochs, so their errors
+        are correlated — often strongly, since a step and the ramp that follows
+        it compete to explain the same data. Adding their sigmas in quadrature
+        would be wrong, and quoting `sig_ve` alone (the baseline) is wrong in
+        the direction that matters: it is the smallest of the numbers involved,
+        so an error ellipse drawn from it looks tighter than the fit supports.
+
+        Propagated as Var(wᵀθ) = σ² · wᵀ (GᵀG)⁻¹ w, with w selecting the slope
+        and every slope-change in force at `when`.
+
+        Falls back to `sig_ve/sig_vn/sig_vu` when the covariance was not
+        retained (a result built by hand, e.g. in a test) or when no rate change
+        applies — in that case the two are the same quantity anyway.
+        """
+        applicable = [i for i, rc in enumerate(self.rate_changes) if when >= rc.date]
+        if not applicable or self._rate_cov_unit is None or self._mse is None:
+            return self.sig_ve, self.sig_vn, self.sig_vu
+
+        # Column 0 is the slope; columns 1..n are the slope-changes, in the same
+        # order as `rate_changes`.
+        w = np.zeros(self._rate_cov_unit.shape[0])
+        w[0] = 1.0
+        for i in applicable:
+            w[1 + i] = 1.0
+
+        var_unit = float(w @ self._rate_cov_unit @ w)
+        # Guard against a tiny negative from floating-point cancellation.
+        var = np.maximum(var_unit * self._mse, 0.0)
+        sig = np.sqrt(var) * 1000.0            # m/yr → mm/yr
+        return float(sig[0]), float(sig[1]), float(sig[2])
+
+
+def estimate_velocity_joint(
+    t: np.ndarray,
+    enu_m: np.ndarray,
+    *,
+    offsets: list[OffsetEvent] | None = None,
+    outlier_iqr_factor: float = 3.0,
+    station: str = "",
+    exclude_outliers: bool = True,
+    rate_changes: bool = False,
+) -> JointVelocityResult:
+    """
+    Fit one rate across the whole record, with a step parameter per offset.
+
+    WHY THIS EXISTS, AND WHY IT IS NOT THE SAME AS `estimate_velocity`
+    `estimate_velocity` fits every inter-offset segment INDEPENDENTLY, which is
+    what the source MATLAB does. That has two consequences the team has been
+    living with:
+
+      1. The step amplitude is never estimated. It is implicit in the gap
+         between two independent intercepts, so the only way to know "how far
+         did the site jump?" is to eyeball the plot. That is precisely the task
+         PHIVOLCS asked to have automated (2026-08-13).
+
+      2. A segment with few epochs produces a meaningless rate, and nothing
+         stops it being published. ALBU's continuous series, plotted
+         2025-11-11, carries `V=-539 mm/yr` East and `V=-1846 mm/yr` Up because
+         the 2025.7474 Bogo earthquake left a 7-day final segment. The number
+         is the slope of a week of scatter. Six Luzon campaign sites have the
+         same defect (see velocity_outlier_policy_delta.md).
+
+    This function fits the standard GNSS trajectory model instead:
+
+        d(t) = a + b·(t - t0) + Σ c_i · H(t - t_i)
+
+    one intercept, ONE rate `b` shared by the whole record, and one step
+    amplitude `c_i` per event, with `H` the Heaviside step. Both problems go
+    away at once: `c_i` is a fitted parameter with a formal uncertainty, and
+    `b` is constrained by every epoch rather than by whatever happens to follow
+    the last event.
+
+    WHAT THIS ASSUMES, AND WHEN IT IS WRONG
+    A single `b` asserts that the secular rate is unchanged by the events --
+    the site steps and then resumes its previous motion. That is the right
+    default for equipment changes and for most co-seismic offsets, and it is
+    the answer to "do we continue the slope or start a new epoch 0?": the slope
+    continues, and the jump is a separate parameter.
+
+    It is NOT right where a large earthquake genuinely changed the rate, and
+    that is not an edge case. **ALBU is the reference example**: across the 2017
+    Ormoc M6.5 the East rate goes from roughly -39 to -30 mm/yr and Up from
+    about +9 to +2 mm/yr. A single rate through that fits neither interval.
+
+    Pass `rate_changes=True` to add a slope-change term per event:
+
+        + Σ d_i · (t - t_i) · H(t - t_i)
+
+    `d_i` is returned as a `RateChange` with a formal sigma, so "did the rate
+    change?" becomes a test (`RateChange.significant`) rather than an
+    assumption in either direction. `interval_rates()` then gives the velocity
+    actually in force over each interval — the before/after view a plot needs.
+
+    WHY THIS IS NOT ENABLED BY DEFAULT
+    Fitting a rate change at every event costs precision where nothing changed,
+    and most events in the catalog are equipment changes. Turning it on
+    everywhere would inflate the uncertainty of rates that are currently well
+    determined. The intended use is: fit both, and let the significance test
+    decide per site.
+
+    THE CAVEAT THAT MATTERS MOST HERE
+    A changed slope after a large earthquake is usually **post-seismic
+    deformation** — afterslip and viscoelastic relaxation — which decays over
+    months to years. It is not a new secular rate. A straight line through the
+    post-event data is therefore the linear approximation to a decaying
+    transient, and **its value depends on how long after the event you fit**:
+    a window starting at the event averages in the fast early phase, one
+    starting two years later does not. Two analysts fitting the same site over
+    different windows will disagree, and both will be right about their window.
+
+    So `d_i` is the right tool for *detecting* that the rate changed, and the
+    wrong tool for publishing a post-seismic velocity. Exponential and
+    logarithmic transients are not modelled here; a large, significant `d_i`
+    near a major event is a signal to model the transient properly.
+
+    Args:
+        t:                  Decimal years, shape (N,).
+        enu_m:              ENU displacements in metres, shape (N, 3).
+        offsets:            Discontinuities. None or empty → plain linear fit.
+        outlier_iqr_factor: IQR multiplier for outlier detection.
+        station:            Label.
+        exclude_outliers:   Drop flagged epochs from the fit. See module
+                            docstring -- the MATLAB computes them and does not.
+        rate_changes:       Also solve a slope change at each event.
+
+    Returns:
+        JointVelocityResult. Check `.unresolvable_steps` before using any step
+        amplitude: a step at the very edge of a record returns a number the
+        data does not support.
+
+    Raises:
+        ValueError: if fewer epochs remain than free parameters.
+    """
+    t = np.asarray(t, dtype=float)
+    enu_m = np.asarray(enu_m, dtype=float)
+    if t.ndim != 1 or enu_m.shape != (t.size, 3):
+        raise ValueError(f"Station {station!r}: expected t (N,) and enu_m (N, 3).")
+
+    order = np.argsort(t)
+    t, enu_m = t[order], enu_m[order]
+
+    outlier_epochs: tuple[float, ...] = ()
+    if len(t) >= 4:
+        mask = _detect_outliers_iqr(enu_m, outlier_iqr_factor)
+        outlier_epochs = tuple(float(x) for x in t[mask])
+        if exclude_outliers and mask.any() and (~mask).sum() >= 4:
+            t, enu_m = t[~mask], enu_m[~mask]
+
+    # Sorted and de-duplicated: an out-of-order catalog must not be able to
+    # produce a different answer here. See the KNOWN DEFECT note above -- the
+    # MATLAB's segment loop is order-sensitive and ours must not be.
+    events = sorted(offsets or [], key=lambda e: e.date)
+    # One step column per distinct date. Two events on the same day are not two
+    # steps: a step column is `t >= date`, so a duplicate date produces a column
+    # identical to its neighbour, G loses rank, and the station dies with
+    # "design matrix is rank deficient" — a message that points at event spacing
+    # and says nothing about the actual cause. This is not a hypothetical bad
+    # catalog either: an earthquake and an equipment change recorded on the same
+    # day are two legitimate entries describing one discontinuity, and the fit
+    # can only ever resolve one amplitude for them.
+    deduped: list[OffsetEvent] = []
+    for e in events:
+        if not deduped or e.date != deduped[-1].date:
+            deduped.append(e)
+    events = deduped
+    # An event outside the observed span contributes an all-zero or all-one
+    # column, which is either useless or exactly collinear with the intercept.
+    events = [e for e in events if t[0] < e.date <= t[-1]]
+
+    t0 = float(t.mean())  # centring keeps the normal matrix well conditioned
+    cols = [np.ones(t.size), t - t0]
+    for e in events:
+        cols.append((t >= e.date).astype(float))
+    if rate_changes:
+        for e in events:
+            cols.append(np.where(t >= e.date, t - e.date, 0.0))
+    G = np.column_stack(cols)
+
+    n_params = G.shape[1]
+    if t.size <= n_params:
+        raise ValueError(
+            f"Station {station!r}: {t.size} epochs cannot constrain {n_params} "
+            f"parameters ({len(events)} event(s))."
+        )
+
+    model, _, rank, _ = np.linalg.lstsq(G, enu_m, rcond=None)
+    if rank < n_params:
+        raise ValueError(
+            f"Station {station!r}: design matrix is rank deficient "
+            f"({rank} < {n_params}) — events are likely too close to the "
+            f"record edges or to each other to be separable."
+        )
+
+    residual = enu_m - G @ model
+    mse = np.sum(residual ** 2, axis=0) / (t.size - n_params)
+    cov_unit = np.linalg.inv(G.T @ G)          # shared by all three components
+    var_param = np.outer(np.diag(cov_unit), mse)   # (n_params, 3)
+    sig = np.sqrt(var_param)
+
+    rate = model[1, :] * 1000.0                # m/yr → mm/yr
+    sig_rate = sig[1, :] * 1000.0
+
+    steps: list[StepEstimate] = []
+    for i, e in enumerate(events):
+        amp = model[2 + i, :] * 1000.0         # m → mm
+        s = sig[2 + i, :] * 1000.0
+        before, after = t < e.date, t >= e.date
+        steps.append(
+            StepEstimate(
+                date=e.date,
+                offset_type=e.offset_type,
+                de_mm=float(amp[0]), dn_mm=float(amp[1]), du_mm=float(amp[2]),
+                sig_de=float(s[0]), sig_dn=float(s[1]), sig_du=float(s[2]),
+                n_before=int(before.sum()), n_after=int(after.sum()),
+                span_before=float(np.ptp(t[before])) if before.sum() > 1 else 0.0,
+                span_after=float(np.ptp(t[after])) if after.sum() > 1 else 0.0,
+            )
+        )
+
+    changes: list[RateChange] = []
+    if rate_changes:
+        base = 2 + len(events)      # slope-change columns follow the step columns
+        for i, e in enumerate(events):
+            d = model[base + i, :] * 1000.0     # (m/yr) → mm/yr
+            sd = sig[base + i, :] * 1000.0
+            changes.append(
+                RateChange(
+                    date=e.date,
+                    offset_type=e.offset_type,
+                    dve_mm_yr=float(d[0]), dvn_mm_yr=float(d[1]), dvu_mm_yr=float(d[2]),
+                    sig_dve=float(sd[0]), sig_dvn=float(sd[1]), sig_dvu=float(sd[2]),
+                )
+            )
+
+    # The slope column, then the slope-change columns, in `rate_changes` order.
+    rate_idx = [1] + ([2 + len(events) + i for i in range(len(events))]
+                      if rate_changes else [])
+    rate_cov_unit = cov_unit[np.ix_(rate_idx, rate_idx)]
+
+    return JointVelocityResult(
+        station=station,
+        ve_mm_yr=float(rate[0]), vn_mm_yr=float(rate[1]), vu_mm_yr=float(rate[2]),
+        sig_ve=float(sig_rate[0]), sig_vn=float(sig_rate[1]), sig_vu=float(sig_rate[2]),
+        steps=steps,
+        n_points=int(t.size),
+        t_start=float(t[0]), t_end=float(t[-1]),
+        rate_changes=changes,
+        outlier_epochs=outlier_epochs,
+        _rate_cov_unit=rate_cov_unit,
+        _mse=mse,
+    )
+
+
 def parse_offsets_file(path: Path) -> dict[str, list[OffsetEvent]]:
     """
     Parse a PHIVOLCS offsets text file into per-station OffsetEvent lists.
