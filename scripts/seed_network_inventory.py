@@ -78,6 +78,29 @@ def read_csv(name: str) -> list[dict]:
         return list(csv.DictReader(fh))
 
 
+# staff.csv is hand-edited — it is where someone corrects a role — and neither
+# the database nor the app validates this field: there is no CHECK constraint,
+# and the observer picker renders whatever string it is given. So a typo like
+# "data_processer" would be written, shown in the dropdown, and never reported.
+# Checked here because this is the last point that can refuse it.
+VALID_ROLES = {"field_staff", "data_processor", "admin"}
+
+
+def validate_staff(rows: list[dict]) -> None:
+    problems = []
+    for row in rows:
+        role = (row.get("role") or "").strip()
+        if role and role not in VALID_ROLES:
+            problems.append(f"  {row.get('initials', '?')}: unknown role {role!r}")
+    if problems:
+        raise SystemExit(
+            "staff.csv has roles this app does not understand:\n"
+            + "\n".join(problems)
+            + f"\n\nValid roles: {', '.join(sorted(VALID_ROLES))}\n"
+            "Nothing was written — fix the file and re-run."
+        )
+
+
 def nullable(value: str | None):
     """Empty CSV cell -> SQL NULL, so 'unknown' never lands as an empty string."""
     v = (value or "").strip()
@@ -136,6 +159,15 @@ STAFF_SQL = """
 INSERT INTO field_ops.staff (full_name, initials, role, is_active)
 VALUES (%(full_name)s, %(initials)s, %(role)s, %(is_active)s)
 ON CONFLICT DO NOTHING
+"""
+
+STAFF_UPDATE_SQL = """
+UPDATE field_ops.staff
+   SET role = %(role)s, is_active = %(is_active)s, initials = %(initials)s
+ WHERE full_name = %(full_name)s
+   AND (role IS DISTINCT FROM %(role)s
+        OR is_active IS DISTINCT FROM %(is_active)s
+        OR initials IS DISTINCT FROM %(initials)s)
 """
 
 EQUIP_FIND_SQL = """
@@ -249,6 +281,7 @@ def main() -> None:
     stations = read_csv("stations.csv")
     equipment = read_csv("equipment.csv")
     staff = read_csv("staff.csv")
+    validate_staff(staff)
 
     url = database_url()
     # Never print the URL — it carries the password. Host and database only.
@@ -274,22 +307,30 @@ def main() -> None:
             # Staff are matched on full_name so a re-run cannot duplicate them.
             # No ON CONFLICT target exists (the table has no unique constraint
             # on the name), so the check is explicit rather than clever.
+            #
+            # Existing rows are UPDATED, not skipped. staff.csv is hand-edited —
+            # it is where someone corrects a role — and a seeder that only ever
+            # inserts turns that edit into a no-op: the file says one thing, the
+            # database another, and nothing reports the divergence. The columns
+            # rewritten here are all reference data sourced from the CSV.
+            staff_added = staff_changed = 0
             for row in staff:
+                params = {
+                    "full_name": row["full_name"],
+                    "initials": nullable(row["initials"]),
+                    "role": nullable(row["role"]) or "field_staff",
+                    "is_active": as_bool(row["is_active"]) is not False,
+                }
                 cur.execute(
                     "SELECT 1 FROM field_ops.staff WHERE full_name = %s",
                     (row["full_name"],),
                 )
                 if cur.fetchone():
-                    continue
-                cur.execute(
-                    STAFF_SQL,
-                    {
-                        "full_name": row["full_name"],
-                        "initials": nullable(row["initials"]),
-                        "role": nullable(row["role"]) or "field_staff",
-                        "is_active": as_bool(row["is_active"]) is not False,
-                    },
-                )
+                    cur.execute(STAFF_UPDATE_SQL, params)
+                    staff_changed += cur.rowcount
+                else:
+                    cur.execute(STAFF_SQL, params)
+                    staff_added += 1
 
             for row in stations:
                 cur.execute(STATION_SQL, station_params(row))
@@ -322,7 +363,10 @@ def main() -> None:
 
             print(f"equipment: {before_eq} -> {before_eq + inserted} "
                   f"({inserted} inserted, {updated} updated)")
-            print(f"staff:     {before_staff} -> {after_staff}")
+            print(
+                f"staff:     {before_staff} -> {after_staff} "
+                f"({staff_added} added, {staff_changed} updated)"
+            )
 
             if args.dry_run:
                 conn.rollback()
