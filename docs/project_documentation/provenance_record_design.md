@@ -236,7 +236,11 @@ segmented velocity fit accommodates it, the residuals look fine, and nothing
 downstream complains. The velocity delta analysis
 (`velocity_outlier_policy_delta.md`) shows the neighbouring hazard is already
 real — a catalog edit on 2026-07-29 silently changed five sites' published
-velocities and corrupted two of them outright.
+velocities and corrupted two of them outright. (That count comes from the
+reference comparison in that document, whose tolerance was subsequently
+tightened to the reference file's actual precision; the count is expected to
+grow when it is regenerated. The corrupted two, BR14 and LUZD, are a separate
+finding and are unaffected.)
 
 **Two mitigations, both cheap:**
 
