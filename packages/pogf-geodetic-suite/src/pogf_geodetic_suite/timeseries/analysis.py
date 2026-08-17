@@ -377,6 +377,23 @@ class JointVelocityResult:
     rate_changes: list[RateChange] = field(default_factory=list)
     outlier_epochs: tuple[float, ...] = field(default_factory=tuple)
 
+    # Retained so `rate_sigma_at` can propagate uncertainty properly. The rate
+    # in force after a change is b + Σd_i, and the sigma of a SUM of fitted
+    # parameters is not any one of their sigmas — the parameters are strongly
+    # correlated, because the same epochs constrain all of them. Without the
+    # covariance the only number available is sig_ve, the baseline sigma, which
+    # is the smaller one: reporting it beside a post-change rate understates
+    # the uncertainty rather than advertising it.
+    #
+    # `_rate_cov_unit` is (G'G)^-1 restricted to the slope column and the
+    # slope-change columns, in that order; `_mse` is the per-component residual
+    # variance. Excluded from comparison and repr: they are numerical
+    # bookkeeping, and array equality would make the dataclass's __eq__ raise.
+    _rate_cov_unit: np.ndarray | None = field(
+        default=None, compare=False, repr=False
+    )
+    _mse: np.ndarray | None = field(default=None, compare=False, repr=False)
+
     @property
     def unresolvable_steps(self) -> list[StepEstimate]:
         """Steps the data cannot actually constrain. Report these, never publish."""
@@ -405,6 +422,42 @@ class JointVelocityResult:
             if when >= rc.date:
                 ve, vn, vu = ve + rc.dve_mm_yr, vn + rc.dvn_mm_yr, vu + rc.dvu_mm_yr
         return ve, vn, vu
+
+    def rate_sigma_at(self, when: float) -> tuple[float, float, float]:
+        """
+        The 1-sigma formal error of `rate_at(when)`.
+
+        The rate in force after k changes is b + d_1 + ... + d_k, and those
+        parameters are estimated together from the same epochs, so their errors
+        are correlated — often strongly, since a step and the ramp that follows
+        it compete to explain the same data. Adding their sigmas in quadrature
+        would be wrong, and quoting `sig_ve` alone (the baseline) is wrong in
+        the direction that matters: it is the smallest of the numbers involved,
+        so an error ellipse drawn from it looks tighter than the fit supports.
+
+        Propagated as Var(wᵀθ) = σ² · wᵀ (GᵀG)⁻¹ w, with w selecting the slope
+        and every slope-change in force at `when`.
+
+        Falls back to `sig_ve/sig_vn/sig_vu` when the covariance was not
+        retained (a result built by hand, e.g. in a test) or when no rate change
+        applies — in that case the two are the same quantity anyway.
+        """
+        applicable = [i for i, rc in enumerate(self.rate_changes) if when >= rc.date]
+        if not applicable or self._rate_cov_unit is None or self._mse is None:
+            return self.sig_ve, self.sig_vn, self.sig_vu
+
+        # Column 0 is the slope; columns 1..n are the slope-changes, in the same
+        # order as `rate_changes`.
+        w = np.zeros(self._rate_cov_unit.shape[0])
+        w[0] = 1.0
+        for i in applicable:
+            w[1 + i] = 1.0
+
+        var_unit = float(w @ self._rate_cov_unit @ w)
+        # Guard against a tiny negative from floating-point cancellation.
+        var = np.maximum(var_unit * self._mse, 0.0)
+        sig = np.sqrt(var) * 1000.0            # m/yr → mm/yr
+        return float(sig[0]), float(sig[1]), float(sig[2])
 
 
 def estimate_velocity_joint(
@@ -609,6 +662,11 @@ def estimate_velocity_joint(
                 )
             )
 
+    # The slope column, then the slope-change columns, in `rate_changes` order.
+    rate_idx = [1] + ([2 + len(events) + i for i in range(len(events))]
+                      if rate_changes else [])
+    rate_cov_unit = cov_unit[np.ix_(rate_idx, rate_idx)]
+
     return JointVelocityResult(
         station=station,
         ve_mm_yr=float(rate[0]), vn_mm_yr=float(rate[1]), vu_mm_yr=float(rate[2]),
@@ -618,6 +676,8 @@ def estimate_velocity_joint(
         t_start=float(t[0]), t_end=float(t[-1]),
         rate_changes=changes,
         outlier_epochs=outlier_epochs,
+        _rate_cov_unit=rate_cov_unit,
+        _mse=mse,
     )
 
 

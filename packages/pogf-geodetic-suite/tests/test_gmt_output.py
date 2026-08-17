@@ -294,3 +294,31 @@ def test_short_final_interval_does_not_flag_an_unrecorded_span():
 
     bare = VelocityVector("ANQ0", 121.05, 14.65, -74.5, 38.7, 0.9, 1.4)
     assert short_final_interval([bare]) == {}
+
+
+def test_vector_carries_the_sigma_of_the_rate_it_publishes():
+    # to_vectors publishes rate_at(t_end); the sigma beside it must be the sigma
+    # OF THAT RATE. Pairing it with the baseline sigma is what draws an error
+    # ellipse tighter than the fit supports — for a rate change six months
+    # before the end of a ten-year record, roughly eighty times too tight.
+    ev_date = 2024.5
+    t = np.linspace(2015.0, 2025.0, 600)
+    ramp = np.where(t >= ev_date, t - ev_date, 0.0)
+    rng = np.random.default_rng(1)
+    enu = (np.outer(t - t[0], np.array([-0.035, 0.010, 0.002]))
+           + np.outer(ramp, np.array([0.010, -0.004, 0.001]))
+           + np.outer((t >= ev_date).astype(float), np.array([0.02, -0.01, 0.005]))
+           + rng.normal(0, 0.004, (t.size, 3)))
+
+    r = estimate_velocity_joint(
+        t, enu, offsets=[OffsetEvent(date=ev_date, offset_type=OffsetType.EQ)],
+        station="ANQ0", rate_changes=True, exclude_outliers=False,
+    )
+    vectors, _ = to_vectors([r], POSITIONS)
+    v = vectors[0]
+
+    expected = r.rate_sigma_at(r.t_end)
+    assert v.sig_ve == pytest.approx(expected[0])
+    assert v.sig_vn == pytest.approx(expected[1])
+    # And it is emphatically not the baseline.
+    assert v.sig_ve > 10 * r.sig_ve

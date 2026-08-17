@@ -292,3 +292,94 @@ def test_distinct_nearby_dates_are_still_two_steps():
     ]
     r = estimate_velocity_joint(t, enu, offsets=events, station="TWO")
     assert len(r.steps) == 2
+
+
+# ── The sigma that goes on the map ───────────────────────────────────────────
+#
+# `rate_at(t_end)` returns b + Σd_i. Those parameters are fitted together from
+# the same epochs, so their errors are correlated and the sigma of the sum is
+# not sig_ve. Quoting sig_ve beside a changed rate is wrong in the worst
+# direction: it is the SMALLEST number available, so the error ellipse drawn
+# from it looks tighter than the fit supports. Measured against Monte Carlo, a
+# rate change six months before the end of a ten-year record understates the
+# published sigma by a factor of about 80.
+
+def _late_change_series(ev_date: float, seed: int = 1):
+    t = np.linspace(2015.0, 2025.0, 600)
+    ramp = np.where(t >= ev_date, t - ev_date, 0.0)
+    rng = np.random.default_rng(seed)
+    enu = (np.outer(t - t[0], RATE_M_YR)
+           + np.outer(ramp, np.array([0.010, -0.004, 0.001]))
+           + np.outer((t >= ev_date).astype(float), np.array([0.02, -0.01, 0.005]))
+           + rng.normal(0, 0.004, (t.size, 3)))
+    return t, enu
+
+
+def test_rate_sigma_at_is_the_sigma_of_the_rate_in_force():
+    t, enu = _late_change_series(2024.5)
+    ev = [OffsetEvent(date=2024.5, offset_type=OffsetType.EQ)]
+    r = estimate_velocity_joint(t, enu, offsets=ev, station="LATE",
+                                rate_changes=True, exclude_outliers=False)
+
+    published = r.rate_sigma_at(r.t_end)
+
+    # An order of magnitude is the point; the exact factor depends on the noise
+    # draw. Before this existed, sig_ve went on the map unchanged.
+    assert published[0] > 10 * r.sig_ve
+    assert published[1] > 10 * r.sig_vn
+    assert published[2] > 10 * r.sig_vu
+
+
+def test_rate_sigma_matches_direct_covariance_propagation():
+    # Var(b + d) = Var(b) + 2Cov(b, d) + Var(d), recomputed here from the design
+    # matrix rather than trusting the stored sub-covariance.
+    t, enu = _late_change_series(2024.0)
+    ev_date = 2024.0
+    ev = [OffsetEvent(date=ev_date, offset_type=OffsetType.EQ)]
+    r = estimate_velocity_joint(t, enu, offsets=ev, station="LATE",
+                                rate_changes=True, exclude_outliers=False)
+
+    t0 = float(t.mean())
+    G = np.column_stack([
+        np.ones(t.size), t - t0,
+        (t >= ev_date).astype(float),
+        np.where(t >= ev_date, t - ev_date, 0.0),
+    ])
+    model, _, _, _ = np.linalg.lstsq(G, enu, rcond=None)
+    mse = np.sum((enu - G @ model) ** 2, axis=0) / (t.size - G.shape[1])
+    cov = np.linalg.inv(G.T @ G)
+    w = np.array([0.0, 1.0, 0.0, 1.0])          # slope + slope-change
+    expected = np.sqrt(float(w @ cov @ w) * mse) * 1000.0
+
+    assert r.rate_sigma_at(r.t_end) == pytest.approx(tuple(expected), rel=1e-9)
+
+
+def test_rate_sigma_equals_the_baseline_when_no_change_applies():
+    # Before the first rate change — and whenever rate_changes is off — the rate
+    # in force IS the baseline, so the two sigmas are the same quantity.
+    t, enu = _late_change_series(2024.0)
+    ev = [OffsetEvent(date=2024.0, offset_type=OffsetType.EQ)]
+
+    r = estimate_velocity_joint(t, enu, offsets=ev, station="LATE",
+                                rate_changes=True, exclude_outliers=False)
+    assert r.rate_sigma_at(2016.0) == (r.sig_ve, r.sig_vn, r.sig_vu)
+
+    plain = estimate_velocity_joint(t, enu, offsets=ev, station="LATE",
+                                    rate_changes=False, exclude_outliers=False)
+    assert plain.rate_sigma_at(plain.t_end) == (
+        plain.sig_ve, plain.sig_vn, plain.sig_vu)
+
+
+def test_rate_sigma_falls_back_when_the_covariance_was_not_retained():
+    # A result built by hand (a test fixture, a deserialised record) has no
+    # covariance. Returning the baseline is the honest fallback; raising would
+    # make hand-built results unusable.
+    from dataclasses import replace
+
+    t, enu = _late_change_series(2024.0)
+    ev = [OffsetEvent(date=2024.0, offset_type=OffsetType.EQ)]
+    r = estimate_velocity_joint(t, enu, offsets=ev, station="LATE",
+                                rate_changes=True, exclude_outliers=False)
+    bare = replace(r, _rate_cov_unit=None, _mse=None)
+
+    assert bare.rate_sigma_at(bare.t_end) == (bare.sig_ve, bare.sig_vn, bare.sig_vu)

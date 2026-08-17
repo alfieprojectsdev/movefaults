@@ -162,7 +162,11 @@ def to_vectors(
 
         if isinstance(r, JointVelocityResult):
             ve, vn, vu = r.rate_at(r.t_end)
-            sig_ve, sig_vn, sig_vu = r.sig_ve, r.sig_vn, r.sig_vu
+            # The sigma OF THAT RATE, not the baseline's. Where a rate change is
+            # in force the two differ, and the baseline is the smaller — pairing
+            # it with the changed rate draws an error ellipse tighter than the
+            # fit supports.
+            sig_ve, sig_vn, sig_vu = r.rate_sigma_at(r.t_end)
             # The rate in force at t_end was fitted from the last rate change
             # onwards, not from the start of the record.
             span = r.t_end - (r.rate_changes[-1].date if r.rate_changes
