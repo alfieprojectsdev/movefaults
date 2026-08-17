@@ -32,6 +32,12 @@ import StationPicker from "./StationPicker";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { groupByRole } from "../utils/roles";
 import {
+  localTimeToISO,
+  utcFieldToISO,
+  nowLocalHHMM,
+  nowUTCFieldValue,
+} from "../utils/times";
+import {
   submitLogSheet,
   uploadLogSheetPhoto,
   fetchStaff,
@@ -125,12 +131,18 @@ export default function LogSheetForm() {
     register,
     handleSubmit,
     setValue,
+    getValues,
     watch,
     reset,
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
       equipment_status: "ok",
+      // Prefilled with the moment the form was opened, which for a sheet
+      // started on arrival is the arrival time. Editable, because the form is
+      // sometimes opened later — but a sensible value beats an empty box that
+      // has to be typed on a phone in the rain.
+      arrival_time: nowLocalHHMM(),
       visit_date: new Date().toISOString().split("T")[0],
       monitoring_method: "",
       observer_ids: [],
@@ -185,6 +197,15 @@ export default function LogSheetForm() {
     if (method === "campaign") {
       setValue("power_notes", "");
       setValue("battery_voltage_v", "");
+      // Session start defaults to now, in UTC — the field is UTC by GNSS
+      // convention and by its own label, so filling it from the local clock
+      // would be eight hours out in the Philippines and look entirely
+      // plausible on screen. Only set when empty, so re-selecting the method
+      // does not overwrite a time the operator has already corrected.
+      // getValues, not watch: this reads the current value once inside the
+      // effect rather than subscribing to it, which would re-run the effect on
+      // every keystroke in the field it is trying to fill.
+      if (!getValues("utc_start")) setValue("utc_start", nowUTCFieldValue());
     } else if (method === "continuous") {
       setValue("antenna_model", "");
       setValue("slant_n_m", "");
@@ -197,7 +218,7 @@ export default function LogSheetForm() {
       setValue("bubble_centred", true);
       setValue("plumbing_offset_mm", "");
     }
-  }, [method, setValue]);
+  }, [method, setValue, getValues]);
 
   // ── Live antenna height computation ───────────────────────────────────────
 
@@ -223,7 +244,7 @@ export default function LogSheetForm() {
   // ── Photo checks ───────────────────────────────────────────────────────────
 
   const hasPhoto = photoFiles !== null && photoFiles !== undefined && photoFiles.length > 0;
-  const photoFilename = hasPhoto ? photoFiles[0].name : null;
+  const photoCount = hasPhoto ? photoFiles.length : 0;
 
   // ── Submit ─────────────────────────────────────────────────────────────────
 
@@ -236,8 +257,12 @@ export default function LogSheetForm() {
       station_code: values.station_code,
       monitoring_method: values.monitoring_method || undefined,
       visit_date: values.visit_date,
-      arrival_time: values.arrival_time || undefined,
-      departure_time: values.departure_time || undefined,
+      // Combined with the visit date and sent as an explicit instant. A bare
+      // "14:30" is not a datetime and was rejected with 422 by every sheet
+      // that carried one; a naive datetime would be stored as UTC and read
+      // back eight hours wrong.
+      arrival_time: localTimeToISO(values.visit_date, values.arrival_time),
+      departure_time: localTimeToISO(values.visit_date, values.departure_time),
       weather_conditions: values.weather_conditions || undefined,
       equipment_status: values.equipment_status || undefined,
       notes: values.notes || undefined,
@@ -260,21 +285,22 @@ export default function LogSheetForm() {
       record.avg_slant_m = avgSH;
       record.rinex_height_m = rhValue;
       record.session_id = values.session_id || undefined;
-      record.utc_start = values.utc_start || undefined;
-      record.utc_end = values.utc_end || undefined;
+      record.utc_start = utcFieldToISO(values.utc_start);
+      record.utc_end = utcFieldToISO(values.utc_end);
       record.bubble_centred = values.bubble_centred;
       record.plumbing_offset_mm = values.plumbing_offset_mm
         ? parseFloat(values.plumbing_offset_mm)
         : undefined;
     }
 
-    // The photo is queued WITH the record. Before this it was dropped on the
-    // offline path while the UI still reported a successful save.
-    const photo = hasPhoto && photoFiles !== null ? photoFiles[0] : undefined;
+    // Every selected photo is queued WITH the record. Before this it was
+    // dropped on the offline path while the UI still reported a successful save.
+    const photos: File[] =
+      photoFiles && photoFiles.length > 0 ? Array.from(photoFiles) : [];
 
     if (!navigator.onLine) {
       try {
-        await addToQueue(record, photo);
+        await addToQueue(record, photos);
         setSubmitState("queued");
         reset();
       } catch (err) {
@@ -289,19 +315,24 @@ export default function LogSheetForm() {
     try {
       const created = await submitLogSheet(record);
 
-      // Upload photo as a separate request after logsheet is created
-      if (photo) {
+      // Photos go up one at a time after the logsheet exists, because each is
+      // a separate request keyed to the returned server id.
+      if (photos.length > 0) {
         try {
-          await uploadLogSheetPhoto(created.id, photo);
+          for (const p of photos) await uploadLogSheetPhoto(created.id, p);
         } catch {
           // Logsheet is on the server but the photo is not. Queue the photo
           // rather than asking the operator to remember to re-attach it later:
           // by then they have left the site. _photoUploaded stays false, so the
           // next flush re-POSTs the (idempotent) logsheet and retries the photo.
           try {
-            await addToQueue(record, photo);
+            await addToQueue(record, photos);
             setSubmitState("queued");
-            setErrorMsg("Log saved. Photo queued — it will upload on the next sync.");
+            setErrorMsg(
+              photos.length === 1
+                ? "Log saved. Photo queued — it will upload on the next sync."
+                : `Log saved. ${photos.length} photos queued — they will upload on the next sync.`
+            );
             reset();
           } catch (queueErr) {
             // Device storage is full, so the photo cannot be held either. This
@@ -330,7 +361,7 @@ export default function LogSheetForm() {
     } catch (err) {
       // Network error mid-submit — queue both halves as the fallback.
       try {
-        await addToQueue(record, photo);
+        await addToQueue(record, photos);
         setSubmitState("queued");
         reset();
       } catch (queueErr) {
@@ -394,8 +425,15 @@ export default function LogSheetForm() {
 
       <div className="form-grid-2">
         <label>
-          Arrival time
-          <input type="time" {...register("arrival_time")} style={inputStyle} />
+          Arrival time *
+          <input
+            type="time"
+            {...register("arrival_time", { required: "Arrival time is required" })}
+            style={inputStyle}
+          />
+          {errors.arrival_time && (
+            <small className="field-error">{errors.arrival_time.message}</small>
+          )}
         </label>
         <label>
           Departure time
@@ -652,8 +690,15 @@ export default function LogSheetForm() {
             className="form-grid-2"
           >
             <label>
-              UTC start
-              <input type="datetime-local" {...register("utc_start")} style={inputStyle} />
+              UTC start *
+              <input
+                type="datetime-local"
+                {...register("utc_start", { required: "UTC start is required" })}
+                style={inputStyle}
+              />
+              {errors.utc_start && (
+                <small className="field-error">{errors.utc_start.message}</small>
+              )}
             </label>
             <label>
               UTC end
@@ -685,18 +730,28 @@ export default function LogSheetForm() {
 
       <label>
         Photo *
+        {/* No `capture` attribute. With it, Android and iOS open the camera
+            directly and remove the option to choose an existing file — so a
+            photo already taken with the phone's own camera app, or one shot
+            before the sheet was started, could not be attached at all.
+            Without it the OS offers camera and library both.
+
+            `multiple` because a station visit routinely warrants several
+            frames: the antenna, the receiver, the power setup, the damage
+            being reported. One photo per sheet forced a choice between them. */}
         <input
           type="file"
           accept="image/*"
-          capture="environment"
+          multiple
           {...register("photo")}
-          
         />
       </label>
 
-      {hasPhoto && photoFilename && (
+      {hasPhoto && (
         <p className="msg msg-info">
-          Photo selected: {photoFilename}
+          {photoCount === 1
+            ? `1 photo selected: ${photoFiles![0].name}`
+            : `${photoCount} photos selected`}
         </p>
       )}
 

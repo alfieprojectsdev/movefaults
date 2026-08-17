@@ -51,10 +51,30 @@ import {
 export interface QueueRecord extends LogSheetIn {
   _status: "pending" | "synced" | "error";
   _error?: string;
-  /** Photo bytes, held until the record syncs. Absent for online submissions. */
+  /**
+   * Photo bytes, held until the record syncs. Absent for online submissions.
+   *
+   * `_photo`/`_photoName` are the single-photo shape used before batch capture
+   * existed. Records queued under it may still be sitting on a device, so they
+   * are read on flush and never rewritten — a migration that touched them would
+   * risk the one thing this store exists to protect.
+   */
   _photo?: Blob;
   _photoName?: string;
-  /** Set once the photo has reached the server. Guards against re-upload. */
+  /** Batch shape: several photos for one station visit, in capture order. */
+  _photos?: Blob[];
+  _photoNames?: string[];
+  /**
+   * How many of `_photos` have reached the server, counted from the start.
+   *
+   * A count rather than a flag because a batch can be interrupted halfway on a
+   * weak link. Order is stable, so uploading resumes from this index instead of
+   * re-sending photos that already landed — the server would dedupe them by
+   * content hash, but only after the bytes had crossed the connection, which is
+   * the expensive part in the field.
+   */
+  _photosUploaded?: number;
+  /** Legacy single-photo flag. */
   _photoUploaded?: boolean;
   /** Local timestamp, so the queue view can show age without a server call. */
   _queuedAt?: string;
@@ -71,11 +91,48 @@ interface FieldOpsDB extends DBSchema {
 const DB_NAME = "field-ops";
 const DB_VERSION = 2; // v1 → v2 adds _photo / _photoUploaded
 
+/**
+ * Nothing in this module may hang forever.
+ *
+ * IndexedDB has two ways to stall with no error at all: an upgrade blocked by
+ * another open tab never fires success, and on a phone under memory pressure a
+ * multi-megabyte blob write can simply never settle. Both leave the submit
+ * button reading "Saving…" until the app is killed — which is what an observer
+ * at a monument actually saw, with the sheet nowhere and the form still full.
+ *
+ * A rejection is recoverable: the form keeps its values, the message says what
+ * happened, and the operator can retry. A hang is not recoverable by anyone.
+ */
+export class QueueTimeoutError extends Error {
+  constructor(what: string, ms: number) {
+    super(
+      `${what} did not finish within ${Math.round(ms / 1000)}s. ` +
+        `This usually means the phone is low on memory. Nothing was saved — ` +
+        `close other apps and try again; your entries are still on the form.`
+    );
+    this.name = "QueueTimeoutError";
+  }
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new QueueTimeoutError(what, ms)), ms)
+    ),
+  ]);
+}
+
+// Opening is fast when it works; when it is blocked it never returns at all.
+const DB_OPEN_TIMEOUT_MS = 10_000;
+// A write carries the photo, so it is allowed longer — but not forever.
+const DB_WRITE_TIMEOUT_MS = 30_000;
+
 let dbInstance: IDBPDatabase<FieldOpsDB> | null = null;
 
 async function getDb(): Promise<IDBPDatabase<FieldOpsDB>> {
   if (!dbInstance) {
-    dbInstance = await openDB<FieldOpsDB>(DB_NAME, DB_VERSION, {
+    const opening = openDB<FieldOpsDB>(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion) {
         // v1 records are still valid — the new fields are optional, so the
         // store is carried forward rather than recreated. Destroying it would
@@ -103,6 +160,15 @@ async function getDb(): Promise<IDBPDatabase<FieldOpsDB>> {
         dbInstance = null;
       },
     });
+
+    try {
+      dbInstance = await withTimeout(opening, DB_OPEN_TIMEOUT_MS, "Opening local storage");
+    } catch (err) {
+      // Do not cache a failed open — the next attempt must be able to succeed
+      // once the blocking tab is closed or memory is freed.
+      dbInstance = null;
+      throw err;
+    }
   }
   return dbInstance;
 }
@@ -145,7 +211,20 @@ export async function storageHeadroom(): Promise<{
   remaining: number;
 } | null> {
   if (!navigator.storage?.estimate) return null;
-  const { usage = 0, quota = 0 } = await navigator.storage.estimate();
+  // estimate() is normally instant, but has been observed to stall on phones
+  // under memory pressure. It is only advisory here, so a slow answer is worth
+  // less than a fast "unknown" — never let it delay the save it precedes.
+  let usage = 0;
+  let quota = 0;
+  try {
+    ({ usage = 0, quota = 0 } = await withTimeout(
+      navigator.storage.estimate(),
+      3_000,
+      "Checking device storage"
+    ));
+  } catch {
+    return null;
+  }
   // A zero quota means the browser declined to report one, not that the device
   // is full. Treating it as "no space" would make the guard reject every photo
   // on such a device — blocking the mandatory-photo path entirely, which is a
@@ -165,17 +244,20 @@ async function refreshCount(): Promise<QueueRecord[]> {
   return pending;
 }
 
-async function addToQueue(record: LogSheetIn, photo?: File): Promise<void> {
+async function addToQueue(record: LogSheetIn, photos: File[] = []): Promise<void> {
   const db = await getDb();
 
-  if (photo) {
+  if (photos.length > 0) {
+    const total = photos.reduce((sum, f) => sum + f.size, 0);
     const headroom = await storageHeadroom();
-    // Require the photo to fit with room to spare — a queue that fills the
+    // Require the batch to fit with room to spare — a queue that fills the
     // quota exactly leaves no space for the next station's sheet.
-    if (headroom && headroom.remaining < photo.size * 2) {
+    if (headroom && headroom.remaining < total * 2) {
       throw new QueueStorageError(
-        `Not enough device storage to queue this photo ` +
-          `(${(headroom.remaining / 1048576).toFixed(0)} MB free). ` +
+        `Not enough device storage for ${photos.length} photo` +
+          `${photos.length === 1 ? "" : "s"} ` +
+          `(${(total / 1048576).toFixed(0)} MB needed, ` +
+          `${(headroom.remaining / 1048576).toFixed(0)} MB free). ` +
           `Sync pending records, or free space, before continuing.`
       );
     }
@@ -185,10 +267,16 @@ async function addToQueue(record: LogSheetIn, photo?: File): Promise<void> {
     ...record,
     _status: "pending",
     _queuedAt: new Date().toISOString(),
-    ...(photo ? { _photo: photo, _photoName: photo.name } : {}),
+    ...(photos.length > 0
+      ? { _photos: photos, _photoNames: photos.map((f) => f.name), _photosUploaded: 0 }
+      : {}),
   };
 
-  await db.put("logsheet_queue", entry);
+  await withTimeout(
+    db.put("logsheet_queue", entry),
+    DB_WRITE_TIMEOUT_MS,
+    "Saving to this device"
+  );
   await refreshCount();
 }
 
@@ -271,13 +359,13 @@ async function runFlush(): Promise<FlushResult> {
     const fresh = (await db.get("logsheet_queue", String(rec.client_uuid))) ?? rec;
     if (fresh._status === "synced") continue;
 
+    // Legacy single-photo records, queued before batch capture existed.
     if (fresh._photo && !fresh._photoUploaded) {
       try {
         const file = new File([fresh._photo], fresh._photoName ?? "photo.jpg", {
           type: fresh._photo.type || "image/jpeg",
         });
         await uploadLogSheetPhoto(serverId, file);
-
         // Persist the flag BEFORE marking synced. If the tab closes here, the
         // next flush re-POSTs the logsheet (idempotent) and skips the photo.
         await db.put("logsheet_queue", { ...fresh, _photoUploaded: true });
@@ -287,6 +375,39 @@ async function runFlush(): Promise<FlushResult> {
         console.warn(`Photo upload failed for ${fresh.client_uuid}:`, err);
         continue;
       }
+    }
+
+    // Batch: upload from where the last attempt stopped.
+    if (fresh._photos && fresh._photos.length > 0) {
+      let uploaded = fresh._photosUploaded ?? 0;
+      let stalled = false;
+
+      for (let i = uploaded; i < fresh._photos.length; i++) {
+        try {
+          const blob = fresh._photos[i];
+          const file = new File([blob], fresh._photoNames?.[i] ?? `photo-${i + 1}.jpg`, {
+            type: blob.type || "image/jpeg",
+          });
+          await uploadLogSheetPhoto(serverId, file);
+          uploaded = i + 1;
+          // Persisted after every single photo, not once at the end of the
+          // batch. On a link that drops mid-upload, the difference is between
+          // resuming at photo 4 and re-sending all six.
+          await db.put("logsheet_queue", { ...fresh, _photosUploaded: uploaded });
+        } catch (err) {
+          console.warn(
+            `Photo ${i + 1}/${fresh._photos.length} failed for ${fresh.client_uuid}:`,
+            err
+          );
+          stalled = true;
+          break;
+        }
+      }
+
+      // Any photo still unsent means the record stays pending. The sheet is
+      // already safe on the server; the photos are the part that is not.
+      if (stalled) continue;
+      fresh._photosUploaded = uploaded;
     }
 
     // Both halves are on the server. Drop the blob to reclaim device storage;
@@ -302,7 +423,10 @@ async function runFlush(): Promise<FlushResult> {
       ...fresh,
       ...(fresh._photo || fresh._photoUploaded ? { _photoUploaded: true } : {}),
       _status: "synced",
+      // Blobs are dropped only now, with everything confirmed on the server.
+      // Keeping them would fill the device quota with data that is already safe.
       _photo: undefined,
+      _photos: undefined,
     });
     synced += 1;
   }
