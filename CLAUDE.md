@@ -66,6 +66,8 @@ packages/                      # Shared libraries
   CORS-dashboard/              #   Legacy React/GraphQL dashboard (forensic reference only)
 
 services/                      # Long-running deployable services
+  field-ops/                   #   Field logsheet PWA — FastAPI + React, offline-first.
+                               #   The only component a non-programmer uses directly.
   vadase-rt-monitor/           #   Real-time NMEA earthquake detection (hexagonal arch, async)
   ingestion-pipeline/          #   Celery-based RINEX ingestion (early stage, stubs)
   bernese-workflow/            #   Bernese BPE orchestrator (stub, Jinja2 PCF templating)
@@ -138,14 +140,32 @@ is the standing direction, not a completed migration.
 
 #### Corrections to earlier versions of this section
 
-- **RINEX QC wraps `teqc`, not `gfzrnx`.** `qc/rinex_qc.py` shells out to
-  `teqc +qc`. This matters: teqc **cannot read RINEX 3 at all** — it refuses on
-  line 1 — and every IGS fiducial is RINEX 3. See
-  `docs/project_documentation/gfzrnx_vs_teqc_rinex3_evidence.md`. `gfzrnx`
-  is installed at `/home/gps3/gfzrnx/` but is **not wired into any module**.
+- **RINEX QC is `teqc`-first with a `gfzrnx` fallback.** `qc/rinex_qc.py` runs
+  `teqc +qc` by choice: it is the more heavily exercised of the two and its
+  output format is what everything downstream parses. But teqc was
+  discontinued in 2019 and **cannot read RINEX 3 at all** — it refuses on line
+  1 — and every IGS fiducial is RINEX 3. See
+  `docs/project_documentation/gfzrnx_vs_teqc_rinex3_evidence.md`.
+
+  So `gfzrnx` **is** wired in, on exactly two triggers: teqc refusing a file
+  for being RINEX 3, and teqc not being installed at all (the R740, as of
+  2026-08-13). Any *other* teqc failure still raises — "teqc broke" and "teqc
+  cannot read this format" are different problems and only one has a safe
+  automatic answer. `allow_fallback` defaults to `True`; every result carries
+  `tool` and `fallback_reason`, so which binary produced a number is
+  recoverable from the record rather than from memory.
+
+  Earlier versions of this file said gfzrnx was "not wired into any module".
+  That stopped being true and the file did not follow. **Licence, unchanged:**
+  gfzrnx's free licence covers research use; operational pipeline use needs a
+  commercial licence.
 - **`src/ingestion/` no longer exists** — the duplicate local ingestion module
   is gone and that consolidation is done. Earlier versions of this file listed
-  it in the tree with a "consolidation pending" note.
+  it in the tree with a "consolidation pending" note. What remains under the
+  **repo-root** `src/` is `src/db/` alone, four files; anything pointed at it
+  (coverage, mypy) is therefore measuring near-nothing. Note that `src/` means
+  something different inside vadase-rt-monitor, where it is the service's own
+  package root — see *Import Paths* below.
 - **The file server is the system of record**, not this repo and not gps3.
   `\\192.168.48.99` holds the national campaign (`CAMPAIGN52/PHIVOLCS`, 439
   stations catalogued / ~52 estimated daily) and 476 GiB of observations back
@@ -153,15 +173,18 @@ is the standing direction, not a completed migration.
 
 ### Implementation maturity
 
-*Measured 2026-08-12 (modules / LOC excluding tests / test files), not estimated.*
+*Measured 2026-08-18 (modules / LOC excluding tests / test files → tests
+collected), not estimated. Re-measure when you update this; the previous
+figures were carried forward by hand and three of five had drifted.*
 
-| Component | Size | Status |
-|---|---|---|
-| drive-archaeologist | 26 / 3004 / 15 | ~60% — Phase 1 scanner works, archive support partial |
-| **bernese-workflow** | 10 / 2277 / 9 | **~60%, not ~10%** — 198 passing tests; `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config all implemented. **Not yet** the path production runs take (see above) |
-| vadase-rt-monitor | 23 / 1796 / 7 | ~80% — parser, handler, core logic, smart integration, leaky integrator |
-| **pogf-geodetic-suite** | 9 / 853 / 4 | ~75% — coordinates, IGS downloader, RINEX QC (teqc-based, RINEX 2 only), and `timeseries/` (CRD→ENU pipeline + segmented velocities **verified against PHIVOLCS' production MATLAB output**) |
-| ingestion-pipeline | 7 / 612 / 3 | ~30% — architecture defined, not in the production loop |
+| Component | Size | Tests | Status |
+|---|---|---|---|
+| drive-archaeologist | 25 / 2998 / 15 | 133 | ~60% — Phase 1 scanner works, archive support partial |
+| **bernese-workflow** | 10 / 2277 / 9 | 198 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config all implemented. **Not yet** the path production runs take (see above) |
+| vadase-rt-monitor | 20 / 1387 / 7 | 51 | ~80% — parser, handler, core logic, leaky integrator, `ReceiverMode` state machine (replaced the old one-way integration latch) |
+| **pogf-geodetic-suite** | 10 / 1802 / 6 | 124 | ~75% — coordinates, IGS downloader, RINEX QC (teqc-first, gfzrnx fallback), and `timeseries/`: CRD→ENU, segmented velocities **verified against PHIVOLCS' production MATLAB output**, joint step+rate estimation, GMT velocity-field output |
+| **field-ops** | 13 / 1869 / 2 | 13 + 69 | ~90% — offline-first logsheet PWA, exercised on a real handset. 13 backend tests plus **69 frontend (vitest)**, the only frontend tests that run — `packages/CORS-dashboard` carries one 2017 React test file that nothing executes |
+| ingestion-pipeline | 7 / 612 / 3 | 33 | ~30% — architecture defined, not in the production loop |
 
 **The maturity that matters is not module count.** `bernese-workflow` was
 listed at ~10% for months while carrying 198 tests, and the genuinely
@@ -187,21 +210,28 @@ uv run pytest
 # Run tests for a specific service
 uv run pytest services/vadase-rt-monitor/tests/
 uv run pytest tools/drive-archaeologist/tests/
+uv run pytest services/field-ops/tests/        # needs `uv sync --all-extras`
+
+# Frontend tests (field-ops PWA) — vitest, NOT collected by pytest.
+# `uv run pytest` passing says nothing about these.
+cd services/field-ops/frontend && npm test
 
 # Run a single test file or test
 uv run pytest services/vadase-rt-monitor/tests/test_nmea_parser.py
 uv run pytest -k "test_rinex"
 
-# Coverage
-uv run pytest --cov=src --cov-report=html
+# Coverage. NOTE: `--cov=src` measures almost nothing — the repo-root `src/`
+# is down to `src/db/` (4 files) and the real code lives in packages/,
+# services/ and tools/. Name what you actually want measured:
+uv run pytest --cov=packages --cov=services --cov=tools --cov-report=html
 
 # Lint & format
 ruff check .
 ruff check --fix .
 ruff format .
 
-# Type checking
-mypy src/
+# Type checking — same caveat as coverage: point it at real code.
+mypy packages/ services/ tools/
 
 # Infrastructure (TimescaleDB + Redis)
 docker compose up -d
@@ -211,9 +241,20 @@ docker compose up -d
 
 ```bash
 uv run drive-archaeologist scan <path>    # or drive-arch
-uv run vadase-ingestor                    # real-time NMEA ingestor
 uv run rinex-qc <file>                    # RINEX quality check
 uv run igs-downloader                     # IGS product downloader
+uv run field-ops-api                      # field logsheet API ($PORT, default 8001)
+uv run velocity-reviewer                  # velocity review CLI
+```
+
+**`vadase-ingestor` does not exist**, and this file used to list it. The
+vadase service deliberately has no console entry point: the hatch wheel maps
+only `src/` dirs, so a `scripts.run_ingestor:main` target could never import.
+`pyproject.toml` carries a comment saying so. Run it from the service
+directory instead:
+
+```bash
+cd services/vadase-rt-monitor && PYTHONPATH=. uv run python scripts/run_ingestor.py
 ```
 
 ### Ruff configuration (pyproject.toml)
@@ -245,33 +286,57 @@ uv run igs-downloader                     # IGS product downloader
 | CRD → ENU pipeline | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/timeseries/crd_pipeline.py` |
 | PHIVOLCS event catalog | `docs/bern52/phivolcs-scripts/event-catalog/offsets` |
 | Reprocessing runbook | `docs/bernese54_luzon_reprocessing_runbook.md` |
+| GMT velocity field output | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/timeseries/gmt.py` |
+| Velocity field CLI | `scripts/make_velocity_field.py` |
+| Field-ops API | `services/field-ops/src/field_ops/main.py` |
+| Field-ops logsheet form | `services/field-ops/frontend/src/components/LogSheetForm.tsx` |
+| Field-ops offline queue | `services/field-ops/frontend/src/hooks/useOfflineQueue.ts` |
+| Field deployment runbook | `services/field-ops/FIELD_RUNBOOK.md` |
 | Project roadmap | `docs/project_documentation/roadmap.md` |
 
 ---
 
 ## VADASE-RT-Monitor: Deep Architecture
 
-This is the most mature service. **Read this section carefully** — it contains multi-file architectural context that isn't obvious from any single file.
+**Read this section carefully** — it contains multi-file architectural context that isn't obvious from any single file.
 
-### Dual-Processor Architecture (Important!)
+### One processor, one input pattern (this used to be two of each)
 
-The codebase has **two processor classes** that evolved at different stages. Know which one you're editing:
+`IngestionCore` in `src/domain/processor.py` is **the** processor. Input goes
+through **`src/ports/`** (InputPort, OutputPort) with **`src/adapters/inputs/`**
+(TCPAdapter, DirectoryAdapter) — queue-based, via `asyncio.Queue`.
 
-| Class | File | Pattern | Smart Integration | Status |
-|---|---|---|---|---|
-| `IngestionCore` | `src/domain/processor.py` | Hexagonal (queue-based via `asyncio.Queue`) | Yes (leaky integrator) | **Active development target** |
-| `IngestionProcessor` | `src/stream/processor.py` | Simpler (iterator-based via `DataSource`) | No | Legacy/simpler path |
+Earlier versions of this file opened with a section headed "Dual-Processor
+Architecture (Important!)", warning you to check whether you were editing
+`IngestionCore` or a second `IngestionProcessor` in `src/stream/processor.py`,
+and likewise between `src/ports/` and a parallel `src/sources/` DataSource
+protocol. **Both duplicates are gone** — `src/stream/` and `src/sources/` no
+longer exist, and neither `IngestionProcessor` nor `DataSource` appears
+anywhere in the tree. The consolidation the old section called "the intended
+architecture going forward" happened. There is nothing to choose between.
 
-`IngestionCore` is the one with Smart Integration, event detection state, and the leaky integrator. If you're working on detection logic or integration, **always edit `domain/processor.py`**.
+### Receiver mode: a state machine, not a latch
 
-### Two Source/Adapter Patterns
+`IngestionCore` decides whether to trust the receiver's own displacement or
+integrate velocity itself. That decision is `ReceiverMode` (`RECEIVER` |
+`MANUAL`) in `src/domain/processor.py`, driven by streak counters —
+`STREAK_THRESHOLD = 5`, `GOOD_THRESHOLD = 30`, `SUSPECT_THRESHOLD = 3` — and
+it moves in **both** directions.
 
-Similarly, there are two parallel input abstractions:
+Earlier versions of this file recorded a "**Known bug**: the one-way latch at
+line 130 (`self.manual_integration_active = True`) never resets — once
+activated, it stays on permanently". That was true, and it was fixed: reset in
+`934f8b3`, then replaced wholesale by the state machine in `a74c109`.
+`manual_integration_active` no longer exists. Do not go looking for it, and do
+not re-report the bug.
 
-- **`src/ports/`** (InputPort, OutputPort) + **`src/adapters/inputs/`** (TCPAdapter, DirectoryAdapter) — queue-based, used by `IngestionCore`
-- **`src/sources/`** (DataSource protocol) — async-iterator-based, used by `IngestionProcessor`
-
-The hexagonal `ports/adapters` pattern is the intended architecture going forward.
+The leaky integrator is real and still there — `handle_velocity` integrates
+velocity as `disp = disp * decay_factor + vel * dt`, a high-pass filter that
+bleeds off accumulated drift. Two things about it are worth knowing before you
+touch it: `decay_factor` **defaults to 1.0**, which is no leak at all (pure
+integration), so the decay is opt-in per station rather than always on; and
+integration is skipped entirely when the epoch gap is outside `0 < dt < 5s`,
+so an outage cannot inject a step.
 
 ### Import Paths (Non-Obvious)
 
@@ -296,7 +361,17 @@ The CORS receivers (Leica) operate in three behavioral states — understanding 
 2. **Event-time**: Receiver's internal threshold crossed → sends real integrated displacement (`vel != disp`).
 3. **Anomalous spikes**: Receiver behavior during anomalous (non-seismic) spikes is empirically unconfirmed.
 
-The Smart Integration code at `domain/processor.py:120-133` detects quiet-time by checking `vel == disp` over a streak. **Known bug**: the one-way latch at line 130 (`self.manual_integration_active = True`) never resets — once activated, it stays on permanently and can't detect the transition from quiet→event when the receiver starts sending real displacement.
+The three states above are receiver behaviour and still hold — that is domain
+knowledge about the hardware, not about our code.
+
+**The implementation notes that used to follow here were stale and are gone.**
+They cited `domain/processor.py:120-133` (today that range is sentence
+dispatch) and a "Known bug" one-way latch on `manual_integration_active`
+(fixed in `934f8b3`, then removed entirely by `a74c109`). See *Receiver mode: a
+state machine, not a latch* above for what the code does now.
+
+Line numbers in this file have proven to be the first thing to rot. Name the
+symbol, not the line.
 
 ### NMEA Sentence Types
 
