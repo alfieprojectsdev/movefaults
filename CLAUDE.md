@@ -161,9 +161,11 @@ is the standing direction, not a completed migration.
   commercial licence.
 - **`src/ingestion/` no longer exists** — the duplicate local ingestion module
   is gone and that consolidation is done. Earlier versions of this file listed
-  it in the tree with a "consolidation pending" note. What remains under
-  `src/` is `src/db/` alone, four files; anything pointed at `src/` (coverage,
-  mypy) is therefore measuring near-nothing.
+  it in the tree with a "consolidation pending" note. What remains under the
+  **repo-root** `src/` is `src/db/` alone, four files; anything pointed at it
+  (coverage, mypy) is therefore measuring near-nothing. Note that `src/` means
+  something different inside vadase-rt-monitor, where it is the service's own
+  package root — see *Import Paths* below.
 - **The file server is the system of record**, not this repo and not gps3.
   `\\192.168.48.99` holds the national campaign (`CAMPAIGN52/PHIVOLCS`, 439
   stations catalogued / ~52 estimated daily) and 476 GiB of observations back
@@ -179,9 +181,9 @@ figures were carried forward by hand and three of five had drifted.*
 |---|---|---|---|
 | drive-archaeologist | 25 / 2998 / 15 | 133 | ~60% — Phase 1 scanner works, archive support partial |
 | **bernese-workflow** | 10 / 2277 / 9 | 198 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config all implemented. **Not yet** the path production runs take (see above) |
-| vadase-rt-monitor | 20 / 1387 / 7 | 51 | ~80% — parser, handler, core logic, `ReceiverMode` state machine (replaced the old one-way integration latch) |
+| vadase-rt-monitor | 20 / 1387 / 7 | 51 | ~80% — parser, handler, core logic, leaky integrator, `ReceiverMode` state machine (replaced the old one-way integration latch) |
 | **pogf-geodetic-suite** | 10 / 1802 / 6 | 124 | ~75% — coordinates, IGS downloader, RINEX QC (teqc-first, gfzrnx fallback), and `timeseries/`: CRD→ENU, segmented velocities **verified against PHIVOLCS' production MATLAB output**, joint step+rate estimation, GMT velocity-field output |
-| **field-ops** | 13 / 1869 / 2 | 13 + 69 | ~90% — offline-first logsheet PWA, exercised on a real handset. 13 backend tests plus **69 frontend (vitest)**, which are the only frontend tests in the repo |
+| **field-ops** | 13 / 1869 / 2 | 13 + 69 | ~90% — offline-first logsheet PWA, exercised on a real handset. 13 backend tests plus **69 frontend (vitest)**, the only frontend tests that run — `packages/CORS-dashboard` carries one 2017 React test file that nothing executes |
 | ingestion-pipeline | 7 / 612 / 3 | 33 | ~30% — architecture defined, not in the production loop |
 
 **The maturity that matters is not module count.** `bernese-workflow` was
@@ -218,9 +220,9 @@ cd services/field-ops/frontend && npm test
 uv run pytest services/vadase-rt-monitor/tests/test_nmea_parser.py
 uv run pytest -k "test_rinex"
 
-# Coverage. NOTE: `--cov=src` measures almost nothing — `src/` is down to
-# `src/db/` (4 files) and the real code lives in packages/, services/ and
-# tools/. Name what you actually want measured:
+# Coverage. NOTE: `--cov=src` measures almost nothing — the repo-root `src/`
+# is down to `src/db/` (4 files) and the real code lives in packages/,
+# services/ and tools/. Name what you actually want measured:
 uv run pytest --cov=packages --cov=services --cov=tools --cov-report=html
 
 # Lint & format
@@ -241,7 +243,7 @@ docker compose up -d
 uv run drive-archaeologist scan <path>    # or drive-arch
 uv run rinex-qc <file>                    # RINEX quality check
 uv run igs-downloader                     # IGS product downloader
-uv run field-ops-api                      # field logsheet API (port 8001)
+uv run field-ops-api                      # field logsheet API ($PORT, default 8001)
 uv run velocity-reviewer                  # velocity review CLI
 ```
 
@@ -328,8 +330,13 @@ activated, it stays on permanently". That was true, and it was fixed: reset in
 `manual_integration_active` no longer exists. Do not go looking for it, and do
 not re-report the bug.
 
-There is no leaky integrator in this service either; earlier status tables
-listed one. `grep -rn leaky services/vadase-rt-monitor/src/` returns nothing.
+The leaky integrator is real and still there — `handle_velocity` integrates
+velocity as `disp = disp * decay_factor + vel * dt`, a high-pass filter that
+bleeds off accumulated drift. Two things about it are worth knowing before you
+touch it: `decay_factor` **defaults to 1.0**, which is no leak at all (pure
+integration), so the decay is opt-in per station rather than always on; and
+integration is skipped entirely when the epoch gap is outside `0 < dt < 5s`,
+so an outage cannot inject a step.
 
 ### Import Paths (Non-Obvious)
 
