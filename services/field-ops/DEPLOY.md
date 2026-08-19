@@ -203,20 +203,44 @@ variable at once, and never prints a value.
 
 ## 4. Frontend on Vercel **[you]**
 
-1. Import the repo. **Root directory: `services/field-ops/frontend`.**
-2. Edit `vercel.json` first — replace `REPLACE-WITH-BACKEND-HOST` with your
-   backend hostname:
+Vercel builds from the repository, the same way Render builds the API from
+`render.yaml`. There is no deploy command to run from a laptop, and nothing to
+edit at deploy time — merging to `main` redeploys both halves.
+
+1. Import `alfieprojectsdev/movefaults`. **Root directory:
+   `services/field-ops/frontend`.**
+2. Deploy. Note the URL.
+
+That is the whole procedure. `vercel.json` already points the `/api` rewrite at
+the deployed backend:
 
 ```json
-{ "source": "/api/:path*", "destination": "https://pogf-field-ops.fly.dev/api/:path*" }
+{ "source": "/api/:path*", "destination": "https://pogf-field-ops-api.onrender.com/api/:path*" }
 ```
 
-The rewrite keeps the API same-origin, so there is no CORS preflight — one
-fewer round trip on one bar of signal. If you deploy cross-origin instead, set
-`VITE_API_BASE_URL` at build time and add the Vercel URL to
-`FIELD_OPS_CORS_ORIGINS` on the backend.
+**The rewrite keeps the API same-origin**, so the browser never makes a
+cross-origin request and there is no CORS preflight — one fewer round trip on
+one bar of signal. It also means **`FIELD_OPS_CORS_ORIGINS` stays empty**;
+setting it changes nothing while the rewrite is in place. Only a cross-origin
+deployment needs it, together with `VITE_API_BASE_URL` at build time.
 
-3. Deploy. Note the URL.
+### If you fork this, or move the backend
+
+`scripts/check-deploy-config.mjs` fails the build when `vercel.json` still
+contains `REPLACE-WITH-BACKEND-HOST`, but **only when `VERCEL=1`** — local and
+Docker builds never read that file, so they are not blocked by it. A rewrite
+destination is not validated at build time, so without that check a deploy
+that forgot this step would build, load, render and install perfectly, and only
+the API calls would fail — which an offline-capable PWA shows as "no signal"
+rather than "misconfigured". Better to break the build where someone is
+watching.
+
+> **`deploy.sh frontend` was retired 2026-08-19.** It substituted the
+> placeholder in the working tree and pushed with `vercel deploy --prod`, which
+> meant only the machine that ran it could deploy and nothing in git described
+> what was deployed. It also had a trap: once the placeholder was substituted,
+> the `sed` silently no-opped and `--backend-host` was ignored, so a re-run
+> aimed at staging would deploy production. Git integration removes both.
 
 ---
 

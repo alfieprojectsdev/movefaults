@@ -374,43 +374,56 @@ every photo for a week.
 
 ## Phase 6 — Observer accounts
 
-**Resolve Blocker B first.** Assuming option 1 (seed then reset):
+Blocker B is resolved: random passwords, distributed on paper (see above).
 
 ```bash
-cat > /tmp/surnames.txt <<'EOF'
-ARP,pelicano
-TCB,bacolcol
-EOF
-
-./services/field-ops/deploy/deploy.sh accounts --surnames /tmp/surnames.txt --dry-run
-./services/field-ops/deploy/deploy.sh accounts --surnames /tmp/surnames.txt
-shred -u /tmp/surnames.txt
+./services/field-ops/deploy/deploy.sh accounts --dry-run
+./services/field-ops/deploy/deploy.sh accounts --slips field_credentials.txt
 ```
 
-Then, per person:
+One random password per person, bcrypt-hashed into `field_ops.users`, plaintext
+written once to the slips file at mode 600. The phase refuses to run without
+`--slips` rather than mint passwords that go nowhere.
+
+**Print it, cut it up, hand each person their line at the briefing, then:**
 
 ```bash
-uv run python scripts/seed_field_accounts.py --surnames /dev/null --reset ARP
+shred -u field_credentials.txt
 ```
 
-Password printed once. **Hand it over through a private channel** — not a group
-chat. Sessions last 8 hours: a full shift without re-entering anything.
+Per-person replacement, printed once:
+
+```bash
+uv run python scripts/seed_field_accounts.py --reset ARP
+```
 
 Re-running `accounts` never rewrites an existing password (someone may have
-changed theirs), but it *does* update roles from `staff.csv`. That is
-deliberate.
+changed theirs), so it issues no slip for anyone who already has an account. It
+*does* update roles from `staff.csv`. Both are deliberate.
+
+Sessions last 8 hours: a full shift without re-entering anything.
 
 ---
 
 ## Phase 7 — Frontend on Vercel [you]
 
-```bash
-./services/field-ops/deploy/deploy.sh frontend --backend-host pogf-field-ops.fly.dev
-```
+Nothing to run. Vercel builds from the repository, the same way Render builds
+the API from `render.yaml`; merging to `main` redeploys both.
 
-Bare hostname, no scheme. This rewrites the placeholder in `vercel.json` and
-deploys. In the Vercel UI, **root directory must be
-`services/field-ops/frontend`**.
+1. Import `alfieprojectsdev/movefaults` in Vercel.
+2. **Root directory: `services/field-ops/frontend`.**
+3. Deploy. Note the URL.
+
+`vercel.json` already points the `/api` rewrite at
+`pogf-field-ops-api.onrender.com`, which keeps the API same-origin — no CORS
+preflight, and `FIELD_OPS_CORS_ORIGINS` stays empty.
+
+> `deploy.sh frontend --backend-host HOST` was retired 2026-08-19. It edited
+> the working tree and pushed from a laptop, so only that machine could deploy
+> and nothing in git recorded what was deployed — and once the placeholder had
+> been substituted, `--backend-host` was silently ignored, so a run aimed at
+> staging would have deployed production.
+
 
 The `/api` rewrite keeps the API same-origin, so there is no CORS preflight —
 one fewer round trip on one bar of signal. `check-deploy-config.mjs` fails the
