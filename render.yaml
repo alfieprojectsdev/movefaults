@@ -1,0 +1,97 @@
+# Render blueprint — Field Ops API
+#
+# Deploys services/field-ops as a Docker web service. Frontend is NOT here:
+# the PWA is a static build served by Vercel, and the Dockerfile deliberately
+# has no frontend stage (see its header for why).
+#
+# ── Secrets are NAMES here, never values ───────────────────────────────────
+#
+# Every secret carries `sync: false`, which tells Render "this blueprint does
+# not supply the value; keep whatever is set in the dashboard." That is the
+# only reason this file can live in a PUBLIC repository. If you ever replace a
+# `sync: false` with a literal, you have published a credential — there is no
+# second gate behind this one.
+#
+# Set the values once in the Render dashboard, or via `render env`:
+#
+#   DATABASE_URL             Neon POOLED string (host contains -pooler)
+#   FIELD_OPS_JWT_SECRET     64 hex chars: python -c "import secrets; print(secrets.token_hex(32))"
+#   R2_ACCOUNT_ID            Cloudflare account id
+#   R2_ACCESS_KEY_ID         R2 API token, Object Read & Write, scoped to the bucket
+#   R2_SECRET_ACCESS_KEY     shown once at token creation
+#
+# ── Why pooled, and why that is the opposite of the migration rule ─────────
+#
+# DATABASE_URL must be the POOLED endpoint. A container that restarts holds
+# connections open and the direct endpoint runs out of them.
+#
+# Migrations are the exception: `CREATE EXTENSION` must be the first statement
+# in a session, and PgBouncer reuses sessions, so running the root alembic tree
+# through the pooler fails with "extension timescaledb has already been loaded
+# with another version". Run migrations from an operator machine against the
+# DIRECT endpoint (same string minus `-pooler`). This service never migrates on
+# boot, by design — a web process racing itself across replicas to run DDL is a
+# worse failure than a manual step.
+
+services:
+  - type: web
+    name: pogf-field-ops-api
+    runtime: docker
+    plan: free
+
+    # Same region as the Neon branch (AWS ap-southeast-1). Every request this
+    # service serves makes at least one round trip to Postgres; putting the two
+    # on opposite sides of the planet is the cheapest latency mistake available.
+    region: singapore
+
+    # Build context is the REPOSITORY ROOT, not services/field-ops. pyproject.toml
+    # and uv.lock live at the root and the Dockerfile COPYs them from there.
+    # DEPLOY.md §3 used to say `cd services/field-ops` first; that fails on the
+    # first COPY.
+    dockerfilePath: ./services/field-ops/Dockerfile
+    dockerContext: .
+
+    # main.py exposes GET /health returning {"status":"ok"}. Render routes no
+    # traffic until this passes, so a container that boots but cannot reach its
+    # dependencies is caught here rather than by a field team.
+    healthCheckPath: /health
+
+    envVars:
+      # ── Behaviour ────────────────────────────────────────────────────────
+      # The production gate in config.py is inferred, not opt-in: a non-loopback
+      # DATABASE_URL is enough to turn it on. It is set explicitly anyway so the
+      # posture is visible in the manifest rather than implied by a hostname.
+      - key: FIELD_OPS_PRODUCTION
+        value: "1"
+
+      # Must be "r2". The gate refuses to boot on anything else, because a
+      # container filesystem is ephemeral — photos written to disk vanish on the
+      # next restart, and the operator who took them is already off the mountain.
+      - key: FIELD_OPS_STORAGE_BACKEND
+        value: r2
+
+      # Comma-separated origins for the Vercel frontend. Left empty here on
+      # purpose: the Vercel URL does not exist yet, and frontend/vercel.json
+      # still carries REPLACE-WITH-BACKEND-HOST. Fill both together, or CORS
+      # will fail in a way that looks like the API being down.
+      - key: FIELD_OPS_CORS_ORIGINS
+        sync: false
+
+      # ── Secrets: names only ──────────────────────────────────────────────
+      - key: DATABASE_URL
+        sync: false
+      - key: FIELD_OPS_JWT_SECRET
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+
+# PORT is deliberately absent. Render assigns it at runtime and routes to it;
+# the Dockerfile's CMD is shell form so ${PORT:-8001} expands. Pinning it here
+# would mean the health check never passes and the deploy rolls back — the
+# exact failure main.py's start() docstring warns about.
