@@ -88,10 +88,19 @@ services:
       - key: FIELD_OPS_STORAGE_BACKEND
         value: r2
 
-      # Comma-separated origins for the Vercel frontend. Left empty here on
-      # purpose: the Vercel URL does not exist yet, and frontend/vercel.json
-      # still carries REPLACE-WITH-BACKEND-HOST. Fill both together, or CORS
-      # will fail in a way that looks like the API being down.
+      # Stays EMPTY, and that is the finished state rather than a TODO.
+      #
+      # vercel.json rewrites /api/:path* to this service, so the browser only
+      # ever addresses the Vercel origin: there is no cross-origin request and
+      # no preflight, which is one fewer round trip on one bar of signal.
+      # Setting this changes nothing while that rewrite is in place.
+      #
+      # An earlier version of this comment said the Vercel URL "does not exist
+      # yet" and that this had to be filled in together with vercel.json or
+      # "CORS will fail". Both were wrong: the frontend is deployed, and the
+      # rewrite means CORS is not involved at all. Only a genuinely
+      # cross-origin deployment needs this, alongside VITE_API_BASE_URL at
+      # build time.
       - key: FIELD_OPS_CORS_ORIGINS
         sync: false
 
