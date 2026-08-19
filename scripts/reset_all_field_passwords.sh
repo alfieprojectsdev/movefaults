@@ -100,7 +100,14 @@ for who in "${PEOPLE[@]}"; do
   else
     # Most likely "no account for X": the roster has someone the database does
     # not. Report and keep going, so one gap does not stop the other twelve.
-    failed+=("$who ($(printf '%s' "$out" | tail -1))")
+    #
+    # The reason is scrubbed before it is shown. `out` is the seeder's combined
+    # stdout and stderr, and on a partial failure it can contain a password that
+    # was printed just before something else went wrong — echoing the last line
+    # blind would put a live credential in terminal scrollback, which is exactly
+    # what the rest of this script goes out of its way to avoid.
+    reason=$(printf '%s' "$out" | tail -1 | sed 's/password is now:.*/password is now: [redacted]/')
+    failed+=("$who ($reason)")
     echo "  $who  FAILED"
   fi
 done
