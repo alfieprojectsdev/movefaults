@@ -249,6 +249,17 @@ def main() -> None:
                 # into a terminal scrollback and any CI log.
                 print(f"no surname supplied for: {', '.join(missing)}")
 
+            # THIS MUST STAY INSIDE `with conn`, i.e. before the commit.
+            # psycopg2 commits a `with connection` block on clean exit and rolls
+            # back on exception (verified against this database, not assumed).
+            # So a slips file that cannot be written — bad path, no permission,
+            # full disk — aborts the whole run and creates NO accounts.
+            #
+            # That is the correct failure direction. The alternative, writing
+            # after the commit, produces accounts whose passwords were generated,
+            # hashed, committed and then lost: nobody can sign in and there is no
+            # record of what the password was. Moving this below the `with` block
+            # would reintroduce exactly that, silently.
             if slips and args.slips and not args.dry_run:
                 # 600 before a single byte is written — not chmod afterwards,
                 # which leaves a window where the file is world-readable.
@@ -262,9 +273,19 @@ def main() -> None:
                 print(f"\n{len(slips)} password(s) written to {args.slips} (mode 600)")
                 print("Print it, hand each person their line, then: shred -u "
                       f"{args.slips}")
-            elif slips and not args.slips:
+            elif slips and not args.slips and not args.dry_run:
+                # Unreachable via the CLI — the guard in main() refuses this
+                # combination before a connection is opened. Kept as a last
+                # backstop for a caller that imports this module directly.
                 print("\nWARNING: passwords were generated but no --slips file "
                       "was given; they are unrecoverable.")
+            elif slips and args.dry_run and not args.slips:
+                # Deliberately NOT the warning above. During a dry run nothing is
+                # written and nothing is lost, so calling the passwords
+                # "unrecoverable" contradicts the rollback notice printed two
+                # lines later and reads as a failure when the run went fine.
+                print(f"\n{len(slips)} password(s) would be generated; "
+                      "pass --slips PATH to write them.")
 
             if args.dry_run:
                 conn.rollback()
