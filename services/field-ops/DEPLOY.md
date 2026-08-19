@@ -366,7 +366,7 @@ will use most, and its failure mode is silent.
 
 ---
 
-## 7. Brief the staff on three things
+## 7. Brief the staff on four things
 
 1. **Sign in once while you still have signal.** The app then works offline for
    the rest of the day, but the first login needs a connection.
@@ -374,6 +374,30 @@ will use most, and its failure mode is silent.
    sheets live in the browser's storage; clearing it destroys unsynced work.
 3. **Check the Queue tab before leaving a site.** If it shows pending items,
    that is normal — but the count should drop to zero once back in signal.
+4. **After an update, fully close the app and reopen it.** See below — this one
+   is counter-intuitive and produces a confusing symptom.
+
+### If you ship a fix while the team is in the field
+
+Say so, and say to close the app completely — from the app switcher, not just
+back to the home screen.
+
+`registerType: "autoUpdate"` means the new service worker installs and activates
+on its own, so nobody has to accept a prompt. But a page that is **already
+loaded** keeps running the JavaScript it started with. The next open gets the new
+version; the current session does not.
+
+Observed 2026-08-20: minutes after a merge, the deployed bundle hash matched the
+new build and the service worker had precached it, while the open page was still
+running the previous one. It took a reload to pick up. Checking the deployment
+from outside — `curl` for the asset hash — said the fix was live; asking the
+running page what it had actually loaded said otherwise. Only the second question
+tells you what an observer is using.
+
+The symptom is what makes this worth briefing: you tell someone a bug is fixed,
+they go back to the app, and it is still there. Queued sheets are unaffected —
+they live in IndexedDB and survive the update — so there is nothing to lose by
+closing it.
 
 ---
 
