@@ -42,7 +42,25 @@ services:
     # Same region as the Neon branch (AWS ap-southeast-1). Every request this
     # service serves makes at least one round trip to Postgres; putting the two
     # on opposite sides of the planet is the cheapest latency mistake available.
+    #
+    # Render CANNOT change a service's region after creation, and the default is
+    # `oregon` — so an omitted or wrong value here is not a config edit away from
+    # fixed, it is a delete-and-recreate.
     region: singapore
+
+    # Deploy on every commit to the linked branch. Stated explicitly because the
+    # default is the same and silent, and because the obviously-safer-looking
+    # value is a trap right now: `checksPass` deploys only when the branch's CI
+    # checks pass, and this repository has no CI to speak of — one workflow
+    # (deploy_docs.yml) and zero check-runs reported on main. Setting
+    # `checksPass` today would mean deploys never fire, with nothing saying why.
+    #
+    # Switch to `checksPass` the moment real CI exists; that is the setting you
+    # want for a service a field team depends on. `off` disables auto-deploy
+    # entirely if you would rather promote by hand before a deployment window.
+    #
+    # (autoDeployTrigger replaces the deprecated `autoDeploy` boolean.)
+    autoDeployTrigger: commit
 
     # Build context is the REPOSITORY ROOT, not services/field-ops. pyproject.toml
     # and uv.lock live at the root and the Dockerfile COPYs them from there.
