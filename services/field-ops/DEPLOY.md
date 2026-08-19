@@ -4,11 +4,18 @@
 before they leave, and that keeps working when they have no signal.
 
 ```text
-Vercel        →  the PWA (static build)
-Fly / Railway →  FastAPI container (the existing Dockerfile)
+Vercel        →  the PWA (static build), built from this repo on merge
+Render        →  FastAPI container, declared in render.yaml at the repo root
 Neon          →  Postgres
 Cloudflare R2 →  photo blobs
 ```
+
+**This is the authoritative deployment document.** `PROVISIONING_RUNSHEET.md`
+was a parallel account of the same procedure and was retired 2026-08-20 — the
+two had begun to drift, and code error messages point here (`check-deploy-config.mjs`,
+`deploy.sh`, both `migrations/env.py`), not there. Its still-live content is
+folded into the sections below; its record of what was broken during the first
+provisioning run lives in git history.
 
 **Nothing here creates accounts or handles credentials on your behalf.** Every
 step you must do yourself is marked **[you]**. Values go into each platform's
@@ -53,10 +60,26 @@ rejects libpq's parameters and the resulting error is not obvious.
 From this repo, with `DATABASE_URL` exported in your shell:
 
 ```bash
-export DATABASE_URL='postgresql://...'          # from Neon, pooled
+export DATABASE_URL='postgresql://...'          # from Neon, DIRECT (no -pooler)
 uv run alembic -c services/field-ops/alembic.ini upgrade head  # field_ops schema, 3 revisions
-uv run alembic upgrade head                                    # core schema, 13 revisions
+uv run alembic upgrade 011                                     # core schema, see below
 ```
+
+**Migrations use the DIRECT endpoint — the opposite of the running service.**
+`CREATE EXTENSION` must be the first statement in a session, and the pooler
+reuses sessions, so the root tree through `-pooler` fails with *"extension
+timescaledb has already been loaded with another version"*. Drop `-pooler` from
+the host for migrations, and put it back for the deployed service, which needs
+pooling because a restarting container holds connections open.
+
+**The root tree stops at `011`, not `head`.** Revision `012` sets
+`timescaledb.compress`, which is a community-tier feature; Neon reports
+`timescaledb.license = apache` and refuses it, and because alembic runs the
+whole upgrade in one transaction the failure rolls back all of `001`–`012`.
+`008` is the revision field-ops actually needs — it creates `field_ops.staff`
+and `field_ops.logsheet_observers` — while `012` and `013` are VADASE and
+ingestion features irrelevant to this database. Making `012` license-aware is
+the durable fix and has not been done.
 
 **The field_ops tree runs first.** The two trees keep separate `alembic_version`
 tables (the field_ops one lives in the `field_ops` schema) and neither knows
@@ -103,13 +126,23 @@ Expect 7 tables: `users`, `logsheets`, `staff`, `logsheet_observers`,
 The station list is what the observers pick from — it must contain the Palawan
 sites they are actually visiting, which the 10 demo rows do **not**.
 
-```sql
-INSERT INTO public.stations (station_code, name, municipality, province, monitoring_method, status)
-VALUES ('XXXX', 'Site name', 'Municipality', 'Palawan', 'campaign', 'active');
-
-INSERT INTO field_ops.staff (full_name, initials, role, is_active)
-VALUES ('Full Name', 'FN', 'field_staff', true);
+```bash
+./services/field-ops/deploy/deploy.sh seed --dry-run
+./services/field-ops/deploy/deploy.sh seed
 ```
+
+That loads the real inventory from `data/network_inventory/` — 138 continuous
+CORS stations, 13 staff, 117 equipment-history rows — rather than the demo ten.
+
+**The `initials` column of `staff.csv` becomes the username.** One account per
+row, uppercased, and login is case-insensitive. `full_name` currently repeats
+the initials on purpose: this repository is public, so surnames are not
+committed. Roles come from the same file and reach both the observer picker and
+the signed-in user's role.
+
+Palawan holds three stations — `PKLY` Kalayaan, `PNDO` El Nido, `PPPC` Puerto
+Princesa City — all `continuous`. That is the known state of the network, not a
+seeding gap; the seeder loads no campaign sites because there are none to load.
 
 ---
 
@@ -129,52 +162,44 @@ not come close.
 
 ---
 
-## 3. Backend container **[you]**
+## 3. Backend on Render **[you]**
 
-The existing `services/field-ops/Dockerfile` builds unmodified. Fly.io shown;
-Railway and Render are equivalent.
+The deployment is declared in **`render.yaml` at the repository root**, so this
+is one connect step and seven values, not a sequence of CLI commands.
+
+1. Render dashboard → **New → Blueprint Instance** → connect
+   `alfieprojectsdev/movefaults`.
+   If the repo is not listed, Render's GitHub App is scoped to selected
+   repositories: **Configure account** → add `movefaults`. That is the step most
+   likely to stop you.
+2. Name it (`pogf-field-ops`). Branch `main`, path `render.yaml` — both default
+   correctly.
+3. Render parses the blueprint and shows one service, `pogf-field-ops-api`, with
+   seven variables to fill. Every secret in `render.yaml` carries `sync: false`,
+   which is the only reason that file can live in a public repository: it
+   declares NAMES, never values.
+
+| Variable | Value |
+|---|---|
+| `FIELD_OPS_CORS_ORIGINS` | **leave empty** — see §4; the rewrite makes the API same-origin |
+| `DATABASE_URL` | Neon **pooled** string (host contains `-pooler`) |
+| `FIELD_OPS_JWT_SECRET` | `uv run python -c 'import secrets; print(secrets.token_hex(32))'` |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | from §2 |
+
+Generate the JWT secret with `uv run python`, not the system `python3` — the
+project dependencies are not on the bare interpreter. Paste values into the
+dashboard; do not commit them and do not put them in a chat.
+
+4. **Deploy Blueprint.** The first build is slow — the image is ~1.5 GB.
 
 ```bash
-cd services/field-ops
-fly launch --no-deploy --name pogf-field-ops --region sin
+curl https://pogf-field-ops-api.onrender.com/health     # {"status":"ok",...}
 ```
-
-Set secrets — **names here, values from your password manager**:
-
-Write them into a file and pipe it in, rather than passing them as arguments:
-
-```bash
-cat > /tmp/field-ops.env <<'ENV'
-FIELD_OPS_PRODUCTION=1
-DATABASE_URL=...
-FIELD_OPS_JWT_SECRET=...
-FIELD_OPS_STORAGE_BACKEND=r2
-R2_ACCOUNT_ID=...
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-R2_BUCKET=pogf-field-ops
-ENV
-
-# generate the JWT secret with the project interpreter, straight into the file
-printf 'FIELD_OPS_JWT_SECRET=%s\n' \
-  "$(uv run python -c 'import secrets; print(secrets.token_hex(32))')" \
-  >> /tmp/field-ops.env
-
-fly secrets import < /tmp/field-ops.env
-shred -u /tmp/field-ops.env      # or: rm -P  /  srm
-```
-
-`fly secrets set KEY=value` on the command line puts every one of those values
-into your shell history and, while it runs, into the process table where any
-other user on the machine can read it. `import` reads stdin instead, so nothing
-sensitive is ever an argument.
-
-Generate with `uv run python`, not the system `python3` — bcrypt and the rest
-are project dependencies, and the bare interpreter will not have them.
 
 A **fail-closed** startup check refuses to boot if the JWT secret is the shipped
-default or under 32 characters, if storage is not R2, or if `DATABASE_URL` is
-missing.
+default or under 32 characters, if storage is not R2, if any of the four R2
+variables is unset, or if `DATABASE_URL` is missing. It names every missing
+variable at once and never prints a value.
 
 That check exists because this repo is **public**. With the default secret,
 anyone who reads it can mint a valid token for your URL and post logsheets as
@@ -184,20 +209,28 @@ refuses, because nobody finds out.
 `FIELD_OPS_PRODUCTION=1` used to be what switched that check on — which meant
 forgetting one variable silently disabled the whole thing, in exactly the
 situation it was written for. It is now **inferred**: any `DATABASE_URL` whose
-host is not local puts the process in production mode. Setting the variable is
-still fine and still documented above, but it is no longer load-bearing.
+host is not local puts the process in production mode. `render.yaml` sets the
+variable anyway, so the posture is visible in the manifest rather than implied
+by a hostname.
 
 The one way out is `FIELD_OPS_DEV=1`, for deliberately running a local build
 against a remote database. It skips the checks and warns loudly on startup.
 **Never set it on a deployed instance** — it re-enables every weak default.
 
-```bash
-fly deploy
-curl https://<your-app>.fly.dev/health     # {"status":"ok",...}
-```
+**`PORT` is deliberately absent from `render.yaml`.** Render assigns it and
+routes to it; the Dockerfile's shell-form `CMD` expands `${PORT:-8001}`. Pinning
+a port means the health check never passes and the deploy rolls back.
 
-If it will not start, read the logs — the refusal message names every missing
-variable at once, and never prints a value.
+> **Free instances sleep.** After ~15 minutes idle the first request takes
+> 30–50 seconds. Measured: 32 s on a cold wake. The PWA is offline-first and
+> syncs in batches so this is tolerable — but tell the field team, or a slow
+> first sync reads as a broken app and they stop trusting it.
+
+> **Why not Fly.** Earlier versions of this section used `fly launch` /
+> `fly secrets import` / `fly deploy`. Fly now requires a card before a first
+> deploy and this project's virtual cards are unreliable with some gateways.
+> Render was already proven on this project's machine (`carpool-app/render.yaml`,
+> 2025-11-06). Nothing about the application changed.
 
 ---
 
@@ -259,6 +292,12 @@ one random password per person, bcrypt-hashes it into `field_ops.users`, and
 writes the plaintext ONCE to the `--slips` file at mode 600. It refuses to run
 without `--slips` rather than mint passwords that go nowhere.
 
+**The username is the `initials` column of that CSV**, uppercased — `ARP`,
+`CJVC`, `ZAGR`. One account per row; login is case-insensitive. The `role`
+column travels with the account, so it reaches both the observer picker and the
+signed-in user's own role. There is no other source of usernames and no way to
+add one except by editing that file and re-running.
+
 Passwords look like `k7np-qr4m-vx82` — twelve lowercase characters in three
 groups, from an alphabet with no `0/O` and no `1/l/i`. That is not about
 entropy (59 bits is far past what this needs); it is about an observer typing
@@ -275,6 +314,20 @@ It is gitignored (`*credentials*`), but treat that as a safety net rather than
 a plan. Re-running the seeder does **not** rewrite an existing account's
 password, so a second run issues no slip for someone who already has one — use
 `--reset INITIALS` for a single replacement, printed once.
+
+**To reissue the whole roster at once** — slips lost, mixed up, or handed to the
+wrong people:
+
+```bash
+./scripts/reset_all_field_passwords.sh --dry-run
+./scripts/reset_all_field_passwords.sh --slips field_credentials.txt
+```
+
+It loops every acronym in the roster, calls the seeder's `--reset` for each, and
+collects the results into one 0600 file without any password reaching the
+terminal. **Destructive by design:** every existing password stops working
+immediately, so anyone already carrying a slip is locked out until they get the
+new one. It asks for confirmation unless given `--yes`.
 
 > **Earlier versions of this section, and of the seeder, set each password to
 > the holder's surname.** That was a deliberate fieldwork trade with one stated
@@ -326,17 +379,31 @@ will use most, and its failure mode is silent.
 
 ## 8. Known gaps — decide before, not during
 
-- **No frontend tests.** The slant→RH computation is the only real domain
-  arithmetic in the UI and has none. A wrong answer there silently corrupts the
-  vertical component of every campaign occupation. It is verified by hand for
-  `TRM55971-00` only.
-- **No password reset.** Locked out means you issue a new hash by hand. For a
-  one-week trial that is acceptable; make sure someone with DB access is
-  reachable.
+- ~~**No frontend tests.**~~ 69 vitest tests now cover the time helpers, the
+  offline queue, role grouping, haversine distance and the slant→RH computation
+  — including its published constants, monotonicity, and `NaN` for a slant
+  shorter than its own horizontal offset. Still untested: component rendering,
+  so `LogSheetForm`'s conditional sections and submit states are unverified.
+- **No self-service password reset.** Locked out means an operator runs
+  `seed_field_accounts.py --reset INITIALS`, or
+  `scripts/reset_all_field_passwords.sh --slips FILE` to reissue the whole
+  roster at once. Both print once. Make sure someone with database access is
+  reachable during the fieldwork.
 - **No admin view.** Reading the data means SQL against Neon.
-- **Free tiers sleep.** A Neon or Fly instance idle for hours takes a few
-  seconds on first request. Harmless, but tell staff so a slow first load is not
-  read as a failure.
+- **Free tiers sleep.** A Render web service idle ~15 minutes takes 30–50 s on
+  the next request (measured: 32 s); a Neon endpoint suspends similarly. Harmless,
+  but tell staff so a slow first load is not read as a failure.
+- **`deploy.sh verify` asserts only that stations exist, not that they are the
+  right ones.** It checks `stations > 10`, which 138 continuous CORS rows
+  satisfy regardless of whether the sites being visited are among them. For
+  Palawan that is currently fine — `PKLY`, `PNDO`, `PPPC` are the network's only
+  sites there and all are active — but a future deployment to a region whose
+  sites were never seeded would pass this check and fail at the monument. Check
+  the dropdown by eye before sending anyone the URL.
+- **The root alembic tree cannot reach `head` on Neon.** Revision `012` needs
+  TimescaleDB compression, which Neon's apache-licensed build refuses. The
+  database is stamped at `011`. Nothing field-ops uses lives past `008`, but a
+  future `alembic upgrade head` will fail until `012` is made license-aware.
 - **Photos are never deleted.** No retention policy; at ~3 MB each the 10 GB
   free tier is fine for this trip and will need a decision later.
 
