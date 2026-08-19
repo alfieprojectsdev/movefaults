@@ -226,21 +226,42 @@ One per person, so `submitted_by` records who filed each sheet. There is no
 sign-up screen by design.
 
 ```bash
-uv run python -c "import bcrypt,secrets; pw=secrets.token_urlsafe(9); \
-print('password:', pw); print('hash:', bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode())"
+uv run python scripts/seed_field_accounts.py --dry-run
+uv run python scripts/seed_field_accounts.py --slips field_credentials.txt
 ```
 
-`uv run python`, not `python3`: bcrypt is a project dependency, so the system
-interpreter raises `ModuleNotFoundError` here on any machine that has not had it
-installed globally.
+The seeder reads the roster from `data/network_inventory/staff.csv`, generates
+one random password per person, bcrypt-hashes it into `field_ops.users`, and
+writes the plaintext ONCE to the `--slips` file at mode 600. It refuses to run
+without `--slips` rather than mint passwords that go nowhere.
 
-```sql
-INSERT INTO field_ops.users (username, hashed_password, role)
-VALUES ('surname', '<hash>', 'field_staff');
+Passwords look like `k7np-qr4m-vx82` — twelve lowercase characters in three
+groups, from an alphabet with no `0/O` and no `1/l/i`. That is not about
+entropy (59 bits is far past what this needs); it is about an observer typing
+it correctly, one-handed, on a damp phone at a monument.
+
+**Print the slips file, cut it up, hand each person their own line at the
+briefing, then destroy it:**
+
+```bash
+shred -u field_credentials.txt
 ```
 
-Give each person their own password **through a private channel**, not a group
-chat. Sessions last 8 hours — a full shift without re-entering anything.
+It is gitignored (`*credentials*`), but treat that as a safety net rather than
+a plan. Re-running the seeder does **not** rewrite an existing account's
+password, so a second run issues no slip for someone who already has one — use
+`--reset INITIALS` for a single replacement, printed once.
+
+> **Earlier versions of this section, and of the seeder, set each password to
+> the holder's surname.** That was a deliberate fieldwork trade with one stated
+> condition: it held only while the API was unreachable from the open internet.
+> Deploying to a public `*.onrender.com` behind a public Vercel URL ends that
+> condition, and this repository is public and names the staff — so both halves
+> of every credential would have been derivable from `staff.csv`. Decision,
+> 2026-08-19: random passwords, distributed on paper. `--surnames` still exists
+> for a genuinely unreachable instance and warns loudly when used.
+
+Sessions last 8 hours — a full shift without re-entering anything.
 
 ---
 

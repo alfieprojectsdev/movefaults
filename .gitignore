@@ -83,5 +83,10 @@ scripts/sudo/logs/
 *surnames*.csv
 *surnames*.txt
 
+# Generated field passwords (INITIALS<TAB>password). Written by
+# scripts/seed_field_accounts.py --slips, printed, then shredded.
+*credentials*.txt
+*credentials*.csv
+
 # Credential notes — never commit (repo is public)
 docs/secrets.md
