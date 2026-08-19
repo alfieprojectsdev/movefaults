@@ -34,6 +34,21 @@ will not open at the monument.
 out. Nothing is lost when it does, but the app will ask you to sign in again
 before it can sync.
 
+### If you are told the app has been updated
+
+**Close it completely and open it again — twice if you want to be sure.**
+
+The app keeps a copy of itself on the phone so it works with no signal. When a
+new version is published, that copy is replaced in the background, but whatever
+is already open keeps running the old one until the app is fully closed and
+reopened. Swiping back to the home screen is not enough on most phones; close it
+from the app switcher.
+
+This matters because the symptom is confusing: you are told a problem was fixed,
+you go back to the app, and the problem is still there. Nothing is wrong — you
+are looking at yesterday's copy. Queued sheets are not affected either way; they
+live separately and survive the update.
+
 ## 2. At the station — signal or no signal
 
 **Monitoring method** decides the rest of the form: *Campaign GPS* asks for

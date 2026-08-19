@@ -90,3 +90,7 @@ scripts/sudo/logs/
 
 # Credential notes — never commit (repo is public)
 docs/secrets.md
+
+# Assembled deployment env for pasting into a dashboard. Contains every
+# secret in one file; delete it once the values are set.
+*render-env*.txt
