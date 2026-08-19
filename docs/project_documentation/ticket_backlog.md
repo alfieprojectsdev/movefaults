@@ -332,8 +332,31 @@ The scanner classifies GNSS files; the Celery pipeline validates and loads them.
 
 ---
 
-### ING-005 · P1 · M
+### ING-005 · P1 · M · **PARTIAL** — RINEX-3 blindness solved `b07d527`; version routing NOT built
 **gfzrnx as RINEX-3/4 QC backend — version-routed dual-tool QC**
+
+> **Status, 2026-08-18.** `RinexQC` now falls back to gfzrnx, so the fiducials
+> are no longer invisible to QC — the outcome this ticket existed for. But it
+> is **not** the design specified below, and the difference matters if you are
+> deciding whether to close this.
+>
+> Shipped: teqc runs first; gfzrnx is used on exactly two triggers — teqc
+> refusing the file (regex on its `must be RINEX Version <= 2.11` message) and
+> teqc not being installed. Results normalise into the existing
+> `RINEXQCResult`, which carries `tool` and `fallback_reason`. `gfzrnx_path` /
+> `GFZRNX_BIN` discovery as specified. Tests cover refusal recognition,
+> non-triggering on normal output, and the gfzrnx parser.
+>
+> Not shipped: **header version detection**. Nothing reads the RINEX version
+> field and dispatches on it; routing is reactive, driven by teqc's error
+> text. Consequences — a machine without teqc sends *everything* to gfzrnx
+> (recorded in `fallback_reason`, but it is not routing); RINEX 4 is untested
+> and only works if teqc happens to refuse it with the same wording; and there
+> is no RINEX-3.04-fixture test asserting a file *routes* to gfzrnx.
+>
+> Remaining scope is therefore the version-detection seam and its tests, not
+> the backend. Licence position unchanged: gfzrnx's free licence covers
+> research use; operational pipeline use needs a commercial licence.
 
 teqc is unmaintained (last build `2019Feb25`) and a RINEX-2-era tool: it **hard-refuses RINEX 3** (`must be RINEX Version <= 2.11 ... exiting`, zero obs read) and cannot do RINEX 4 at all. The live PAGENET campaign is already mixed-version — every IGS fiducial is RINEX 3.04 (`CUSV00THA_R_2026...`, GPS+GLO+GAL+QZS+BDS), only the PAGENET CORS subset still emits RINEX 2 short-name. So the current teqc-only `RinexQC` silently cannot QC any fiducial. Trigger to migrate is **met now, empirically** — evidence: `docs/project_documentation/gfzrnx_vs_teqc_rinex3_evidence.md` (gfzrnx 2.2.0 QC'd all constellations in 14s on the same file teqc rejected on line 1).
 
@@ -393,7 +416,7 @@ ever repurposed.
 
 ---
 
-### DA-002 · P2 · M
+### ~~DA-002~~ · P2 · M · **DONE** `0247e4b` (PR #46)
 **Harden scanner against corrupt FAT filesystems — lessons from first real corrupt drive (2026-07-02)**
 
 First scan of a genuinely corrupt drive (hp v210w 7.5G thumbdrive, FAT trashed by a failed USB-auth
@@ -448,7 +471,7 @@ content reads except read-only archive extraction), plus four survey-correctness
 
 ---
 
-### DA-003 · P3 · S
+### ~~DA-003~~ · P3 · S · **DONE** `0247e4b` (PR #46)
 **`drive-arch survey` — fast triage subcommand (no JSONL, no hashing)**
 
 Triaging the 6 thumbdrives on 2026-07-02/03 for wipe never needed a full scan — the wipe/keep call
@@ -489,7 +512,13 @@ targeting (device letters never trusted), command-echo pane for reproducibility.
 picker+survey (M), 005b scan+reattach (M), 005c explorer+SQLite index (M/L), 005d recovery/migration
 scripts (L, gated on Phase 2/3). Scanner needs only an `on_progress` callback seam.
 
-*Depends on: DA-002/DA-003 (merged, PR #46). Plan only — not scheduled.*
+*Depends on: DA-002/DA-003 (merged, PR #46).*
+
+**Progress, 2026-08-18:** 005a (picker+survey) and 005b (scan+reattach) are
+**shipped** — PRs #50-#52, `b51124a` append-only checkpoint log and `f52684f`
+detached scan jobs + scan screen. **005c (explorer + SQLite index) is the next
+unblocked piece**; 005d stays gated on Phase 2/3. The ticket header still reads
+P3/L for the whole five-screen arc — read the phase list, not the header.
 
 ---
 

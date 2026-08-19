@@ -45,6 +45,59 @@ check_tools() {
   return $missing
 }
 
+# ── URL parsing ────────────────────────────────────────────────────────────
+
+# Extract the hostname from a connection string without ever echoing the rest.
+#
+# This replaces a single sed substitution:
+#
+#     sed -E 's#^[^:]+://[^@]*@([^:/?]+).*#\1#'
+#
+# sed prints the line UNCHANGED when the pattern does not match, and that
+# pattern requires an "@". A URL without one — the normal shape when the
+# password comes from ~/.pgpass or PGPASSWORD rather than the string itself —
+# fell straight through, so $host became the entire DATABASE_URL. Two
+# consequences, both bad, and both observed:
+#
+#   1. pass() then printed it: "remote host: postgresql://user:pass@...".
+#      This file promises at the top that it never prints a secret. It did.
+#
+#   2. Worse, the local-host case below matches exact names. A whole URL
+#      matches none of them, so `postgresql://localhost:5433/pogf_db` was
+#      reported as "✓ remote host" and preflight passed — then `deploy.sh db`
+#      migrates the local container while the operator believes it is hitting
+#      Neon. That is precisely the wrong-database failure the comment above
+#      check_database_target describes having already happened once, and the
+#      check written to prevent it was failing OPEN.
+#
+# Pure shell parameter expansion: no subprocess, no regex, no way to fall
+# through to "the input unchanged". An unparseable URL returns non-zero and the
+# caller fails closed.
+url_host() {
+  local rest="$1"
+
+  case "$rest" in
+    *://*) rest="${rest#*://}" ;;
+    *) return 1 ;;                # no scheme — refuse rather than guess
+  esac
+
+  rest="${rest%%\?*}"             # drop ?query
+  rest="${rest%%/*}"              # drop /path
+  rest="${rest##*@}"              # drop userinfo; LAST @ wins, so a password
+                                  # containing @ does not truncate the host
+
+  case "$rest" in
+    \[*\]*)                       # IPv6 literal: [::1]:5432
+      rest="${rest%%\]*}"
+      rest="${rest#\[}"
+      ;;
+    *) rest="${rest%%:*}" ;;      # drop :port
+  esac
+
+  [[ -n "$rest" ]] || return 1
+  printf '%s' "$rest"
+}
+
 # ── Database target ────────────────────────────────────────────────────────
 
 # The single most expensive mistake this script can make is migrating and
@@ -62,7 +115,13 @@ check_database_target() {
   fi
 
   local host
-  host=$(printf '%s' "$DATABASE_URL" | sed -E 's#^[^:]+://[^@]*@([^:/?]+).*#\1#')
+  if ! host=$(url_host "$DATABASE_URL"); then
+    fail "DATABASE_URL is not a parseable URL"
+    echo "      Expected postgresql://[user[:password]@]host[:port]/dbname"
+    echo "      No part of the value is printed here — check it in your"
+    echo "      password manager, not by echoing it."
+    return 1
+  fi
 
   case "$host" in
     localhost|127.0.0.1|::1|db|postgres|host.docker.internal)
@@ -88,9 +147,49 @@ check_database_target() {
     echo "      Connection string → tick 'Pooled connection'"
   fi
 
-  if ! psql "$DATABASE_URL" -tAc 'select 1' >/dev/null 2>&1; then
+  # Capture psql's error instead of discarding it. This check used to run with
+  # `>/dev/null 2>&1`, so every failure — an idle Neon endpoint still waking up,
+  # a libpq too old for `channel_binding`, DNS, a genuinely wrong password —
+  # produced the same four words and the same advice: go re-read your password
+  # manager. That advice is right for exactly one of those causes and wastes an
+  # operator's time on the other three.
+  #
+  # The error is REDACTED before printing. libpq does not normally echo the
+  # connection string, but "does not normally" is not the promise this file
+  # makes at the top, and this output lands in terminal scrollback and CI logs.
+  local err rc=0
+  err=$(psql "$DATABASE_URL" -tAc 'select 1' 2>&1 >/dev/null) || rc=$?
+
+  if (( rc != 0 )); then
     fail "cannot connect to the database"
-    echo "      Checked host $host. Verify the string in your password manager."
+    printf '%s\n' "$err" \
+      | sed -E 's#://[^@[:space:]]*@#://***:***@#g' \
+      | sed 's/^/      /'
+    echo
+    echo "      Host parsed from DATABASE_URL: $host"
+    case "$err" in
+      *"invalid connection option"*|*"channel_binding"*)
+        echo "      Your libpq is older than the options in the string. Neon"
+        echo "      appends channel_binding=require, which needs libpq >= 13."
+        echo "      It is a client preference, not a server requirement — retry"
+        echo "      without it:"
+        echo "        psql \"\${DATABASE_URL%%&channel_binding=*}\" -tAc 'select 1'"
+        ;;
+      *"could not translate host name"*|*"Name or service not known"*)
+        echo "      DNS did not resolve that host. Check for a truncated or"
+        echo "      line-wrapped connection string."
+        ;;
+      *"password authentication failed"*|*"authentication"*)
+        echo "      The host is reachable and rejected the credentials. If you"
+        echo "      just rotated the password, re-export DATABASE_URL — the old"
+        echo "      value is still in this shell."
+        ;;
+      *"timeout"*|*"timed out"*|*"Connection refused"*)
+        echo "      Reachability, not credentials. A Neon endpoint suspended for"
+        echo "      idleness takes a few seconds on the first connect — retry"
+        echo "      once before changing anything."
+        ;;
+    esac
     return 1
   fi
   pass "connection succeeds"
