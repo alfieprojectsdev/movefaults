@@ -23,7 +23,7 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: "POGF Field Ops",
+        name: "MOVE Faults Field Ops",
         short_name: "Field Ops",
         description: "PHIVOLCS CORS station field operations",
         theme_color: "#1a56a4",
