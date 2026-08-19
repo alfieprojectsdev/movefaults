@@ -4,6 +4,8 @@ import {
   utcFieldToISO,
   nowLocalHHMM,
   nowUTCFieldValue,
+  todayLocalISODate,
+  utcDayOfYear,
 } from "./times";
 
 /**
@@ -111,5 +113,65 @@ describe("autofill values", () => {
     expect(shown).toBe("14:30");
     expect(stored).toBe("2026-08-17T06:30:00.000Z");
     expect(readBack).toBe("14:30");
+  });
+});
+
+describe("todayLocalISODate — the pre-dawn bug", () => {
+  it("returns the LOCAL calendar date, not the UTC one", () => {
+    // 2026-08-19T20:13Z is 2026-08-20 04:13 in Manila. The old default,
+    // toISOString().split("T")[0], produced "2026-08-19" here: a sheet filled
+    // before breakfast was dated the previous day, and looked filled in.
+    const preDawn = new Date("2026-08-19T20:13:00Z");
+    expect(todayLocalISODate(preDawn)).toBe("2026-08-20");
+    expect(preDawn.toISOString().split("T")[0]).toBe("2026-08-19"); // the old bug
+  });
+
+  it("agrees with UTC during working hours", () => {
+    // 02:00Z is 10:00 Manila — the two only diverge before 08:00 local.
+    const midMorning = new Date("2026-08-20T02:00:00Z");
+    expect(todayLocalISODate(midMorning)).toBe("2026-08-20");
+    expect(midMorning.toISOString().split("T")[0]).toBe("2026-08-20");
+  });
+
+  it("covers the whole 00:00-08:00 window, not just one instant", () => {
+    for (const hh of ["16:00", "18:30", "20:13", "23:59"]) {
+      // These UTC times on the 19th are all the 20th in Manila.
+      expect(todayLocalISODate(new Date(`2026-08-19T${hh}:00Z`))).toBe("2026-08-20");
+    }
+  });
+
+  it("pads month and day", () => {
+    expect(todayLocalISODate(new Date("2026-01-01T05:00:00Z"))).toBe("2026-01-01");
+  });
+
+  it("rolls the year over correctly", () => {
+    // 2025-12-31T16:00Z is 2026-01-01 00:00 Manila.
+    expect(todayLocalISODate(new Date("2025-12-31T16:00:00Z"))).toBe("2026-01-01");
+  });
+});
+
+describe("utcDayOfYear — RINEX counts the day in UTC", () => {
+  it("counts in UTC, not local", () => {
+    // 22:00 UTC on the 19th is 06:00 Manila on the 20th. RINEX calls this
+    // DOY 231 (the 19th); a local reading would call it 232.
+    expect(utcDayOfYear("2026-08-19T22:00:00Z")).toBe(231);
+    expect(utcDayOfYear("2026-08-20T01:00:00Z")).toBe(232);
+  });
+
+  it("gives 1 for the first of January", () => {
+    expect(utcDayOfYear("2026-01-01T00:30:00Z")).toBe(1);
+  });
+
+  it("counts 29 February in a leap year", () => {
+    expect(utcDayOfYear("2024-03-01T00:00:00Z")).toBe(61);
+    expect(utcDayOfYear("2026-03-01T00:00:00Z")).toBe(60);
+  });
+
+  it("returns null rather than NaN for missing or junk input", () => {
+    // A null lets the caller fall back to the visit date. NaN would reach the
+    // session id as the literal text "NaN".
+    for (const bad of [null, undefined, "", "not-a-date"]) {
+      expect(utcDayOfYear(bad)).toBeNull();
+    }
   });
 });

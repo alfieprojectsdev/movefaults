@@ -31,11 +31,14 @@ import { useQuery } from "@tanstack/react-query";
 import StationPicker from "./StationPicker";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { groupByRole } from "../utils/roles";
+import { checkPhotos, formatBytes } from "../utils/photos";
 import {
   localTimeToISO,
   utcFieldToISO,
   nowLocalHHMM,
   nowUTCFieldValue,
+  todayLocalISODate,
+  utcDayOfYear,
 } from "../utils/times";
 import {
   submitLogSheet,
@@ -143,7 +146,10 @@ export default function LogSheetForm() {
       // sometimes opened later — but a sensible value beats an empty box that
       // has to be typed on a phone in the rain.
       arrival_time: nowLocalHHMM(),
-      visit_date: new Date().toISOString().split("T")[0],
+      // LOCAL date, not toISOString() — that returns the UTC calendar day,
+      // which in Manila is yesterday between 00:00 and 08:00 local: exactly
+      // when a field team sets out. See todayLocalISODate in utils/times.
+      visit_date: todayLocalISODate(),
       monitoring_method: "",
       observer_ids: [],
       photo: null,
@@ -190,6 +196,7 @@ export default function LogSheetForm() {
   const slantE         = watch("slant_e_m");
   const slantS         = watch("slant_s_m");
   const slantW         = watch("slant_w_m");
+  const utcStart       = watch("utc_start");
   const photoFiles     = watch("photo");
   const observerIds    = watch("observer_ids");
 
@@ -206,13 +213,23 @@ export default function LogSheetForm() {
 
   // ── Session ID auto-generation ─────────────────────────────────────────────
 
+  // RINEX names a session by its UTC day, so the day-of-year here is taken
+  // from utc_start when the observer has entered it. Deriving it from the
+  // LOCAL visit date instead agrees for any occupation starting after 08:00
+  // Manila time and silently disagrees before that — and the disagreement
+  // only shows up much later, when someone tries to pair this logsheet with
+  // the observation file it is supposed to name.
+  //
+  // Falls back to the visit date while utc_start is still empty, so the
+  // field is populated as soon as a station and date exist rather than
+  // staying blank until the session times are filled in.
   useEffect(() => {
     if (method !== "campaign") return;
     if (stationCode && visitDate) {
-      const doy = toDOY(visitDate);
+      const doy = utcDayOfYear(utcFieldToISO(utcStart)) ?? toDOY(visitDate);
       setValue("session_id", `${stationCode.toUpperCase()}${doy}`);
     }
-  }, [stationCode, visitDate, method, setValue]);
+  }, [stationCode, visitDate, utcStart, method, setValue]);
 
   // ── Clear mode-specific values when method changes ─────────────────────────
 
@@ -268,6 +285,10 @@ export default function LogSheetForm() {
 
   const hasPhoto = photoFiles !== null && photoFiles !== undefined && photoFiles.length > 0;
   const photoCount = hasPhoto ? photoFiles.length : 0;
+  // Checked here rather than at upload: offline, the upload happens after the
+  // observer has left the site, and a rejected photo is retried forever without
+  // ever surfacing. See utils/photos.ts.
+  const photoCheck = checkPhotos(photoFiles ? Array.from(photoFiles) : null);
 
   // ── Submit ─────────────────────────────────────────────────────────────────
 
@@ -778,11 +799,70 @@ export default function LogSheetForm() {
         />
       </label>
 
-      {hasPhoto && (
-        <p className="msg msg-info">
+      {/* Prevention, not just rejection. The size check above stops a photo
+          that cannot upload, but by then the shot is already taken and the
+          observer has to redo it. A phone left on maximum resolution
+          produces 8-12 MB frames all day; changed once, in the settings,
+          it produces 2-3 MB frames all day. Collapsed by default because
+          this is a one-time setup task, not something to read at every
+          station. */}
+      <details className="photo-hint">
+        <summary>Keeping photos small — set this once, before the trip</summary>
+        <p>
+          Aim for under about 5 MB a frame. Legibility of handwriting on a
+          logsheet matters more than resolution, and a 3 MB photo is already
+          past what a phone screen or a printed report resolves.
+        </p>
+        <ul>
+          <li>
+            <strong>iPhone:</strong> Settings → Camera → Formats →
+            <strong> High Efficiency</strong>. HEIC is roughly half the size
+            of JPEG at the same quality, and this app accepts it.
+          </li>
+          <li>
+            <strong>Android:</strong> Camera app → Settings →
+            <strong> Picture size</strong> (sometimes "Resolution" or
+            "Image quality"). Drop from the highest setting to a middle one —
+            on a 48 MP or 108 MP sensor the top option is far past useful
+            here.
+          </li>
+          <li>
+            Turn <strong>off</strong> RAW / "Pro" / "Expert RAW" modes. A RAW
+            frame is 20-30 MB and will be refused.
+          </li>
+        </ul>
+        <p>
+          Every megabyte is also a megabyte to upload over whatever signal
+          the site has, and the queue syncs the whole batch before a sheet
+          counts as filed.
+        </p>
+      </details>
+
+      {hasPhoto && photoCheck.ok && (
+        <p className={photoCheck.warnTotal ? "msg msg-warn" : "msg msg-info"}>
           {photoCount === 1
             ? `1 photo selected: ${photoFiles![0].name}`
             : `${photoCount} photos selected`}
+          {" — "}
+          {formatBytes(photoCheck.totalBytes)}
+          {photoCheck.warnTotal &&
+            ". That is a large batch; it will take a while to sync on a weak connection."}
+        </p>
+      )}
+
+      {photoCheck.oversized.length > 0 && (
+        <p className="msg msg-error">
+          {photoCheck.oversized.length === 1
+            ? `${photoCheck.oversized[0].name} is ${formatBytes(
+                photoCheck.oversized[0].size
+              )} — over the 15 MB limit.`
+            : `${photoCheck.oversized.length} photos are over the 15 MB limit: ` +
+              photoCheck.oversized
+                .map((f) => `${f.name} (${formatBytes(f.size)})`)
+                .join(", ")}
+          {" "}
+          The server refuses these, and offline they would queue and then never
+          finish syncing. Retake at a lower resolution, or choose different files.
         </p>
       )}
 
@@ -802,7 +882,7 @@ export default function LogSheetForm() {
       <button
         type="submit"
         className="submit-btn"
-        disabled={isSubmitting || !hasPhoto}
+        disabled={isSubmitting || !hasPhoto || !photoCheck.ok}
       >
         {isSubmitting ? "Saving…" : "Submit Log Sheet"}
       </button>
