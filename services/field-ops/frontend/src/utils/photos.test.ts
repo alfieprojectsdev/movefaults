@@ -80,8 +80,25 @@ describe("checkPhotos", () => {
     expect(r.ok).toBe(true);
   });
 
-  it("does not warn just under the threshold", () => {
-    expect(checkPhotos([file("a.jpg", WARN_TOTAL_BYTES)]).warnTotal).toBe(false);
+  it("does not warn at exactly the threshold", () => {
+    // Built from four legal 10 MB files rather than one 40 MB file. A single
+    // file that size is OVERSIZED, so the earlier version of this test passed
+    // without ever isolating the total: `ok` was already false, and the
+    // scenario could not arise in practice because submission is blocked.
+    const four = Array.from({ length: 4 }, (_, i) => file(`${i}.jpg`, 10 * MB));
+    const r = checkPhotos(four);
+    expect(r.totalBytes).toBe(WARN_TOTAL_BYTES);
+    expect(r.ok).toBe(true);        // every file is legal
+    expect(r.warnTotal).toBe(false); // and the total is not yet past the line
+  });
+
+  it("warns one byte past the threshold", () => {
+    const r = checkPhotos([
+      ...Array.from({ length: 4 }, (_, i) => file(`${i}.jpg`, 10 * MB)),
+      file("extra.jpg", 1),
+    ]);
+    expect(r.ok).toBe(true);
+    expect(r.warnTotal).toBe(true);
   });
 
   it("treats no selection as fine, not as an error", () => {
