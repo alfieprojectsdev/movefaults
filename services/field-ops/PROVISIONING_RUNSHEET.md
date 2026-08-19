@@ -60,9 +60,11 @@ CMD ["uv", "run", "field-ops-api"]
 Then build **from the repo root**, not from `services/field-ops`:
 
 ```bash
-fly launch --no-deploy --name pogf-field-ops --region sin \
-  --dockerfile services/field-ops/Dockerfile
+docker build -f services/field-ops/Dockerfile -t field-ops .
 ```
+
+`render.yaml` encodes the same thing as `dockerContext: .` with
+`dockerfilePath: ./services/field-ops/Dockerfile`.
 
 *(Alternative, if you ever want the API to serve the PWA: keep stage 1 but
 prefix its COPYs with `services/field-ops/`, and add the `StaticFiles` mount
@@ -84,10 +86,10 @@ copies only `services/field-ops/src/`, and runs off `PYTHONPATH=/app/src`.
 `field_ops` imports nothing outside its own package and its third-party deps,
 so that is sufficient — verified by grepping every import in the tree.
 
-It also uses shell-form `CMD` so `${PORT}` expands at runtime. **Keep
-`fly.toml`'s `internal_port` at 8001**, or set `PORT` as a Fly secret to match
-whatever `fly launch` generates — a mismatch means the health check never
-passes and Fly rolls the deploy back.
+It also uses shell-form `CMD` so `${PORT}` expands at runtime. Render assigns
+`PORT` and routes to it, so nothing needs pinning — and `render.yaml`
+deliberately does not set it. Hardcoding a port means the health check never
+passes and the platform rolls the deploy back.
 
 ### B. ~~Two contradictory account schemes~~ — RESOLVED 2026-08-19
 
@@ -177,17 +179,17 @@ database has been migrated — not the local container. Run from the repo root:
 cd /mnt/ssd/home/ltpt420/repos_finch/movefaults_clean
 
 echo "── tooling ──"
-for t in uv psql fly flyctl vercel npx rclone; do
+for t in uv psql vercel npx rclone; do
   printf '%-8s %s\n' "$t" "$(command -v $t || echo MISSING)"
 done
 
 echo "── platform logins ──"
-fly auth whoami 2>&1 | head -1
 vercel whoami  2>&1 | head -1
+# Render: no CLI in this workflow — confirm the service in the dashboard.
 
-echo "── fly app ──"
-fly apps list 2>&1 | head -20
-fly secrets list -a pogf-field-ops 2>&1 | head -20   # names only, no values
+echo "── render ──"
+# Render has no local CLI in this workflow; check the service and its
+# environment in the dashboard. Names only — never paste values back.
 
 echo "── vercel ──"
 vercel projects ls 2>&1 | head -20
@@ -208,7 +210,7 @@ psql "$DATABASE_URL" -tAc "select count(*) from field_ops.users"
 psql "$DATABASE_URL" -tAc "select version()"
 ```
 
-`fly secrets list` prints names and digests only — safe to paste back.
+Render's Environment tab shows names with values masked — safe to describe.
 `psql` output above contains no credentials — safe to paste back.
 **The connection string itself is not.** Never paste it anywhere.
 
@@ -310,52 +312,51 @@ VALUES ('XXXX', 'Site name', 'Municipality', 'Palawan', 'campaign', 'active');
 
 ---
 
-## Phase 5 — Backend on Fly [you]
+## Phase 5 — Backend on Render [you]
 
-**Blocker A must be fixed first**, or this fails at `fly deploy`.
+**Was "Backend on Fly" until 2026-08-19.** Fly now requires a card before a
+first deploy and the project's virtual cards are unreliable with some gateways.
+Render was already proven on this project's machine (`carpool-app/render.yaml`,
+2025-11-06 — free web service and free Postgres, both Singapore). Every `fly`
+command below was replaced; nothing about the application changed.
 
-From the **repo root**:
+The deployment is declared in **`render.yaml` at the repository root**, so this
+phase is mostly clicking once and pasting secrets.
 
-```bash
-fly launch --no-deploy --name pogf-field-ops --region sin \
-  --dockerfile services/field-ops/Dockerfile
-```
+1. Render dashboard → **New → Blueprint Instance** → connect
+   `alfieprojectsdev/movefaults`.
+   If the repo is not listed, Render's GitHub App is scoped to selected
+   repositories: **Configure account** → add `movefaults`.
+2. Name the blueprint (`pogf-field-ops`). Branch `main`, path `render.yaml` —
+   both default correctly.
+3. Render parses the blueprint and shows one service, `pogf-field-ops-api`,
+   with seven environment variables to fill. Every secret in `render.yaml`
+   carries `sync: false`, which is why that file can live in a public
+   repository — it declares NAMES, never values.
 
-Secrets via a file, never as arguments — `fly secrets set K=v` puts every value
-into your shell history and into the process table where any other user on the
-machine can read it:
-
-```bash
-umask 077
-cat > /tmp/field-ops.env <<'ENV'
-FIELD_OPS_PRODUCTION=1
-DATABASE_URL=...
-FIELD_OPS_STORAGE_BACKEND=r2
-R2_ACCOUNT_ID=...
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-R2_BUCKET=pogf-field-ops
-ENV
-
-printf 'FIELD_OPS_JWT_SECRET=%s\n' \
-  "$(uv run python -c 'import secrets; print(secrets.token_hex(32))')" \
-  >> /tmp/field-ops.env
-
-fly secrets import < /tmp/field-ops.env
-shred -u /tmp/field-ops.env
-```
+| Variable | Value |
+|---|---|
+| `FIELD_OPS_CORS_ORIGINS` | **leave empty** — the Vercel rewrite keeps the API same-origin |
+| `DATABASE_URL` | Neon **pooled** string (host contains `-pooler`) |
+| `FIELD_OPS_JWT_SECRET` | `uv run python -c 'import secrets; print(secrets.token_hex(32))'` |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` | from Phase 4 |
 
 `uv run python`, not system `python3` — the project dependencies are not on the
 bare interpreter.
 
+**`DATABASE_URL` must be the pooled endpoint.** A container that restarts holds
+connections open and the direct endpoint runs out of them. Migrations are the
+exact opposite and use the direct endpoint — see Phase 2.
+
 **Do not set `FIELD_OPS_DEV`.** It re-enables every weak default. Production
-mode is now *inferred* from a non-local `DATABASE_URL`, so forgetting
-`FIELD_OPS_PRODUCTION` no longer silently disables the gate — but `FIELD_OPS_DEV`
-still overrides everything.
+mode is *inferred* from a non-local `DATABASE_URL`, so forgetting
+`FIELD_OPS_PRODUCTION` no longer silently disables the gate — but
+`FIELD_OPS_DEV` still overrides everything.
+
+4. **Deploy Blueprint.** First build is slow; the image is ~1.5 GB.
 
 ```bash
-fly deploy
-curl https://pogf-field-ops.fly.dev/health      # {"status":"ok",...}
+curl https://pogf-field-ops-api.onrender.com/health   # {"status":"ok",...}
 ```
 
 **If it refuses to start,** read the logs — `_assert_deployable` names every
@@ -365,52 +366,69 @@ default and ≥32 chars, storage backend is `r2`, all four R2 variables present,
 upload, precisely so a typo'd `R2_BUCKET` fails here rather than 500-ing on
 every photo for a week.
 
+> **Free instances sleep.** After ~15 minutes idle the first request takes
+> roughly 50 seconds. The PWA is offline-first and syncs in batches, so this is
+> tolerable — but tell the field team, or a slow first sync reads as a broken
+> app and they stop trusting it.
+
 > **Gap worth knowing:** `preflight.sh check_backend_env` reads *your local
-> shell*, not Fly's secret store. A clean preflight says nothing about what Fly
-> actually has. `fly secrets list` (names only) is the real check. Consider
-> adding that comparison to `preflight.sh`.
+> shell*, not Render's environment. A clean preflight says nothing about what
+> Render actually has. The dashboard's Environment tab is the real check.
 
 ---
 
 ## Phase 6 — Observer accounts
 
-**Resolve Blocker B first.** Assuming option 1 (seed then reset):
+Blocker B is resolved: random passwords, distributed on paper (see above).
 
 ```bash
-cat > /tmp/surnames.txt <<'EOF'
-ARP,pelicano
-TCB,bacolcol
-EOF
-
-./services/field-ops/deploy/deploy.sh accounts --surnames /tmp/surnames.txt --dry-run
-./services/field-ops/deploy/deploy.sh accounts --surnames /tmp/surnames.txt
-shred -u /tmp/surnames.txt
+./services/field-ops/deploy/deploy.sh accounts --dry-run
+./services/field-ops/deploy/deploy.sh accounts --slips field_credentials.txt
 ```
 
-Then, per person:
+One random password per person, bcrypt-hashed into `field_ops.users`, plaintext
+written once to the slips file at mode 600. The phase refuses to run without
+`--slips` rather than mint passwords that go nowhere.
+
+**Print it, cut it up, hand each person their line at the briefing, then:**
 
 ```bash
-uv run python scripts/seed_field_accounts.py --surnames /dev/null --reset ARP
+shred -u field_credentials.txt
 ```
 
-Password printed once. **Hand it over through a private channel** — not a group
-chat. Sessions last 8 hours: a full shift without re-entering anything.
+Per-person replacement, printed once:
+
+```bash
+uv run python scripts/seed_field_accounts.py --reset ARP
+```
 
 Re-running `accounts` never rewrites an existing password (someone may have
-changed theirs), but it *does* update roles from `staff.csv`. That is
-deliberate.
+changed theirs), so it issues no slip for anyone who already has an account. It
+*does* update roles from `staff.csv`. Both are deliberate.
+
+Sessions last 8 hours: a full shift without re-entering anything.
 
 ---
 
 ## Phase 7 — Frontend on Vercel [you]
 
-```bash
-./services/field-ops/deploy/deploy.sh frontend --backend-host pogf-field-ops.fly.dev
-```
+Nothing to run. Vercel builds from the repository, the same way Render builds
+the API from `render.yaml`; merging to `main` redeploys both.
 
-Bare hostname, no scheme. This rewrites the placeholder in `vercel.json` and
-deploys. In the Vercel UI, **root directory must be
-`services/field-ops/frontend`**.
+1. Import `alfieprojectsdev/movefaults` in Vercel.
+2. **Root directory: `services/field-ops/frontend`.**
+3. Deploy. Note the URL.
+
+`vercel.json` already points the `/api` rewrite at
+`pogf-field-ops-api.onrender.com`, which keeps the API same-origin — no CORS
+preflight, and `FIELD_OPS_CORS_ORIGINS` stays empty.
+
+> `deploy.sh frontend --backend-host HOST` was retired 2026-08-19. It edited
+> the working tree and pushed from a laptop, so only that machine could deploy
+> and nothing in git recorded what was deployed — and once the placeholder had
+> been substituted, `--backend-host` was silently ignored, so a run aimed at
+> staging would have deployed production.
+
 
 The `/api` rewrite keeps the API same-origin, so there is no CORS preflight —
 one fewer round trip on one bar of signal. `check-deploy-config.mjs` fails the
@@ -418,10 +436,12 @@ build if the placeholder survives, but *only when `VERCEL=1`* — a local
 `npm run build` merely warns. Don't read a clean local build as confirmation.
 
 If you deploy cross-origin instead, set `VITE_API_BASE_URL` at build time and
-add the Vercel URL to `FIELD_OPS_CORS_ORIGINS` on Fly. Wildcards are rejected
-by design.
+add the Vercel URL to `FIELD_OPS_CORS_ORIGINS` on Render. Wildcards are
+rejected by design. With the rewrite in place this does not apply — the
+variable stays empty.
 
-- [ ] Commit the `vercel.json` change — the `sed` edits your working tree
+- [x] ~~Commit the `vercel.json` change~~ — the host is committed and Vercel
+      builds from the repo; the `sed` step and `deploy.sh frontend` are retired
 
 ---
 
@@ -497,12 +517,12 @@ what failed.
 ## Open items to fold back into the repo
 
 - [x] ~~Fix `services/field-ops/Dockerfile`~~ (Blocker A) — done 2026-08-18
-- [ ] Correct DEPLOY.md §3: it still says `cd services/field-ops` before
-      `fly launch`, which is the wrong build context
-- [ ] Decide the account scheme (Blocker B); make DEPLOY.md §5 and
-      `seed_field_accounts.py` agree, or delete the claim about a control that
-      does not exist
+- [x] ~~Correct DEPLOY.md §3's build context~~ — moot: the backend deploys
+      from `render.yaml`, which sets `dockerContext: .` explicitly
+- [x] ~~Decide the account scheme (Blocker B)~~ — random passwords on paper,
+      2026-08-19; DEPLOY.md §5 and the seeder now agree
 - [ ] Add the Palawan station assertion to `phase_verify` (Blocker C)
-- [ ] `preflight.sh`: compare `fly secrets list` names against the required set
+- [ ] `preflight.sh`: compare Render's environment variable NAMES against the
+      required set (it currently reads only the local shell)
 - [ ] DEPLOY.md should point at `deploy/deploy.sh` — right now a reader follows
       the manual path and never learns the scripts exist

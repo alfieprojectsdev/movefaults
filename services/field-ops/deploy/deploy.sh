@@ -5,8 +5,7 @@
 #   ./services/field-ops/deploy/deploy.sh preflight
 #   ./services/field-ops/deploy/deploy.sh db        [--dry-run]
 #   ./services/field-ops/deploy/deploy.sh seed      [--dry-run]
-#   ./services/field-ops/deploy/deploy.sh accounts  --surnames FILE [--dry-run]
-#   ./services/field-ops/deploy/deploy.sh frontend  --backend-host HOST
+#   ./services/field-ops/deploy/deploy.sh accounts  --slips FILE [--dry-run]
 #   ./services/field-ops/deploy/deploy.sh verify
 #
 # ── What this does and does not do ─────────────────────────────────────────
@@ -49,7 +48,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/preflight.sh"
 
 DRY_RUN=0
 SURNAMES=""
-BACKEND_HOST=""
+SLIPS=""
 
 say()  { printf '\n\033[1m── %s\033[0m\n' "$*"; }
 step() { printf '  %s\n' "$*"; }
@@ -114,48 +113,59 @@ phase_seed() {
 }
 
 phase_accounts() {
-  [[ -n "$SURNAMES" ]] || stop "accounts needs --surnames FILE (INITIALS,surname)."
-  [[ -f "$SURNAMES" ]] || stop "$SURNAMES not found."
+  # Random passwords are the default, matching seed_field_accounts.py since
+  # 2026-08-19. This wrapper used to REQUIRE --surnames and pass it straight
+  # through, which meant the retired scheme could still be reached here after
+  # the seeder itself had moved on — surname passwords on a public URL, by way
+  # of a flag nobody thought to stop passing.
+  if [[ -n "$SURNAMES" ]]; then
+    [[ -f "$SURNAMES" ]] || stop "$SURNAMES not found."
+  else
+    [[ -n "$SLIPS" || $DRY_RUN -eq 1 ]] || stop \
+      "accounts needs --slips FILE (where the generated passwords are written), \
+or --surnames FILE for the legacy scheme on an instance that is genuinely \
+unreachable from the internet."
+  fi
   run_preflight db || stop "Fix the above before creating accounts."
 
   say "Observer accounts"
-  # The surname file is a credential list. It is never printed, never copied,
-  # and the seeder reports only initials.
+  # Both files are credential lists. Neither is printed or copied here, and the
+  # seeder reports initials only.
+  local args=()
+  if [[ -n "$SURNAMES" ]]; then
+    args+=(--surnames "$SURNAMES")
+  elif [[ -n "$SLIPS" ]]; then
+    args+=(--slips "$SLIPS")
+  fi
   if (( DRY_RUN )); then
-    uv run python scripts/seed_field_accounts.py --surnames "$SURNAMES" --dry-run
+    uv run python scripts/seed_field_accounts.py "${args[@]}" --dry-run
   else
-    uv run python scripts/seed_field_accounts.py --surnames "$SURNAMES"
-    step "Delete $SURNAMES once the accounts exist: shred -u $SURNAMES"
+    uv run python scripts/seed_field_accounts.py "${args[@]}"
+    if [[ -n "$SURNAMES" ]]; then
+      step "Delete $SURNAMES once the accounts exist: shred -u $SURNAMES"
+    else
+      step "Print $SLIPS, hand out the slips, then: shred -u $SLIPS"
+    fi
   fi
 }
 
-phase_frontend() {
-  command -v vercel >/dev/null 2>&1 || stop \
-    "vercel CLI not installed. npm i -g vercel, then 'vercel login'."
-  [[ -n "$BACKEND_HOST" ]] || stop \
-    "frontend needs --backend-host HOST (e.g. pogf-field-ops.fly.dev)."
-
-  case "$BACKEND_HOST" in
-    https://*|http://*) stop "--backend-host takes a bare hostname, no scheme." ;;
-  esac
-
-  say "Frontend"
-  local cfg="services/field-ops/frontend/vercel.json"
-
-  # The rewrite keeps the API same-origin, which removes a CORS preflight —
-  # one fewer round trip on one bar of signal. The placeholder must be gone
-  # before the build, and check-deploy-config.mjs fails the build if it is not.
-  step "pointing the /api rewrite at $BACKEND_HOST"
-  would "sed -i 's|REPLACE-WITH-BACKEND-HOST|$BACKEND_HOST|' $cfg" || {
-    sed -i "s|REPLACE-WITH-BACKEND-HOST|${BACKEND_HOST}|" "$cfg"
-    grep -q 'REPLACE-WITH-BACKEND-HOST' "$cfg" &&
-      stop "placeholder still present in $cfg — edit it by hand."
-  }
-
-  step "deploying to Vercel (production)"
-  would "vercel deploy --prod --cwd services/field-ops/frontend" ||
-    vercel deploy --prod --cwd services/field-ops/frontend
-}
+# phase_frontend was here. Retired 2026-08-19 when the frontend moved to
+# Vercel's Git integration, which is the model the backend already used:
+# render.yaml is read from main and redeploys on merge.
+#
+# It worked by `sed`-ing the placeholder in vercel.json and running
+# `vercel deploy --prod` from the working tree. Two problems with keeping that
+# alongside a Git-driven backend:
+#
+#   * only the machine that ran the sed could deploy, and nothing in git
+#     described what was deployed
+#   * once the placeholder was substituted and committed, the sed silently
+#     no-opped and the `grep -q ... && stop` guard passed, so --backend-host was
+#     ignored and the deploy went to whatever host happened to be in the file.
+#     Pointing it at staging would have deployed production.
+#
+# Both disappear when Vercel builds from the repository. The frontend now
+# deploys by merging to main; see DEPLOY.md section 4.
 
 phase_verify() {
   local base="${FIELD_OPS_URL:-}"
@@ -209,7 +219,7 @@ while (( $# )); do
   case "$1" in
     --dry-run)      DRY_RUN=1 ;;
     --surnames)     SURNAMES="${2:-}"; shift ;;
-    --backend-host) BACKEND_HOST="${2:-}"; shift ;;
+    --slips)        SLIPS="${2:-}"; shift ;;
     *) stop "Unknown option: $1" ;;
   esac
   shift
@@ -220,7 +230,6 @@ case "$CMD" in
   db)        phase_db ;;
   seed)      phase_seed ;;
   accounts)  phase_accounts ;;
-  frontend)  phase_frontend ;;
   verify)    phase_verify ;;
   *)
     sed -n '3,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
