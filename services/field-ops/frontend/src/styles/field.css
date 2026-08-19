@@ -505,3 +505,25 @@ input[readonly] {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Photo size guidance ─────────────────────────────────────────────────────
+   Collapsed by default: a one-time camera setup task, not something to read at
+   every station. Muted so it reads as guidance rather than as an error, and
+   sized down because on a phone this sits directly under the file input and
+   must not compete with it. */
+.photo-hint {
+  margin: 0.5rem 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted, #8b95a5);
+}
+.photo-hint > summary {
+  cursor: pointer;
+  padding: 0.35rem 0;
+}
+.photo-hint ul {
+  margin: 0.4rem 0;
+  padding-left: 1.1rem;
+}
+.photo-hint li {
+  margin-bottom: 0.35rem;
+}

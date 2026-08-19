@@ -31,6 +31,7 @@ import { useQuery } from "@tanstack/react-query";
 import StationPicker from "./StationPicker";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { groupByRole } from "../utils/roles";
+import { checkPhotos, formatBytes } from "../utils/photos";
 import {
   localTimeToISO,
   utcFieldToISO,
@@ -268,6 +269,10 @@ export default function LogSheetForm() {
 
   const hasPhoto = photoFiles !== null && photoFiles !== undefined && photoFiles.length > 0;
   const photoCount = hasPhoto ? photoFiles.length : 0;
+  // Checked here rather than at upload: offline, the upload happens after the
+  // observer has left the site, and a rejected photo is retried forever without
+  // ever surfacing. See utils/photos.ts.
+  const photoCheck = checkPhotos(photoFiles ? Array.from(photoFiles) : null);
 
   // ── Submit ─────────────────────────────────────────────────────────────────
 
@@ -778,11 +783,70 @@ export default function LogSheetForm() {
         />
       </label>
 
-      {hasPhoto && (
-        <p className="msg msg-info">
+      {/* Prevention, not just rejection. The size check above stops a photo
+          that cannot upload, but by then the shot is already taken and the
+          observer has to redo it. A phone left on maximum resolution
+          produces 8-12 MB frames all day; changed once, in the settings,
+          it produces 2-3 MB frames all day. Collapsed by default because
+          this is a one-time setup task, not something to read at every
+          station. */}
+      <details className="photo-hint">
+        <summary>Keeping photos small — set this once, before the trip</summary>
+        <p>
+          Aim for under about 5 MB a frame. Legibility of handwriting on a
+          logsheet matters more than resolution, and a 3 MB photo is already
+          past what a phone screen or a printed report resolves.
+        </p>
+        <ul>
+          <li>
+            <strong>iPhone:</strong> Settings → Camera → Formats →
+            <strong> High Efficiency</strong>. HEIC is roughly half the size
+            of JPEG at the same quality, and this app accepts it.
+          </li>
+          <li>
+            <strong>Android:</strong> Camera app → Settings →
+            <strong> Picture size</strong> (sometimes "Resolution" or
+            "Image quality"). Drop from the highest setting to a middle one —
+            on a 48 MP or 108 MP sensor the top option is far past useful
+            here.
+          </li>
+          <li>
+            Turn <strong>off</strong> RAW / "Pro" / "Expert RAW" modes. A RAW
+            frame is 20-30 MB and will be refused.
+          </li>
+        </ul>
+        <p>
+          Every megabyte is also a megabyte to upload over whatever signal
+          the site has, and the queue syncs the whole batch before a sheet
+          counts as filed.
+        </p>
+      </details>
+
+      {hasPhoto && photoCheck.ok && (
+        <p className={photoCheck.warnTotal ? "msg msg-warn" : "msg msg-info"}>
           {photoCount === 1
             ? `1 photo selected: ${photoFiles![0].name}`
             : `${photoCount} photos selected`}
+          {" — "}
+          {formatBytes(photoCheck.totalBytes)}
+          {photoCheck.warnTotal &&
+            ". That is a large batch; it will take a while to sync on a weak connection."}
+        </p>
+      )}
+
+      {photoCheck.oversized.length > 0 && (
+        <p className="msg msg-error">
+          {photoCheck.oversized.length === 1
+            ? `${photoCheck.oversized[0].name} is ${formatBytes(
+                photoCheck.oversized[0].size
+              )} — over the 15 MB limit.`
+            : `${photoCheck.oversized.length} photos are over the 15 MB limit: ` +
+              photoCheck.oversized
+                .map((f) => `${f.name} (${formatBytes(f.size)})`)
+                .join(", ")}
+          {" "}
+          The server refuses these, and offline they would queue and then never
+          finish syncing. Retake at a lower resolution, or choose different files.
         </p>
       )}
 
@@ -802,7 +866,7 @@ export default function LogSheetForm() {
       <button
         type="submit"
         className="submit-btn"
-        disabled={isSubmitting || !hasPhoto}
+        disabled={isSubmitting || !hasPhoto || !photoCheck.ok}
       >
         {isSubmitting ? "Saving…" : "Submit Log Sheet"}
       </button>
