@@ -76,3 +76,47 @@ export function nowUTCFieldValue(now: Date = new Date()): string {
     `T${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}`
   );
 }
+
+/**
+ * Today's LOCAL calendar date as "YYYY-MM-DD", for the visit-date field.
+ *
+ * `new Date().toISOString().split("T")[0]` — which this replaced — takes the
+ * **UTC** calendar date. In Manila (UTC+8) that is the previous day for every
+ * moment between 00:00 and 08:00 local, which is exactly when a field team
+ * leaves for a site. A sheet filled at 05:30 was pre-dated to yesterday, and
+ * nothing on screen suggested otherwise: the date box simply looked filled in.
+ *
+ * `visit_date` is a SQL `date`, not a timestamp. A calendar day carries no
+ * zone, so there is nothing to "store as UTC and convert on display" — writing
+ * the UTC date into it does not record an instant, it records a different day
+ * from the one the observer was standing there. The local date is the fact the
+ * field log is asserting.
+ *
+ * Contrast the four `timestamptz` columns, which genuinely are instants and are
+ * handled by `localTimeToISO` and `utcFieldToISO` above.
+ */
+export function todayLocalISODate(now: Date = new Date()): string {
+  return (
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  );
+}
+
+/**
+ * Day of year of an instant, counted in UTC.
+ *
+ * RINEX names a session by its UTC day, so a session id derived from a LOCAL
+ * date can disagree with the file it is meant to identify. For a Philippine
+ * occupation starting after 08:00 local the two coincide; before that they do
+ * not, and the mismatch is invisible until someone tries to pair the logsheet
+ * with the observation file.
+ *
+ * Returns null for an unparseable or empty instant so the caller can fall back
+ * to the visit date rather than emit a session id containing "NaN".
+ */
+export function utcDayOfYear(instant: string | null | undefined): number | null {
+  if (!instant) return null;
+  const d = new Date(instant);
+  if (Number.isNaN(d.getTime())) return null;
+  const startOfYear = Date.UTC(d.getUTCFullYear(), 0, 0);
+  return Math.floor((d.getTime() - startOfYear) / 86_400_000);
+}

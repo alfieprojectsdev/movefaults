@@ -37,6 +37,8 @@ import {
   utcFieldToISO,
   nowLocalHHMM,
   nowUTCFieldValue,
+  todayLocalISODate,
+  utcDayOfYear,
 } from "../utils/times";
 import {
   submitLogSheet,
@@ -144,7 +146,10 @@ export default function LogSheetForm() {
       // sometimes opened later — but a sensible value beats an empty box that
       // has to be typed on a phone in the rain.
       arrival_time: nowLocalHHMM(),
-      visit_date: new Date().toISOString().split("T")[0],
+      // LOCAL date, not toISOString() — that returns the UTC calendar day,
+      // which in Manila is yesterday between 00:00 and 08:00 local: exactly
+      // when a field team sets out. See todayLocalISODate in utils/times.
+      visit_date: todayLocalISODate(),
       monitoring_method: "",
       observer_ids: [],
       photo: null,
@@ -191,6 +196,7 @@ export default function LogSheetForm() {
   const slantE         = watch("slant_e_m");
   const slantS         = watch("slant_s_m");
   const slantW         = watch("slant_w_m");
+  const utcStart       = watch("utc_start");
   const photoFiles     = watch("photo");
   const observerIds    = watch("observer_ids");
 
@@ -207,13 +213,23 @@ export default function LogSheetForm() {
 
   // ── Session ID auto-generation ─────────────────────────────────────────────
 
+  // RINEX names a session by its UTC day, so the day-of-year here is taken
+  // from utc_start when the observer has entered it. Deriving it from the
+  // LOCAL visit date instead agrees for any occupation starting after 08:00
+  // Manila time and silently disagrees before that — and the disagreement
+  // only shows up much later, when someone tries to pair this logsheet with
+  // the observation file it is supposed to name.
+  //
+  // Falls back to the visit date while utc_start is still empty, so the
+  // field is populated as soon as a station and date exist rather than
+  // staying blank until the session times are filled in.
   useEffect(() => {
     if (method !== "campaign") return;
     if (stationCode && visitDate) {
-      const doy = toDOY(visitDate);
+      const doy = utcDayOfYear(utcFieldToISO(utcStart)) ?? toDOY(visitDate);
       setValue("session_id", `${stationCode.toUpperCase()}${doy}`);
     }
-  }, [stationCode, visitDate, method, setValue]);
+  }, [stationCode, visitDate, utcStart, method, setValue]);
 
   // ── Clear mode-specific values when method changes ─────────────────────────
 
