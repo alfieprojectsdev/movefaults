@@ -82,3 +82,6 @@ scripts/sudo/logs/
 # login live here — never commit. See scripts/seed_field_accounts.py.
 *surnames*.csv
 *surnames*.txt
+
+# Credential notes — never commit (repo is public)
+docs/secrets.md
