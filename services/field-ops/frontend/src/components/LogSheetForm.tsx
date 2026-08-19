@@ -137,7 +137,7 @@ export default function LogSheetForm() {
     getValues,
     watch,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormValues>({
     defaultValues: {
       equipment_status: "ok",
@@ -815,7 +815,7 @@ export default function LogSheetForm() {
         </p>
         <ul>
           <li>
-            <strong>iPhone:</strong> Settings → Camera → Formats →
+            <strong>iPhone or iPad:</strong> Settings → Camera → Formats →
             <strong> High Efficiency</strong>. HEIC is roughly half the size
             of JPEG at the same quality, and this app accepts it.
           </li>
@@ -866,13 +866,34 @@ export default function LogSheetForm() {
         </p>
       )}
 
-      {!hasPhoto && !navigator.onLine && (
-        <p className="msg msg-warn">
-          Your text entries are saved locally.
-        </p>
-      )}
+      {/* Gated on isDirty, and the offline half is gone entirely.
 
-      {!hasPhoto && (
+          Both banners used to render from empty state alone, which put them
+          on screen at the two moments they were least wanted: a brand-new
+          sheet opened under a red error nobody had earned yet, and — because
+          resetForm() clears the form on a successful save — the instant a
+          save succeeded. That second one was the bad one. "Add a photo to
+          submit" in red, above "Saved offline — including the photo", reads
+          as a failure report on a sheet that was in fact safely queued, and
+          red is what the eye lands on. Observed in the 2026-08-20 E2E run.
+
+          isDirty is the right gate because it is false in exactly those two
+          cases and true the moment the operator types anything: reset() clears
+          it, and the autofills (visit_date, utc_start, session_id) go through
+          setValue, which does not mark the form dirty. Once someone is filling
+          a sheet in earnest, the outstanding requirement is worth saying
+          plainly — the Submit button is disabled until it is met and a
+          disabled button with no explanation is its own bug.
+
+          The offline banner said "Your text entries are saved locally." That
+          was not true: nothing persists this form before submit — no draft, no
+          localStorage — so an operator who closed the app on that promise lost
+          the sheet. It also read navigator.onLine during render, which
+          useOnline.ts exists precisely because it never re-renders on a
+          connectivity change. App.tsx already shows an accurate, reactive
+          offline banner at the top of the screen, so this is a deletion rather
+          than a repair. */}
+      {!hasPhoto && isDirty && (
         <p className="msg msg-error">
           Add a photo to submit.
         </p>

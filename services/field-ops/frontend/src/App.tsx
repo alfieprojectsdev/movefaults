@@ -62,7 +62,7 @@ export default function App() {
     return (
       <div className="app-shell">
         <div className="app-header">
-          <h1>POGF Field Ops</h1>
+          <h1>MOVE Faults Field Ops</h1>
           {themeButton}
         </div>
         <LoginScreen onSuccess={onLoginSuccess} />
@@ -74,7 +74,7 @@ export default function App() {
     <div className="app-shell">
       <header>
         <div className="app-header">
-          <h1>POGF Field Ops</h1>
+          <h1>MOVE Faults Field Ops</h1>
           {themeButton}
         </div>
 
