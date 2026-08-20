@@ -436,3 +436,116 @@ async def test_three_slant_sheet_records_which_direction_was_blocked(
     ).scalar_one()
     assert row.slant_w_m is None
     assert row.slant_n_m is not None
+
+
+# ── Equipment before/after block ────────────────────────────────────────────
+#
+# From the paper GPS Station Maintenance Record, which is laid out as a
+# Before/After table over receiver and antenna identity. The `_before` half is
+# the one that matters immediately: PPPC, PNDO and PKLY carry no
+# equipment_history rows at all, so a Palawan visit is the first written record
+# of what is installed on those monuments.
+
+
+def _cors_record(**overrides) -> dict:
+    record = {
+        "client_uuid": str(uuid.uuid4()),
+        "station_code": "PBIS",
+        "visit_date": "2026-08-20",
+        "monitoring_method": "continuous",
+        "receiver_model_before": "Leica GR50",
+        "receiver_serial_before": "1871357",
+        "receiver_firmware_before": "4.31.101",
+        "antenna_type_before": "Leica AR20",
+        "antenna_serial_before": "23055009",
+    }
+    record.update(overrides)
+    return record
+
+
+@pytest.mark.asyncio
+async def test_records_equipment_as_found(client, auth_headers, db_session):
+    record = _cors_record()
+    resp = await client.post("/api/v1/logsheets", json=[record], headers=auth_headers)
+    assert resp.status_code == 201, resp.text
+
+    row = (
+        await db_session.execute(
+            select(LogSheet).where(LogSheet.client_uuid == uuid.UUID(record["client_uuid"]))
+        )
+    ).scalar_one()
+    assert row.receiver_model_before == "Leica GR50"
+    assert row.receiver_serial_before == "1871357"
+    assert row.antenna_type_before == "Leica AR20"
+    # Nothing was swapped, so the other half stays empty rather than echoing.
+    assert row.receiver_model_after is None
+    assert row.equipment_changed is None
+
+
+@pytest.mark.asyncio
+async def test_records_a_swap_in_both_halves(client, auth_headers, db_session):
+    record = _cors_record(
+        equipment_changed=True,
+        receiver_model_after="Leica GR50",
+        receiver_serial_after="1871999",
+        receiver_firmware_after="4.50.000",
+    )
+    resp = await client.post("/api/v1/logsheets", json=[record], headers=auth_headers)
+    assert resp.status_code == 201, resp.text
+
+    row = (
+        await db_session.execute(
+            select(LogSheet).where(LogSheet.client_uuid == uuid.UUID(record["client_uuid"]))
+        )
+    ).scalar_one()
+    # Both serials survive — which is the entire point. A swap recorded only as
+    # "changed" cannot be reconciled into equipment_history later.
+    assert row.receiver_serial_before == "1871357"
+    assert row.receiver_serial_after == "1871999"
+    assert row.equipment_changed is True
+
+
+@pytest.mark.asyncio
+async def test_equipment_changed_without_an_after_field_is_refused(client, auth_headers):
+    """A ticked box with nothing under it asserts that a swap happened and keeps
+    no record of what it was — worse than an unticked box, because the sheet
+    then looks complete."""
+    resp = await client.post(
+        "/api/v1/logsheets",
+        json=[_cors_record(equipment_changed=True)],
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+    assert "no _after field" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_equipment_block_is_optional(client, auth_headers):
+    """A maintenance visit that touched nothing must still file. The block is a
+    record, not a gate — an observer who cannot read a worn serial plate should
+    leave it blank, not invent one."""
+    resp = await client.post(
+        "/api/v1/logsheets",
+        json=[
+            {
+                "client_uuid": str(uuid.uuid4()),
+                "station_code": "PBIS",
+                "visit_date": "2026-08-20",
+                "monitoring_method": "continuous",
+            }
+        ],
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201, resp.text
+
+
+@pytest.mark.asyncio
+async def test_equipment_change_rule_does_not_fire_when_unticked(client, auth_headers):
+    """An _after value without the tick is odd but not a lie, and refusing it
+    would strand a sheet over a checkbox. Recorded as given."""
+    resp = await client.post(
+        "/api/v1/logsheets",
+        json=[_cors_record(receiver_serial_after="1871999")],
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201, resp.text

@@ -141,6 +141,21 @@ interface FormValues {
   // Photo
   photo: FileList | null;
   // Continuous-only
+  equipment_changed: boolean;
+  receiver_model_before: string;
+  receiver_model_after: string;
+  receiver_serial_before: string;
+  receiver_serial_after: string;
+  receiver_firmware_before: string;
+  receiver_firmware_after: string;
+  antenna_type_before: string;
+  antenna_type_after: string;
+  antenna_part_number_before: string;
+  antenna_part_number_after: string;
+  antenna_serial_before: string;
+  antenna_serial_after: string;
+  antenna_height_before_m: string;
+  antenna_height_after_m: string;
   power_notes: string;
   battery_voltage_v: string;
   // Campaign-only
@@ -153,7 +168,6 @@ interface FormValues {
   utc_start: string;
   utc_end: string;
   bubble_centred: boolean;
-  plumbing_offset_mm: string;
 }
 
 // ── Shared styles ────────────────────────────────────────────────────────────
@@ -240,6 +254,7 @@ export default function LogSheetForm() {
   const slantW         = watch("slant_w_m");
   const utcStart       = watch("utc_start");
   const photoFiles     = watch("photo");
+  const equipmentChanged = watch("equipment_changed");
   const observerIds    = watch("observer_ids");
 
   // ── Staff query ────────────────────────────────────────────────────────────
@@ -298,7 +313,6 @@ export default function LogSheetForm() {
       setValue("utc_start", "");
       setValue("utc_end", "");
       setValue("bubble_centred", true);
-      setValue("plumbing_offset_mm", "");
     }
   }, [method, setValue, getValues]);
 
@@ -330,6 +344,23 @@ export default function LogSheetForm() {
     avgSH !== undefined && constants !== undefined && !rhImpossible
       ? computeRH(avgSH, constants.C, constants.VO)
       : undefined;
+
+  // ── Equipment change ───────────────────────────────────────────────────────
+
+  // Ticking the box without naming what changed is worse than not ticking it:
+  // the sheet records that a swap happened and keeps no trace of what it was
+  // swapped to. Watched as a group rather than field by field so a value in any
+  // one of them satisfies it.
+  const equipmentAfter = watch([
+    "receiver_model_after",
+    "receiver_serial_after",
+    "receiver_firmware_after",
+    "antenna_type_after",
+    "antenna_part_number_after",
+    "antenna_serial_after",
+    "antenna_height_after_m",
+  ]);
+  const anyEquipmentAfter = equipmentAfter.some((v) => String(v ?? "").trim() !== "");
 
   // ── Photo checks ───────────────────────────────────────────────────────────
 
@@ -365,6 +396,21 @@ export default function LogSheetForm() {
 
     if (values.monitoring_method === "continuous") {
       record.power_notes = values.power_notes || undefined;
+      record.receiver_model_before = values.receiver_model_before || undefined;
+      record.receiver_model_after = values.receiver_model_after || undefined;
+      record.receiver_serial_before = values.receiver_serial_before || undefined;
+      record.receiver_serial_after = values.receiver_serial_after || undefined;
+      record.receiver_firmware_before = values.receiver_firmware_before || undefined;
+      record.receiver_firmware_after = values.receiver_firmware_after || undefined;
+      record.antenna_type_before = values.antenna_type_before || undefined;
+      record.antenna_type_after = values.antenna_type_after || undefined;
+      record.antenna_part_number_before = values.antenna_part_number_before || undefined;
+      record.antenna_part_number_after = values.antenna_part_number_after || undefined;
+      record.antenna_serial_before = values.antenna_serial_before || undefined;
+      record.antenna_serial_after = values.antenna_serial_after || undefined;
+      record.equipment_changed = values.equipment_changed || undefined;
+      record.antenna_height_before_m = values.antenna_height_before_m ? parseFloat(values.antenna_height_before_m) : undefined;
+      record.antenna_height_after_m = values.antenna_height_after_m ? parseFloat(values.antenna_height_after_m) : undefined;
       record.battery_voltage_v = values.battery_voltage_v
         ? parseFloat(values.battery_voltage_v)
         : undefined;
@@ -382,9 +428,6 @@ export default function LogSheetForm() {
       record.utc_start = utcFieldToISO(values.utc_start);
       record.utc_end = utcFieldToISO(values.utc_end);
       record.bubble_centred = values.bubble_centred;
-      record.plumbing_offset_mm = values.plumbing_offset_mm
-        ? parseFloat(values.plumbing_offset_mm)
-        : undefined;
     }
 
     // Every selected photo is queued WITH the record. Before this it was
@@ -660,6 +703,182 @@ export default function LogSheetForm() {
               style={inputStyle}
             />
           </label>
+
+          {/* ── Equipment: as found, and as left ──────────────────────────
+              The Before/After table from the paper GPS Station Maintenance
+              Record. "As found" is the half that matters most right now:
+              PPPC, PNDO and PKLY have no equipment history on record at all,
+              so the Palawan visit is the first time their hardware is written
+              down anywhere. An unrecorded swap later shows up in the
+              coordinate series as a step that looks like ground movement. */}
+          <h3 className="section-header">Equipment as found</h3>
+
+          <p className="hint">
+            Copy from the labels on the receiver and antenna. If a field is not
+            marked on the hardware, leave it blank rather than guessing.
+          </p>
+
+          <label>
+            Receiver model
+            <input
+              type="text"
+              {...register("receiver_model_before")}
+              placeholder="e.g. Leica GR50"
+              style={inputStyle}
+            />
+          </label>
+
+          <div className="form-grid-2">
+            <label>
+              Receiver serial
+              <input
+                type="text"
+                {...register("receiver_serial_before")}
+                placeholder="e.g. 1871357"
+                style={inputStyle}
+              />
+            </label>
+            <label>
+              Firmware
+              <input
+                type="text"
+                {...register("receiver_firmware_before")}
+                placeholder="e.g. 4.31.101"
+                style={inputStyle}
+              />
+            </label>
+          </div>
+
+          <label>
+            Antenna type
+            <input
+              type="text"
+              {...register("antenna_type_before")}
+              placeholder="e.g. Leica AR20"
+              style={inputStyle}
+            />
+          </label>
+
+          <div className="form-grid-2">
+            <label>
+              Antenna part no.
+              <input
+                type="text"
+                {...register("antenna_part_number_before")}
+                style={inputStyle}
+              />
+            </label>
+            <label>
+              Antenna serial
+              <input
+                type="text"
+                {...register("antenna_serial_before")}
+                placeholder="e.g. 23055009"
+                style={inputStyle}
+              />
+            </label>
+          </div>
+
+          <label>
+            Antenna height, vertical (m)
+            <input
+              type="number"
+              step="0.0001"
+              min="0"
+              {...register("antenna_height_before_m")}
+              style={inputStyle}
+            />
+          </label>
+
+          <label className="checkbox-row">
+            <input type="checkbox" {...register("equipment_changed")} />
+            Equipment was changed during this visit
+          </label>
+
+          {equipmentChanged && (
+            <>
+              <h3 className="section-header">Equipment as left</h3>
+              <p className="hint">
+                Fill in only what changed. Anything left blank means it is still
+                what is recorded above.
+              </p>
+
+              <label>
+                Receiver model
+                <input
+                  type="text"
+                  {...register("receiver_model_after")}
+                  style={inputStyle}
+                />
+              </label>
+
+              <div className="form-grid-2">
+                <label>
+                  Receiver serial
+                  <input
+                    type="text"
+                    {...register("receiver_serial_after")}
+                    style={inputStyle}
+                  />
+                </label>
+                <label>
+                  Firmware
+                  <input
+                    type="text"
+                    {...register("receiver_firmware_after")}
+                    style={inputStyle}
+                  />
+                </label>
+              </div>
+
+              <label>
+                Antenna type
+                <input
+                  type="text"
+                  {...register("antenna_type_after")}
+                  style={inputStyle}
+                />
+              </label>
+
+              <div className="form-grid-2">
+                <label>
+                  Antenna part no.
+                  <input
+                    type="text"
+                    {...register("antenna_part_number_after")}
+                    style={inputStyle}
+                  />
+                </label>
+                <label>
+                  Antenna serial
+                  <input
+                    type="text"
+                    {...register("antenna_serial_after")}
+                    style={inputStyle}
+                  />
+                </label>
+              </div>
+
+              <label>
+                Antenna height, vertical (m)
+                <input
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  {...register("antenna_height_after_m")}
+                  style={inputStyle}
+                />
+              </label>
+
+              {!anyEquipmentAfter && (
+                <p className="msg msg-error">
+                  Tick means something was swapped — record what it was changed
+                  to. A ticked box with nothing under it says a change happened
+                  and destroys the only record of what it was.
+                </p>
+              )}
+            </>
+          )}
         </>
       )}
 
@@ -851,17 +1070,6 @@ export default function LogSheetForm() {
             Bubble centred (level confirmed)
           </label>
 
-          <label>
-            Plumbing offset (mm)
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              {...register("plumbing_offset_mm")}
-              placeholder="0.0 if plumb"
-              style={inputStyle}
-            />
-          </label>
         </>
       )}
 

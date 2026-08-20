@@ -107,7 +107,37 @@ class LogSheet(FieldOpsBase):
     utc_start = Column(TIMESTAMP(timezone=True))
     utc_end = Column(TIMESTAMP(timezone=True))
     bubble_centred = Column(Boolean)
-    plumbing_offset_mm = Column(Float)
+
+    # --- Equipment, as found and as left (continuous/CORS maintenance) ---
+    #
+    # Mirrors the Before/After table on the paper GPS Station Maintenance
+    # Record. `_before` is what the observer found installed; `_after` is filled
+    # only when something was swapped during the visit.
+    #
+    # This is the field OBSERVATION. equipment_history remains the authoritative
+    # ledger for Bernese .STA generation, and is reconciled from these rows
+    # deliberately rather than written from the offline queue, which replays
+    # records days late and would produce overlapping validity intervals.
+    #
+    # antenna_type_before is NOT antenna_model. antenna_model is campaign-only
+    # and holds an ANTEX key from a fixed dropdown because it selects the
+    # constants driving the height reduction; this is free text for whatever is
+    # on a CORS monument ("Leica AR20"), which has no dropdown entry.
+    equipment_changed = Column(Boolean)
+    receiver_model_before = Column(String(100))
+    receiver_model_after = Column(String(100))
+    receiver_serial_before = Column(String(100))
+    receiver_serial_after = Column(String(100))
+    receiver_firmware_before = Column(String(50))
+    receiver_firmware_after = Column(String(50))
+    antenna_type_before = Column(String(100))
+    antenna_type_after = Column(String(100))
+    antenna_part_number_before = Column(String(100))
+    antenna_part_number_after = Column(String(100))
+    antenna_serial_before = Column(String(100))
+    antenna_serial_after = Column(String(100))
+    antenna_height_before_m = Column(Float)
+    antenna_height_after_m = Column(Float)
 
     submitter = relationship("User", back_populates="logsheets")
     photos = relationship("LogSheetPhoto", back_populates="logsheet")

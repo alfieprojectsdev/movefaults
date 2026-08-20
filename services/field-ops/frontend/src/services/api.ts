@@ -49,7 +49,26 @@ export interface LogSheetIn {
   utc_start?: string;
   utc_end?: string;
   bubble_centred?: boolean;
-  plumbing_offset_mm?: number;
+
+  // Equipment as found and as left — the Before/After table on the paper CORS
+  // maintenance record. Free text on purpose: this is whatever is printed on
+  // the hardware, not a key into a lookup. Distinct from antenna_model, which
+  // is campaign-only and selects the height-reduction constants.
+  equipment_changed?: boolean;
+  receiver_model_before?: string;
+  receiver_model_after?: string;
+  receiver_serial_before?: string;
+  receiver_serial_after?: string;
+  receiver_firmware_before?: string;
+  receiver_firmware_after?: string;
+  antenna_type_before?: string;
+  antenna_type_after?: string;
+  antenna_part_number_before?: string;
+  antenna_part_number_after?: string;
+  antenna_serial_before?: string;
+  antenna_serial_after?: string;
+  antenna_height_before_m?: number;
+  antenna_height_after_m?: number;
 }
 
 export interface LogSheetOut extends LogSheetIn {
