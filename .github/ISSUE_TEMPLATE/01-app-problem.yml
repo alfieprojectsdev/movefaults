@@ -1,0 +1,130 @@
+name: Something is wrong in the app
+description: The Field Ops app did something you did not expect, or would not let you do your work.
+title: "[App] "
+labels: ["field-ops", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting this — a problem nobody reports is a problem
+        nobody fixes.
+
+        **⚠️ This page is public. Anyone on the internet can read what you type
+        here.**
+
+        - **Never type your password**, not even to show that it did not work.
+        - Do not paste anything from `field_credentials`, and do not include
+          anyone's phone number or home address.
+        - Station codes, dates, times and error messages are all fine.
+
+        You do not need to know anything technical. Answer what you can and
+        leave the rest blank — a short report is far better than none.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where in the app did this happen?
+      options:
+        - Signing in
+        - New Log Sheet (filling in a station visit)
+        - Queue (sheets waiting to sync)
+        - Sheets (the list of what has been filed)
+        - Installing the app / opening it from the home screen
+        - Somewhere else, or I am not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: >-
+        In your own words. "I tapped Submit and nothing happened" is a perfectly
+        good report.
+      placeholder: I tapped Submit and the button went grey but no message appeared.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen instead?
+      placeholder: I expected it to say the sheet was saved.
+
+  - type: input
+    id: station_and_time
+    attributes:
+      label: Which station, and roughly when?
+      description: >-
+        This is how we find your sheet in the records. An approximate time is
+        fine — "PPPC, around 9am on 20 August" is enough.
+      placeholder: PPPC, around 9am on 20 August
+
+  - type: dropdown
+    id: signal
+    attributes:
+      label: Did you have signal at the time?
+      description: >-
+        This matters more than it sounds. The app behaves differently offline,
+        and knowing which one you were in usually points straight at the cause.
+      options:
+        - "Yes — I had signal"
+        - "No — I was offline"
+        - "It was coming and going"
+        - "I am not sure"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: lost_work
+    attributes:
+      label: Was any work lost?
+      description: >-
+        Answer honestly — this decides how fast we act. If a sheet or photo is
+        gone and cannot be redone, that is the most serious kind of problem this
+        app can have.
+      options:
+        - "No — nothing was lost"
+        - "I am not sure"
+        - "Yes — a sheet or photo I cannot get back"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: What were you using?
+      options:
+        - Android phone
+        - iPhone
+        - iPad
+        - Android tablet
+        - Laptop or desktop
+        - I am not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: >-
+        Drag a screenshot into this box, or tap it and choose the image. A photo
+        of the screen taken with another phone works just as well. **Check the
+        picture does not show a password before you attach it.**
+
+  - type: textarea
+    id: anything_else
+    attributes:
+      label: Anything else worth knowing?
+      description: >-
+        Had it worked before? Did it happen once or every time? Was anyone else
+        having the same trouble?
+
+  - type: checkboxes
+    id: no_secrets
+    attributes:
+      label: Before you send this
+      options:
+        - label: I have not included any password in the text or in a screenshot.
+          required: true
