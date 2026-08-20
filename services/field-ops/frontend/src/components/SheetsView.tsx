@@ -79,7 +79,16 @@ function PhotoCell({ photos }: { photos: SheetPhoto[] }) {
     return (
       <div className="sheet-photos">
         {urls.map((u, i) => (
-          <img key={u} src={u} alt={photos[i].filename ?? `Photo ${i + 1}`} loading="lazy" />
+          // No loading="lazy". These sit inside a horizontally scrolled
+          // container, where Chrome's intersection check does not fire — the
+          // blob was valid and decoded fine in a probe image, while the
+          // rendered one stayed complete:false forever. Tapping the photo
+          // looked like it did nothing. Observed on the deployed app,
+          // 2026-08-20.
+          //
+          // Lazy loading bought nothing here regardless: the bytes are already
+          // fetched, on demand, only after someone asks for them.
+          <img key={u} src={u} alt={photos[i].filename ?? `Photo ${i + 1}`} />
         ))}
       </div>
     );
