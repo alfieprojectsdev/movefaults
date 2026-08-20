@@ -362,6 +362,20 @@ export default function LogSheetForm() {
   ]);
   const anyEquipmentAfter = equipmentAfter.some((v) => String(v ?? "").trim() !== "");
 
+  // Blocks Submit, not merely warned about.
+  //
+  // Online this would be a 422 the observer could fix on the spot. Offline it
+  // queues, flushes hours later, and comes back "refused by the server" — by
+  // which time the team has left the monument and the serial number needed to
+  // answer it is back at the site. That is the same failure the photo size
+  // check exists to prevent, in the same form.
+  //
+  // Scoped to continuous: the equipment block is not rendered for a campaign
+  // sheet, and a stale tick left behind by a method switch must not lock a form
+  // whose user cannot see the field causing it.
+  const equipmentChangeIncomplete =
+    method === "continuous" && !!equipmentChanged && !anyEquipmentAfter;
+
   // ── Photo checks ───────────────────────────────────────────────────────────
 
   const hasPhoto = photoFiles !== null && photoFiles !== undefined && photoFiles.length > 0;
@@ -1212,7 +1226,7 @@ export default function LogSheetForm() {
       <button
         type="submit"
         className="submit-btn"
-        disabled={isSubmitting || !hasPhoto || !photoCheck.ok}
+        disabled={isSubmitting || !hasPhoto || !photoCheck.ok || equipmentChangeIncomplete}
       >
         {isSubmitting ? "Saving…" : "Submit Log Sheet"}
       </button>
