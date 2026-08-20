@@ -314,8 +314,20 @@ export default function LogSheetForm() {
 
   const avgSH = slants.avg;
 
+  // sqrt(avgSH² - C²) is imaginary once the average slant drops below the
+  // antenna radius, and JavaScript answers NaN rather than raising. Unguarded
+  // that reached the screen as the literal text "NaN" and the server as
+  // rinex_height_m: null — JSON has no NaN — sitting next to a perfectly
+  // ordinary avg_slant_m, with nothing anywhere reporting a problem.
+  //
+  // It is a typo, not a measurement: C is 0.17-0.23 m and a real slant is
+  // 1.2-1.6 m, so this only happens when a decimal moves (0.432 for 1.432,
+  // following the placeholder). min="0" on the inputs does not catch it.
+  const rhImpossible =
+    avgSH !== undefined && constants !== undefined && avgSH <= constants.C;
+
   const rhValue =
-    avgSH !== undefined && constants !== undefined
+    avgSH !== undefined && constants !== undefined && !rhImpossible
       ? computeRH(avgSH, constants.C, constants.VO)
       : undefined;
 
@@ -771,6 +783,15 @@ export default function LogSheetForm() {
             <p className="msg msg-error">
               At least {MIN_SLANTS} slant readings are needed to compute a
               height. {slants.count} entered.
+            </p>
+          )}
+
+          {rhImpossible && constants !== undefined && (
+            <p className="msg msg-error">
+              Average slant {avgSH!.toFixed(4)} m is shorter than the antenna's
+              own radius ({constants.C.toFixed(4)} m), so no height can be
+              computed. Check for a misplaced decimal — a real slant is around
+              1.2–1.6 m. The readings you entered are still saved.
             </p>
           )}
 
