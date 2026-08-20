@@ -1,6 +1,6 @@
 # Implementation Ticket Backlog
 
-**Last updated:** 2026-07-02
+**Last updated:** 2026-08-20
 **Source:** Codebase survey [`codebase_status_20260425.md`](codebase_status_20260425.md) cross-referenced with [`roadmap.md`](roadmap.md) and [`bernese_orchestrator_r740_readiness.md`](bernese_orchestrator_r740_readiness.md) (14 gaps from NAMRIA training week, 2026-06)
 
 > **Priority:** P0 = critical path blocker · P1 = production deployment · P2 = feature complete · P3 = deferred
@@ -79,8 +79,14 @@ At 35 stations × 1 Hz, uncompressed rows accumulate ~3 M rows/day. Without poli
 
 ## Bernese Workflow
 
-### BRN-001 · P0 · L
+### ~~BRN-001~~ · P0 · L · **DONE 2026-07-29**
 **R740 Bernese 5.4 installation**
+
+> **Completed 2026-07-29**, entirely over SSH — physical console access was never
+> needed. EXAMPLE campaign matched the reference to **0.0000 mm** (max abs diff
+> 20 nm) in 11m28s. AVX-512 present, so no `objcopy` ISA patch. The R740 has since
+> reprocessed **LUZON 30/30 days unattended** (2026-08-06, 2h47m, 5m33s/day).
+> Memory files carried "R740 PENDING" until 2026-08-20; the tracker was right.
 
 T420 install is verified (EXAMPLE BPE ran 47 steps, solutions ≤ 0.09 mm). R740 is the production server. Same Ubuntu 24.04 OS; no ISA mismatch (Haswell = x86-64-v3, unlike Sandy Bridge T420 — no `objcopy` patch needed).
 
@@ -173,6 +179,103 @@ Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops st
 
 ---
 
+## GEONET-derived (ANA-002 research, 2026-08-20)
+
+> Source: `geonet_bernese_strategy_research.md` (verified against primary sources)
+> and `bernese_workflow_geonet_actions.md`. None of these need the R740.
+
+### GEO-001 · P1 · S
+**Record the fiducial set in the provenance record**
+
+`ADDNEQ2.INP` resolves its datum from `FREESTA_F = ${P}/PHIVOLCS\STA\REF190110.FIX`,
+a file not tracked in this repo. Project records disagree on its contents — 12
+stations in `session_log_20260226.md`, 9 in `T420_REPLY_20260805b.md`, "6 accepted"
+in `session_log_20260626.md`. A solution's datum is the least reproducible thing
+about it and is currently unrecorded.
+
+- Read the resolved `.FIX` at campaign build; record filename, content hash, station list
+- Fail loudly if unresolvable rather than letting BPE fall back silently
+- Confirm `panel_sanitizer.py` covers the Windows separator in `FREESTA_F`
+
+*Files: `campaign_builder.py`, `orchestrator.py`. See `provenance_record_design.md`.*
+
+---
+
+### GEO-002 · P2 · S
+**Resolve the mapping-function inconsistency across GPSEST panels**
+
+Measured: `WET_GMF` in R2S_EDT/R2S_FIN, `WET_NIELL` in R2S_QIF/L53/L12, `COSZ` in
+R2S_AMB. `COSZ` for Melbourne-Wübbena is fine; the GMF/Niell split looks
+unintentional, and memory records GMF as the PHIVOLCS standard.
+
+Also: R2S_FIN estimates zenith delay at `01 00 00` while every upstream panel is
+`02 00 00` — possibly deliberate, currently undocumented.
+
+- Decide deliberately, make panels agree, document the reasoning
+- **Do NOT shorten the troposphere interval.** POGF's final solve is already
+  hourly — shorter than the 3-hourly GSI used on PHIVOLCS' own Mindanao data
+
+*Files: `config/bernese/gpsuser52-luzon/OPT/*/GPSEST.INP`*
+
+---
+
+### GEO-003 · P2 · S
+**Template the troposphere block in `PCFContext`**
+
+`MAPPNG`/`NUMPAR`/`NUMGRD` live only as literals across six panel files and have
+already drifted (GEO-002 is the evidence). Templating them with current values as
+defaults makes the change inert while making an F5-style comparison a config edit.
+`WET_VMF`/`DRY_VMF` are already available as `MAPPNG` cards.
+
+*File: `pcf_context.py`*
+
+---
+
+### GEO-004 · P1 · M
+**HELMCHK residual → provisional-solution gate**
+
+`bernese_bpe_phases` already calls PID 513 HELMCHK "a secondary seismic sensor"
+and says the orchestrator should flag it for human review. Nothing implements it.
+GSI's practice supplies the missing half: a stated threshold triggering a
+deliberate freeze (theirs was 2 ppm strain, suspending 438 control stations until
+a revised datum published).
+
+- Parse HELMCHK residuals; above a configured threshold mark the solution **provisional**
+- Refuse to feed a provisional solution to velocity estimation until cleared
+- Follow the `codspp_qc.py` pattern — same shape, different extractor
+- Threshold value is a PHIVOLCS decision, not an engineering one
+
+*New file: `helmchk_qc.py`*
+
+---
+
+### GEO-005 · P2 · S
+**Coseismic offset catalog as a versioned campaign input**
+
+Tobita et al. (2015) removed the 2013 Bohol coseismic offsets manually before
+fitting velocities. POGF has `docs/bern52/phivolcs-scripts/event-catalog/offsets`
+and `velocity_pipeline` notes it must be applied before `vel_line_v8.m` — but it
+is a file someone remembers, not a recorded input.
+
+- Make the offsets catalog an explicit campaign input, hashed into provenance
+
+*Files: `campaign_models.py`, `campaign_builder.py`*
+
+---
+
+### GEO-006 · P3 · L
+**Backbone/regional network architecture evaluation**
+
+Distinct from RH-006. GEONET partitions ~1,300 stations into a backbone cluster
+plus regional clusters; F5 adds global network processing. Philippine precedent
+exists: Ohkura et al. (2015) chained PIMO (tightly constrained) → NMMB (longest
+occupation) → site pairs by observation overlap.
+
+Blocked on: GSI's answer to enquiry Q1 (cluster sizing + recombination), and on
+RH-006 measurement showing whether tuning alone suffices.
+
+---
+
 ## R740 Orchestrator Hardening (from readiness eval — the 14 training-week gaps)
 
 > Source: [`bernese_orchestrator_r740_readiness.md`](bernese_orchestrator_r740_readiness.md) +
@@ -246,7 +349,13 @@ through `BerneseOrchestrator` when driving PAGENET (small follow-up, out of this
   (task L: physical cores not threads, FPU-bound; RAM-capped) + `set_user_cpu_maxjobs()` rewrites the
   `localhost` maxjobs field in `USER.CPU`. `PCFContext` now exposes `v_clu` (default 10) and **`v_clufin`**
   (default `"A"`), and the template templates both (`V_CLUFIN` was absent before). +13 tests.
-- **STILL OPEN (needs R740):** the actual `V_CLUFIN` value that splits the final GPSCLU_P solve across
+- **STILL OPEN — but NO LONGER BLOCKED (updated 2026-08-20).** BRN-001 completed 2026-07-29
+  and the R740 has a real 30-day LUZON baseline (2h47m, 5m33s/day) to score changes against.
+  This is now gated on someone doing the measurement, not on hardware. See also
+  `bernese_workflow_geonet_actions.md` §0: `V_CLU`/`V_CLUFIN` are *compute* clustering;
+  GEONET's backbone/regional clusters are a separate *network-architecture* axis, and
+  tuning this knob will not answer that question.
+- **The value itself:** the actual `V_CLUFIN` value that splits the final GPSCLU_P solve across
   cores. Correction from the real PCF: `V_CLUFIN` is a MODE flag (`A` auto / `N` skip), not a
   cluster-size number — `A` produced ONE giant single-core solve. Finding the split that parallelizes
   it is empirical and needs the R740's core count + real timing (BRN-001). The orchestrator can now

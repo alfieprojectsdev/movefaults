@@ -1,6 +1,6 @@
 # Project Roadmap: Phased Implementation Based on Dependency Hierarchies
 
-**Last updated:** 2026-08-03
+**Last updated:** 2026-08-20
 **Original date:** 2026-01-26
 
 > For per-deliverable status and projected dates, see [`deliverables_tracker.md`](deliverables_tracker.md).

@@ -270,8 +270,19 @@ as 8 GB of RAM; the slide says Memory (2GB).)*
 
 **National-scale Bernese processing at Japan's density did not require exotic
 compute.** An R740 substantially outclasses any single one of those machines.
-BRN-001 is blocked on physical console access [MEM], not on the R740 being
-underpowered for this class of workload.
+
+**And POGF's R740 is already doing this work.** An earlier draft of this brief
+repeated a stale memory that BRN-001 was still open and blocked on console
+access. It is not: `deliverables_tracker.md` records **BRN-001 DONE 2026-07-29**
+— Bernese 5.4 installed and verified on the R740 over SSH (EXAMPLE campaign,
+0.0000 mm vs reference) — and **LUZON reprocessed 30/30 days unattended in
+2h47m on 2026-08-06**, at 5m33s per day, with 2.8 / 3.0 / 10.9 mm repeatability.
+The blocked-on-console item is iDRAC/BMC networking, a different thing.
+
+This matters for the recommendations: work that would have waited for the R740
+is **not gated**. The clustering tuning that `bernese_orchestrator_r740_readiness.md`
+§2.4 calls the single highest-value lever can be measured now, against a real
+30-day baseline.
 
 ---
 
@@ -310,7 +321,8 @@ Gemini-assisted** (confirmed by the user), and it shows:
 | RAPiD real-time detection parameters | **Adapt** — compare against VADASE's thresholds | Small follow-up, independent of R740 |
 | Strain-threshold freeze-and-reissue | **Adopt** | Governance doc — can be written now, no code |
 | Semi-dynamic datum correction model | **Adopt** — highest-value new idea | Scoped follow-up once routine pipeline is stable |
-| Troposphere: shorten estimation intervals | **Investigate** — see §8 | Cheap sensitivity test on existing data |
+| Troposphere intervals | **No change** — POGF's final solve is already hourly, shorter than GSI's Philippine precedent (§8) | Ask GSI what F5 uses; do not shorten blindly |
+| Troposphere mapping function consistency | **Fix** — `WET_GMF` vs `WET_NIELL` split across panels looks unintentional (§8) | Cheap, decide deliberately |
 | GEONET hardware scale | Reassurance only | N/A |
 
 ---
@@ -340,11 +352,42 @@ empirical mapping function. The paper's own abstract says the opposite:
 > contributed to partly suppressing the spurious vertical annual deformation."
 
 So the lever that actually moved the numbers was the **troposphere estimation
-interval**, not the mapping function. For POGF — which uses **GMF** [MEM] — this
-redirects the cheapest available experiment: if troposphere handling is ever
-tuned, shorten the estimation interval first and treat the mapping function as a
-second-order question. That is a testable change on existing data, and it is a
-better-founded starting point than "switch to VMF1 because GEONET did".
+interval**, not the mapping function.
+
+**But checking POGF's actual panels reverses the obvious recommendation** [REPO,
+`config/bernese/gpsuser52-luzon/OPT/*/GPSEST.INP`]:
+
+| Panel | `MAPPNG` | `NUMPAR` (zenith spacing) | `NUMGRD` (gradient) |
+|---|---|---|---|
+| R2S_EDT (float) | `WET_GMF` | 02:00:00 | 24:00:00 |
+| **R2S_FIN (final)** | `WET_GMF` | **01:00:00** | 24:00:00 |
+| R2S_QIF / L53 / L12 (ambiguity) | `WET_NIELL` | 02:00:00 | 24:00:00 |
+| R2S_AMB (Melbourne-Wübbena) | `COSZ` | 02:00:00 | — |
+
+**POGF's final solution already estimates zenith delay hourly** — *shorter* than
+the 3-hourly interval GSI used on our own Mindanao data [TOB15]. So "shorten the
+interval" is largely already exercised where it matters most, and an earlier
+draft of this brief recommending it as the first experiment was **wrong**. F5's
+finding is better read here as *confirmation that POGF's existing hourly choice
+is the right axis to have spent resolution on*, not as a change to make.
+
+Two things the table does raise, neither of them from GEONET:
+
+1. **The mapping function is not consistent across the pipeline** — `WET_GMF` in
+   the float and final steps, `WET_NIELL` in all three ambiguity-resolution
+   steps, `COSZ` in Melbourne-Wübbena. `COSZ` for MW is unremarkable, but the
+   GMF/Niell split across QIF/L53/L12 versus EDT/FIN looks unintentional rather
+   than reasoned. Project memory records "GMF is PHIVOLCS standard" [MEM], which
+   the ambiguity panels do not follow. Worth a deliberate decision either way.
+2. **The final solve estimates at 01:00:00 while everything upstream is at
+   02:00:00.** That may well be intentional — the final solve can afford more
+   parameters — but it is undocumented, and F5's result makes the interval a
+   parameter worth reasoning about explicitly rather than inheriting.
+
+`VMF` *is* available in these panels (`MAPPNG` cards include `WET_VMF` /
+`DRY_VMF`), so an F5-style comparison is a panel edit, not a software change.
+[TAK23]'s own sensitivity test says to expect little from it — which is useful
+precisely because it saves the experiment.
 
 **And there is now a Philippine anchor for it.** GSI processed PHIVOLCS'
 own Mindanao data with **ZWD estimated every 3 hours and gradients every
@@ -448,12 +491,14 @@ Two things follow that could not have been guessed from the GEONET literature:
 1. **GSI used a single constrained fiducial — PIMO — for Philippine work**, the
    same station POGF constrains. That is a much closer precedent than GEONET's
    TSUKUBA-fixed domestic strategy, and it is a Philippine dataset.
-2. **The troposphere interval question now has an anchor.** GSI estimated ZWD
-   3-hourly here with 24-hourly gradients under the Niell mapping function.
-   [TAK23] reports that F5's accuracy gain came from *shortening* troposphere
-   intervals, not from VMF1 (§8). Asking "what intervals does F5 use, given you
-   used 3-hourly for our data in 2015?" is a far sharper question than asking in
-   the abstract — and POGF can run the same comparison on its own archive.
+2. **The troposphere interval question now has an anchor — pointing the
+   opposite way from what was first assumed.** GSI estimated ZWD **3-hourly**
+   here with 24-hourly gradients under Niell. POGF's own final-solution panel
+   estimates **hourly** (§8) — already shorter. So the question to GSI is not
+   "should we shorten?" but "what does F5 use, given you chose 3-hourly on our
+   data and later found the interval was the deciding factor?" That is a sharper
+   question, and it stops POGF from "fixing" a setting that is already on the
+   right side of the finding.
 
 **And one connection to today's other work.** The Mindanao stations used
 **Trimble 4000SSi receivers with Compact L1/L2 antennas** [Tobita 2015, §2].
@@ -504,6 +549,8 @@ nothing about how much to trust the rest of it.
 | 6 | Cited as "FIG Working Week 2013"; author "Imakiiire" | **FIG Commission 5 Technical Seminar, *Reference Frame in Practice*, 2013**; author **IMAKIIRE** |
 | 7 | F5 named "per a secondary source"; VMF1 implied as the improvement | **F5 confirmed from the paper's abstract**; improvement was **completely due to shortened troposphere intervals, not VMF1** |
 | 8 | Philippine velocities given without a reference frame | **Relative to NTUS** — added, since the numbers are meaningless otherwise |
+| 12 | "BRN-001 is still open… blocked on physical console access", repeated from memory | **BRN-001 was completed 2026-07-29.** The R740 has since reprocessed LUZON 30/30 days unattended. Memory `bernese-install` and `bernese-workflow-status` were stale; the in-repo tracker was right |
+| 11 | "shorten the troposphere estimation interval first" recommended for POGF | **Reversed.** POGF's final panel is already at 01:00:00, shorter than GSI's 3-hourly on Philippine data. The recommendation would have changed a setting that is already correct |
 | 10 | GSI–Philippines described as worth "surfacing to whoever owns the JICA relationship" as a *possible* channel | **It is a co-authorship.** PHIVOLCS and GSI published together under the named SATREPS (JST/JICA) project; the current PHIVOLCS Director is a co-author [TOB15] |
 | 9 | "GEONET has no equatorial ionosphere handling… there isn't any" | Correct **about GEONET**, but GSI operates equatorial CORS outside Japan; the institutional-knowledge question is open and is now the sharpest thing to ask |
 
