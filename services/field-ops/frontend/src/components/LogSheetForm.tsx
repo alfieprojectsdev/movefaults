@@ -17,7 +17,9 @@
  *   - Switching method clears the mode-specific field values to avoid stale data.
  *
  * Antenna height computation (campaign only):
- *   - Four slant heights (N/E/S/W) + selected antenna model drive a live RH calc.
+ *   - Slant heights (N/E/S/W) + selected antenna model drive a live RH calc.
+ *     Three of the four are enough — see utils/slants.ts for why, and for
+ *     what the missing one costs.
  *   - RH = SQRT(avgSH² - C²) - VO, where C and VO are per-model constants.
  *
  * Session ID auto-generation (campaign only):
@@ -32,6 +34,7 @@ import StationPicker from "./StationPicker";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { groupByRole } from "../utils/roles";
 import { checkPhotos, formatBytes } from "../utils/photos";
+import { summariseSlants, MIN_SLANTS } from "../utils/slants";
 import {
   localTimeToISO,
   utcFieldToISO,
@@ -302,21 +305,17 @@ export default function LogSheetForm() {
   // ── Live antenna height computation ───────────────────────────────────────
 
   const constants = antennaModel ? ANTENNA_CONSTANTS[antennaModel] : undefined;
-  const slantNf = parseFloat(slantN);
-  const slantEf = parseFloat(slantE);
-  const slantSf = parseFloat(slantS);
-  const slantWf = parseFloat(slantW);
 
-  const allSlantsFilled =
-    constants !== undefined &&
-    !isNaN(slantNf) && !isNaN(slantEf) && !isNaN(slantSf) && !isNaN(slantWf);
+  // Three readings are enough. A tripod leg or the monument itself can block
+  // the fourth, and refusing the sheet then does not produce a fourth reading —
+  // it produces a sheet filed on paper. See utils/slants.ts for what the third
+  // one costs in vertical bias, and why that trade was taken knowingly.
+  const slants = summariseSlants({ N: slantN, E: slantE, S: slantS, W: slantW });
 
-  const avgSH = allSlantsFilled
-    ? (slantNf + slantEf + slantSf + slantWf) / 4
-    : undefined;
+  const avgSH = slants.avg;
 
   const rhValue =
-    allSlantsFilled && avgSH !== undefined && constants !== undefined
+    avgSH !== undefined && constants !== undefined
       ? computeRH(avgSH, constants.C, constants.VO)
       : undefined;
 
@@ -736,6 +735,7 @@ export default function LogSheetForm() {
           >
             <label>
               Avg slant height (m)
+              {slants.count > 0 && ` — ${slants.count} of 4`}
               <input
                 type="text"
                 readOnly
@@ -753,6 +753,34 @@ export default function LogSheetForm() {
               />
             </label>
           </div>
+
+          {/* Said on the form, not only in the code, because this is the one
+              thing about a three-reading sheet that cannot be recovered later:
+              which direction was blocked, and therefore which axis the height
+              carries tilt on. The office can see the null column, but not why. */}
+          {slants.partial && (
+            <p className="msg msg-warn">
+              Averaging {MIN_SLANTS} readings — {slants.missing.join(", ")} not
+              measured. The height is usable, but carries a small tilt bias
+              (roughly 1–2 mm) that four readings would have cancelled. Note in
+              the log why the direction was blocked.
+            </p>
+          )}
+
+          {slants.count > 0 && !slants.enough && (
+            <p className="msg msg-error">
+              At least {MIN_SLANTS} slant readings are needed to compute a
+              height. {slants.count} entered.
+            </p>
+          )}
+
+          {slants.spreadMm !== undefined && slants.spreadMm > 20 && (
+            <p className="msg msg-warn">
+              Readings span {slants.spreadMm.toFixed(0)} mm. That is a lot for
+              one setup — check for a mistyped figure or a tape caught on the
+              tripod before submitting.
+            </p>
+          )}
 
           <h3 className="section-header">Session Details</h3>
 

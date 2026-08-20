@@ -52,7 +52,7 @@ live separately and survive the update.
 ## 2. At the station — signal or no signal
 
 **Monitoring method** decides the rest of the form: *Campaign GPS* asks for
-antenna model, four slant heights and session times; *Continuous (CORS
+antenna model, slant heights and session times; *Continuous (CORS
 Maintenance)* asks for power and battery.
 
 **Station** is grouped Active / Under maintenance / Decommissioned–archived. All
@@ -125,7 +125,13 @@ of the bottom, which made every RINEX height from that antenna 3.5 mm too short.
 No campaign sheet had been filed at that point, so nothing needs recomputing —
 it was caught before the first fieldwork, not after.
 
-**Write the four raw slant measurements in the paper log anyway.** The
+**Three slant readings are enough.** Measure all four when you can — opposing
+pairs cancel a tilted tripod, which is the whole reason four are taken. When a
+leg, a wall or the monument blocks one, enter the three you have and note in the
+log why. The form will say it is averaging three, and name the direction you
+skipped. Two is refused: it may not even be an opposing pair.
+
+**Write the raw slant measurements in the paper log anyway.** The
 arithmetic being right does not make a mistyped tape reading recoverable, and
 the raw numbers are what lets a height be recomputed if a constant moves again.
 

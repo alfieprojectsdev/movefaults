@@ -324,3 +324,115 @@ async def test_unsupported_content_type_is_refused(
     assert counting_storage.saves == 0
     rows = await db_session.execute(select(func.count()).select_from(LogSheetPhoto))
     assert rows.scalar_one() == 0
+
+
+# ── Campaign slant minimum ──────────────────────────────────────────────────
+#
+# Four directions are measured so that opposing pairs cancel tripod tilt. Three
+# is accepted because the field sometimes blocks one: a leg, a wall, the
+# monument. Two is not, because two readings need not even form an opposing
+# pair. Enforced here as well as in the form because the offline queue replays
+# records built by an older bundle, days or weeks later.
+
+
+def _campaign_record(**overrides) -> dict:
+    record = {
+        "client_uuid": str(uuid.uuid4()),
+        "station_code": "PBIS",
+        "visit_date": "2026-08-20",
+        "monitoring_method": "campaign",
+        "antenna_model": "TRM41249.00",
+        "slant_n_m": 1.220,
+        "slant_s_m": 1.230,
+        "slant_e_m": 1.228,
+        "slant_w_m": 1.222,
+    }
+    record.update(overrides)
+    return record
+
+
+@pytest.mark.asyncio
+async def test_campaign_accepts_four_slants(client, auth_headers):
+    resp = await client.post(
+        "/api/v1/logsheets", json=[_campaign_record()], headers=auth_headers
+    )
+    assert resp.status_code == 201
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("blocked", ["slant_n_m", "slant_s_m", "slant_e_m", "slant_w_m"])
+async def test_campaign_accepts_three_slants_whichever_is_blocked(
+    client, auth_headers, blocked
+):
+    """Any one direction may be the blocked one — the rule is a count, not a set."""
+    resp = await client.post(
+        "/api/v1/logsheets",
+        json=[_campaign_record(**{blocked: None})],
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201, resp.text
+
+
+@pytest.mark.asyncio
+async def test_campaign_rejects_two_slants(client, auth_headers):
+    resp = await client.post(
+        "/api/v1/logsheets",
+        json=[_campaign_record(slant_e_m=None, slant_w_m=None)],
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+    assert "at least 3" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_campaign_still_requires_an_antenna_model(client, auth_headers):
+    """Relaxing the slant count must not have relaxed the model, which selects
+    the constants the whole reduction depends on."""
+    resp = await client.post(
+        "/api/v1/logsheets",
+        json=[_campaign_record(antenna_model=None)],
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+    assert "antenna_model" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_continuous_needs_no_slants_at_all(client, auth_headers):
+    """The rule is scoped to campaign sheets; a CORS maintenance visit measures
+    no slants and must not be caught by it."""
+    resp = await client.post(
+        "/api/v1/logsheets",
+        json=[
+            {
+                "client_uuid": str(uuid.uuid4()),
+                "station_code": "PBIS",
+                "visit_date": "2026-08-20",
+                "monitoring_method": "continuous",
+                "battery_voltage_v": 12.6,
+                "battery_voltage_source": "manual",
+            }
+        ],
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201, resp.text
+
+
+@pytest.mark.asyncio
+async def test_three_slant_sheet_records_which_direction_was_blocked(
+    client, auth_headers, db_session
+):
+    """The null column is the only record of which axis carries the tilt. If a
+    future change ever defaults these to 0.0, the height stays plausible and the
+    provenance is gone."""
+    record = _campaign_record(slant_w_m=None)
+    resp = await client.post("/api/v1/logsheets", json=[record], headers=auth_headers)
+    assert resp.status_code == 201
+
+    row = (
+        await db_session.execute(
+            select(LogSheet).where(LogSheet.client_uuid == uuid.UUID(record["client_uuid"]))
+        )
+    ).scalar_one()
+    assert row.slant_w_m is None
+    assert row.slant_n_m is not None

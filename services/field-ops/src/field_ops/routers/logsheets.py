@@ -36,7 +36,21 @@ router = APIRouter(prefix="/api/v1", tags=["logsheets"])
 # ── Pydantic schemas ────────────────────────────────────────────────────────
 
 _VALID_SOURCE_VALUES = {"manual", "sensor"}
-_CAMPAIGN_REQUIRED = ("antenna_model", "slant_n_m", "slant_s_m", "slant_e_m", "slant_w_m")
+_CAMPAIGN_REQUIRED = ("antenna_model",)
+
+# Slant readings are taken in four directions, but three are accepted.
+#
+# A tripod leg, a wall or the monument can block one direction that would
+# otherwise be symmetric with the other three, and rejecting the sheet in that
+# case does not conjure a fourth reading — it puts the visit on paper, or
+# nowhere. The cost is that the blocked direction's axis is no longer cancelled
+# by its opposite, so the mean carries roughly 1-2 mm of tilt bias; the PWA says
+# so on the form and the null column records which direction it was.
+#
+# Two is refused. With two you may not even have an opposing pair, and a mean of
+# two adjacent readings is a tilt measurement wearing an average's clothes.
+_SLANT_FIELDS = ("slant_n_m", "slant_s_m", "slant_e_m", "slant_w_m")
+MIN_SLANTS = 3
 
 
 class LogSheetIn(BaseModel):
@@ -87,6 +101,17 @@ class LogSheetIn(BaseModel):
             if missing:
                 raise ValueError(
                     f"monitoring_method='campaign' requires: {', '.join(missing)}"
+                )
+
+            # Checked server-side as well as in the form, because the queue
+            # replays records the client built earlier — possibly on an older
+            # bundle, possibly weeks ago. The form is where this is explained;
+            # here is where it is enforced.
+            present = sum(getattr(self, f) is not None for f in _SLANT_FIELDS)
+            if present < MIN_SLANTS:
+                raise ValueError(
+                    f"monitoring_method='campaign' requires at least {MIN_SLANTS} "
+                    f"of {', '.join(_SLANT_FIELDS)}; got {present}"
                 )
 
         if self.battery_voltage_v is not None and self.battery_voltage_source not in (
