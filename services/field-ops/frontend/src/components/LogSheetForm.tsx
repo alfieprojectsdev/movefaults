@@ -514,6 +514,19 @@ export default function LogSheetForm() {
 
   const isSubmitting = submitState === "saving";
 
+  // isDirty was supposed to cover the post-save case on its own: resetForm()
+  // clears it, so a saved sheet should look like an untouched one. Observed on
+  // the deployed app 2026-08-20 that it does not — after a successful ONLINE
+  // save the form reports dirty again, and "Add a photo to submit." came back
+  // in red directly beneath "Saved and synced to server."
+  //
+  // That is the same failure the offline path was fixed for, and the fix was
+  // one layer too clever: it guarded the cause it had found rather than the
+  // outcome it cared about. Whatever re-dirties the form after reset, there is
+  // no state in which a pre-submit prompt belongs on screen next to a
+  // confirmation that the sheet is filed.
+  const justSaved = submitState === "saved" || submitState === "queued";
+
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
@@ -1189,7 +1202,7 @@ export default function LogSheetForm() {
           connectivity change. App.tsx already shows an accurate, reactive
           offline banner at the top of the screen, so this is a deletion rather
           than a repair. */}
-      {!hasPhoto && isDirty && (
+      {!hasPhoto && isDirty && !justSaved && (
         <p className="msg msg-error">
           Add a photo to submit.
         </p>
