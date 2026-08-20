@@ -1,0 +1,19 @@
+# Blank issues are turned off so that every report arrives through one of the
+# forms. The forms exist because the people filing these are field staff, not
+# GitHub users: a blank box produces "app not working" with no station, no time
+# and no device, and answering it costs a round trip to someone who is back out
+# in the field by then.
+blank_issues_enabled: false
+
+contact_links:
+  - name: Urgent — data may be lost
+    url: https://github.com/alfieprojectsdev/movefaults/issues/new?template=01-app-problem.yml&labels=field-ops,data-loss
+    about: >-
+      A sheet or photo that cannot be recovered. Use the app problem form and
+      answer YES to "was any work lost", then message Alfie directly — an issue
+      alone may not be seen the same day.
+  - name: I cannot sign in
+    url: https://github.com/alfieprojectsdev/movefaults/issues/new?template=01-app-problem.yml&labels=field-ops,sign-in
+    about: >-
+      Use the app problem form. NEVER type your password into an issue — this
+      repository is public and anyone on the internet can read it.

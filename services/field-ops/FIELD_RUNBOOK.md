@@ -127,6 +127,32 @@ Two things it will show you that matter:
 **A sheet still sitting on a colleague's phone cannot appear here at all.** An
 empty row for someone else's station means "not synced yet", not "not visited".
 
+## 4b. Reporting a problem, or an idea
+
+Two forms, both plain-language, at:
+
+    https://github.com/alfieprojectsdev/movefaults/issues/new/choose
+
+- **Something is wrong in the app** — it did something unexpected, or would not
+  let you work.
+- **Something is missing, or could be easier** — a field it should ask for, a
+  step that takes too long. Nothing is too small; something mildly annoying
+  twenty times a week is exactly what is worth changing.
+
+The forms ask which part of the app, which station and roughly when, whether you
+had signal, and whether any work was lost. Answer what you can and leave the
+rest blank — a short report beats no report.
+
+**Two things to know before you use it:**
+
+1. **The page is public.** Anyone on the internet can read what you write.
+   Never type your password, not even to show it did not work, and do not
+   attach a screenshot showing one. Station codes, times and error messages are
+   all fine.
+2. **It needs a free GitHub account** — an email address and a password, a few
+   minutes once. If you would rather not, message Alfie with the same details
+   and he will file it for you. Do not skip reporting because of the account.
+
 ## 5. Back at the office — same day
 
 - [ ] Confirm the Queue shows **nothing waiting**.

@@ -1,0 +1,83 @@
+name: Something is missing, or could be easier
+description: An idea for the Field Ops app — a field it should ask for, a step that takes too long, anything that makes the work harder than it needs to be.
+title: "[Idea] "
+labels: ["field-ops", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas from the people actually using this in the field are worth more
+        than anything decided at a desk. Nothing here is too small — if
+        something is mildly annoying twenty times a week, that is exactly the
+        kind of thing worth changing.
+
+        **⚠️ This page is public. Anyone on the internet can read what you type
+        here.** No passwords, no phone numbers, no home addresses.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: >-
+        Describe the task, not the solution. Knowing what you are trying to
+        achieve often turns up an easier answer than the one either of us
+        thought of first.
+      placeholder: >-
+        I visit three stations in a day and have to type the same observer names
+        into every sheet.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: If you already have a specific idea, put it here. If not, leave it blank.
+      placeholder: Remember the observers from the last sheet I filed that day.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app?
+      options:
+        - New Log Sheet (filling in a station visit)
+        - Queue (sheets waiting to sync)
+        - Sheets (the list of what has been filed)
+        - Signing in
+        - The app as a whole
+        - Something else
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: How much does this slow you down?
+      description: >-
+        There is no wrong answer. This only helps decide what to do first — it
+        does not decide whether the idea is worth doing.
+      options:
+        - "Minor — it would just be nicer"
+        - "Noticeable — it costs me time on every visit"
+        - "Serious — it makes me avoid part of the app, or work around it on paper"
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: How do you handle it now?
+      description: >-
+        If you already work around it — on paper, in a notebook, by asking
+        someone — say how. The workaround usually describes the real requirement
+        better than the feature request does.
+
+  - type: dropdown
+    id: campaign_or_cors
+    attributes:
+      label: Does this apply to campaign work, CORS maintenance, or both?
+      options:
+        - Both
+        - Campaign GPS
+        - Continuous (CORS maintenance)
+        - Not sure
