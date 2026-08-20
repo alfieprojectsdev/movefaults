@@ -16,7 +16,7 @@ import logging
 import uuid
 from datetime import UTC, date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel, model_validator
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -595,7 +595,11 @@ class SheetOut(BaseModel):
 
 @router.get("/sheets", response_model=list[SheetOut])
 async def list_sheets(
-    limit: int = 200,
+    # Bounded, not merely defaulted. Without ge/le a caller can ask for every
+    # row ever filed, and this endpoint fans out into two more queries over the
+    # ids it returns — on a sleeping free-tier instance that is a request that
+    # never comes back rather than one that returns a lot.
+    limit: int = Query(200, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     _current_user: User = Depends(get_current_user),
 ) -> list[SheetOut]:

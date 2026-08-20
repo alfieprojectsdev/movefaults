@@ -666,3 +666,13 @@ async def test_sheets_reports_observers_by_initials(client, auth_headers, db_ses
     body = (await client.get("/api/v1/sheets", headers=auth_headers)).json()
     row = next(r for r in body if r["client_uuid"] == record["client_uuid"])
     assert row["observers"] == [staff.initials]
+
+
+@pytest.mark.asyncio
+async def test_sheets_limit_is_bounded(client, auth_headers):
+    """An unbounded limit lets one request ask for every row ever filed, and this
+    endpoint fans out into two more queries over whatever it returns. On a
+    sleeping free-tier instance that is a request that never comes back."""
+    assert (await client.get("/api/v1/sheets?limit=100000", headers=auth_headers)).status_code == 422
+    assert (await client.get("/api/v1/sheets?limit=0", headers=auth_headers)).status_code == 422
+    assert (await client.get("/api/v1/sheets?limit=500", headers=auth_headers)).status_code == 200
