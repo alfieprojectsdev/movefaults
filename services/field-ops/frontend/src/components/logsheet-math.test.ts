@@ -96,3 +96,29 @@ describe("toDOY — day of year for the session id", () => {
     expect(toDOY("2026-08-17")).toBe(229);
   });
 });
+
+describe("computeRH — when the slant is shorter than the antenna radius", () => {
+  // Not a hypothetical: C is 0.17-0.23 m and a real slant is 1.2-1.6 m, so this
+  // is what a misplaced decimal looks like — 0.432 typed for 1.432, following
+  // the field's own "e.g. 1.4320" placeholder. The inputs carry min="0", which
+  // stops negatives and nothing else.
+  it("returns NaN rather than raising, which is why the caller must guard", () => {
+    expect(Number.isNaN(computeRH(0.15, 0.2334, 0.0556))).toBe(true);
+  });
+
+  it("is NaN exactly at the radius, not merely below it", () => {
+    // avg == C gives sqrt(0) - VO, a negative height — nonsense of a different
+    // kind. The guard uses <= for that reason.
+    expect(computeRH(0.2334, 0.2334, 0.0556)).toBeCloseTo(-0.0556, 6);
+    expect(computeRH(0.2334, 0.2334, 0.0556)).toBeLessThan(0);
+  });
+
+  it("survives JSON as null, which is how it reached the database unnoticed", () => {
+    // JSON has no NaN. Serialising an unguarded height silently produced a row
+    // with a normal avg_slant_m and an empty rinex_height_m, and no error at
+    // any layer. Documented here so the guard is not removed as redundant.
+    expect(JSON.parse(JSON.stringify({ rh: computeRH(0.15, 0.2334, 0.0556) }))).toEqual({
+      rh: null,
+    });
+  });
+});
