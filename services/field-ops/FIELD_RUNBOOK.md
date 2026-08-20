@@ -111,6 +111,22 @@ have signal.
 | Not enough device storage. | Nothing was saved. | Sync to free space, submit again. |
 | Please sign in again | The 8-hour session expired. | Sign in; queued sheets sync straight after. |
 
+## 4a. Checking what has been filed
+
+The **Sheets** tab lists everything that has reached the server, newest first —
+every team's, not only yours. Use it at the end of the day to confirm your own
+visits are in, and to see what other teams filed elsewhere.
+
+Two things it will show you that matter:
+
+- **photo pending** — the sheet is on the server and its photo is not. Chase
+  this one: it means the photo is still on somebody's phone.
+- **On this device, not yet sent** — a separate list above the table, and only
+  ever from the handset you are holding.
+
+**A sheet still sitting on a colleague's phone cannot appear here at all.** An
+empty row for someone else's station means "not synced yet", not "not visited".
+
 ## 5. Back at the office — same day
 
 - [ ] Confirm the Queue shows **nothing waiting**.

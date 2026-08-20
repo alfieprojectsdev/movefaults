@@ -16,7 +16,7 @@ import logging
 import uuid
 from datetime import UTC, date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel, model_validator
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -555,3 +555,160 @@ async def upload_photo(
         }
 
     return {"photo_id": photo.id, "storage_path": storage_ref, "duplicate": False}
+
+
+# ── /sheets — the end-of-day review ─────────────────────────────────────────
+#
+# A separate endpoint rather than more fields on GET /logsheets. That one is on
+# the sync path, and adding a join to it would put a read-view change in front
+# of the thing a field team depends on. Nothing regresses if this is wrong.
+#
+# Everyone authenticated sees everything, by design: the point is for a team to
+# check its own day and see what other teams filed. There is no per-user
+# filtering to get wrong.
+
+
+class SheetPhotoOut(BaseModel):
+    id: int
+    filename: str | None
+    uploaded_at: datetime | None
+
+
+class SheetOut(BaseModel):
+    id: int
+    client_uuid: uuid.UUID
+    station_code: str
+    visit_date: date
+    monitoring_method: str | None
+    session_id: str | None
+    antenna_model: str | None
+    rinex_height_m: float | None
+    equipment_status: str | None
+    battery_voltage_v: float | None
+    equipment_changed: bool | None
+    notes: str | None
+    created_at: datetime | None
+    synced_at: datetime | None
+    observers: list[str]
+    photos: list[SheetPhotoOut]
+
+
+@router.get("/sheets", response_model=list[SheetOut])
+async def list_sheets(
+    # Bounded, not merely defaulted. Without ge/le a caller can ask for every
+    # row ever filed, and this endpoint fans out into two more queries over the
+    # ids it returns — on a sleeping free-tier instance that is a request that
+    # never comes back rather than one that returns a lot.
+    limit: int = Query(200, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+) -> list[SheetOut]:
+    """Newest first. No filters and no pagination controls in this version —
+    the smallest thing that answers "what did we file today, and what did the
+    other teams file"."""
+    # Ordered by created_at, not visit_date: this view answers "what was filed",
+    # and a sheet back-dated to a visit two days ago still belongs at the top
+    # the evening it is entered.
+    #
+    # id descending breaks the tie. created_at defaults to CURRENT_TIMESTAMP,
+    # which in Postgres is the *transaction* start — so every sheet in one queue
+    # flush shares a timestamp exactly, and without a tiebreaker their order is
+    # whatever the planner returns. That is the common case here, not a corner.
+    rows = list(
+        (
+            await db.execute(
+                select(LogSheet)
+                .order_by(LogSheet.created_at.desc().nullslast(), LogSheet.id.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not rows:
+        return []
+
+    ids = [r.id for r in rows]
+
+    # Two grouped queries rather than a lazy relationship per row: this renders
+    # a table, so an N+1 here is N+1 round trips to Neon on a sleeping free-tier
+    # instance.
+    photos_by_sheet: dict[int, list[SheetPhotoOut]] = {}
+    for p in (
+        (await db.execute(select(LogSheetPhoto).where(LogSheetPhoto.logsheet_id.in_(ids))))
+        .scalars()
+        .all()
+    ):
+        photos_by_sheet.setdefault(p.logsheet_id, []).append(
+            SheetPhotoOut(id=p.id, filename=p.filename, uploaded_at=p.uploaded_at)
+        )
+
+    observers_by_sheet: dict[int, list[str]] = {}
+    for logsheet_id, initials in (
+        await db.execute(
+            select(LogSheetObserver.logsheet_id, Staff.initials)
+            .join(Staff, Staff.id == LogSheetObserver.staff_id)
+            .where(LogSheetObserver.logsheet_id.in_(ids))
+        )
+    ).all():
+        observers_by_sheet.setdefault(logsheet_id, []).append(initials)
+
+    return [
+        SheetOut(
+            id=r.id,
+            client_uuid=r.client_uuid,
+            station_code=r.station_code,
+            visit_date=r.visit_date,
+            monitoring_method=r.monitoring_method,
+            session_id=r.session_id,
+            antenna_model=r.antenna_model,
+            rinex_height_m=r.rinex_height_m,
+            equipment_status=r.equipment_status,
+            battery_voltage_v=r.battery_voltage_v,
+            equipment_changed=r.equipment_changed,
+            notes=r.notes,
+            created_at=r.created_at,
+            synced_at=r.synced_at,
+            observers=sorted(observers_by_sheet.get(r.id, [])),
+            photos=photos_by_sheet.get(r.id, []),
+        )
+        for r in rows
+    ]
+
+
+@router.get("/photos/{photo_id}")
+async def get_photo(
+    photo_id: int,
+    db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+    storage=Depends(get_storage),
+) -> Response:
+    """Stream one stored photo.
+
+    Bytes through the API rather than a presigned URL, so the authorisation
+    check stays on a request that carries a token. A presigned URL is a bearer
+    capability that works for anyone holding it until it expires, and it would
+    need a second, never-exercised code path for LocalDiskStorage, which cannot
+    presign.
+    """
+    photo = (
+        await db.execute(select(LogSheetPhoto).where(LogSheetPhoto.id == photo_id))
+    ).scalar_one_or_none()
+    if photo is None:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    try:
+        content, content_type = await storage.read(photo.storage_path)
+    except FileNotFoundError:
+        # The row outlived the object. A real state, not a server fault: say so
+        # as 404 rather than 500, so the caller stops retrying.
+        logger.warning("photo %s row points at missing object %s", photo_id, photo.storage_path)
+        raise HTTPException(status_code=404, detail="Photo file is no longer stored") from None
+
+    # private: this is field data behind a login, and a shared cache in front of
+    # the service must not hand it to the next person.
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={"Cache-Control": "private, max-age=300"},
+    )

@@ -2,12 +2,31 @@ import { useCallback, useEffect, useState } from "react";
 import LogSheetForm from "./components/LogSheetForm";
 import LoginScreen from "./components/LoginScreen";
 import QueueView from "./components/QueueView";
+import SheetsView from "./components/SheetsView";
 import { useTheme, ThemeChoice } from "./hooks/useTheme";
 import { useOfflineQueue, flushQueue } from "./hooks/useOfflineQueue";
 import { getToken, clearToken, onAuthCleared } from "./services/api";
 import { useOnline } from "./hooks/useOnline";
+import { usePath, navigate } from "./utils/router";
 
-type View = "logsheet" | "queue";
+type View = "logsheet" | "queue" | "sheets";
+
+// The nav is the source of truth for both directions: which path shows which
+// view, and which path a tab navigates to. Keeping them in one place is what
+// stops /sheets rendering the form because a string was updated in one of two
+// places.
+const PATHS: Record<View, string> = {
+  logsheet: "/",
+  queue: "/queue",
+  sheets: "/sheets",
+};
+
+function viewForPath(path: string): View {
+  const found = (Object.keys(PATHS) as View[]).find((v) => PATHS[v] === path);
+  // An unknown path falls back to the form rather than a blank screen. This is
+  // a field app opened from a pasted link; a 404 at a monument helps nobody.
+  return found ?? "logsheet";
+}
 
 const THEME_ICON: Record<ThemeChoice, string> = {
   system: "◐",
@@ -22,7 +41,8 @@ const THEME_LABEL: Record<ThemeChoice, string> = {
 };
 
 export default function App() {
-  const [view, setView] = useState<View>("logsheet");
+  const path = usePath();
+  const view = viewForPath(path);
   const [authed, setAuthed] = useState<boolean>(() => getToken() !== null);
   const { choice, cycleTheme } = useTheme();
   const { pendingCount } = useOfflineQueue();
@@ -90,7 +110,7 @@ export default function App() {
         <nav className="view-nav">
           <button
             type="button"
-            onClick={() => setView("logsheet")}
+            onClick={() => navigate(PATHS.logsheet)}
             className={view === "logsheet" ? "" : "is-inactive"}
             aria-current={view === "logsheet" ? "page" : undefined}
           >
@@ -98,11 +118,19 @@ export default function App() {
           </button>
           <button
             type="button"
-            onClick={() => setView("queue")}
+            onClick={() => navigate(PATHS.queue)}
             className={view === "queue" ? "" : "is-inactive"}
             aria-current={view === "queue" ? "page" : undefined}
           >
             Queue{pendingCount > 0 ? ` (${pendingCount})` : ""}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(PATHS.sheets)}
+            className={view === "sheets" ? "" : "is-inactive"}
+            aria-current={view === "sheets" ? "page" : undefined}
+          >
+            Sheets
           </button>
         </nav>
       </header>
@@ -126,6 +154,13 @@ export default function App() {
       <div hidden={view !== "queue"}>
         <QueueView />
       </div>
+
+      {/* Mounted only while shown, unlike the other two. Those hold typed input
+          and queue state that must survive a tab switch; this one holds a
+          fetched list, and keeping it mounted would mean a stale table sitting
+          behind the form until something re-rendered it. Mounting on entry is
+          also what makes it refetch when someone comes back to check. */}
+      {view === "sheets" && <SheetsView />}
 
       <footer className="app-footer">
         <button type="button" className="link-btn" onClick={signOut}>

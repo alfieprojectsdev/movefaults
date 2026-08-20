@@ -549,3 +549,130 @@ async def test_equipment_change_rule_does_not_fire_when_unticked(client, auth_he
         headers=auth_headers,
     )
     assert resp.status_code == 201, resp.text
+
+
+# ── GET /sheets and GET /photos/{id} ────────────────────────────────────────
+#
+# The end-of-day review: what did we file, what did the other teams file, and
+# did the photos actually reach the server.
+
+
+@pytest.mark.asyncio
+async def test_sheets_lists_newest_first(client, auth_headers):
+    # Ordered by created_at, not visit_date — a sheet back-dated to an earlier
+    # visit still belongs at the top of the evening it was entered.
+    older = _campaign_record(visit_date="2026-08-10")
+    newer = _campaign_record(visit_date="2026-08-01")
+    await client.post("/api/v1/logsheets", json=[older], headers=auth_headers)
+    await client.post("/api/v1/logsheets", json=[newer], headers=auth_headers)
+
+    resp = await client.get("/api/v1/sheets", headers=auth_headers)
+    assert resp.status_code == 200
+    uuids = [r["client_uuid"] for r in resp.json()]
+    assert uuids.index(newer["client_uuid"]) < uuids.index(older["client_uuid"])
+
+
+@pytest.mark.asyncio
+async def test_sheets_requires_authentication(client):
+    assert (await client.get("/api/v1/sheets")).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_sheets_shows_every_users_records(client, auth_headers):
+    """No per-user filtering, by design: a team checks its own day and sees what
+    other teams filed. Asserted so nobody 'fixes' it into a private view."""
+    record = _campaign_record()
+    await client.post("/api/v1/logsheets", json=[record], headers=auth_headers)
+    body = (await client.get("/api/v1/sheets", headers=auth_headers)).json()
+    assert any(r["client_uuid"] == record["client_uuid"] for r in body)
+
+
+@pytest.mark.asyncio
+async def test_sheet_with_no_photo_reports_an_empty_list(client, auth_headers):
+    """The 'photo pending' case the view renders: the sheet reached the server
+    and its photo did not. Distinct from a record still sitting on a device,
+    which this endpoint cannot see at all."""
+    record = _campaign_record()
+    await client.post("/api/v1/logsheets", json=[record], headers=auth_headers)
+    body = (await client.get("/api/v1/sheets", headers=auth_headers)).json()
+    row = next(r for r in body if r["client_uuid"] == record["client_uuid"])
+    assert row["photos"] == []
+
+
+@pytest.mark.asyncio
+async def test_sheet_lists_its_photos_and_serves_the_bytes(client, auth_headers):
+    record = _campaign_record()
+    created = (
+        await client.post("/api/v1/logsheets", json=[record], headers=auth_headers)
+    ).json()[0]
+
+    content = b"\xff\xd8\xff\xe0 not really a jpeg"
+    up = await client.post(
+        f"/api/v1/logsheets/{created['id']}/photos",
+        files={"file": ("antenna.jpg", content, "image/jpeg")},
+        headers=auth_headers,
+    )
+    assert up.status_code == 201, up.text
+
+    body = (await client.get("/api/v1/sheets", headers=auth_headers)).json()
+    row = next(r for r in body if r["client_uuid"] == record["client_uuid"])
+    assert len(row["photos"]) == 1
+    assert row["photos"][0]["filename"] == "antenna.jpg"
+
+    photo_id = row["photos"][0]["id"]
+    got = await client.get(f"/api/v1/photos/{photo_id}", headers=auth_headers)
+    assert got.status_code == 200
+    assert got.content == content
+    # Field data behind a login: a shared cache must not serve it onward.
+    assert "private" in got.headers.get("cache-control", "")
+
+
+@pytest.mark.asyncio
+async def test_photo_bytes_require_authentication(client, auth_headers):
+    """The whole reason bytes stream through the API instead of a presigned URL.
+    If this ever returns 200 without a token, the endpoint has become the very
+    bearer-capability it was written to avoid."""
+    record = _campaign_record()
+    created = (
+        await client.post("/api/v1/logsheets", json=[record], headers=auth_headers)
+    ).json()[0]
+    await client.post(
+        f"/api/v1/logsheets/{created['id']}/photos",
+        files={"file": ("a.jpg", b"bytes", "image/jpeg")},
+        headers=auth_headers,
+    )
+    body = (await client.get("/api/v1/sheets", headers=auth_headers)).json()
+    photo_id = next(
+        r for r in body if r["client_uuid"] == record["client_uuid"]
+    )["photos"][0]["id"]
+
+    assert (await client.get(f"/api/v1/photos/{photo_id}")).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_missing_photo_is_404_not_500(client, auth_headers):
+    assert (await client.get("/api/v1/photos/999999", headers=auth_headers)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_sheets_reports_observers_by_initials(client, auth_headers, db_session):
+    staff = Staff(full_name="Z. Reyes", initials="ZR")
+    db_session.add(staff)
+    await db_session.commit()
+
+    record = _campaign_record(observer_ids=[staff.id])
+    await client.post("/api/v1/logsheets", json=[record], headers=auth_headers)
+
+    body = (await client.get("/api/v1/sheets", headers=auth_headers)).json()
+    row = next(r for r in body if r["client_uuid"] == record["client_uuid"])
+    assert row["observers"] == [staff.initials]
+
+
+@pytest.mark.asyncio
+async def test_sheets_limit_is_bounded(client, auth_headers):
+    """An unbounded limit lets one request ask for every row ever filed, and this
+    endpoint fans out into two more queries over whatever it returns. On a
+    sleeping free-tier instance that is a request that never comes back."""
+    assert (await client.get("/api/v1/sheets?limit=100000", headers=auth_headers)).status_code == 422
+    assert (await client.get("/api/v1/sheets?limit=0", headers=auth_headers)).status_code == 422
+    assert (await client.get("/api/v1/sheets?limit=500", headers=auth_headers)).status_code == 200

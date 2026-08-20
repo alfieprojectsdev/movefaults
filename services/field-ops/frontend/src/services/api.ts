@@ -375,3 +375,67 @@ export async function uploadLogSheetPhoto(logsheetId: number, photo: File): Prom
 export async function lookupEquipment(qrId: string): Promise<Equipment> {
   return apiFetch<Equipment>(`/equipment?qr_id=${encodeURIComponent(qrId)}`);
 }
+
+
+// ── /sheets — the end-of-day review ─────────────────────────────────────────
+
+export interface SheetPhoto {
+  id: number;
+  filename: string | null;
+  uploaded_at: string | null;
+}
+
+export interface Sheet {
+  id: number;
+  client_uuid: string;
+  station_code: string;
+  visit_date: string;
+  monitoring_method: string | null;
+  session_id: string | null;
+  antenna_model: string | null;
+  rinex_height_m: number | null;
+  equipment_status: string | null;
+  battery_voltage_v: number | null;
+  equipment_changed: boolean | null;
+  notes: string | null;
+  created_at: string | null;
+  synced_at: string | null;
+  observers: string[];
+  photos: SheetPhoto[];
+}
+
+export async function fetchSheets(): Promise<Sheet[]> {
+  return apiFetch<Sheet[]>("/sheets");
+}
+
+/**
+ * Fetch one photo's bytes as an object URL.
+ *
+ * Not an <img src="/api/v1/photos/1">: the token lives in localStorage and goes
+ * out in an Authorization header, which a browser-issued image request cannot
+ * carry. The alternatives were a token in the URL — a credential in something
+ * that gets logged, shared and cached — or a presigned URL, which is a bearer
+ * capability anyone can use until it expires. Fetching with the header and
+ * handing React a blob keeps the credential where it belongs.
+ *
+ * The caller owns the returned URL and must revokeObjectURL it, or the bytes
+ * stay in memory for the life of the document. On a field handset with a dozen
+ * 4 MB photos that is the difference between a slow tab and a killed one.
+ */
+export async function fetchPhotoObjectUrl(photoId: number): Promise<string> {
+  const token = getToken();
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  const resp = await fetchWithTimeout(
+    apiUrl(`/photos/${photoId}`),
+    { headers },
+    UPLOAD_TIMEOUT_MS
+  );
+  if (resp.status === 401) {
+    clearToken();
+    throw new ApiError(401, "Session expired — please log in again");
+  }
+  if (!resp.ok) {
+    throw new ApiError(resp.status, `Could not load photo (${resp.status})`);
+  }
+  return URL.createObjectURL(await resp.blob());
+}

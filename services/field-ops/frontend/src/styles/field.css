@@ -527,3 +527,70 @@ input[readonly] {
 .photo-hint li {
   margin-bottom: 0.35rem;
 }
+
+/* --------------------------------------------------------------------------
+   Sheets view
+   Colours come from Pico's own tokens rather than new literals, so this
+   inherits both themes without another pair of declarations to keep in sync.
+   -------------------------------------------------------------------------- */
+
+/* The table is wider than any phone. It scrolls inside this box so the page
+   itself never scrolls sideways — a horizontally sliding page makes the rest
+   of the form unusable one-handed. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0.75rem 0;
+}
+
+.sheets-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.sheets-table th,
+.sheets-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+  text-align: left;
+  vertical-align: top;
+}
+
+.sheets-table th {
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  /* Opaque: rows scrolling under a translucent header are unreadable. */
+  background: var(--pico-background-color);
+}
+
+.sheet-photo-pending {
+  color: var(--field-warn);
+}
+
+.sheet-photo-error {
+  color: var(--field-error);
+}
+
+/* Capped so one tall photo cannot push every other row off the screen. */
+.sheet-photos img {
+  max-width: 140px;
+  max-height: 140px;
+  border-radius: 0.25rem;
+  margin-right: 0.25rem;
+}
+
+.sheet-local-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.sheet-local-list li {
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid var(--field-warn);
+  background: var(--field-warn-bg);
+  margin-bottom: 0.35rem;
+  border-radius: 0.25rem;
+}

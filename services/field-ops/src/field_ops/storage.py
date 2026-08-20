@@ -52,6 +52,27 @@ class PhotoStorage(ABC):
         """Persist and return the storage reference recorded in the database."""
 
     @abstractmethod
+    async def read(self, ref: str) -> tuple[bytes, str]:
+        """
+        Fetch a stored object by its reference. Returns (content, content_type).
+
+        Bytes rather than a presigned URL, on purpose. A presigned URL is a
+        bearer capability: anyone holding it can fetch the object without
+        authenticating, for as long as it lives. Streaming through the API keeps
+        the check on the request that already carries a token, and behaves the
+        same on both backends — LocalDiskStorage cannot presign at all, so the
+        alternative would need two code paths and only one of them ever
+        exercised in development.
+
+        The cost is bandwidth through the service. Photos are looked at rarely
+        and one at a time, which is the trade this makes.
+
+        Raises FileNotFoundError when the object is gone. A row pointing at a
+        missing object is a real state — the R2 lifecycle or a manual cleanup —
+        and the caller turns it into a 404 rather than a 500.
+        """
+
+    @abstractmethod
     async def delete(self, ref: str) -> None:
         """
         Remove a previously saved object.
@@ -81,6 +102,12 @@ class LocalDiskStorage(PhotoStorage):
         dest = target_dir / _safe_key(filename)
         dest.write_bytes(content)
         return str(dest)
+
+    async def read(self, ref: str) -> tuple[bytes, str]:
+        path = Path(ref)
+        if not path.is_file():
+            raise FileNotFoundError(ref)
+        return path.read_bytes(), _content_type(path.name)
 
     async def delete(self, ref: str) -> None:
         Path(ref).unlink(missing_ok=True)
@@ -131,6 +158,24 @@ class R2Storage(PhotoStorage):
         # database full of dead links is indistinguishable from lost data.
         # Read paths mint a fresh URL from this key on demand.
         return f"r2://{self.bucket}/{key}"
+
+    async def read(self, ref: str) -> tuple[bytes, str]:
+        import asyncio
+
+        bucket, key = _parse_r2_ref(ref)
+        if bucket is None or key is None:
+            # A local-disk path left by an earlier backend, or a malformed row.
+            # Treated as missing rather than guessed at.
+            raise FileNotFoundError(ref)
+
+        def _get() -> tuple[bytes, str]:
+            try:
+                obj = self._client.get_object(Bucket=bucket, Key=key)
+            except self._client.exceptions.NoSuchKey as exc:
+                raise FileNotFoundError(ref) from exc
+            return obj["Body"].read(), obj.get("ContentType") or _content_type(key)
+
+        return await asyncio.to_thread(_get)
 
     async def delete(self, ref: str) -> None:
         import asyncio
