@@ -1,12 +1,129 @@
 # RESUME — next session
 
-**Updated 2026-07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live —
-START HERE). Prior: 07-29 (storage provisioned, RAID resolved, continuity
+**Updated 2026-08-20 (Field Ops shipped to production — START HERE).
+Prior: 07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live), 07-29 (storage provisioned, RAID resolved, continuity
 audit), 07-28 (gps3 Bernese install verified, 0.0000 mm SINEX), 07-22
 (thumb-drive backup), 07-16 (Backup Plus→DOSTB migration complete, sdd2-scan
 diagnosis corrected), 07-15 (migration/scan kicked off), 07-14 (clean
 shutdown, VADASE PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze),
 07-07 (excavation+crossref), 07-04 (DA-005).**
+
+## ✅ 2026-08-20 — Field Ops is live, and Palawan is next week
+
+**The PWA is deployed and in use.** Frontend on Vercel
+(`movefaults.vercel.app`), API on Render (`pogf-field-ops-api.onrender.com`),
+Postgres on Neon, photos in Cloudflare R2. Nine PRs merged today, #99-#107.
+
+**Palawan fieldwork is next week from 2026-08-19.** PPPC, PNDO and PKLY — all
+three continuous. That drove most of what follows.
+
+### Geodesy: one constant was wrong
+
+**TRM22020.00+GP carried the wrong vertical offset** and every RINEX height from
+that antenna came out **3.5 mm short**. The Compact L1/L2 diagram has three
+vertical rows where the Zephyrs have two: the form used `A - B` (top of ground
+plane) where it needed `A - C` (bottom). The tape hooks *under* the ground
+plane, and the radius already in the table is the "inner edge of ground plane"
+figure from the same drawing.
+
+Both PHIVOLCS workbooks — `analysis/01 RINEX conversion/antenna_height_conversion*`,
+2019 and 2025 — compute `(62.5-6.9)*10^-3`, so the archive was self-consistent
+and the form disagreed with it. The BUCA paper sheet says it outright too:
+*"[Slant] antenna height is measured on the bottom of the groundplane."* Three
+independent sources.
+
+Caught before any campaign sheet was filed, so **nothing needs recomputing**.
+The cause was a rule, not a typo: `VO = A - B` was applied to every antenna, and
+is right for every model *except* the only one with a ground plane. Model names
+also corrected to their IGS/ANTEX spellings (`TRM55971-00` → `TRM55971.00`,
+`TRM115000` → `TRM115000.00`) — the old strings match no ANTEX entry and a RINEX
+header built from them loses its calibration silently.
+
+**Three slant readings are now enough** (was four). A leg or the monument can
+block one, and refusing the sheet does not produce a fourth reading — it
+produces a sheet on paper. Cost, decided knowingly: the orphan reading's axis is
+no longer cancelled, ~1 mm of vertical bias on the spreads seen in the
+workbooks. Plain mean of what is present, chosen over the pair-only estimator.
+
+### Schema: the root alembic tree is walled off on Neon
+
+**Neon sits at root `011` and cannot advance.** Root `012` sets
+`timescaledb.compress`; Neon reports `timescaledb.license = apache` and refuses,
+and alembic's single transaction rolls back everything behind it.
+
+**Consequence, and this is the durable lesson:** a new root revision touching
+`field_ops.*` would apply on a local Postgres and never in production, leaving
+the model carrying a column the database lacks — a 500 on every submission, with
+local tests green. **Until 012 is license-aware, every field_ops schema change
+goes in the field-ops tree** regardless of which tree created the table. Root
+`008` created the logsheet columns; `fo004` extends them anyway. `DEPLOY.md`
+says so now.
+
+`fo004` (equipment columns) and `fo005` (drop `plumbing_offset_mm`) are an
+**expand/contract pair** and were run either side of the deploy. Both applied.
+Field-ops tree is at `fo005`.
+
+### What shipped
+
+- **Equipment before/after block** for CORS visits — receiver model/serial/
+  firmware, antenna type/part/serial, vertical height. Mined from the BTU2 paper
+  form. PPPC, PNDO and PKLY have **zero** `equipment_history` rows, so next
+  week's visit is the first record their hardware has anywhere. Deliberately NOT
+  written into `equipment_history`: that ledger is temporal (SCD Type 2) and
+  these records replay from an offline queue days late, which would produce
+  overlapping intervals. The logsheet holds the observation; reconciliation
+  stays an office step.
+- **`/sheets`** — end-of-day review, everyone authed sees everything. Photos
+  stream through the API as bytes (auth stays in the header) rather than a
+  presigned URL. Routing is 25 lines of pushState, not react-router.
+- **Issue forms** at `/issues/new/choose`, written for staff who do not use
+  GitHub. Labels `field-ops`, `data-loss`, `sign-in` created — GitHub silently
+  drops labels that do not exist, which is how the first render came back with
+  only `bug`.
+- Photo size validation, camera guidance, the visit-date pre-dawn fix, and the
+  app-update close-and-reopen note.
+
+### Bugs the E2E found that no test would have
+
+Both from driving the deployed app in a browser:
+
+1. **Photos in `/sheets` never rendered.** `loading="lazy"` inside a
+   horizontally scrolled container — Chrome's intersection check never fires.
+   Diagnosed, not guessed: the blob re-fetched as a valid 42 KB JPEG and decoded
+   at 1568 px in a probe image, while the rendered element stayed
+   `complete: false`.
+2. **A successful save still showed a red prompt beside it** on the *online*
+   path. #100 had fixed the offline path by gating on `isDirty`, which
+   `resetForm()` clears — but the form reports dirty again after an online save.
+   The fix had guarded the cause rather than the outcome.
+
+Also fixed: a mistyped slant shorter than the antenna radius produced `NaN`,
+which `JSON.stringify` turned into `null` — a row with a normal `avg_slant_m` and
+an empty `rinex_height_m`, no error anywhere.
+
+### State
+
+- **Database:** field-ops `fo005`, root `011`. **0 logsheets, 0 photos, 0 R2
+  objects** (all E2E data cleaned), 13 staff, 138 stations.
+- **Accounts:** random passwords, all 13 rotated, printed, distributed on paper,
+  slips shredded. The surname scheme is retired and `--surnames` no longer
+  exists. Neon production password rotated 2026-08-20.
+- **Field docs:** `services/field-ops/FIELD_RUNBOOK.md` is authoritative;
+  `DEPLOY.md` covers provisioning. `temp/field-ops-quick-guide.docx` is a derived
+  hand-out for staff, regenerated from `temp/field-ops-viber-brief.md` with
+  `pandoc field-ops-viber-brief.md -o field-ops-quick-guide.docx -V lang=en`.
+  Uncommitted on purpose — the runbook is the single source.
+
+### Open
+
+- **Campaign sites are not seeded.** All 138 stations are continuous. Fine for
+  Palawan; blocking for any campaign occupation.
+- **Offline launch untested on a real handset** — install, airplane mode, open.
+  Worth doing before departure.
+- **BRN-001 (Bernese on the R740)** still open; no physical console access.
+- **Queued research:** adopt/adapt Japan GSI's GEONET Bernese workflow for
+  POGF/R740. Not started. Whether the goal is *adopt* or *adapt* is undecided
+  and changes the shape of the work — settle it before planning.
 
 ## 🔴 2026-07-30 (late) — iDRAC HAS NO IP; blocks two things
 
@@ -1436,7 +1553,10 @@ Alternative next: classifier tickets (below) — small, self-contained.
   "base branch was modified" race). NO Claude/AI refs in commits.
 
 ## State snapshot
-- main = `c5007ab` (PRs #48-#52 all merged: TUI, recover, checkpoint, scan screen).
+- main = `884981f` (2026-08-20: PRs #99-#107 merged — Field Ops live on
+  Vercel/Render/Neon/R2; antenna constant fixed; 3-slant minimum; equipment
+  block; /sheets; issue forms). Earlier: `c5007ab` (PRs #48-#52: TUI, recover,
+  checkpoint, scan screen).
 - Backup Plus (1TB, project): mounted rw, holds RECOVERED_DOSTB20150918 (9 GB).
 - DOSTB (2TB, personal): GNSS evacuated; bins await Alfie's manual empty.
 - /home freed to ~7.7G (lean_machine run 2026-07-04; docker prune line is a hazard
