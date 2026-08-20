@@ -70,6 +70,22 @@ submitting offline is not a degraded mode.
 not the photo. The form keeps what you typed. Sync pending sheets to free space,
 then submit again before leaving the station.
 
+### Continuous (CORS) visits — write down what is installed
+
+The form asks for the **receiver and antenna as you found them**: model, serial,
+firmware, antenna type, part and serial numbers, and the vertical antenna height.
+Copy them off the labels on the hardware. **If something is not marked, leave it
+blank** — a guessed serial is worse than an empty box, because it looks like a
+reading.
+
+For Palawan this is the first time PPPC, PNDO and PKLY will have their hardware
+recorded anywhere; there is nothing on file to check against.
+
+If you swap anything during the visit, tick **Equipment was changed** and fill in
+what it was changed *to*. The form will not accept the tick on its own: a sheet
+saying "something was changed" without saying what destroys the only record of
+it. Leave unchanged items blank in the second block.
+
 ## 3. When signal comes back
 
 Sync happens by itself the moment the phone has a connection. **Sync now** on

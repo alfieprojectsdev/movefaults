@@ -52,6 +52,17 @@ _CAMPAIGN_REQUIRED = ("antenna_model",)
 _SLANT_FIELDS = ("slant_n_m", "slant_s_m", "slant_e_m", "slant_w_m")
 MIN_SLANTS = 3
 
+# Ticking "equipment changed" must be backed by at least one of these.
+_EQUIPMENT_AFTER_FIELDS = (
+    "receiver_model_after",
+    "receiver_serial_after",
+    "receiver_firmware_after",
+    "antenna_type_after",
+    "antenna_part_number_after",
+    "antenna_serial_after",
+    "antenna_height_after_m",
+)
+
 
 class LogSheetIn(BaseModel):
     client_uuid: uuid.UUID
@@ -92,7 +103,27 @@ class LogSheetIn(BaseModel):
     utc_start: datetime | None = None
     utc_end: datetime | None = None
     bubble_centred: bool | None = None
-    plumbing_offset_mm: float | None = None
+
+    # Equipment as found and as left — the Before/After table on the paper GPS
+    # Station Maintenance Record. `_before` is what was installed on arrival and
+    # is the valuable half: PPPC, PNDO and PKLY have no equipment_history rows
+    # at all, so a Palawan visit is the first record their hardware will have.
+    # `_after` is filled only when something was swapped.
+    equipment_changed: bool | None = None
+    receiver_model_before: str | None = None
+    receiver_model_after: str | None = None
+    receiver_serial_before: str | None = None
+    receiver_serial_after: str | None = None
+    receiver_firmware_before: str | None = None
+    receiver_firmware_after: str | None = None
+    antenna_type_before: str | None = None
+    antenna_type_after: str | None = None
+    antenna_part_number_before: str | None = None
+    antenna_part_number_after: str | None = None
+    antenna_serial_before: str | None = None
+    antenna_serial_after: str | None = None
+    antenna_height_before_m: float | None = None
+    antenna_height_after_m: float | None = None
 
     @model_validator(mode="after")
     def _validate_method_fields(self) -> "LogSheetIn":
@@ -113,6 +144,18 @@ class LogSheetIn(BaseModel):
                     f"monitoring_method='campaign' requires at least {MIN_SLANTS} "
                     f"of {', '.join(_SLANT_FIELDS)}; got {present}"
                 )
+
+        # "Changed" has to name what changed. A ticked box with every _after
+        # field empty records that something was swapped and destroys the only
+        # trace of what it was swapped to — worse than not ticking it, because
+        # the sheet then looks complete.
+        if self.equipment_changed and not any(
+            getattr(self, f) is not None for f in _EQUIPMENT_AFTER_FIELDS
+        ):
+            raise ValueError(
+                "equipment_changed is set but no _after field was provided; "
+                "record what the equipment was changed to"
+            )
 
         if self.battery_voltage_v is not None and self.battery_voltage_source not in (
             None,
@@ -246,7 +289,21 @@ async def submit_logsheets(
             "utc_start": r.utc_start,
             "utc_end": r.utc_end,
             "bubble_centred": r.bubble_centred,
-            "plumbing_offset_mm": r.plumbing_offset_mm,
+            "equipment_changed": r.equipment_changed,
+            "receiver_model_before": r.receiver_model_before,
+            "receiver_model_after": r.receiver_model_after,
+            "receiver_serial_before": r.receiver_serial_before,
+            "receiver_serial_after": r.receiver_serial_after,
+            "receiver_firmware_before": r.receiver_firmware_before,
+            "receiver_firmware_after": r.receiver_firmware_after,
+            "antenna_type_before": r.antenna_type_before,
+            "antenna_type_after": r.antenna_type_after,
+            "antenna_part_number_before": r.antenna_part_number_before,
+            "antenna_part_number_after": r.antenna_part_number_after,
+            "antenna_serial_before": r.antenna_serial_before,
+            "antenna_serial_after": r.antenna_serial_after,
+            "antenna_height_before_m": r.antenna_height_before_m,
+            "antenna_height_after_m": r.antenna_height_after_m,
         }
         for r in records
     ]

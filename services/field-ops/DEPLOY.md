@@ -96,6 +96,30 @@ A revision must also live in the tree that owns its table. `fo003` alters
 `field_ops.logsheet_photos`, so it belongs here; it briefly shipped as root `014`
 and failed the same way for the same reason.
 
+**This now applies to `field_ops.logsheets` too, even though root `008` created
+its columns.** The root tree cannot advance past `011` on Neon, so a new root
+revision touching that table would apply on a local Postgres and never in
+production — the model would carry a column the database does not have, and the
+API would 500 on every submission. `fo004` adds the equipment block for that
+reason. Until `012` is made license-aware, **every** field_ops schema change
+belongs in the field-ops tree regardless of which tree created the table.
+
+### `fo005` runs AFTER the deploy, not with it
+
+`fo004` and `fo005` are an expand/contract pair and must not be run together:
+
+| Step | What | Why |
+|---|---|---|
+| 1 | `upgrade fo004` | Adds the equipment columns. Harmless to the running service, which never names them. |
+| 2 | Deploy | New code starts writing them. |
+| 3 | `upgrade fo005` | Drops `plumbing_offset_mm`, once nothing references it. |
+
+Running `upgrade head` in one go drops the column while the **old** service is
+still serving, and that service still lists it in its model — so every INSERT
+names a column that no longer exists. The failure lands on the offline queue,
+which treats a 5xx as transient and retries forever: the field sees sheets that
+never sync, with no error anyone can act on.
+
 Both trees read `DATABASE_URL` and fall back to the discrete `POGF_DB_*`
 variables. Until 2026-08-11 they read **only** `POGF_DB_*`, so the sequence above
 migrated whatever those pointed at — by default a local container — while the
