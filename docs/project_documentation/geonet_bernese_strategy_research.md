@@ -81,7 +81,7 @@ number before the accurate one is ready.
 
 **Applicability: real, but not urgent.** A Q3/R3-equivalent tier is worth
 standing up only once the F3-equivalent (today's single-tier pipeline) is
-reliably automated on the R740 — i.e. after BRN-001. It solves a problem POGF
+reliably automated on the R740. (BRN-001 itself is **done** — see §5.) It solves a problem POGF
 does not have yet: nothing downstream currently consumes a same-day coordinate.
 
 ### Strategy lineage
@@ -250,8 +250,8 @@ PHIVOLCS' segmented-velocity pipeline produces rates and offsets, but [MEM,
 surveyor, a mapping agency, NAMRIA — could apply to translate an older
 PHIVOLCS-derived coordinate to its present position without rerunning the whole
 reduction. It is a **product built on top of existing velocity output**, not a
-change to the processing panels. Worth its own scoped follow-up once BRN-001
-and the routine pipeline are stable.
+change to the processing panels. Worth its own scoped follow-up once the
+routine pipeline is stable.
 
 ---
 
@@ -315,7 +315,7 @@ Gemini-assisted** (confirmed by the user), and it shows:
 
 | Finding | Verdict | When |
 |---|---|---|
-| Q3/R3/F3 tiering | **Adapt** (F3-equivalent only, for now) | After BRN-001; faster tiers only if a same-day number is needed |
+| Q3/R3/F3 tiering | **Adapt** (F3-equivalent only, for now) | Only if a same-day number is ever needed |
 | Backbone/regional cluster partitioning | **Not yet** — mechanics unresolved | Ask GSI; revisit if network size or wall-clock time becomes a constraint |
 | Single-station fiducial reference frame | **Skip** — POGF's multi-station minimum constraint is the stronger design | N/A |
 | RAPiD real-time detection parameters | **Adapt** — compare against VADASE's thresholds | Small follow-up, independent of R740 |

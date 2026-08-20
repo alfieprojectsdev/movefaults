@@ -15,9 +15,9 @@
                ├──▶ ~~BRN-002~~ ─▶ ~~BRN-003~~ ─▶ ~~BRN-004~~ ─▶ ~~BRN-005~~ ─▶ ~~BRN-006~~
 ~~ING-003~~ ──┘                                                          │
                                                                           ▼
-   R740 orchestrator hardening:  ~~RH-001~~ ─ ~~RH-002~~ ─ ~~RH-003~~ ─ RH-004* ─ **RH-007** ──▶ BRN-001 (R740 install)
+   R740 orchestrator hardening:  ~~RH-001~~ ─ ~~RH-002~~ ─ ~~RH-003~~ ─ RH-004* ─ **RH-007** ──▶ ~~BRN-001~~ (R740 install, DONE 2026-07-29)
                                   (P1 side: RH-004* / RH-005* code done, content/action remainder · RH-006 solve tuning)
-                                  └── acceptance: re-run PAGENET week on R740, gaps auto-cleared
+                                  └── acceptance: MET — LUZON 30/30 days unattended on R740 (2026-08-06, 5m33s/day)
                                   * = code mechanisms shipped, non-code remainder open (see tickets)
 
 ~~PR#33~~ ──▶ ~~ING-001~~ ──▶ ~~ING-002~~     (Bernese-parallel track)
