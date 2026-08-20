@@ -15,6 +15,8 @@ question the task was left open on.
 | **[FIG13]** | Imakiire, T., "GNSS CORS and Reference Frame (GEONET by GSI: part 1)", FIG Commission 5 Technical Seminar *Reference Frame in Practice*, 2013. PDF read directly. |
 | **[TSU17]** | Tsuji, H., Hatanaka, Y., Hiyama, Y., Yamaguchi, K., Furuya, T., Kawamoto, S., Fukuzaki, Y., "Twenty-Year Successful Operation of GEONET", *Bulletin of the GSI* Vol. 65, Dec 2017. PDF read directly. |
 | **[TAK23]** | Takamatsu, N., Muramatsu, H., Abe, S., Hatanaka, Y., Furuya, T., Kakiage, Y., Ohashi, K., Kato, C., "New GEONET analysis strategy at GSI…", *Earth, Planets and Space*, 2023, DOI 10.1186/s40623-023-01787-7. **Abstract only** — full text bot-blocked on every route tried; metadata and abstract verified via OpenAlex and Semantic Scholar. |
+| **[TOB15]** | Tobita, M., Suito, H., Kobayashi, T., Kawamoto, S., Yamanaka, M., Suzuki, A., Enya, T., Honda, M., Imakiire, T., Luis, A., Pelicano, A., Bacolcol, T., Ohkura, T., "Continuous GPS Observations on Mindanao", *Journal of Disaster Research* 10(1), 2015, DOI 10.20965/jdr.2015.p0067. **GSI–PHIVOLCS co-authored.** PDF read directly. |
+| **[OHK15]** | Ohkura, T., Tabei, T., Kimata, F., Bacolcol, T.C., et al., "Plate Convergence and Block Motions in Mindanao Island…", *Journal of Disaster Research* 10(1), 2015. Companion campaign-GPS paper, same programme, no GSI authors. |
 | **[REPO]** | Verified against this repository's own Bernese config, not from memory. |
 | **[MEM]** | Project memory / prior session notes — second-hand, flagged where it matters. |
 
@@ -39,7 +41,9 @@ Mindanao (Philippines), Sumatra and Java (Indonesia), Tarawa and Kiritimati
 (Kiribati), among others [FIG13] — all of them low-latitude, several of them
 squarely in the equatorial anomaly belt. **GSI may hold exactly the equatorial
 expertise GEONET's own strategy does not display.** That is now the single
-sharpest question to put to them directly (§9, and the drafted enquiry).
+sharpest question to put to them directly (§9, and the drafted enquiry) — and
+§9 establishes that GSI is not a stranger to ask: PHIVOLCS and GSI are
+**co-authors** on a Bernese-processed Philippine GNSS dataset [TOB15].
 
 What *is* worth adopting close to verbatim: the **tiering structure**, the
 **semi-dynamic datum** concept, and the **administrative response to a large
@@ -342,6 +346,13 @@ tuned, shorten the estimation interval first and treat the mapping function as a
 second-order question. That is a testable change on existing data, and it is a
 better-founded starting point than "switch to VMF1 because GEONET did".
 
+**And there is now a Philippine anchor for it.** GSI processed PHIVOLCS'
+own Mindanao data with **ZWD estimated every 3 hours and gradients every
+24 hours** under the Niell mapping function [TOB15, §3.1] — see §9.4. That is a
+concrete interval to compare against, on a Philippine dataset, from the same
+institution that later found the interval mattered more than the mapping
+function.
+
 ### Still unestablished
 - The `ADDNEQ2` mechanics for combining backbone/regional cluster solutions.
 - Cluster sizes and membership rules; the network size at which partitioning
@@ -361,40 +372,120 @@ Every one of these is a question in the drafted enquiry to GSI
 
 ---
 
-## 9. The GSI–Philippines connection
+## 9. The GSI–Philippines connection is a co-authorship, not a citation
 
-GSI has direct, existing history with Philippine GNSS. [FIG13] presents analyzed
-velocities for three Philippine sites, **relative to reference site NTUS**
-(Singapore) — the reference matters, since the numbers are meaningless without
-it:
+**This section was rewritten after the user surfaced a folder of co-authored
+international publications. It changes the character of the finding entirely.**
 
-| Site | Velocity (rel. NTUS) |
-|---|---|
-| PIMO (Quezon City) | 6.2 cm/yr |
-| TNDG (Tandag) | 6.1 cm/yr |
-| BTUN (Butuan) | 5.0 cm/yr |
+### 9.1 The paper
 
-The slide states GSI "installed two GNSS CORS sites in Mindanao, in the
-cooperative project supported by **JICA**". A preceding slide in the same deck
-labels Mindanao "(3 stations)" in GSI's Asia-Pacific network map — an apparent
-inconsistency, **resolved by first-hand account**: there were formerly three
-sites, now two [user, 2026-08-20, present at the early site-maintenance
-fieldwork for TNDG and BTUN]. Both statements in the deck were true at different
-times.
+> Tobita, M., Suito, H., Kobayashi, T., **Kawamoto, S.**, Yamanaka, M., Suzuki,
+> A., Enya, T., Honda, M., **Imakiire, T.**, Luis, A., **Pelicano, A.**,
+> **Bacolcol, T.**, Ohkura, T. (2015). "Continuous GPS Observations on
+> Mindanao." *Journal of Disaster Research* **10**(1), 67–.
+> DOI 10.20965/jdr.2015.p0067. Affiliations: Geospatial Information Authority
+> of Japan; PHIVOLCS; Aso Volcanological Laboratory, Kyoto University.
 
-**PHIVOLCS is still processing data from those sites today**, and the engineer
-raising this research task personally worked the early maintenance visits on
-them [user]. This is an active, first-hand operational link — not a historical
-footnote recovered from a slide deck.
+Three of those names matter a great deal here:
 
-**PIMO already appears in POGF's own documented fiducial list** [MEM]. This is
-not a citation-only relationship: GSI has processed Philippine coordinates and
-funded Philippine GNSS infrastructure. Combined with GSI's operation of CORS
-across the equatorial belt (§0), there is a real case for asking them directly
-rather than reconstructing their strategy from published papers — see
-`temp/gsi-enquiry-draft.md`.
+- **Tetsuro Imakiire (GSI)** — the author of [FIG13], the presentation this
+  brief leans on most heavily for GEONET's cluster architecture, tiering and
+  fixed-station datum. We were reading his slides all day without knowing
+  PHIVOLCS had published with him.
+- **Satoshi Kawamoto (GSI)** — co-author on the REGARD real-time system cited
+  throughout [TSU17] §4.1.
+- **Teresito Bacolcol (PHIVOLCS)** — now **Director of PHIVOLCS**, and one of
+  the officials to be copied on any enquiry.
 
----
+A companion paper in the same journal issue — Ohkura, Tabei, Kimata, Bacolcol,
+Luis, Pelicano, Jorgio, Tabigue, Abrahan, Jorgio, Gunawan (2015), "Plate
+Convergence and Block Motions in Mindanao Island", *JDR* **10**(1), 59– —
+covers the campaign-GPS side with Kyoto, Kochi, Tono and Nagoya collaborators.
+Same programme, no GSI authors.
+
+### 9.2 The programme
+
+Both sit under **SATREPS** — the JST/JICA *Science and Technology Research
+Partnership for Sustainable Development* — specifically the project
+*"Enhancement of Earthquake and Volcano Monitoring and Effective Utilization of
+Disaster Mitigation Information in the Philippines"* [Tobita 2015, §1].
+
+**This is the JICA channel**, named. It is not a general aid relationship to be
+traced; it is a specific project PHIVOLCS and GSI ran together and published
+from.
+
+### 9.3 The three Mindanao stations — inconsistency resolved
+
+[Tobita 2015] settles what §9 previously flagged as a contradiction in [FIG13]:
+
+| Station | Site | From |
+|---|---|---|
+| **BTUN** | DOST branch office building, Butuan | Dec 2010 |
+| **TNDG** | Surigao del Sur State University lecture hall, Tandag | Dec 2010 |
+| **TCGN** | Talacogon Municipal Hall building, Talacogon | Nov 2012 |
+
+Three were installed. The deck's "two GNSS CORS sites" and its map's "Mindanao
+(3 stations)" were both true at different times, exactly as the first-hand
+account said.
+
+### 9.4 GSI's own Philippine processing recipe — directly comparable to POGF's
+
+This is the part with immediate technical value. [Tobita 2015, §3.1] states how
+GSI processed Philippine GNSS data:
+
+| Choice | GSI, Mindanao (2015) | POGF today [MEM/REPO] |
+|---|---|---|
+| Software | **Bernese 5.0**, relative positioning | Bernese 5.2 → 5.4 |
+| Datum | **PIMO constrained** — coordinates *and velocities*, ITRF2008 | Multi-station minimum constraint; **PIMO is in the documented list** |
+| Orbits | IGS final | IGS/CODE final |
+| Troposphere | **ZWD every 3 h**, **gradient every 24 h** | interval not established here |
+| Mapping function | **Niell** (Niell 1996) | **GMF** |
+| Ocean loading | **FES2004** | BLQ via `merge_blq.py` |
+| Reference frame | ITRF2008, then Sunda-relative via NNR-MORVEL56 | IGS14 / ITRF2014 |
+
+Two things follow that could not have been guessed from the GEONET literature:
+
+1. **GSI used a single constrained fiducial — PIMO — for Philippine work**, the
+   same station POGF constrains. That is a much closer precedent than GEONET's
+   TSUKUBA-fixed domestic strategy, and it is a Philippine dataset.
+2. **The troposphere interval question now has an anchor.** GSI estimated ZWD
+   3-hourly here with 24-hourly gradients under the Niell mapping function.
+   [TAK23] reports that F5's accuracy gain came from *shortening* troposphere
+   intervals, not from VMF1 (§8). Asking "what intervals does F5 use, given you
+   used 3-hourly for our data in 2015?" is a far sharper question than asking in
+   the abstract — and POGF can run the same comparison on its own archive.
+
+**And one connection to today's other work.** The Mindanao stations used
+**Trimble 4000SSi receivers with Compact L1/L2 antennas** [Tobita 2015, §2].
+The PHIVOLCS antenna workbook catalogues "Compact L1/L2" as
+**`TRM22020.00+GP`** — the exact antenna whose vertical-offset constant was
+found wrong and corrected on 2026-08-20 (3.5 mm, ground-plane bottom vs top).
+If PHIVOLCS reduces any of that Mindanao archive itself, the corrected constant
+applies to it.
+
+### 9.5 Velocities from both sources
+
+Not directly comparable — different reference frames — but consistent in
+magnitude:
+
+| Station | [FIG13], rel. NTUS | [Tobita 2015], rel. Sunda (NNR-MORVEL56) |
+|---|---|---|
+| BTUN | 5.0 cm/yr | 5.24 ± 0.03 cm/yr |
+| TNDG | 6.1 cm/yr | 6.80 ± 0.02 cm/yr |
+| TCGN | — | 6.24 ± 0.08 cm/yr |
+| PIMO | 6.2 cm/yr | (constrained, not solved) |
+
+[Tobita 2015] removed the coseismic offsets of the **2013 Bohol earthquake
+(Mw 7.1, 15 October 2013)** before fitting velocity regressions — a worked
+example of the offset handling POGF is designing a procedure for (§4.2).
+
+### 9.6 What this does to the enquiry
+
+The drafted letter was written as an approach from strangers. It is not one.
+PHIVOLCS and GSI are **co-authors**, under a **named JICA/JST programme**, on a
+**Bernese-processed Philippine GNSS dataset**, and the current PHIVOLCS Director
+is on the author list. The enquiry has been rewritten accordingly
+(`temp/gsi-enquiry-draft.md`).
 
 ## 10. Verification pass — what changed
 
@@ -413,6 +504,7 @@ nothing about how much to trust the rest of it.
 | 6 | Cited as "FIG Working Week 2013"; author "Imakiiire" | **FIG Commission 5 Technical Seminar, *Reference Frame in Practice*, 2013**; author **IMAKIIRE** |
 | 7 | F5 named "per a secondary source"; VMF1 implied as the improvement | **F5 confirmed from the paper's abstract**; improvement was **completely due to shortened troposphere intervals, not VMF1** |
 | 8 | Philippine velocities given without a reference frame | **Relative to NTUS** — added, since the numbers are meaningless otherwise |
+| 10 | GSI–Philippines described as worth "surfacing to whoever owns the JICA relationship" as a *possible* channel | **It is a co-authorship.** PHIVOLCS and GSI published together under the named SATREPS (JST/JICA) project; the current PHIVOLCS Director is a co-author [TOB15] |
 | 9 | "GEONET has no equatorial ionosphere handling… there isn't any" | Correct **about GEONET**, but GSI operates equatorial CORS outside Japan; the institutional-knowledge question is open and is now the sharpest thing to ask |
 
 **Held up unchanged under verification:** the Q3/R3/F3 tier table; the
