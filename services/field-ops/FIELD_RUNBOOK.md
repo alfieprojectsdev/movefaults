@@ -113,10 +113,21 @@ occupations, those sites must be added first.
 in PHIVOLCS' own inventory and has no coordinates. `PPPC`, `PNDO` and `PKLY` are
 NAMRIA's, marked as theirs.
 
-**Antenna height arithmetic is unverified.** The campaign form computes RINEX
-height from the four slant heights, with no automated test behind it, and a
-wrong result looks plausible on screen. Until it is tested, **write the four raw
-slant measurements in the paper log as well.**
+**Antenna height arithmetic is now checked, but keep the paper record.** The
+campaign form's reduction — RH = sqrt(mean slant^2 - C^2) - VO — matches the
+formula in PHIVOLCS' own `antenna_height_conversion` workbooks exactly, and the
+per-model constants are pinned by tests against both those workbooks and
+Trimble's antenna diagrams.
+
+One constant was wrong until 2026-08-20: **TRM22020.00+GP** (Compact L1/L2 with
+ground plane) used the vertical offset to the *top* of the ground plane instead
+of the bottom, which made every RINEX height from that antenna 3.5 mm too short.
+No campaign sheet had been filed at that point, so nothing needs recomputing —
+it was caught before the first fieldwork, not after.
+
+**Write the four raw slant measurements in the paper log anyway.** The
+arithmetic being right does not make a mistyped tape reading recoverable, and
+the raw numbers are what lets a height be recomputed if a constant moves again.
 
 **Offline launch is untested on a real phone.** Filing and syncing offline are
 verified. Opening the app from the home screen with no signal depends on the

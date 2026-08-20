@@ -50,19 +50,58 @@ import {
 
 // ── Antenna constants ────────────────────────────────────────────────────────
 
+/**
+ * Per-model geometry for the slant-height reduction.
+ *
+ *   C  — radial distance from the antenna's vertical axis to the edge the tape
+ *        is hooked on (metres). Trimble's drawings call this R1 or C.
+ *   VO — vertical distance from that same edge down to the antenna reference
+ *        point (metres).
+ *
+ * Values are taken from Trimble's antenna reference surface diagrams and cross
+ * checked against PHIVOLCS' own `antenna_height_conversion` workbooks, which
+ * carry the identical formula per model and are what every historical campaign
+ * was reduced with. The two agree on all five models to within 0.05 mm.
+ *
+ * VO is NOT simply "row A minus row B" on the drawing, and reading it that way
+ * is what produced the TRM22020 error below. The rows are labelled per antenna:
+ * on the Zephyrs, B is "bottom of antenna mark to nominal phase centre" and the
+ * subtraction is right, but on the Compact L1/L2 the drawing has three vertical
+ * rows and B is "TOP of ground plane" while C is "BOTTOM of ground plane".
+ *
+ * A and B are kept only to show the arithmetic behind VO. Nothing reads them —
+ * computeRH takes C and VO. Add a model by reading its drawing, not by pattern
+ * matching this table.
+ */
 interface AntennaConstants {
+  /** Bottom of antenna to nominal phase centre (cm) — provenance only. */
   A: number;
+  /** The row subtracted from A to give VO (cm) — provenance only. */
   B: number;
+  /** Radial centre to the measured edge (m). */
   C: number;
+  /** Measured edge down to the antenna reference point (m). */
   VO: number;
 }
 
-const ANTENNA_CONSTANTS: Record<string, AntennaConstants> = {
-  "TRM22020.00+gp": { A: 6.25,   B: 0.34,  C: 0.2334,  VO: 0.0591  },
-  "TRM41249.00":    { A: 5.32,   B: 0.89,  C: 0.1698,  VO: 0.0443  },
-  "TRM55971-00":    { A: 8.50,   B: 4.06,  C: 0.1698,  VO: 0.0444  },
-  "TRM57971-00":    { A: 8.546,  B: 4.111, C: 0.1698,  VO: 0.04435 },
-  "TRM115000":      { A: 6.519,  B: 2.085, C: 0.16981, VO: 0.04434 },
+export const ANTENNA_CONSTANTS: Record<string, AntennaConstants> = {
+  // Compact L1/L2 with ground plane. A - C on the drawing, not A - B: the tape
+  // hooks under the ground plane, so the measured edge is its BOTTOM (0.69 cm
+  // to phase centre), not its top (0.34 cm). Using the top row put VO 3.5 mm
+  // high — the ground plane's own thickness — which is a real vertical bias,
+  // not a rounding difference, and would have appeared as a step in the time
+  // series against every occupation reduced with the workbook.
+  "TRM22020.00+GP": { A: 6.25,   B: 0.69,  C: 0.2334,  VO: 0.0556  },
+  // Zephyr Geodetic. A - B, both rows off the drawing.
+  "TRM41249.00":    { A: 5.326,  B: 0.891, C: 0.16981, VO: 0.04435 },
+  // Zephyr GNSS Geodetic Model 2 (P/N 55971-00). A - B off the drawing.
+  "TRM55971.00":    { A: 8.50,   B: 4.06,  C: 0.16981, VO: 0.0444  },
+  // No drawing: TRM55971.png and TRM57971.png are both the 55971-00 sheet.
+  // These come from the workbook's own TRM57971.00 tab and are unconfirmed
+  // against Trimble. Verify if a genuine 57971 diagram turns up.
+  "TRM57971.00":    { A: 8.546,  B: 4.111, C: 0.16981, VO: 0.04435 },
+  // Zephyr 3 (blue field card).
+  "TRM115000.00":   { A: 6.519,  B: 2.085, C: 0.16981, VO: 0.04434 },
 };
 
 export function computeRH(avgSH: number, C: number, VO: number): number {
