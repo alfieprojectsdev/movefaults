@@ -1,6 +1,6 @@
 # RESUME — next session
 
-**Updated 2026-08-21 (four PRs open, CI blocked on a repo setting — START HERE).
+**Updated 2026-08-21 (five PRs merged, CI still blocked on a repo setting — START HERE).
 Prior: 08-20 (Field Ops shipped to production), 07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live), 07-29 (storage provisioned, RAID resolved, continuity
 audit), 07-28 (gps3 Bernese install verified, 0.0000 mm SINEX), 07-22
 (thumb-drive backup), 07-16 (Backup Plus→DOSTB migration complete, sdd2-scan
@@ -8,23 +8,52 @@ diagnosis corrected), 07-15 (migration/scan kicked off), 07-14 (clean
 shutdown, VADASE PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze),
 07-07 (excavation+crossref), 07-04 (DA-005).**
 
-## ✅ 2026-08-21 — Four PRs open, and the reason none of them can be checked
+## ✅ 2026-08-21 — Five PRs reviewed and merged, and the setting that still blocks CI
 
-**PRs #110-#113 are open and unreviewed.** They came out of a shortlist of
-tickets judged landable inside 24 hours (`temp/24h-ticket-shortlist.md`,
-gitignored). Every claim in them was checked by running something, not by
-reading the backlog.
+**PRs #109-#113 are merged.** #110-#113 came out of a shortlist of tickets
+judged landable inside 24 hours (`temp/24h-ticket-shortlist.md`, gitignored).
+Every claim in them was checked by running something, not by reading the
+backlog.
 
 | PR | Ticket | What it does |
 |---|---|---|
+| #109 | ANA-002 | GEONET (GSI) strategy brief, verified against primary sources |
 | #110 | (none — new) | Test CI on every PR, plus the break turning it on exposed |
 | #111 | GEO-005 (part) | Two corrupt `offsets` records; catalog loader + validator |
 | #112 | GEO-001 | Fiducial set resolved, hashed, recorded; refuses to guess |
 | #113 | GEO-003 | Per-panel troposphere table + drift detector |
 
-#111-#113 are stacked on #110 so they inherit the workflow. They touch
-disjoint files. Merge #110, retarget the rest with `scripts/gh_retarget.sh`,
-merge in any order.
+Merge order was #110 first, then #111-#113 retargeted from `ci/pytest-on-pr`
+to `main` via `gh api -X PATCH` and verified by read-back — `gh pr edit --base`
+silently no-ops in this repo (Projects-classic GraphQL deprecation), so the
+retarget must always be confirmed by reading `baseRefName` back, per rule 5.
+`origin/main` was checked for advancement after every single merge.
+
+### Reviewing my own PR found a real bug in it
+
+Worth recording because the review was the only thing between it and `main`,
+and because CI could not have caught it.
+
+#110's typed-exception fix put the lazy QC import **inside** the try block
+whose `except` clause names `QCToolUnavailableError` / `QCToolTimeoutError`.
+Python evaluates an except expression at exception time, so a failed import
+left those names unbound and the real `ImportError` came back as
+
+```
+UnboundLocalError: cannot access local variable 'QCToolUnavailableError'
+```
+
+The code being replaced was not exposed to this — it caught `RuntimeError`, a
+builtin, always bound. **Introducing the typed exceptions introduced the
+hazard along with them.** Import and use are now separate blocks, the import
+stays lazy, and a missing package degrades to null QC metrics like an absent
+binary does. Regression test patches `builtins.__import__`; verified it fails
+with the exact `UnboundLocalError` against the previous code.
+
+Two smaller review fixes: the workflow now pins `permissions: contents: read`
+(public repo, no reason to inherit the org default token scope), and a ruff
+`I001` on the import block this PR rewrote — which the non-blocking lint job
+would have reported as noise on every future run rather than failing anything.
 
 ### The blocker is a repository setting, not code
 
@@ -33,9 +62,11 @@ merge in any order.
 `{"enabled": false}`. Last run of anything was **2026-04-23** — four months
 ago, a `Deploy Docs` run that failed, as did the seven before it.
 
-So #110's workflow is correct and cannot execute. Someone has to enable
-Actions in repository Settings; that is a settings change and was left alone
-deliberately.
+So #110's workflow is on `main` and **still cannot execute**. Someone has to
+enable Actions in repository Settings; that is a settings change and was left
+alone deliberately. Until then the workflow is documentation of intent, not a
+gate — every one of these five PRs was reviewed and merged with no automated
+check having run.
 
 This matters more than one PR. `CLAUDE.md` says every substantive change
 reaches `main` through a reviewed PR, and the branching policy leans on that
