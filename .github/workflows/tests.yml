@@ -1,0 +1,105 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A newer push to the same branch makes the older run irrelevant.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      # Each suite runs as its own step so a failure names the component.
+      #
+      # There is deliberately no single root `uv run pytest`: every component
+      # ships its own top-level `tests/` package, they collide under one
+      # rootdir, and the root invocation dies with 23 collection errors
+      # ("No module named 'tests.conftest'"). Per-component invocation is the
+      # only form that works today.
+      - name: pogf-geodetic-suite
+        run: uv run pytest packages/pogf-geodetic-suite/tests -q
+
+      - name: bernese-workflow
+        run: uv run pytest services/bernese-workflow/tests -q
+
+      - name: vadase-rt-monitor
+        run: uv run pytest services/vadase-rt-monitor/tests -q
+
+      - name: ingestion-pipeline
+        run: uv run pytest services/ingestion-pipeline/tests -q
+
+      - name: field-ops (backend)
+        run: uv run pytest services/field-ops/tests -q
+
+      - name: drive-archaeologist
+        run: uv run pytest tools/drive-archaeologist/tests -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/field-ops/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: services/field-ops/frontend/package-lock.json
+
+      - run: npm ci
+
+      # vitest. NOT collected by pytest -- a green `pytest` says nothing
+      # about these, which is why they get their own job.
+      - run: npm test
+
+      - run: npx tsc --noEmit
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # NON-BLOCKING on purpose. `main` currently carries 181 ruff findings
+    # across packages/, services/ and tools/. Gating on that would red-wall
+    # every PR from day one and teach everyone to ignore the check. Report
+    # it, fix it down over time, and make it required once it is clean.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - run: uv sync --extra dev
+
+      # Scoped to real source. `ruff check .` sweeps untracked scratch dirs
+      # and reports 942.
+      - run: uv run ruff check packages/ services/ tools/
