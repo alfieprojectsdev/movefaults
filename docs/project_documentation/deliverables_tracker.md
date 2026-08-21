@@ -1,6 +1,6 @@
 # Deliverables Tracker
 
-**Last updated:** 2026-08-03
+**Last updated:** 2026-08-20
 
 > Quick-reference status and date targets for all project deliverables.
 > For architectural context and dependency rationale, see [`roadmap.md`](roadmap.md).
@@ -41,6 +41,16 @@
 
 > Full ticket list with priorities, sizes, and dependency graph: [`ticket_backlog.md`](ticket_backlog.md)
 
+**NEW 2026-08-20 — GEONET strategy research (ANA-002):** GSI/GEONET Bernese
+strategy studied against primary sources and verified;
+`geonet_bernese_strategy_research.md` + engineering actions in
+`bernese_workflow_geonet_actions.md`. Verdict **adapt, not adopt**. Five
+non-R740 changes identified for `bernese-workflow` (fiducial provenance,
+mapping-function consistency, troposphere templating, HELMCHK gate, offset
+catalog as input). Surfaced a **GSI-PHIVOLCS co-authored paper** (Tobita et al.
+2015, SATREPS) carrying GSI's own Philippine Bernese recipe; enquiry to GSI
+drafted. PR #109.
+
 **DONE since last update (2026-04/05):** IGS-001, BRN-002, BRN-003, BRN-004, BRN-005, BRN-006,
 ING-001/002/003 — see `bernese_workflow_status` memory + commits `bead683`→`c002a88`.
 
@@ -73,6 +83,7 @@ ING-001/002/003 — see `bernese_workflow_status` memory + commits `bead683`→`
 | 2026-08-03 | `$U` provisioned from a repo gold standard (P1-H) | `config/bernese/gpsuser/` + `scripts/provision_gpsuser.py`. Found `$U/OPT`, `PCF`, `SCRIPT`, `PAN` **byte-identical to the `$C/USER` template** — nothing PHIVOLCS-specific had ever been deployed. Panels sanitized with MAXPAR sized from station count; `SCRIPT/` copied verbatim (a Perl backslash is an escape); PCFs refused if they carry a dangling WAIT. `PAN/USER.CPU` generated from detected hardware, never versioned |
 | 2026-08-03 | C2 — validator could not see the real DATAPOOL | `_is_rinex_obs()` matched on `path.suffix`; all 3,010 archive files are `.gz`, 20 are `.Z`, and Hatanaka `.26d`/`.crx` were unrecognised. Needed no Hatanaka decoding — CRINEX stores the RINEX header verbatim, so decompression alone suffices. Tests 128 → 189 |
 | 2026-08-03 | `USER.CPU` maxjobs 2 → 11 | The R740 was running the T420's value: 2 of 12 physical cores, against a known 40-min single-threaded bottleneck. Set via `cpu_config.compute_maxjobs()` |
+| 2026-08-20 | GEONET (GSI) strategy research + verification pass | Verdict adapt-not-adopt. Twelve claims corrected under audit, incl. two that would have misdirected work: VMF1 was *not* F5's improvement (shortened troposphere intervals were), and POGF's final panel is *already* hourly — shorter than GSI's 3-hourly on PHIVOLCS' own Mindanao data, so "shorten it" was wrong advice. Found PHIVOLCS-GSI co-authorship (Tobita et al. 2015) under SATREPS. PR #109 |
 | 2026-07-29 | **BRN-001** — Bernese 5.4 installed + verified on the R740 | EXAMPLE campaign 0.0000 mm vs reference (max abs diff 20 nm), 11m28s. Storage provisioned (4 TB GPSDATA, 20 TB archive, 1 TB scratch); GPSDATA migrated with a three-way census; all 16 RAID members brought under smartd |
 | 2026-06-26 | NAMRIA Bernese training week — full PAGENET pipeline run headless | Ran Modules 1-14 unattended on live 71-station data via `pagenet_pcs.pl` (parameterized stock `startBPE` driver) + idempotent `run_pagenet_week.sh`. Module 13/14 HELMCHK passed (RMS 8.64mm, 6 fiducials, 0 rejected). Proved the orchestrator execution contract on real data; surfaced 14 R740 gaps |
 | 2026-06-26 | R740 orchestrator readiness eval | `bernese_orchestrator_r740_readiness.md` — P0/P1/P2 hardening plan + go-live checklist; commit `cf1cf2a` |

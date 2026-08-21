@@ -91,7 +91,11 @@ These were required because the T420 is Sandy Bridge (x86-64-v2) and the apt/PPA
 
 ---
 
-## 6. R740 deployment deltas (BRN-001, pending)
+## 6. R740 deployment deltas (BRN-001 — **DONE 2026-07-29**)
+
+> Completed as predicted below: no ISA `objcopy` patch was needed (AVX-512
+> present), EXAMPLE matched reference at 0.0000 mm. Retained as the record of
+> what was expected versus what happened.
 
 Same OS (Ubuntu 24.04.3), clean apt, Haswell (x86-64-v3). Expected:
 - Install **gfortran-14 / gcc-14 / g++-14** (or whatever clean apt provides without PPA conflict).

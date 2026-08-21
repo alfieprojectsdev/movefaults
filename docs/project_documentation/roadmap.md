@@ -1,6 +1,6 @@
 # Project Roadmap: Phased Implementation Based on Dependency Hierarchies
 
-**Last updated:** 2026-08-03
+**Last updated:** 2026-08-20
 **Original date:** 2026-01-26
 
 > For per-deliverable status and projected dates, see [`deliverables_tracker.md`](deliverables_tracker.md).
@@ -181,7 +181,11 @@ Every failure worked around BY HAND in training is a thing the orchestrator must
   MAXPAR sizing, panel `\`→`/` sanitizer.
 - P1: CODSPP-QC + tropo auto-recovery, final-solution clustering tuning (the 502 GPSCLU_P
   single-core bottleneck — the R740 multi-core payoff is a CONFIG task, not free hardware).
-- Only **BRN-001 (R740 install)** remains open on the infrastructure side.
+- ~~Only **BRN-001 (R740 install)** remains open on the infrastructure side.~~
+  **Superseded 2026-08-20: BRN-001 is DONE (2026-07-29)** — Bernese 5.4 verified on
+  the R740 over SSH, 0.0000 mm vs reference; LUZON since reprocessed 30/30 days
+  unattended (2026-08-06, 5m33s/day). Nothing on the infrastructure side blocks
+  Bernese work. RH-006 clustering tuning is now gated on measurement, not hardware.
 
 ---
 
@@ -215,7 +219,8 @@ Research milestones completed (2026-03-03):
 Pending (superseded by the R740-hardening frontier above — this list is the OLD 2026-03 view):
 - ~~Jinja2 INP templates → `LinuxBPEBackend` skeleton~~ — DONE (BRN-002/003)
 - ~~`plot_v2.py` parameterisation~~ — DONE (BRN-005, `--reference-station`)
-- R740 Bernese installation (BRN-001) — still open; easier than T420 (no PPA/ISA fights)
+- ~~R740 Bernese installation (BRN-001)~~ — **DONE 2026-07-29**; as predicted, easier
+  than the T420 (AVX-512 present, no ISA `objcopy` patch)
 
 Architecture decisions:
 - `BPEBackend` protocol: `LinuxBPEBackend` (R740) + `WindowsBPEBackend` (future)

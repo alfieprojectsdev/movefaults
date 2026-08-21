@@ -94,3 +94,9 @@ docs/secrets.md
 # Assembled deployment env for pasting into a dashboard. Contains every
 # secret in one file; delete it once the values are set.
 *render-env*.txt
+
+# Working area for drafts and staged Bernese config. Untracked by convention,
+# ignored explicitly because the repository is PUBLIC and this directory holds
+# unsent correspondence naming real officials, plus staged campaign config.
+# One `git add .` was the only thing standing between that and a public commit.
+temp/

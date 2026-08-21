@@ -1,12 +1,112 @@
 # RESUME — next session
 
-**Updated 2026-08-20 (Field Ops shipped to production — START HERE).
-Prior: 07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live), 07-29 (storage provisioned, RAID resolved, continuity
+**Updated 2026-08-20 (Field Ops shipped to production, then GEONET research —
+START HERE). Prior: 07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live), 07-29 (storage provisioned, RAID resolved, continuity
 audit), 07-28 (gps3 Bernese install verified, 0.0000 mm SINEX), 07-22
 (thumb-drive backup), 07-16 (Backup Plus→DOSTB migration complete, sdd2-scan
 diagnosis corrected), 07-15 (migration/scan kicked off), 07-14 (clean
 shutdown, VADASE PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze),
 07-07 (excavation+crossref), 07-04 (DA-005).**
+
+## ✅ 2026-08-20 (later) — GEONET research addressed, and two stale claims caught
+
+**PR #109** (`docs/geonet-bernese-research`, open, CLEAN, 5 commits). Addressed
+the queued GSI/GEONET research task and then audited the result against its own
+sources. Deliverables: `docs/project_documentation/geonet_bernese_strategy_research.md`
+(the verified brief) and `bernese_workflow_geonet_actions.md` (the engineering
+half). Enquiry to GSI drafted at `temp/gsi-enquiry-draft.md` — **gitignored on
+purpose**, it names four officials and this repo is public.
+
+### Verdict: adapt, not adopt
+
+GEONET has no equatorial ionosphere handling because Japan is mid-latitude.
+PHIVOLCS' SIP/HOI handling has no GEONET template, and copying GEONET closely
+would mean weakening the part of our config that already works. What transfers:
+Q3/R3/F3 tiering, a strain-threshold freeze-and-reissue procedure (governance, no
+code), and the semi-dynamic datum correction model (no POGF equivalent — the
+standout idea). Documented **skip**: GEONET fixes one fiducial station; POGF's
+multi-station minimum constraint is the stronger design.
+
+### The find: this is a co-authorship, not a citation
+
+A folder of co-authored papers surfaced **Tobita et al. (2015), "Continuous GPS
+Observations on Mindanao"**, *J. Disaster Research* 10(1) — **GSI–PHIVOLCS
+co-authored** under the named **SATREPS (JST/JICA)** project. On the author list:
+**Tetsuro Imakiire** (who wrote the 2013 FIG presentation the brief leans on
+hardest), **Satoshi Kawamoto** (REGARD), and **Teresito Bacolcol** (now PHIVOLCS
+Director). We reconstructed GEONET's strategy from Imakiire's slides all day
+without knowing PHIVOLCS had published with him.
+
+It also carries **GSI's own Philippine Bernese recipe** — Bernese 5.0, **PIMO
+constrained** (coordinates *and* velocities, ITRF2008), IGS final orbits, ZWD
+every 3 h, gradients every 24 h, Niell, FES2004 — a closer precedent than
+GEONET's domestic strategy, on our own data, using the fiducial we constrain. And
+it settles the Mindanao station count: **BTUN + TNDG from Dec 2010, TCGN from Nov
+2012** (three, later two).
+
+The companion **Ohkura et al. (2015)** supplies a hierarchical *campaign*
+precedent: PIMO tightly constrained → **NMMB** as local reference *because it had
+the longest occupation* → site pairs chained by observation overlap.
+
+### Two stale claims caught — memory lost to the repo both times
+
+1. **BRN-001 was NOT open.** Memory (`bernese_install`, `bernese_workflow_status`)
+   said "R740 PENDING"; `deliverables_tracker.md` recorded **BRN-001 DONE
+   2026-07-29** — Bernese 5.4 verified on the R740 over SSH at 0.0000 mm, and
+   LUZON reprocessed **30/30 days unattended** on 2026-08-06 (2h47m, 5m33s/day).
+   The blocked item is **iDRAC/BMC networking**, a different thing that gates none
+   of this. Both memory files corrected. **RH-006 clustering tuning — which the
+   readiness eval calls the single highest-value R740 lever — is reclassified
+   from hardware-blocked to simply not done**, with a real 30-day baseline to
+   measure against.
+2. **"Shorten the troposphere interval" was wrong advice.** F5 found its accuracy
+   gain came from shortened intervals rather than VMF1, which read as advice to
+   shorten ours. POGF's final panel is **already hourly** — shorter than the
+   3-hourly GSI used on our own Mindanao data. We are already on the right side
+   of that finding.
+
+**Rule that earned itself today: check `docs/project_documentation/` before
+trusting a memory claim about Bernese state.** The repo was right both times.
+
+### What the panels revealed (measured, not remembered)
+
+`config/bernese/gpsuser52-luzon/OPT/*/GPSEST.INP`: `WET_GMF` in the float and
+final steps, **`WET_NIELL` in all three ambiguity steps**, `COSZ` in
+Melbourne-Wübbena; and the final solve at `01 00 00` against `02 00 00`
+everywhere upstream. The GMF/Niell split looks unintentional — memory records GMF
+as the PHIVOLCS standard, which the ambiguity panels do not follow.
+
+Separately, `ADDNEQ2.INP` resolves its datum from
+`${P}/PHIVOLCS\STA\REF190110.FIX` — **not tracked in this repo**, and project
+records disagree on its contents (12 stations, 9 stations, "6 accepted" in three
+different files). The transformation *type* is verified from config (3-parameter,
+translations only, minimum constraint); the station list is not.
+
+### Six tickets added, GEO-001..006 — none need hardware
+
+`GEO-001` fiducial set into provenance (P1) · `GEO-002` mapping-function
+consistency · `GEO-003` template the troposphere block so it cannot drift again ·
+`GEO-004` HELMCHK residual → provisional-solution gate (P1, the code half of the
+freeze procedure) · `GEO-005` offsets catalog as a versioned campaign input ·
+`GEO-006` backbone/regional architecture, parked behind GSI's answer.
+
+**Conceptual point worth keeping:** `v_clu`/`v_clufin` are *compute* clustering
+(how the solve splits across cores). GEONET's backbone/regional clusters are
+*network architecture* (which stations anchor which sub-network, how solutions
+recombine). Tuning the knob will never answer the design question, and only the
+knob was tracked.
+
+### Open
+
+- **Merge #109.** Reviewed only by my own audit pass.
+- **GSI enquiry needs four decisions** before sending: who signs (the Director is
+  himself a co-author of the paper it opens with), honorifics, send route
+  (Tobita's published GSI address is warmest — but the paper is from 2015,
+  confirm affiliations), and whether to attach a POGF summary.
+- Docs swept for the stale blocker: `roadmap.md` (×2), `ticket_backlog.md`
+  (dependency graph + acceptance criterion), `bernese_dependencies.md`,
+  `CLAUDE.md`, `deliverables_tracker.md`. Struck through and dated rather than
+  deleted.
 
 ## ✅ 2026-08-20 — Field Ops is live, and Palawan is next week
 
@@ -1553,7 +1653,7 @@ Alternative next: classifier tickets (below) — small, self-contained.
   "base branch was modified" race). NO Claude/AI refs in commits.
 
 ## State snapshot
-- main = `884981f` (2026-08-20: PRs #99-#107 merged — Field Ops live on
+- main = `2d90dc2` (2026-08-20: PRs #99-#108 merged; **#109 open** — GEONET research). Earlier `884981f` (PRs #99-#107 merged — Field Ops live on
   Vercel/Render/Neon/R2; antenna constant fixed; 3-slant minimum; equipment
   block; /sheets; issue forms). Earlier: `c5007ab` (PRs #48-#52: TUI, recover,
   checkpoint, scan screen).
