@@ -70,7 +70,7 @@ services/                      # Long-running deployable services
                                #   The only component a non-programmer uses directly.
   vadase-rt-monitor/           #   Real-time NMEA earthquake detection (hexagonal arch, async)
   ingestion-pipeline/          #   Celery-based RINEX ingestion (early stage, stubs)
-  bernese-workflow/            #   Bernese BPE orchestrator (stub, Jinja2 PCF templating)
+  bernese-workflow/            #   Bernese BPE orchestrator (real BSW invocation; ~60%)
 
 tools/
   drive-archaeologist/         # CLI for excavating legacy GNSS data from old drives
@@ -180,7 +180,7 @@ figures were carried forward by hand and three of five had drifted.*
 | Component | Size | Tests | Status |
 |---|---|---|---|
 | drive-archaeologist | 25 / 2998 / 15 | 133 | ~60% — Phase 1 scanner works, archive support partial |
-| **bernese-workflow** | 10 / 2277 / 9 | 198 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config all implemented. **Not yet** the path production runs take (see above) |
+| **bernese-workflow** | 10 / 2277 / 9 | 198 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config all implemented. **Not yet** the path production runs take (see above). **BRN-001 done 2026-07-29** — Bernese 5.4 verified on the R740; LUZON reprocessed 30/30 days unattended 2026-08-06 (5m33s/day) *via `scripts/`*, not via this service |
 | vadase-rt-monitor | 20 / 1387 / 7 | 51 | ~80% — parser, handler, core logic, leaky integrator, `ReceiverMode` state machine (replaced the old one-way integration latch) |
 | **pogf-geodetic-suite** | 10 / 1802 / 6 | 124 | ~75% — coordinates, IGS downloader, RINEX QC (teqc-first, gfzrnx fallback), and `timeseries/`: CRD→ENU, segmented velocities **verified against PHIVOLCS' production MATLAB output**, joint step+rate estimation, GMT velocity-field output |
 | **field-ops** | 13 / 1869 / 2 | 13 + 69 | ~90% — offline-first logsheet PWA, exercised on a real handset. 13 backend tests plus **69 frontend (vitest)**, the only frontend tests that run — `packages/CORS-dashboard` carries one 2017 React test file that nothing executes |

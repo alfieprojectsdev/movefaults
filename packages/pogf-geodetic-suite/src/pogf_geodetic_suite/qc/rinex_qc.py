@@ -17,6 +17,23 @@ from pathlib import Path
 import click
 
 
+class QCToolUnavailableError(RuntimeError):
+    """No usable QC binary is installed.
+
+    Distinct from "the tool ran and failed": nothing was executed, so nothing
+    is known about the file. Callers that treat QC as optional enrichment
+    (the ingestion pipeline does) may degrade to null metrics on this and only
+    this; every other failure still means something went wrong with the data.
+
+    Subclasses RuntimeError so pre-existing ``except RuntimeError`` handlers
+    keep working unchanged.
+    """
+
+
+class QCToolTimeoutError(RuntimeError):
+    """A QC binary was found and started, but exceeded ``timeout_sec``."""
+
+
 @dataclass
 class RINEXQCResult:
     """Structured output from a teqc +qc run."""
@@ -226,13 +243,13 @@ class RinexQC:
                     return self._run_gfzrnx(
                         path, reason=f"teqc not installed at '{self.teqc_path}'"
                     )
-                raise RuntimeError(
+                raise QCToolUnavailableError(
                     f"teqc not found at '{self.teqc_path}' and fallback is "
                     "disabled. Install teqc, or enable the gfzrnx fallback. "
                     "Note teqc was discontinued in 2019 and cannot read RINEX 3."
                 ) from exc
             except subprocess.TimeoutExpired as exc:
-                raise RuntimeError(
+                raise QCToolTimeoutError(
                     f"teqc timed out after {self.timeout_sec}s for '{rinex_file}'"
                 ) from exc
 
@@ -294,14 +311,14 @@ class RinexQC:
                 timeout=self.timeout_sec,
             )
         except FileNotFoundError as exc:
-            raise RuntimeError(
+            raise QCToolUnavailableError(
                 f"teqc could not read '{path}' ({reason}) and the gfzrnx "
                 f"fallback is not available at '{self.gfzrnx_path}'. "
                 "Set GFZRNX_BIN or pass gfzrnx_path. On the R740 it is at "
                 "/home/gps3/gfzrnx/gfzrnx_2.2.0_lx64."
             ) from exc
         except subprocess.TimeoutExpired as exc:
-            raise RuntimeError(
+            raise QCToolTimeoutError(
                 f"gfzrnx timed out after {self.timeout_sec}s for '{path}'"
             ) from exc
 

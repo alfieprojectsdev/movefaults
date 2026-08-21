@@ -5,7 +5,13 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pogf_geodetic_suite.qc.rinex_qc import RinexQC, RINEXQCResult, _parse_teqc_output
+from pogf_geodetic_suite.qc.rinex_qc import (
+    QCToolTimeoutError,
+    QCToolUnavailableError,
+    RinexQC,
+    RINEXQCResult,
+    _parse_teqc_output,
+)
 
 # ---------------------------------------------------------------------------
 # Fixture: representative teqc .S output (teqc 2019-era format)
@@ -322,3 +328,75 @@ def test_keyvalue_fallback_still_works_for_other_versions():
     assert r.obs_count == 12345
     assert r.mp1_rms == 0.31
     assert r.cycle_slips == 7
+
+
+# ---------------------------------------------------------------------------
+# Typed failure contract
+#
+# Callers must be able to distinguish "no QC binary exists" from "QC ran and
+# the data is bad" WITHOUT reading the message text. The ingestion pipeline
+# once matched on prose ("not found"); the gfzrnx fallback reworded the
+# message to "not installed"/"not available", the match silently stopped
+# firing, and every ingestion on a teqc-less machine failed instead of
+# degrading. These tests pin the types so that cannot recur.
+# ---------------------------------------------------------------------------
+
+def test_missing_binaries_raise_unavailable_not_bare_runtime(tmp_path):
+    rinex = tmp_path / "ALGO0010.22O"
+    rinex.write_text("dummy rinex content")
+
+    with patch(
+        "pogf_geodetic_suite.qc.rinex_qc.subprocess.run",
+        side_effect=FileNotFoundError("nothing here"),
+    ):
+        with pytest.raises(QCToolUnavailableError):
+            RinexQC().run_qc(str(rinex))
+
+
+def test_missing_teqc_with_fallback_disabled_raises_unavailable(tmp_path):
+    rinex = tmp_path / "ALGO0010.22O"
+    rinex.write_text("dummy rinex content")
+
+    with patch(
+        "pogf_geodetic_suite.qc.rinex_qc.subprocess.run",
+        side_effect=FileNotFoundError("no teqc"),
+    ):
+        with pytest.raises(QCToolUnavailableError):
+            RinexQC(allow_fallback=False).run_qc(str(rinex))
+
+
+def test_timeout_raises_timeout_type_not_unavailable(tmp_path):
+    """A tool that ran and hung is NOT the same as a tool that is absent."""
+    rinex = tmp_path / "ALGO0010.22O"
+    rinex.write_text("dummy rinex content")
+
+    with patch(
+        "pogf_geodetic_suite.qc.rinex_qc.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="teqc", timeout=30),
+    ):
+        with pytest.raises(QCToolTimeoutError):
+            RinexQC(timeout_sec=30).run_qc(str(rinex))
+    assert not issubclass(QCToolTimeoutError, QCToolUnavailableError)
+
+
+def test_bad_exit_code_is_NOT_unavailable(tmp_path):
+    """teqc ran and rejected the file. That is a data problem, and callers that
+    degrade on unavailability must NOT degrade on this."""
+    rinex = tmp_path / "ALGO0010.22O"
+    rinex.write_text("dummy")
+
+    mock_proc = MagicMock()
+    mock_proc.returncode = 2
+    mock_proc.stderr = "fatal error"
+    mock_proc.stdout = ""
+
+    with patch("pogf_geodetic_suite.qc.rinex_qc.subprocess.run", return_value=mock_proc):
+        with pytest.raises(RuntimeError) as exc:
+            RinexQC().run_qc(str(rinex))
+    assert not isinstance(exc.value, (QCToolUnavailableError, QCToolTimeoutError))
+
+
+def test_typed_errors_remain_runtimeerror_subclasses():
+    """Pre-existing `except RuntimeError` handlers must keep working."""
+    assert issubclass(QCToolUnavailableError, RuntimeError)
+    assert issubclass(QCToolTimeoutError, RuntimeError)

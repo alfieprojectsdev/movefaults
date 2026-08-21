@@ -215,20 +215,40 @@ def _validate_rinex(file_path: str) -> dict:
 
     # ── Stage 2: teqc QC (optional) ───────────────────────────────────────
     qc_obs_count = qc_cycle_slips = qc_mp1_rms = qc_mp2_rms = None
+    # The import stays lazy (the QC package is not a hard dependency of this
+    # service) but must NOT sit inside the try below: that block's except
+    # clause names symbols this import defines, so an ImportError would be
+    # masked by an UnboundLocalError raised while evaluating the handler.
     try:
-        from pogf_geodetic_suite.qc.rinex_qc import RinexQC
-        qc_result = RinexQC().run_qc(file_path)
-        qc_obs_count = qc_result.obs_count
-        qc_cycle_slips = qc_result.cycle_slips
-        qc_mp1_rms = qc_result.mp1_rms
-        qc_mp2_rms = qc_result.mp2_rms
-        logger.info("teqc QC passed: %s", file_path)
-    except RuntimeError as e:
-        msg = str(e)
-        if "not found" in msg or "timed out" in msg:
-            logger.warning("teqc skipped for %s: %s", file_path, msg[:200])
-        else:
-            raise
+        from pogf_geodetic_suite.qc.rinex_qc import (
+            QCToolTimeoutError,
+            QCToolUnavailableError,
+            RinexQC,
+        )
+    except ImportError as exc:
+        logger.warning(
+            "QC skipped for %s: pogf-geodetic-suite is not importable (%s)",
+            file_path, exc,
+        )
+    else:
+        try:
+            qc_result = RinexQC().run_qc(file_path)
+            qc_obs_count = qc_result.obs_count
+            qc_cycle_slips = qc_result.cycle_slips
+            qc_mp1_rms = qc_result.mp1_rms
+            qc_mp2_rms = qc_result.mp2_rms
+            logger.info("QC passed via %s: %s", qc_result.tool, file_path)
+        except (QCToolUnavailableError, QCToolTimeoutError) as e:
+            # QC is optional enrichment here: an absent or hung binary says
+            # nothing about the data, so ingestion continues with null metrics.
+            #
+            # This used to be a substring match on the exception message
+            # ("not found" / "timed out"). When the gfzrnx fallback landed, the
+            # no-binary message became "...not installed... / ...not
+            # available..." and stopped matching -- so a machine without teqc
+            # failed every ingestion instead of degrading. Match on type,
+            # never on prose.
+            logger.warning("QC skipped for %s: %s", file_path, str(e)[:200])
 
     return {
         "file_path": file_path,
