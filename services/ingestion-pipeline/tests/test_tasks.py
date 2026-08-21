@@ -179,3 +179,69 @@ def test_standardize_format_decompresses_gz(gz_rinex_file):
     assert out_path.suffix.lower() != ".gz"
     content = out_path.read_text(encoding="ascii")
     assert "RINEX VERSION" in content
+
+
+def test_validate_rinex_degrades_when_no_qc_binary_exists(rinex_file):
+    """No QC binary at all -> ingestion proceeds with null metrics.
+
+    Regression guard. `_validate_rinex` used to decide this by substring-
+    matching the exception message for "not found". When the gfzrnx fallback
+    landed, the no-binary message became "...teqc not installed... and the
+    gfzrnx fallback is not available...", the substring stopped matching, and
+    every ingestion on a machine without teqc raised instead of degrading.
+    Nothing caught it because no CI ran the suite.
+
+    This asserts on the real exception type raised by the QC layer, with a
+    message deliberately containing NEITHER "not found" NOR "timed out".
+    """
+    from pogf_geodetic_suite.qc.rinex_qc import QCToolUnavailableError
+
+    with patch(
+        "pogf_geodetic_suite.qc.rinex_qc.RinexQC.run_qc",
+        side_effect=QCToolUnavailableError(
+            "teqc not installed at 'teqc' and the gfzrnx fallback "
+            "is not available at 'gfzrnx'."
+        ),
+    ):
+        result = _validate_rinex(rinex_file)
+
+    assert result["file_path"] == rinex_file
+    assert result["qc_obs_count"] is None
+    assert result["qc_cycle_slips"] is None
+
+
+def test_validate_rinex_propagates_real_qc_failure(rinex_file):
+    """A QC tool that RAN and failed is a data problem -- it must NOT degrade."""
+    with patch(
+        "pogf_geodetic_suite.qc.rinex_qc.RinexQC.run_qc",
+        side_effect=RuntimeError("teqc exited 2: corrupt observation block"),
+    ):
+        with pytest.raises(RuntimeError, match="corrupt observation block"):
+            _validate_rinex(rinex_file)
+
+
+def test_validate_rinex_degrades_when_qc_package_is_not_importable(rinex_file):
+    """A missing pogf-geodetic-suite must degrade, not raise a NameError.
+
+    Regression guard. The QC import is lazy. When it lived INSIDE the same try
+    block whose `except` names QCToolUnavailableError/QCToolTimeoutError, an
+    ImportError could not be handled: Python evaluates the except expression
+    at exception time, the names were never bound, and the real ImportError
+    was masked by `UnboundLocalError: cannot access local variable
+    'QCToolUnavailableError'`.
+    """
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _fail_qc_import(name, *args, **kwargs):
+        if name.startswith("pogf_geodetic_suite"):
+            raise ImportError("no module named pogf_geodetic_suite (simulated)")
+        return real_import(name, *args, **kwargs)
+
+    with patch.object(builtins, "__import__", _fail_qc_import):
+        result = _validate_rinex(rinex_file)
+
+    assert result["file_path"] == rinex_file
+    assert result["qc_obs_count"] is None
+    assert result["qc_mp1_rms"] is None
