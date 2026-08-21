@@ -10,6 +10,12 @@ concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: this workflow only ever reads the repository. The repo is
+# public, so the default token scope is worth narrowing explicitly rather than
+# inheriting whatever the org default happens to be.
+permissions:
+  contents: read
+
 jobs:
   pytest:
     runs-on: ubuntu-latest
