@@ -192,7 +192,7 @@ def test_verify_password_round_trips():
     assert not verify_password("hunter3", hash_password("hunter2"))
 
 
-@pytest.mark.parametrize("stored", ["", "not-a-hash", "$2b$xx$broken"])
+@pytest.mark.parametrize("stored", ["", "not-a-hash", "$2b$xx$broken", None, 123])
 def test_verify_password_returns_false_on_an_unusable_stored_hash(stored):
     """bcrypt.checkpw raises ValueError on a malformed salt.
 

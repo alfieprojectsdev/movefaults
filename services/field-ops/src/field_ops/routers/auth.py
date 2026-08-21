@@ -60,7 +60,7 @@ def verify_password(plain: str, hashed: str) -> bool:
     """
     try:
         return bcrypt.checkpw(plain.encode(), hashed.encode())
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, AttributeError):
         logger.error("stored password hash is unusable; treating as a failed login")
         return False
 
