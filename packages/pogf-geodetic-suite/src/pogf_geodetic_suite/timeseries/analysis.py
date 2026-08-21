@@ -25,7 +25,8 @@ knowing:
 
 Reproducing the comparison also requires the `offsets` catalog **as it stood
 when the reference was generated** -- the saved output is dated 2026-07-09 and
-the catalog was edited 2026-07-29. Comparing against the current catalog shows
+the catalog was edited 2026-07-29, then corrected again 2026-08-21 (the BR14
+and LUZD ordering, below). Comparing against the current catalog shows
 spurious disagreement at four sites. A velocity file is only meaningful
 alongside the exact catalog that produced it.
 
@@ -56,13 +57,19 @@ in `docs/project_documentation/velocity_outlier_policy_delta.md`. Regenerate it
 with `scripts/compare_velocity_outlier_policy.py`.
 
 KNOWN DEFECT IN THE SOURCE MATLAB, worth checking before trusting any output
-Sites whose `offsets` records are out of chronological order (BR14, LUZD in the
-current catalog: 2022.8159 listed before 2022.5695) make the MATLAB build a
-descending, empty segment range. Its `for N=length(...)` loop then never
-executes, leaving the PREVIOUS segment's design matrix `G` in place, and the
-regression silently fits stale timestamps against current data. Those sites'
-published velocities are wrong. This module sorts segment bounds and is not
-affected.
+Sites whose `offsets` records are out of chronological order make the MATLAB
+build a descending, empty segment range. Its `for N=length(...)` loop then
+never executes, leaving the PREVIOUS segment's design matrix `G` in place, and
+the regression silently fits stale timestamps against current data. Those
+sites' published velocities are wrong. This module sorts segment bounds and is
+not affected.
+
+The catalog carried exactly two such sites -- BR14 and LUZD, each listing
+2022.8159 before 2022.5695 -- and **both were corrected on 2026-08-21**. Any
+MATLAB velocity for those two produced before that date is suspect and should
+be refitted. `offsets_catalog.validate_offsets_catalog` now checks this
+mechanically, and a test asserts the committed catalog stays clean, so the
+defect cannot silently return.
 """
 from __future__ import annotations
 
