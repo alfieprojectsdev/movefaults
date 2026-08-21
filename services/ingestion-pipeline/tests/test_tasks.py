@@ -218,3 +218,30 @@ def test_validate_rinex_propagates_real_qc_failure(rinex_file):
     ):
         with pytest.raises(RuntimeError, match="corrupt observation block"):
             _validate_rinex(rinex_file)
+
+
+def test_validate_rinex_degrades_when_qc_package_is_not_importable(rinex_file):
+    """A missing pogf-geodetic-suite must degrade, not raise a NameError.
+
+    Regression guard. The QC import is lazy. When it lived INSIDE the same try
+    block whose `except` names QCToolUnavailableError/QCToolTimeoutError, an
+    ImportError could not be handled: Python evaluates the except expression
+    at exception time, the names were never bound, and the real ImportError
+    was masked by `UnboundLocalError: cannot access local variable
+    'QCToolUnavailableError'`.
+    """
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _fail_qc_import(name, *args, **kwargs):
+        if name.startswith("pogf_geodetic_suite"):
+            raise ImportError("no module named pogf_geodetic_suite (simulated)")
+        return real_import(name, *args, **kwargs)
+
+    with patch.object(builtins, "__import__", _fail_qc_import):
+        result = _validate_rinex(rinex_file)
+
+    assert result["file_path"] == rinex_file
+    assert result["qc_obs_count"] is None
+    assert result["qc_mp1_rms"] is None
