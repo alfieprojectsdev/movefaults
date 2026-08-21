@@ -6,14 +6,12 @@ Integration tests against a real PostgreSQL instance should be tagged
 with @pytest.mark.integration and run separately.
 """
 
-import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from field_ops.main import app
 from field_ops.models import FieldOpsBase
 from field_ops.routers.auth import hash_password
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 # SQLite async URL — no server needed for unit tests.
 # Note: SQLite doesn't support PostgreSQL-specific features (UUID native, JSONB),

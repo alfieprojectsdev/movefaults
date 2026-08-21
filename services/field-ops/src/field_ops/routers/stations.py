@@ -14,8 +14,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from field_ops.database import get_db
-from field_ops.routers.auth import get_current_user
 from field_ops.models import User
+from field_ops.routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1", tags=["stations"])
 

@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from field_ops.config import settings
 from field_ops.routers import auth, equipment, logsheets, staff, stations
 
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """

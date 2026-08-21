@@ -27,7 +27,6 @@ async def test_field_staff_cannot_access_inventory(client, auth_headers):
 @pytest.mark.asyncio
 async def test_admin_can_add_and_lookup_equipment(client, db_session, auth_headers):
     from field_ops.models import User
-    from field_ops.routers.auth import hash_password
     from sqlalchemy import select
 
     # Promote the test user to admin

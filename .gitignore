@@ -65,6 +65,16 @@ analysis/08 Bootstrapping/boostrap.mp4
 
 *.env
 
+# ...and the dotted-suffix spellings, which `*.env` does NOT match. `*.env`
+# requires the name to END in ".env", so it catches `.env` and `neon.env` but
+# lets `.env.local`, `.env.production` and friends straight through. That gap
+# was real: services/field-ops/.env.local holds a live Neon DATABASE_URL,
+# password included, and this repository is PUBLIC. It was one `git add -A`
+# away from being published.
+.env.*
+!.env.example
+!.env.sample
+
 # Deployment scripts containing credentials — never commit
 scripts/bern_install.md
 scripts/deploy_r740.sh
