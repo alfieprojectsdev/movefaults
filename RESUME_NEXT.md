@@ -1,12 +1,268 @@
 # RESUME — next session
 
-**Updated 2026-08-20 (Field Ops shipped to production — START HERE).
-Prior: 07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live), 07-29 (storage provisioned, RAID resolved, continuity
+**Updated 2026-08-21 (four PRs open, CI blocked on a repo setting — START HERE).
+Prior: 08-20 (Field Ops shipped to production), 07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live), 07-29 (storage provisioned, RAID resolved, continuity
 audit), 07-28 (gps3 Bernese install verified, 0.0000 mm SINEX), 07-22
 (thumb-drive backup), 07-16 (Backup Plus→DOSTB migration complete, sdd2-scan
 diagnosis corrected), 07-15 (migration/scan kicked off), 07-14 (clean
 shutdown, VADASE PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze),
 07-07 (excavation+crossref), 07-04 (DA-005).**
+
+## ✅ 2026-08-21 — Four PRs open, and the reason none of them can be checked
+
+**PRs #110-#113 are open and unreviewed.** They came out of a shortlist of
+tickets judged landable inside 24 hours (`temp/24h-ticket-shortlist.md`,
+gitignored). Every claim in them was checked by running something, not by
+reading the backlog.
+
+| PR | Ticket | What it does |
+|---|---|---|
+| #110 | (none — new) | Test CI on every PR, plus the break turning it on exposed |
+| #111 | GEO-005 (part) | Two corrupt `offsets` records; catalog loader + validator |
+| #112 | GEO-001 | Fiducial set resolved, hashed, recorded; refuses to guess |
+| #113 | GEO-003 | Per-panel troposphere table + drift detector |
+
+#111-#113 are stacked on #110 so they inherit the workflow. They touch
+disjoint files. Merge #110, retarget the rest with `scripts/gh_retarget.sh`,
+merge in any order.
+
+### The blocker is a repository setting, not code
+
+**GitHub Actions is disabled on `alfieprojectsdev/movefaults`.**
+`gh api repos/alfieprojectsdev/movefaults/actions/permissions` returns
+`{"enabled": false}`. Last run of anything was **2026-04-23** — four months
+ago, a `Deploy Docs` run that failed, as did the seven before it.
+
+So #110's workflow is correct and cannot execute. Someone has to enable
+Actions in repository Settings; that is a settings change and was left alone
+deliberately.
+
+This matters more than one PR. `CLAUDE.md` says every substantive change
+reaches `main` through a reviewed PR, and the branching policy leans on that
+review. With no checks running, **a green PR here means nobody looked** —
+which is exactly what the PR #89/#90 plan file recorded when three defects
+survived a "clean" review.
+
+### What turning CI on found before it could run
+
+Two tests were already failing on `main`, in `ingestion-pipeline`, and they
+shared one cause worth stating in full because the shape of it will recur.
+
+`_validate_rinex` treats RINEX QC as optional enrichment: no QC binary
+installed means ingestion continues with null metrics, because an absent tool
+says nothing about the data. It decided that by **substring-matching the
+exception message** for `"not found"`. When the gfzrnx fallback landed, the
+message became
+
+```
+teqc not installed at 'teqc' and the gfzrnx fallback is not available at 'gfzrnx'.
+```
+
+Neither `"not found"` nor `"timed out"`. The match silently stopped firing, so
+**every ingestion on a machine without teqc raised instead of degrading** —
+that is the R740 as of 2026-08-13.
+
+Fixed by typing the failure instead of describing it: `QCToolUnavailableError`
+(nothing ran) and `QCToolTimeoutError` (ran and hung), both subclassing
+`RuntimeError` so existing handlers are untouched. A bad exit code stays a
+bare `RuntimeError` and still propagates — a tool that ran and rejected the
+file is a data problem, and a test now pins that it is *not* treated as
+unavailability.
+
+**Two CLAUDE.md claims are wrong and were left for a separate change:**
+`uv run pytest` at the root does not work (23 collection errors — every
+component ships its own top-level `tests/` package and they collide under one
+rootdir), and the "19 ruff errors" figure measures **181** across
+`packages/`, `services/` and `tools/` (942 if you sweep untracked scratch
+dirs, which is why CI scopes it).
+
+### BR14 and LUZD have wrong published velocities
+
+The `offsets` catalog listed both with `2022.8159` before `2022.5695`. Scanned
+all 89 records across 70 stations: **exactly those two**, no duplicates, no
+bad epochs.
+
+`vel_line_v8_newvelduetooffset_v4.m` builds segment bounds **in file order**.
+A descending range makes its `for N=length(...)` loop never execute, leaving
+the *previous* segment's design matrix in place — so the regression fits
+**stale timestamps against current data**, with no error and nothing in the
+output to show for it.
+
+`analysis.py` sorts and was never affected. That is precisely why this
+survived: the Python is immune, so the exposure is entirely the MATLAB that
+PHIVOLCS staff still run.
+
+**Operational follow-up, not code: BR14 and LUZD need refitting, and anyone
+holding velocities for those two sites should be told they are wrong.** That
+is a PHIVOLCS call.
+
+Nothing in this repo read the catalog at all before now — `OffsetEvent` values
+were hand-constructed by callers, so a load-bearing scientific input was
+checked only by eye. `timeseries/offsets_catalog.py` now loads it (sorting, so
+no consumer can be bitten by ordering again) and validates it (reporting
+without fixing, so defects get corrected at source).
+
+The catalog is CRLF. The swap was done at byte level: two lines, not
+eighty-eight.
+
+### The datum is frozen at 2019 day 011
+
+GEO-001 asked for the fiducial set to be recorded. Measuring the panels to do
+that turned up something the ticket did not anticipate. Of the six ADDNEQ2
+panels under `config/bernese/`:
+
+| Panel | `FREESTA_F` |
+|---|---|
+| `PHI_MO`, `R2S_FIN`, `R2S_GEN`, `R2S_RED` | `REF190110.FIX` |
+| `PHI_WK` | `REF192560.FIX` — a different campaign |
+| `PGN_WK` | `REF_20261040.FIX`, under `./DUMMY/` (NAMRIA tree) |
+
+**Four panels name the same file, dated 2019 day 011.** Meanwhile
+`bernese54_luzon_reprocessing_runbook.md` describes `REF_<yyyyddd>0.FIX` as
+HELMR1's **per-day** output, and `R2S_FIN`'s HELMR1 writes `HLM190110.LST` —
+also hardcoded to that date.
+
+Those two facts have never been reconciled anywhere. Whether a frozen fiducial
+list is **intended** (a stable datum, genuinely defensible, arguably better
+than one that wobbles daily) or **accidental** (literals nobody templated) is
+a PHIVOLCS decision. #112 does not make it — it records the resolved file's
+hash and station list in every solution so the answer stops being invisible,
+and pins the current state in a test.
+
+It also refuses to guess: if `FREESTA` says `FROM_FILE` and the file cannot be
+resolved or read, it raises. BPE's own response to a missing station-selection
+file is to carry on with a different datum, producing coordinates that look
+completely normal on another frame.
+
+**One sub-item was already done.** GEO-001 asked to confirm `panel_sanitizer`
+handles the Windows separator in `FREESTA_F`. It does — verified by running
+it, not reading it:
+
+```
+IN : FREESTA_F 1  "${P}/PHIVOLCS\STA\REF190110.FIX"
+OUT: FREESTA_F 1  "${P}/PHIVOLCS/STA/REF190110.FIX"
+```
+
+It also already flags the line as `hardcoded_campaign`.
+
+### GEO-003's premise was wrong
+
+The ticket says templating `MAPPNG`/`NUMPAR`/`NUMGRD` with current values
+would be inert. Measured:
+
+```
+R2S_AMB   COSZ        02 00 00   1
+R2S_EDT   WET_GMF     02 00 00   24 00 00
+R2S_FIN   WET_GMF     01 00 00   24 00 00
+R2S_L12   WET_NIELL   02 00 00   24 00 00
+R2S_L53   WET_NIELL   02 00 00   24 00 00
+R2S_QIF   WET_NIELL   02 00 00   24 00 00
+```
+
+Three mapping functions, two intervals. **One default would silently change
+the science in five of six panels** — the opposite of inert. #113 ships the
+safe half: the measured values declared per panel, plus a test that reads each
+committed `GPSEST.INP` and asserts it still matches. No panel edited, no
+behaviour changed. GEO-002's decision stays open, and it is PHIVOLCS'.
+
+`$(V_MAPPNG)` substitution into the panels should follow that decision, not
+precede it.
+
+### Three regression guards, each proven non-vacuous
+
+Not assumed — each was checked by reverting the fix and watching the test
+fail, then restoring:
+
+- the offsets guard fails naming BR14 and LUZD
+- the troposphere drift test fails naming `R2S_L12` when its `MAPPNG` is flipped
+- the QC caller test uses a message containing neither old magic substring
+
+I also caught myself claiming 227 tests in a commit message where the real
+figure was 208, and amended before pushing. Same failure mode as the stale
+claims below, one branch away from shipping.
+
+### A third stale claim, and the pattern behind it
+
+`deliverables_tracker.md` said the MATLAB port matched **"171/171 components
+exact"**. That figure came from a partial sample and had already been
+retracted **inside `analysis.py`** — the full 54-site comparison found the
+vertical maximum roughly 5x larger. Corrected to the authoritative figure:
+**161 of 165** components under 5e-6 mm/yr, the remaining four at 2.3e-5,
+below the reference file's own precision.
+
+It was about to be published in a conference abstract.
+
+That is three this week, after BRN-001 and the troposphere interval. The
+pattern is consistent: **the code was right and the doc was stale.** When a
+memory or a tracker disagrees with a module docstring, believe the docstring
+and fix the tracker.
+
+---
+
+## GeoCon 2026 — abstract drafted, paperwork is the long pole
+
+Draft at `temp/geocon2026-abstract-draft.md` (gitignored, **not submitted**).
+
+**Deadline: 31 August 2026, 11:59 PM PHT.** Conference is 1-2 December, SMX
+Lanang, Davao.
+
+Spec, recovered from the submission form rather than the circulars (neither
+circular states it): **Arial 11, 1.15 spacing, max 350 words, ONE paragraph,
+max 5 keywords.** Draft is 329 words. Session 5 (Geophysics), presentation
+type "Either".
+
+Built only from measured results: LUZON 30/30 days unattended, 2h47m,
+5m33s/day, repeatability 2.8 N / 3.0 E / 10.9 U mm; the MATLAB port verified
+at 161/165; and the six sites fitted to days of data that porting exposed.
+Mindanao is named as the **application**, not a completed result — do not let
+that drift into the slides.
+
+**The real blocker is not the 350 words.** Two uploads are required: a PRC ID,
+and a completed **CPDD-17** — the PRC "Resume of Resource Person", pre-labelled
+`CPD Council of/FOR GEOLOGY`. It wants a 2x2 photo, both addresses, two mobile
+numbers, five years of seminars conducted *and* attended, awards with awarding
+bodies, full education through post-graduate, five most recent positions,
+licence validity, and a signature. Days of gathering.
+
+**Ask GSP before filling it out:** is a PRC-licensed *Geodetic Engineer*
+accepted as resource person under the Geology CPD Council? The form's own ID
+line accepts "other government-issued or company ID", so probably yes.
+`gsp.geoconreg@geolsocphil.com`.
+
+Membership is **not** required to submit — no membership field on the form. It
+only changes the fee: free for an active GSP member with an accepted abstract,
+PHP 6,000 otherwise.
+
+Still yours to decide: author list and corresponding author; the consent item
+(GSP wants to share the presentation with registered participants until 15
+December — PHIVOLCS data, so the Director's call).
+
+---
+
+## gps3 / R740 — a handoff written, and what the repo does NOT know
+
+`temp/dispatch-r740-ssh-context.md` (gitignored) collects everything a fresh
+session needs to diagnose SSH trouble on gps3, with line-numbered pointers.
+
+**Stated plainly at the top, because it changes how everything else reads:
+this repository has no record of the reboot having happened, and no record of
+any SSH failure.** Every kernel passage here is anticipatory — "reboot
+pending", "expect 6.8.0-137". The last recorded *running* kernel is
+`6.8.0-111`. Whatever the gps3-side session saw is in its own transcript on
+that machine.
+
+Three things worth knowing before anyone debugs this:
+
+- **No out-of-band console exists.** iDRAC still has no network address, so if
+  the machine is not fully booted, SSH cannot help and it becomes a trip to
+  the server room.
+- **Check the T420's own subnet first.** `enp0s25` is on `192.168.40.0/24`,
+  gps3 on `192.168.48.0/24`, no route between them. Wrong network looks
+  identical to a dead server, and one `ip addr` rules it out.
+- **Every data volume is `nofail`.** The machine can boot clean, accept SSH,
+  and have all four volumes silently absent.
+
+---
 
 ## ✅ 2026-08-20 — Field Ops is live, and Palawan is next week
 
