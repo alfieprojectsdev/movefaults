@@ -8,8 +8,8 @@ import pytest
 from pogf_geodetic_suite.qc.rinex_qc import (
     QCToolTimeoutError,
     QCToolUnavailableError,
-    RINEXQCResult,
     RinexQC,
+    RINEXQCResult,
     _parse_teqc_output,
 )
 
