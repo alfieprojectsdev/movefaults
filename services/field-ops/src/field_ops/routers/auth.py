@@ -15,7 +15,8 @@ Usage:
     → {"access_token": "...", "token_type": "bearer"}
 """
 
-from datetime import datetime, timedelta, timezone
+import logging
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -28,6 +29,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from field_ops.config import settings
 from field_ops.database import get_db
 from field_ops.models import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["auth"])
 
@@ -47,7 +50,19 @@ class Me(BaseModel):
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode(), hashed.encode())
+    """Check a password against a stored bcrypt hash.
+
+    Returns False rather than raising when the stored value is not a usable
+    bcrypt hash. `bcrypt.checkpw` raises ValueError on a malformed salt, and
+    an empty or truncated `hashed_password` column would otherwise turn one
+    corrupt row into a 500 on the login endpoint — indistinguishable, from the
+    field, from the service being down.
+    """
+    try:
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
+    except (ValueError, TypeError):
+        logger.error("stored password hash is unusable; treating as a failed login")
+        return False
 
 
 def hash_password(plain: str) -> str:
@@ -55,7 +70,7 @@ def hash_password(plain: str) -> str:
 
 
 def create_access_token(username: str, role: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=settings.field_ops_jwt_expire_hours)
+    expire = datetime.now(UTC) + timedelta(hours=settings.field_ops_jwt_expire_hours)
     payload = {"sub": username, "role": role, "exp": expire}
     return jwt.encode(payload, settings.field_ops_jwt_secret, algorithm=settings.field_ops_jwt_algorithm)
 
@@ -79,8 +94,8 @@ async def get_current_user(
         username: str | None = payload.get("sub")
         if username is None:
             raise credentials_exc
-    except JWTError:
-        raise credentials_exc
+    except JWTError as exc:
+        raise credentials_exc from exc
 
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
@@ -98,10 +113,38 @@ async def login(
     # phone keyboard capitalises the first letter of a field by default — so
     # "Arp" is what an observer actually types when the account is "ARP".
     # Rejecting that is a lockout with no diagnosis available in the field.
-    result = await db.execute(
-        select(User).where(func.lower(User.username) == form.username.strip().lower())
+    typed = form.username.strip()
+    candidates = list(
+        (
+            await db.execute(
+                select(User).where(func.lower(User.username) == typed.lower())
+            )
+        )
+        .scalars()
+        .all()
     )
-    user = result.scalar_one_or_none()
+
+    # `.all()` rather than `scalar_one_or_none()`, which raises
+    # MultipleResultsFound — an unhandled 500 on the one endpoint a field team
+    # cannot work around. fo006 adds a unique index on lower(username) so this
+    # state cannot arise, but the endpoint must not depend on a migration
+    # having been applied to avoid returning 500.
+    user: User | None
+    if len(candidates) <= 1:
+        user = candidates[0] if candidates else None
+    else:
+        # Ambiguous. Prefer an exact-case match, which is the account the
+        # person almost certainly means.
+        user = next((u for u in candidates if u.username == typed), None)
+        logger.error(
+            "username %r matches %d accounts case-insensitively; "
+            "resolved=%s. Apply migration fo006 and de-duplicate: SELECT "
+            "lower(username), count(*) FROM field_ops.users GROUP BY 1 "
+            "HAVING count(*) > 1;",
+            typed,
+            len(candidates),
+            "exact-case match" if user else "none — refusing",
+        )
 
     if user is None or not verify_password(form.password, user.hashed_password):
         raise HTTPException(
