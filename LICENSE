@@ -1,0 +1,54 @@
+MIT License
+
+Copyright (c) 2026 Philippine Institute of Volcanology and Seismology
+(PHIVOLCS), Department of Science and Technology (DOST), Republic of the
+Philippines
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+NOTES ON SCOPE — these do not modify the licence above.
+
+Copyright holder vs. author. The copyright holder is PHIVOLCS/DOST: this work
+was produced on institute hardware, in the course of employment, in service of
+PHIVOLCS research mandates. Authorship is a separate and factual matter and is
+recorded in CITATION.cff and pyproject.toml. Do not "correct" one to match the
+other; they are different things and both are right.
+
+What this licence covers. The software in this repository — the contents of
+packages/, services/, tools/, scripts/, analysis/, and migrations/ — together
+with the documentation in docs/.
+
+What it does NOT cover:
+
+  * GNSS observation data. Raw and processed observations are not distributed
+    here; the file server is the system of record. Release of observation data
+    is governed by agency data-release policy, and some of it belongs to other
+    institutions — the PAGENET network is NAMRIA's, shared under a separate
+    MOU/MOA.
+
+  * Third-party software invoked by this code. Bernese GNSS Software (AIUB),
+    teqc (UNAVCO), gfzrnx (GFZ) and RNXCMP each carry their own licences and
+    are not redistributed here. gfzrnx in particular distinguishes free
+    scientific use from operational pipeline use; see
+    docs/project_documentation/gfzrnx_vs_teqc_rinex3_evidence.md.
+
+  * packages/CORS-dashboard/, retained as forensic reference material rather
+    than as work of this project.

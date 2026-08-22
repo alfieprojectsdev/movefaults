@@ -112,8 +112,24 @@ For a detailed breakdown, see [roadmap.md](./docs/project_documentation/roadmap.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the `LICENSE` file for details (or `pyproject.toml`).
+MIT — see [`LICENSE`](LICENSE).
+
+**Copyright is held by PHIVOLCS/DOST**, not by an individual: this work was
+produced on institute hardware, in the course of employment, in service of
+PHIVOLCS research mandates.
+
+The licence covers the *software and documentation* in this repository. It does
+**not** cover GNSS observation data (the file server is the system of record,
+release is governed by agency policy, and PAGENET is NAMRIA's under a separate
+MOU), nor the third-party tools this code invokes — Bernese, teqc, gfzrnx and
+RNXCMP each carry their own terms. `LICENSE` states the full scope.
+
+## ✍️ Citing this work
+
+See [`CITATION.cff`](CITATION.cff), or use GitHub's **Cite this repository**
+button. Authorship and copyright are separate: the copyright holder is
+PHIVOLCS/DOST, the author credited for citation is below.
 
 ## ✍️ Authors
 
-- **Alfie Pelicano** - *Lead Developer* - [alfieprojects.dev@gmail.com](mailto:alfieprojects.dev@gmail.com)
+- **Alfie Pelicano** — *Lead Developer*, PHIVOLCS-DOST — [alfieprojects.dev@gmail.com](mailto:alfieprojects.dev@gmail.com)

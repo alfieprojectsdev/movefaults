@@ -16,19 +16,26 @@ The project scores well on the practices that are hardest to retrofit —
 version control discipline, dependency management, testing, data provenance —
 and has gaps in the ones that are cheapest to fix.
 
-The single most valuable finding is a five-minute job:
+The single most valuable finding was a five-minute job, **resolved the same
+day this audit was written**:
 
-> **`pyproject.toml` declares `license = "MIT"`, `README.md` tells the reader to
-> "see the `LICENSE` file", and there is no LICENSE file.** GitHub reports the
+> **`pyproject.toml` declared `license = "MIT"`, `README.md` told the reader to
+> "see the `LICENSE` file", and there was no LICENSE file.** GitHub reported the
 > licence as `NONE` on a repository that is **public**. Under default copyright
-> that means nobody may legally reuse this work — the opposite of the stated
+> that meant nobody could legally reuse this work — the opposite of the stated
 > intent, and of the "Open" in Philippine Open Geodesy Framework.
+>
+> **Resolved 2026-08-22.** The copyright-holder question the audit could not
+> answer was settled by the author: **PHIVOLCS/DOST**, on the grounds that the
+> work was produced on institute hardware, in the course of employment, in
+> service of PHIVOLCS research mandates. `LICENSE` and `CITATION.cff` now exist
+> and name that holder.
 
 | Area | Verdict |
 |---|---|
 | Data Management | **Strong**, with one deliberate deviation and one blocked item |
 | Software | **Strong** |
-| Collaboration | **Weakest area** — 3 of 5 items missing |
+| Collaboration | Was the weakest area — 3 of 5 missing; **2 fixed 2026-08-22**, 1 open |
 | Project Organization | **Good**, deviates from the paper's layout for defensible reasons |
 | Keeping Track of Changes | **Strongest area** |
 | Manuscripts | Partially applicable; the applicable half is done |
@@ -121,15 +128,15 @@ caster and replay tooling.
 
 ---
 
-## 3. Collaboration — **the weakest area**
+## 3. Collaboration — was the weakest area
 
 | # | Practice | Status |
 |---|---|---|
 | 3a | Create an overview of your project | ✅ `README.md` |
 | 3b | Create a shared to-do list | ✅ `ticket_backlog.md` + issue templates |
-| 3c | Decide on communication strategies | ❌ **Not documented** |
-| 3d | Make the license explicit | ❌ **Declared but absent — see below** |
-| 3e | Make the project citable | ❌ **No CITATION file** |
+| 3c | Decide on communication strategies | ❌ **Still not documented** |
+| 3d | Make the license explicit | ✅ **Fixed 2026-08-22** — see below |
+| 3e | Make the project citable | ✅ **Fixed 2026-08-22** — `CITATION.cff` |
 
 ### 3d — the finding that matters
 
@@ -151,20 +158,41 @@ estimator, or a partner agency wanting to build on the RINEX QC, currently has
 no legal permission to do so. The intent is documented in two places; only the
 file that carries legal weight is missing.
 
-**Fix:** add a standard MIT `LICENSE` at the repository root with the correct
-copyright holder. One consideration worth raising rather than assuming: the
-copyright holder for work produced as a PHIVOLCS employee may be **PHIVOLCS/DOST
-rather than an individual**. That is a question for the Director, not a
-judgement call for this audit — but it should be settled before the file is
-written, because getting it wrong is harder to undo than leaving it absent.
+**Resolved 2026-08-22.** The audit deliberately did not guess the copyright
+holder, because getting it wrong is harder to undo than leaving it absent. The
+author settled it: **PHIVOLCS/DOST** — the work was produced on institute
+hardware, in the course of employment, in service of PHIVOLCS research mandates.
+
+`LICENSE` now exists at the repository root: MIT, copyright PHIVOLCS/DOST. It
+also states scope explicitly, because a licence on a repository like this one
+invites two wrong readings — that it covers the GNSS observations (it does not;
+the file server is the system of record, release is agency policy, and PAGENET
+is NAMRIA's under MOU), and that it covers the third-party tools invoked here
+(Bernese, teqc, gfzrnx, RNXCMP each carry their own terms).
+
+Authorship is recorded separately and remains the individual's, which is the
+correct distinction: `pyproject.toml` and `CITATION.cff` name the author,
+`LICENSE` names the holder. Both files say so, so neither gets "corrected" into
+agreement later.
+
+**Worth doing, not blocking:** confirming the assignment through whatever
+internal route the institute uses. The declaration is now consistent across the
+repository, which is what practice 3d asks for; formal institutional
+acknowledgement is a separate and slower thing.
 
 ### 3e — citation
 
-No `CITATION.cff`. For a project whose outputs are meant to be cited in
-geodetic literature — and whose author is a co-author on Tobita et al. (2015) —
-this is a real gap. GitHub renders `CITATION.cff` as a "Cite this repository"
-button automatically. Blocked on the same copyright-holder question as 3d, and
-on 1f/2j if a DOI is ever minted.
+**Resolved 2026-08-22.** `CITATION.cff` added — CFF 1.2.0, validated as
+parseable YAML with the required fields. GitHub renders it as a "Cite this
+repository" button automatically.
+
+It names the author with PHIVOLCS-DOST affiliation, and carries a comment
+stating that copyright sits with the institute while authorship does not. For a
+project whose outputs are meant to be cited in geodetic literature — and whose
+author is a co-author on Tobita et al. (2015) — this was a real gap.
+
+`version:` tracks `pyproject.toml` at 0.1.0. If a DOI is ever minted (1f/2j,
+still policy-blocked), add `doi:` and `date-released:` at that point.
 
 ### 3c — communication
 
@@ -269,11 +297,9 @@ independently.
 
 ## Recommended actions, in order
 
-1. **Add a `LICENSE` file** (3d). Blocking on the copyright-holder question:
-   PHIVOLCS/DOST or individual? *Ask the Director.* Everything else in this list
-   is optional; this one changes whether the work is legally reusable at all.
-2. **Add `CITATION.cff`** (3e). Same copyright question. Enables GitHub's
-   "Cite this repository".
+1. ~~**Add a `LICENSE` file** (3d)~~ — **done 2026-08-22**, MIT, copyright
+   PHIVOLCS/DOST, with scope stated.
+2. ~~**Add `CITATION.cff`** (3e)~~ — **done 2026-08-22**.
 3. **Module docstrings for the 3 vadase entry-point scripts** (2a) — the paper
    asks specifically for *how the program is used*, and these are the runnable
    ones. Then `igs_downloader.py` and `coordinates.py`.
