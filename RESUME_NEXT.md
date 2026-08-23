@@ -1,6 +1,6 @@
 # RESUME — next session
 
-**Updated 2026-08-22 (field-ops audited and hardened; ⚠ the server holds zero logsheets — START HERE).
+**Updated 2026-08-24 (fieldwork POSTPONED; field-ops audited and hardened; the server holds zero logsheets — START HERE).
 Prior: 08-21 (five PRs merged, CI blocked on a repo setting), 08-20 (Field Ops shipped to production, then GEONET research), 07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live), 07-29 (storage provisioned, RAID resolved, continuity
 audit), 07-28 (gps3 Bernese install verified, 0.0000 mm SINEX), 07-22
 (thumb-drive backup), 07-16 (Backup Plus→DOSTB migration complete, sdd2-scan
@@ -10,7 +10,11 @@ shutdown, VADASE PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze),
 
 ## ⚠️ 2026-08-22 — field-ops audited, and one thing about the data does not add up
 
-**Read this first if you are reading this during fieldwork week (24–28 Aug).**
+**Fieldwork for 24–28 Aug was postponed on 2026-08-23**, pending travel funding
+and booking arrangements; rescheduling is being collected for **31 Aug onwards**
+(Zach Ragadio, MOVE Faults group). Nothing below is wrong because of it, but the
+urgency is: the open question in this section no longer has a Monday deadline,
+and there is now time to answer it properly before anyone is at a monument.
 
 ### The server holds no logsheets
 
@@ -41,7 +45,8 @@ photos it uploaded.
 throwaway E2E sheets and someone cleared them — in which case nothing is wrong,
 except that five R2 photo objects are now orphaned. Or sheets confirmed synced
 are disappearing, which matters enormously, because the whole design rests on
-"synced means safe" and three teams are in the field this week.
+"synced means safe". The postponement buys time to establish which — it does
+not make the question go away.
 
 **Cheapest thing to check first:** whether this deployment still points at the
 same Neon database as on 2026-08-20. The Neon password was rotated that day. If
@@ -181,10 +186,11 @@ rebuilt with 14 embedded figures and **6 labelled placeholders**. Each
 placeholder names what to capture, how, and why it is absent — every one needs
 either a real submission to production or a deliberately broken condition.
 
-**Reweighted for the actual schedule.** §5 (continuous/CORS) now opens by saying
-next week is mostly receiver maintenance and downloading, not campaign
-occupations, and the Palawan equipment note asks whether the Davao and
-Maguindanao/Sarangani sites are in the same position.
+**Reweighted for the actual work.** §5 (continuous/CORS) now opens by saying the
+scheduled fieldwork is mostly receiver maintenance and downloading rather than
+campaign occupations, and the Palawan equipment note asks whether the Davao and
+Maguindanao/Sarangani sites are in the same position. That emphasis survives the
+postponement — only the dates moved.
 
 ---
 
@@ -242,9 +248,15 @@ Both were false reassurance, which is the dangerous kind.
 - **GitHub Actions is still disabled**, so #110's workflow remains
   documentation of intent rather than a gate. Every PR this week merged with no
   automated check having run.
-- **Fieldwork starts today**, 24–28 Aug: Davao Oriental / Davao de Oro (ARLA,
-  PPG, RDR), Maguindanao / Sarangani (NJTM, ABB), Palawan (ADSP, ERPE, PDFB) —
-  mostly continuous receiver maintenance and downloading.
+- **Fieldwork POSTPONED.** The 24–28 Aug parties — Davao Oriental / Davao de
+  Oro (ARLA, PPG, RDR), Maguindanao / Sarangani (NJTM, ABB), Palawan (ADSP,
+  ERPE, PDFB) — were rescheduled on 2026-08-23 pending travel funding and
+  booking arrangements. Availability is being collected for **31 Aug onwards**.
+  The work is still mostly continuous receiver maintenance and downloading when
+  it happens, so the guide's §5 emphasis stands.
+- **Note the collision:** 31 Aug is also the GeoCon abstract deadline. If the
+  field party lands that week, the abstract and its CPDD-17 paperwork need to be
+  finished before travel, not during.
 - **GeoCon abstract closes 31 Aug.** Draft at
   `temp/geocon2026-abstract-draft.md`, 329 words, unsent. The **CPDD-17**
   paperwork, not the 350 words, is the deadline risk.
