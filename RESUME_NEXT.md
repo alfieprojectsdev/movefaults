@@ -1,12 +1,303 @@
 # RESUME — next session
 
-**Updated 2026-08-21 (five PRs merged, CI still blocked on a repo setting — START HERE).
-Prior: 08-20 (Field Ops shipped to production, then GEONET research), 07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live), 07-29 (storage provisioned, RAID resolved, continuity
+**Updated 2026-08-24 (gps3 off the network — needs a server-room trip; fieldwork POSTPONED; the server holds zero logsheets — START HERE).
+Prior: 08-21 (five PRs merged, CI blocked on a repo setting), 08-20 (Field Ops shipped to production, then GEONET research), 07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live), 07-29 (storage provisioned, RAID resolved, continuity
 audit), 07-28 (gps3 Bernese install verified, 0.0000 mm SINEX), 07-22
 (thumb-drive backup), 07-16 (Backup Plus→DOSTB migration complete, sdd2-scan
 diagnosis corrected), 07-15 (migration/scan kicked off), 07-14 (clean
 shutdown, VADASE PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze),
 07-07 (excavation+crossref), 07-04 (DA-005).**
+
+## ⚠️ 2026-08-24 — gps3 is off the network, and it needs a physical trip
+
+Tested from the T420 while on the PHIVOLCS WLAN (`wlp3s0`, 192.168.48.124 — the
+same /24 as gps3, with the route resolving). Result is unambiguous:
+
+```
+192.168.48.98   ARP FAILED        <- gps3
+192.168.48.99   REACHABLE         <- the file server
+... 12 other hosts REACHABLE on the same subnet
+```
+
+**We are not isolated from the segment — gps3 specifically is absent.** A full
+ARP sweep of 192.168.48.0/24 found 13 live hosts including the file server
+(SMB 445 open, so the system of record is up and usable). None of the live MACs
+matched gps3's documented NICs (`e4:3d:1a:*`) or its BMC
+(`b0:7b:25:fe:2c:38`), so it has not simply moved to another address.
+
+That means powered off, ethernet disconnected, or the interface renamed/downed.
+**Which of those cannot be established remotely**, and iDRAC still has no
+network address, so there is no out-of-band console. This is the trip to the
+server room the earlier notes predicted — now confirmed rather than assumed.
+
+**`scripts/gps3_console_triage.sh`** is what to run when you get there. One
+file, no network, no dependencies beyond coreutils/util-linux/systemd, changes
+nothing, and writes a timestamped report you can carry back. It covers, in the
+order worth checking: which kernel booted, interface state (with the four
+distinguishable failure shapes spelled out), the four `nofail` mounts that go
+missing silently, RAID/smartd, I/O and link errors, and whether the LUZON
+solutions are still there. Smoke-tested off-target — it degrades to marked
+SKIPPED sections rather than crashing.
+
+While there and if the machine is otherwise healthy: **give iDRAC an address.**
+Its absence is the entire reason this needed a trip. Change the default
+password and the SNMP community string first — an unprotected BMC with power
+and console control is a standard target.
+
+---
+
+## ⚠️ 2026-08-22 — field-ops audited, and one thing about the data does not add up
+
+**Fieldwork for 24–28 Aug was postponed on 2026-08-23**, pending travel funding
+and booking arrangements; rescheduling is being collected for **31 Aug onwards**
+(Zach Ragadio, MOVE Faults group). Nothing below is wrong because of it, but the
+urgency is: the open question in this section no longer has a Monday deadline,
+and there is now time to answer it properly before anyone is at a monument.
+
+### The server holds no logsheets
+
+An end-to-end test against the live deployment found this, and it is still
+unresolved:
+
+| Source | Says |
+|---|---|
+| Handset queue (IndexedDB) | **3 sheets, all `_status: "synced"`** |
+| `GET /api/v1/sheets?limit=500` | **200 OK, `[]`** |
+| `GET /api/v1/logsheets` | **200 OK, `[]`** |
+| `GET /api/v1/staff` | 200, 13 rows |
+| `GET /api/v1/stations` | 200, 138 rows |
+
+The three local records:
+
+```
+PPPC  continuous  visit 2026-08-20  synced  2 photos uploaded
+PKLY  continuous  visit 2026-08-20  synced  2 photos uploaded
+PNDO  continuous  visit 2026-08-19  synced  1 photo  uploaded
+```
+
+The database is alive and fully seeded, but the logsheets table is empty while
+a device holds three sheets it recorded as having reached the server, plus five
+photos it uploaded.
+
+**Two readings, needing different responses.** Either those were the 2026-08-20
+throwaway E2E sheets and someone cleared them — in which case nothing is wrong,
+except that five R2 photo objects are now orphaned. Or sheets confirmed synced
+are disappearing, which matters enormously, because the whole design rests on
+"synced means safe". The postponement buys time to establish which — it does
+not make the question go away.
+
+**Cheapest thing to check first:** whether this deployment still points at the
+same Neon database as on 2026-08-20. The Neon password was rotated that day. If
+a new project or branch was created rather than the password changed in place,
+that alone explains it and nothing is broken.
+
+Full detail: `temp/field-ops-e2e-20260822.md` (gitignored).
+
+### What the E2E test confirmed working
+
+The app itself is sound. Every screen renders, the method switch rebuilds the
+form, the equipment-changed gate refuses a bare tick, the photo requirement
+holds Submit disabled.
+
+**The check that matters most passed numerically.** On `TRM22020.00+GP` with
+slants 1.4320 / 1.4315 / 1.4318 and W skipped, production returns avg
+**1.4318 m** and RH **1.3570 m**; recomputed independently as 1.357015. The
+pre-2026-08-20 constants would have returned **1.3535** — 3.5 mm low. **The
+deployed build carries the antenna-constant correction.**
+
+Nothing was submitted to production to produce any of this.
+
+---
+
+## ✅ 2026-08-22 — field-ops audit: a secrets gap, and login could 500
+
+**PR #115, merged.** Three findings, each reproduced before being fixed.
+
+**`.env.local` was not gitignored, in a public repo.** `.gitignore` carried
+`*.env`, which requires the filename to *end* in `.env` — so it caught `.env`,
+`neon.env`, `r2.env`, `jwt.env`, and let `.env.local` straight through.
+`services/field-ops/.env.local` holds a live Neon `DATABASE_URL`, password
+included.
+
+It was never committed, so nothing leaked. It was found because **the audit
+staged it by accident** while collecting its own changes, which is precisely
+the one-command path to publishing it. Fixed with `.env.*`, keeping
+`!.env.example` committable.
+
+**Two accounts differing only by case returned 500 on login.** `fo001` created
+`uq_users_username UNIQUE (username)` — case-*sensitive* in PostgreSQL — while
+every lookup in the app is case-*insensitive*: `POST /token` matches
+`lower(username)` because a phone capitalises the first letter of a field, and
+`seed_field_accounts.py` keys its existence check, password reset and role
+update the same way.
+
+Nothing enforced the invariant the code assumes. With `ARP` and `arp` both
+present, `scalar_one_or_none()` raises `MultipleResultsFound` — an unhandled
+**500 on the one endpoint a field team cannot work around**. The seeder's reset
+would also rewrite both accounts at once.
+
+Fixed in two layers on purpose: **`fo006`** adds a unique index on
+`lower(username)` so the state cannot arise, and **`login`** no longer depends
+on that migration having been applied in order to avoid a 500 — it prefers an
+exact-case match, logs the remedy, and returns 401 when genuinely ambiguous.
+
+**Deployment note:** `fo006` is in the field-ops migration tree, not root. Apply
+with the **direct** (non-pooled) Neon URL. If it fails on a unique violation,
+duplicate accounts already exist — the query to find them is in the migration
+docstring, and one of them is somebody's working login, so do not resolve it by
+dropping rows blind.
+
+Third finding: a corrupt `hashed_password` was a 500 rather than a failed
+login, because `bcrypt.checkpw` raises on a malformed salt.
+
+**`POST /api/v1/token` had no direct test of any kind.** Now 21, including the
+documented case-insensitivity and trimming that had never been exercised.
+Verified non-vacuous: the collision tests fail with `MultipleResultsFound`
+against the previous router. Suite 36 → 59, ruff clean, 5 pre-existing lint
+findings cleared.
+
+---
+
+## ✅ 2026-08-22 — Good Enough Practices audit, and the licence that did not exist
+
+**PR #116, still open.** Audit against Wilson et al. (2017), all six practice
+areas, in `docs/project_documentation/good_enough_practices_audit.md`.
+
+**The headline finding: three sources disagreed and the one with legal weight
+was missing.** `pyproject.toml` declared `license = "MIT"`, `README.md` told the
+reader to "see the `LICENSE` file", no LICENSE file existed, and the GitHub API
+reported `"license": "NONE"` on a **public** repository. Under default copyright
+that means all rights reserved — the opposite of the stated intent, and of the
+"Open" in Philippine Open Geodesy Framework.
+
+The audit deliberately did not guess the copyright holder. **Settled by Alfie:
+PHIVOLCS/DOST** — produced on institute hardware, in the course of employment,
+for PHIVOLCS research mandates. `LICENSE` and `CITATION.cff` now exist naming
+that holder, and both state scope, because a licence here invites two wrong
+readings: it does **not** cover GNSS observation data (file server is the
+system of record, release is agency policy, PAGENET is NAMRIA's under MOU), and
+it does **not** cover Bernese, teqc, gfzrnx or RNXCMP.
+
+**Authorship and copyright are kept deliberately separate** — `pyproject.toml`
+and `CITATION.cff` name the author, `LICENSE` names the holder, and all three
+say so, so nobody "corrects" one into agreement with the other later.
+
+Two deviations from the paper were recorded as **correct**, not as findings.
+Raw data is deliberately outside the repo; what git carries instead is fixity,
+**560,644 sha256 sums** across five tracked manifests (counted directly — older
+notes say 560,636). And `src/`/`results/` does not apply to a monorepo of
+deployable services.
+
+Measured rather than asserted: **6%** of shipped functions exceed the 60-line
+rule (29 of 460), module docstrings at **72%** (112/156), median commit touches
+**3 files**.
+
+Still open from that audit: a stated communication strategy (3c), docstrings
+for three vadase entry points (2a), and the DOI deposit (1f/2j), which stays
+correctly blocked on agency data-release policy.
+
+---
+
+## ✅ 2026-08-22 — the operator guide now has screenshots
+
+**PR #117, merged.** `services/field-ops/docs/screenshots/` — **two complete
+sets, `dark/` and `light/`, 15 files each, identical filenames**, so a consumer
+switches theme by changing one path component.
+
+They are committed there rather than in `temp/`, which is gitignored precisely
+because it holds unsent correspondence naming officials. The README beside them
+records the capture conditions, which are not recoverable from the images:
+**500 × 697 viewport** (Chrome on Linux refuses to size a window narrower, so a
+true 390 px iPhone viewport was unreachable from an automated session), and the
+theme forced through `localStorage` rather than the ☀/◐ toggle, which cycles
+three states and cannot be driven blind.
+
+**Disclosure was checked, not assumed.** The images show staff initials on the
+observer picker; those are already public, because
+`data/network_inventory/staff.csv` is committed and carries `full_name` for all
+13. Both sign-in captures were taken with username and password fields cleared.
+The README states those checks so the next person repeats them — the username
+scheme is staff initials, so a filled sign-in form would publish a real one.
+
+The quick guide (`temp/field-ops-quick-guide.docx`, plus a `-light` variant) was
+rebuilt with 14 embedded figures and **6 labelled placeholders**. Each
+placeholder names what to capture, how, and why it is absent — every one needs
+either a real submission to production or a deliberately broken condition.
+
+**Reweighted for the actual work.** §5 (continuous/CORS) now opens by saying the
+scheduled fieldwork is mostly receiver maintenance and downloading rather than
+campaign occupations, and the Palawan equipment note asks whether the Davao and
+Maguindanao/Sarangani sites are in the same position. That emphasis survives the
+postponement — only the dates moved.
+
+---
+
+## Design notes, docs only — `temp/field-ops-design-notes.md`
+
+**Site contact information: a separate route, and phase one is nearly free.**
+Root revision `004_expand_stations.py` — applied long ago, well below the
+migration wall — already added `land_owner` (**filled for 84 of 138**),
+`municipality`, `province`, `region` and `metadata_json` to `public.stations`.
+The field-ops API selects none of them. So the first useful version is widening
+`StationOut` and adding a station detail view: no migration, no new table.
+
+Separate route rather than fields on the logsheet, for reasons specific to this
+app: contacts are read *before* travel and at a locked gate while the sheet is
+written at the monument; the continuous form is already ~2,880 CSS px on a
+phone; station data is a *pull* cached offline while the queue is a *push*; and
+`require_role()` exists, deliberately unused, waiting for exactly this.
+
+**The PII tier is a decision, not a default.** `land_owner` is institution-level
+and effectively public. Named caretakers with mobile numbers would put
+third-party PII on 13 offline handsets in a public-repo project — worth doing
+deliberately or not at all. If approved, `metadata_json` holds it **without a
+migration**, which matters because the root tree cannot advance past `011` on
+Neon.
+
+**Observer checkbox grouping** could be better — a fixed-height inner scroll box
+with TECHNICAL/ADMIN headers, needing two inner scrolls to reach ADMIN and
+fighting the page scroll. For 13 people, grouping may be the wrong affordance;
+recently-used ordering without an inner scroll would remove the problem rather
+than tune it.
+
+---
+
+## Corrections to memory made this session
+
+Both were false reassurance, which is the dangerous kind.
+
+- **`staff.csv` does not hold "initials + role only"** as a memory note claimed.
+  Its columns are `full_name, initials, role, is_active`, populated for all 13
+  — **real staff names are already public in this repository**. The old wording
+  understated the exposure and could be leaned on when judging what is safe to
+  commit.
+- **Alfie is a regular PHIVOLCS employee**, not a contractor. The
+  contractor/TPM framing belongs to separate freelance work (SAVD). It matters
+  because outbound work from this repo goes out *as PHIVOLCS*.
+
+---
+
+## State at 2026-08-24
+
+- `main` = `bb3dd25`. PRs #109–#115 and #117 merged.
+- **Open: #116** (Good Enough Practices audit + LICENSE + CITATION) and
+  **#119** (in-app station creation design, FO-001) — *#119 is from another
+  session, not this one.*
+- **GitHub Actions is still disabled**, so #110's workflow remains
+  documentation of intent rather than a gate. Every PR this week merged with no
+  automated check having run.
+- **Fieldwork POSTPONED.** The 24–28 Aug parties — Davao Oriental / Davao de
+  Oro (ARLA, PPG, RDR), Maguindanao / Sarangani (NJTM, ABB), Palawan (ADSP,
+  ERPE, PDFB) — were rescheduled on 2026-08-23 pending travel funding and
+  booking arrangements. Availability is being collected for **31 Aug onwards**.
+  The work is still mostly continuous receiver maintenance and downloading when
+  it happens, so the guide's §5 emphasis stands.
+- **Note the collision:** 31 Aug is also the GeoCon abstract deadline. If the
+  field party lands that week, the abstract and its CPDD-17 paperwork need to be
+  finished before travel, not during.
+- **GeoCon abstract closes 31 Aug.** Draft at
+  `temp/geocon2026-abstract-draft.md`, 329 words, unsent. The **CPDD-17**
+  paperwork, not the 350 words, is the deadline risk.
 
 ## ✅ 2026-08-21 — Five PRs reviewed and merged, and the setting that still blocks CI
 
