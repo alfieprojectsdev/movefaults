@@ -1,6 +1,6 @@
 # Implementation Ticket Backlog
 
-**Last updated:** 2026-08-20
+**Last updated:** 2026-08-23
 **Source:** Codebase survey [`codebase_status_20260425.md`](codebase_status_20260425.md) cross-referenced with [`roadmap.md`](roadmap.md) and [`bernese_orchestrator_r740_readiness.md`](bernese_orchestrator_r740_readiness.md) (14 gaps from NAMRIA training week, 2026-06)
 
 > **Priority:** P0 = critical path blocker · P1 = production deployment · P2 = feature complete · P3 = deferred
@@ -639,6 +639,59 @@ P3/L for the whole five-screen arc — read the phase list, not the header.
 IGS20 long filenames, `.gz` decompression in-memory, IGN→BKG→CDDIS mirror order (anonymous first), legacy fallback for pre-week-2238 dates. 21 unit tests.
 
 *Unblocks: BRN-004.*
+
+---
+
+## Field Ops
+
+*First entry in this section. field-ops shipped to ~90% without ever appearing
+in this backlog, which is why its one structural gap went unrecorded until the
+field reported it.*
+
+### FO-001 · P1 · L
+**Let an observer create a station from inside the app**
+
+Reported from the field ([#118](https://github.com/alfieprojectsdev/movefaults/issues/118)):
+observers arrive at a monument that is not in the Station picker and cannot file
+a sheet at all. The framing in the report is that the list is stale; it is worse
+than that. `public.stations` is seeded from a 138-row CSV in which **every row is
+`monitoring_method = continuous`**, and `seed_network_inventory.py` states that
+campaign occupations "must be seeded from another source" — a source that does
+not exist. Campaign sites have no ingest path whatsoever, so keeping the export
+fresher fixes nothing.
+
+Design decided, nothing built:
+
+- App-created stations go to a new `field_ops.station_proposals` table, **not**
+  `public.stations` — which serves VADASE and Bernese too, and which field-ops
+  deliberately does not own. "Unverified" becomes a different table rather than
+  a flag someone must remember to filter on, and the migration lands in the
+  field-ops alembic tree instead of the root one (which cannot reach head on
+  Neon).
+- `GET /stations` UNIONs both, tagging each row `inventory` or `field`.
+- No role gate on proposing — the person blocked is the observer at the
+  monument. `require_role`, still unused since it was written, gates the
+  *reconcile* endpoints instead. That is its first consumer.
+- Duplicate guard in three layers (client-side near-miss warning, server 409,
+  partial unique index on `reconciled_at IS NULL`). The offline hole is real and
+  is what reconcile exists to close.
+- Extend the existing `useOfflineQueue` with a `station_queue` store — do not
+  build a second queue. New constraint: a proposal must flush before any sheet
+  naming it.
+
+**Two prerequisites, both larger than they look.** There is no Postgres test
+fixture: `tests/conftest.py` is in-memory SQLite with no PostGIS, which is why
+`GET /api/v1/stations` has zero coverage today and why nothing proposed here is
+testable as things stand. And the station list is not in IndexedDB (despite the
+docstring saying so) — it is a Workbox cache with a 24-hour expiry, so a
+week-long campaign loses the list mid-trip.
+
+Full design, including the open questions that must be answered before building:
+[`field_ops_station_creation_design.md`](field_ops_station_creation_design.md).
+
+*Blocks nothing. Blocked by nothing — but do not start without answering "who
+reconciles, and how often?", which is the question that decides whether the
+design works at all.*
 
 ---
 
