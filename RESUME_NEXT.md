@@ -1,12 +1,50 @@
 # RESUME — next session
 
-**Updated 2026-08-24 (fieldwork POSTPONED; field-ops audited and hardened; the server holds zero logsheets — START HERE).
+**Updated 2026-08-24 (gps3 off the network — needs a server-room trip; fieldwork POSTPONED; the server holds zero logsheets — START HERE).
 Prior: 08-21 (five PRs merged, CI blocked on a repo setting), 08-20 (Field Ops shipped to production, then GEONET research), 07-30 (branch split CLOSED, Rule 1 adopted, gps3 smartd live), 07-29 (storage provisioned, RAID resolved, continuity
 audit), 07-28 (gps3 Bernese install verified, 0.0000 mm SINEX), 07-22
 (thumb-drive backup), 07-16 (Backup Plus→DOSTB migration complete, sdd2-scan
 diagnosis corrected), 07-15 (migration/scan kicked off), 07-14 (clean
 shutdown, VADASE PRs, EVACUATE verdict), 07-13 (RAW done), 07-08 (freeze),
 07-07 (excavation+crossref), 07-04 (DA-005).**
+
+## ⚠️ 2026-08-24 — gps3 is off the network, and it needs a physical trip
+
+Tested from the T420 while on the PHIVOLCS WLAN (`wlp3s0`, 192.168.48.124 — the
+same /24 as gps3, with the route resolving). Result is unambiguous:
+
+```
+192.168.48.98   ARP FAILED        <- gps3
+192.168.48.99   REACHABLE         <- the file server
+... 12 other hosts REACHABLE on the same subnet
+```
+
+**We are not isolated from the segment — gps3 specifically is absent.** A full
+ARP sweep of 192.168.48.0/24 found 13 live hosts including the file server
+(SMB 445 open, so the system of record is up and usable). None of the live MACs
+matched gps3's documented NICs (`e4:3d:1a:*`) or its BMC
+(`b0:7b:25:fe:2c:38`), so it has not simply moved to another address.
+
+That means powered off, ethernet disconnected, or the interface renamed/downed.
+**Which of those cannot be established remotely**, and iDRAC still has no
+network address, so there is no out-of-band console. This is the trip to the
+server room the earlier notes predicted — now confirmed rather than assumed.
+
+**`scripts/gps3_console_triage.sh`** is what to run when you get there. One
+file, no network, no dependencies beyond coreutils/util-linux/systemd, changes
+nothing, and writes a timestamped report you can carry back. It covers, in the
+order worth checking: which kernel booted, interface state (with the four
+distinguishable failure shapes spelled out), the four `nofail` mounts that go
+missing silently, RAID/smartd, I/O and link errors, and whether the LUZON
+solutions are still there. Smoke-tested off-target — it degrades to marked
+SKIPPED sections rather than crashing.
+
+While there and if the machine is otherwise healthy: **give iDRAC an address.**
+Its absence is the entire reason this needed a trip. Change the default
+password and the SNMP community string first — an unprotected BMC with power
+and console control is a standard target.
+
+---
 
 ## ⚠️ 2026-08-22 — field-ops audited, and one thing about the data does not add up
 
