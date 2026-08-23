@@ -1,0 +1,31 @@
+# Copyright is held by PHIVOLCS/DOST (see LICENSE). The authors listed below
+# are who to credit when citing the work — authorship and copyright are
+# separate, and both entries are deliberate.
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "MOVE Faults / Philippine Open Geodesy Framework (POGF)"
+abstract: >-
+  An open, reproducible pipeline for the Philippine national GNSS networks:
+  Bernese GNSS Software orchestration for campaign and continuous data, RINEX
+  quality control, coordinate-to-ENU time series, offset-aware velocity
+  estimation verified against PHIVOLCS' production output, real-time VADASE
+  displacement monitoring, and an offline-first field logsheet application.
+type: software
+authors:
+  - family-names: Pelicano
+    given-names: Alfie
+    affiliation: >-
+      Philippine Institute of Volcanology and Seismology (PHIVOLCS),
+      Department of Science and Technology (DOST)
+repository-code: "https://github.com/alfieprojectsdev/movefaults"
+license: MIT
+version: 0.1.0
+keywords:
+  - GNSS
+  - geodesy
+  - crustal deformation
+  - Bernese GNSS Software
+  - RINEX
+  - earthquake monitoring
+  - Philippines
+  - reproducible research
