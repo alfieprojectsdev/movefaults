@@ -79,10 +79,22 @@ fixed (reference) point" [TSU17, §2.2.5].
 IGS-Final-orbit solutions. Q3/R3 exist purely to give a same-day or same-week
 number before the accurate one is ready.
 
-**Applicability: real, but not urgent.** A Q3/R3-equivalent tier is worth
-standing up only once the F3-equivalent (today's single-tier pipeline) is
-reliably automated on the R740. (BRN-001 itself is **done** — see §5.) It solves a problem POGF
-does not have yet: nothing downstream currently consumes a same-day coordinate.
+**Applicability — corrected 2026-08-24.** This paragraph read: *"It solves a
+problem POGF does not have yet: nothing downstream currently consumes a same-day
+coordinate."* **That is wrong.** PHIVOLCS has run a rapid tier by hand since at
+least 2013, staging ultra-rapid and rapid ephemerides manually after major
+earthquakes.
+
+The mistake was reasoning from a codebase survey to a claim about practice: no
+consumer appeared in the repository because the consumer is a manual workflow
+that no document records. The correct reading is that POGF already has the
+requirement and pays for it in hand-work at the worst possible moment.
+
+What remains true is the sequencing — the F3-equivalent should be reliably
+automated first, and it now nearly is. See
+`bernese_workflow_geonet_actions.md` §2.3 for the engineering, including the
+hazard that matters most: tiers whose outputs are not distinguishable produce a
+coordinate series that silently mixes accuracy levels.
 
 ### Strategy lineage
 [TSU17, Fig. 2] gives the version history, which is itself the useful artefact —
@@ -315,7 +327,7 @@ Gemini-assisted** (confirmed by the user), and it shows:
 
 | Finding | Verdict | When |
 |---|---|---|
-| Q3/R3/F3 tiering | **Adapt** (F3-equivalent only, for now) | Only if a same-day number is ever needed |
+| Q3/R3/F3 tiering | **Adapt** — a rapid tier is already run by hand after major earthquakes (corrected 2026-08-24) | Automate the existing manual practice; capture the procedure first |
 | Backbone/regional cluster partitioning | **Not yet** — mechanics unresolved | Ask GSI; revisit if network size or wall-clock time becomes a constraint |
 | Single-station fiducial reference frame | **Skip** — POGF's multi-station minimum constraint is the stronger design | N/A |
 | RAPiD real-time detection parameters | **Adapt** — compare against VADASE's thresholds | Small follow-up, independent of R740 |
