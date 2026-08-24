@@ -52,16 +52,45 @@ LUZON_PCF="${LUZON_PCF:-LUZON_DLY}"
 LUZON_MAXSESS="${LUZON_MAXSESS:-6}"
 LOG_DIR="$HOME/luzon-year-logs"
 
-# first:last, inclusive. Derived from the exclusions above.
-BLOCKS="1:57 62:78 80:120 152:344 346:365"
+# Days that must never be attempted, for the reasons above.
+LUZON_EXCLUDE="058 059 060 061 079 139 345"
+
+# BLOCKS ARE COMPUTED, NOT FIXED.
+#
+# An earlier version hard-coded five ranges. That made a restart re-run days
+# already solved, which matters because BSW aborts a whole queue on one failed
+# session -- so restarts are normal here, not exceptional. Deriving the ranges
+# from what is actually on disk makes this script safe to run again at any
+# point, and it stops being a list somebody has to keep in step with reality.
+compute_blocks() {
+    local d dd want out="" run_start="" prev=""
+    for d in $(seq 1 365); do
+        dd=$(printf '%03d' "$d")
+        want=yes
+        case " $LUZON_EXCLUDE " in *" $dd "*) want=no ;; esac
+        [ "$want" = yes ] && ls "$S/LUZON/$LUZON_YEAR/SOL/FIN_${LUZON_YEAR}${dd}0."* \
+            >/dev/null 2>&1 && want=no
+        if [ "$want" = yes ]; then
+            [ -z "$run_start" ] && run_start="$d"
+            prev="$d"
+        elif [ -n "$run_start" ]; then
+            out="$out $run_start:$prev"; run_start=""
+        fi
+    done
+    [ -n "$run_start" ] && out="$out $run_start:$prev"
+    printf '%s' "${out# }"
+}
 
 die() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
 
-_snap="$LUZON_YEAR|$LUZON_PCF|$LUZON_MAXSESS|$BLOCKS|$LOG_DIR"
+_snap="$LUZON_YEAR|$LUZON_PCF|$LUZON_MAXSESS|$LOG_DIR"
 # shellcheck disable=SC1090,SC1091
 source "$HOME/BERN54/LOADGPS.setvar" >/dev/null 2>&1 || die "cannot source LOADGPS.setvar"
-[ "$_snap" = "$LUZON_YEAR|$LUZON_PCF|$LUZON_MAXSESS|$BLOCKS|$LOG_DIR" ] || die "LOADGPS clobbered a config variable"
+[ "$_snap" = "$LUZON_YEAR|$LUZON_PCF|$LUZON_MAXSESS|$LOG_DIR" ] || die "LOADGPS clobbered a config variable"
 if [ -z "${P:-}" ] || [ -z "${U:-}" ] || [ -z "${S:-}" ]; then die "P/U/S unset"; fi
+
+BLOCKS=$(compute_blocks)
+[ -n "$BLOCKS" ] || { printf 'Nothing left to process.\n'; exit 0; }
 
 DRV="$U/SCRIPT/luzon_year.pl"
 [ -x "$DRV" ] || die "driver missing: $DRV"
@@ -101,16 +130,49 @@ for b in $BLOCKS; do
     printf '  DOY %03d-%03d (%3d days)  start %s ... ' "$from" "$to" "$n" "$(date '+%H:%M:%S')"
     t0=$(date +%s)
 
-    perl "$DRV" "$LUZON_YEAR" "$sess" "$LUZON_PCF" "$n" "$LUZON_MAXSESS" >"$log" 2>&1
+    # RESUME LOOP -- the reason this is not a single call.
+    #
+    # BSW's multi-session mode ABORTS the whole queue when a session fails. It
+    # is not like the sequential driver, which records a bad day and moves on.
+    # On 2026-08-25 DOY 036 failed in HELMR1 with "NO REDUNDANCY" and took
+    # DOY 040-057 with it -- eighteen days that were never attempted, in a run
+    # that otherwise reported no errors.
+    #
+    # So: run, count what actually landed, and restart from the first gap.
+    # Each pass must make progress or we stop, which prevents an infinite loop
+    # on a day that simply cannot be solved. Days that fail every time are
+    # listed at the end rather than silently absent -- the same principle as
+    # the skip list, applied to failures nobody predicted.
+    attempt=0
+    start="$from"
+    while :; do
+        attempt=$((attempt + 1))
+        n_left=$(( to - start + 1 ))
+        [ "$n_left" -gt 0 ] || break
+        sess=$(printf '%03d0' "$start")
+        perl "$DRV" "$LUZON_YEAR" "$sess" "$LUZON_PCF" "$n_left" "$LUZON_MAXSESS" \
+            >>"$log" 2>&1
 
-    # Count solutions produced rather than trusting the exit code. A BPE that
-    # reports success having written nothing has happened here before.
-    made=0
-    for d in $(seq "$from" "$to"); do
-        ls "$S/LUZON/$LUZON_YEAR/SOL/FIN_${LUZON_YEAR}$(printf '%03d' "$d")0."* >/dev/null 2>&1 \
-            && made=$((made + 1))
+        # Count solutions rather than trusting the exit code. A BPE that
+        # reports success having written nothing has happened here before.
+        made=0; firstgap=""
+        for d in $(seq "$from" "$to"); do
+            if ls "$S/LUZON/$LUZON_YEAR/SOL/FIN_${LUZON_YEAR}$(printf '%03d' "$d")0."* \
+                 >/dev/null 2>&1; then
+                made=$((made + 1))
+            elif [ -z "$firstgap" ]; then
+                firstgap="$d"
+            fi
+        done
+        [ -n "$firstgap" ] || break                 # block complete
+        [ "$firstgap" -gt "$start" ] || break       # no progress this pass
+        start=$(( firstgap + 1 ))                   # step over the bad day
+        printf '\n      resume: DOY %03d failed, continuing from %03d (pass %d) ... ' \
+               "$firstgap" "$start" "$((attempt + 1))"
     done
-    printf '%d/%d solved  (%d min)\n' "$made" "$n" "$(( ($(date +%s) - t0) / 60 ))"
+    printf '%d/%d solved  (%d min, %d pass%s)\n' "$made" "$n" \
+           "$(( ($(date +%s) - t0) / 60 ))" "$attempt" \
+           "$([ "$attempt" -eq 1 ] && echo "" || echo "es")"
 done
 
 printf '\nelapsed %s min\n' "$(( ($(date +%s) - t_all) / 60 ))"
