@@ -76,6 +76,24 @@ back silently.
 
 ### 1.2 Resolve the mapping-function inconsistency
 
+> **SETTLED 2026-08-24 — measured, not argued. It does not matter.**
+>
+> Reprocessing 2025 DOY 121 with the three ambiguity panels set to `WET_GMF3`
+> gives a **bit-identical** solution: the whole SINEX diff is four run-timestamp
+> lines. The intermediate QIF output is identical too.
+>
+> The reason is that those panels do not estimate a troposphere — they
+> *introduce* one from the float solution's `.TRP` and estimate only clock
+> parameters. With no zenith delay estimated, `MAPPNG` has nothing to act on.
+> It is a dead field there. The final panel, by contrast, estimates 870
+> site-specific troposphere parameters, so `MAPPNG` is live there.
+>
+> **Close this as cosmetic** — and record it as *"the field is inert"*, not as
+> *"GMF3 was chosen"*, or a later reader will infer an evaluation that never
+> happened. Full evidence: `geo002_mapping_function_result.md`.
+
+
+
 > **Correction, 2026-08-24 — the table below is measured from the wrong tree.**
 >
 > The panels quoted here come from `config/bernese/gpsuser52-luzon/OPT`, which

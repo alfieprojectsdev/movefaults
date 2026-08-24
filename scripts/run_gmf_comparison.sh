@@ -199,9 +199,12 @@ run_days() {
 
     local log_dir="$HOME/gmf-comparison-logs"
     mkdir -p "$log_dir"
-    local lock="$HOME/.run_gmf_comparison.lock"
-    mkdir "$lock" 2>/dev/null || die "another run holds $lock"
-    trap 'rmdir "$lock" 2>/dev/null' EXIT
+    # Not `local`: the EXIT trap fires after this function returns, and a
+    # function-scoped name is unbound by then -- under `set -u` the trap itself
+    # then errors on the way out.
+    LOCK_DIR="$HOME/.run_gmf_comparison.lock"
+    mkdir "$LOCK_DIR" 2>/dev/null || die "another run holds $LOCK_DIR"
+    trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
 
     local ok=0 bad=0 bad_days="" t_all
     t_all=$(date +%s)
