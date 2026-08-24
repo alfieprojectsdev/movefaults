@@ -33,10 +33,10 @@ set -uo pipefail
 # `/home/gps3/GPSUSER/PCF//home/gps3/BERN54/USER/PCF.PCF`. That was the fourth
 # such collision in this campaign ($SRC, $S, $P before it), so the fix is the
 # naming rule, not another rename. The assertion after the source enforces it.
-LUZON_YEAR=2025
-LUZON_DOY_FROM=121
-LUZON_DOY_TO=151
-LUZON_PCF=LUZON_DLY
+LUZON_YEAR="${LUZON_YEAR:-2025}"
+LUZON_DOY_FROM="${LUZON_DOY_FROM:-121}"
+LUZON_DOY_TO="${LUZON_DOY_TO:-151}"
+LUZON_PCF="${LUZON_PCF:-LUZON_DLY}"
 
 # Days excluded for want of data, NOT for convenience. Each needs a reason.
 #
@@ -48,7 +48,13 @@ LUZON_PCF=LUZON_DLY
 #         of the two stations the DOY 121 run dropped — and that file would
 #         sit in SOL/ beside thirty proper ones, indistinguishable without
 #         opening it. A missing day is honest; a degenerate one is a trap.
-LUZON_SKIP_DOYS="139"
+#   058 059 060 061 079 345 — fewer than three reference stations available
+#         (2026-08-24 survey of $D/RINEX3). Three is the minimum for a Helmert
+#         transformation, so these days cannot be tied to the reference frame
+#         at all. A solution would still be produced and would still look like
+#         a solution. Same reasoning as 139: a missing day is honest, a
+#         degenerate one is a trap.
+LUZON_SKIP_DOYS="${LUZON_SKIP_DOYS:-139 58 59 60 61 79 345}"
 LUZON_LOG_DIR="$HOME/luzon-month-logs"
 LUZON_SUMMARY="$LUZON_LOG_DIR/summary.txt"
 

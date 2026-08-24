@@ -20,10 +20,41 @@ set -uo pipefail
 # than as a clobbered variable. Bernese exports a large, undocumented set of
 # short names (P D U C T SRC XG XQ ...); do not use bare short names here.
 LUZON_SRC="/srv/gnss-archive/processed/luzon-bern52"
+
+# WHERE THE RINEX 2 OBSERVATIONS COME FROM (changed 2026-08-24, approved)
+# Abegail's copied set holds only DOY 121-151. A full year has to come from the
+# national datapool transferred off the file server in August, which carries
+# 2010 to present for every PHIVOLCS site.
+#
+# Verified before switching, because changing the source of a year of
+# observations is not a free move. For DOY 121, which both sources hold, the
+# same 25 stations were compared record by record:
+#
+#   10 of 15 checked  byte-identical after the header
+#    5 of 15          differ in 2-4 observation lines out of ~100,000 (0.002%)
+#
+# Every difference is one unit in the last decimal of a carrier phase --
+# 0.001 cycles, about 0.19 mm on L1 -- from the files having been converted by
+# different teqc builds (the header COMMENT shows Linux 2.4 vs 2.6 and
+# different operator initials). The observations are the same measurements;
+# the last digit rounds differently. That is far below the 3 mm daily
+# repeatability and cannot affect a solution.
+#
+# Set LUZON_RNX2_SRC to override, e.g. back to Abegail's set for a comparison.
+LUZON_RNX2_SRC="${LUZON_RNX2_SRC:-/srv/gnss-archive/datapool/PHIVOLCS}"
+
+# The 25 stations that DEFINE the LUZON subnetwork, taken from Abegail's staged
+# set -- the authoritative statement of which sites this campaign processes.
+# The national datapool holds hundreds of sites; staging it unfiltered would
+# silently change the network and make every solution incomparable with the
+# thirty days already computed.
+LUZON_STATIONS="ALAB ANTP AURA BALA BASC BLN2 BRGC CAC2 CLAV ELNA GUMA GUNG \
+IBAZ INFA LGYE MAUB MLPA PAGP POLI PTBN S01R SAPN TANY TGDN VIGN"
+
 CAMPAIGN="LUZON"
-YEAR=2025
-DOY_FROM=121
-DOY_TO=151
+YEAR="${YEAR:-2025}"
+DOY_FROM="${DOY_FROM:-1}"
+DOY_TO="${DOY_TO:-365}"
 MODE="${1:-}"
 
 die() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
@@ -115,26 +146,57 @@ say ""
 
 # --- 5. observations --------------------------------------------------------
 # RINEX 2 locals and RINEX 3 fiducials go to SEPARATE directories; the PCF
-# addresses them through V_RNXDIR and V_RX3DIR respectively. Only the 31-day
-# window is staged — copying all 741+281 files would pull in days the run does
-# not process and make any station-day count meaningless.
+# addresses them through V_RNXDIR and V_RX3DIR respectively.
+#
+# Only the 25 LUZON stations are staged, by name. The national datapool holds
+# every PHIVOLCS site, and taking whatever matches a day pattern would quietly
+# enlarge the network -- which changes the datum, changes every coordinate, and
+# makes the result incomparable with the days already solved.
 say "--- observations for $YEAR DOY $DOY_FROM-$DOY_TO ---"
-n2=0; n3=0
+say "    RINEX 2 source: $LUZON_RNX2_SRC"
+n2=0; n3=0; missing_days=0
 run mkdir -p "$D/$CAMPAIGN" "$D/RINEX3"
 for doy in $(seq "$DOY_FROM" "$DOY_TO"); do
-    for f in "$LUZON_SRC/GPSDATA/DATAPOOL/LUZON/"????"${doy}"0.*; do
-        [ -e "$f" ] || continue
-        n2=$((n2 + 1))
-        [ "$MODE" = "--apply" ] && cp -pn "$f" "$D/$CAMPAIGN/"
+    d3=$(printf '%03d' "$doy")
+    found_today=0
+    for st in $LUZON_STATIONS; do
+        for f in "$LUZON_RNX2_SRC/${st}${d3}0."??[oOdD] "$LUZON_RNX2_SRC/${st}${d3}0."??[dD].gz; do
+            [ -e "$f" ] || continue
+            n2=$((n2 + 1)); found_today=$((found_today + 1))
+            [ "$MODE" = "--apply" ] && cp -pn "$f" "$D/$CAMPAIGN/"
+        done
     done
-    for f in "$LUZON_SRC/GPSDATA/DATAPOOL/RINEX3/"*"_${YEAR}${doy}0000_"*; do
+    # A day with almost nothing is worth naming now rather than as a puzzling
+    # BPE failure later. Three is arbitrary but well under the ~25 a normal
+    # day carries, and the 31-day run showed a one-station day does exist.
+    if [ "$found_today" -lt 3 ]; then
+        missing_days=$((missing_days + 1))
+        say "    !! DOY $d3: only $found_today station file(s)"
+    fi
+
+    # RINEX 3 fiducials must land in the SAME directory as the RINEX 2 files.
+    #
+    # This is not tidiness, it is what the pipeline requires. The PCF sets
+    # V_RNXDIR = ${D}/LUZON and RNX_COP globs that one directory for both
+    # conventions -- `????SSSS.YY[DdOo]*` for RINEX 2 and
+    # `?????????_?_YYYYDDD*_01[dD]*O.{rnx,crx}*` for RINEX 3. A fiducial left
+    # in $D/RINEX3 is invisible to the run.
+    #
+    # An earlier version of this block counted these files instead of copying
+    # them, on the mistaken belief that fetch_fiducial_obs.sh had already put
+    # them in place. It puts them in $D/RINEX3, which is a staging area, not
+    # the directory the BPE reads. DOY 001 then ran with zero fiducials and
+    # died in RNXGRA on a header-only file that CCRNXO had produced from no
+    # input -- a failure four steps downstream of the actual cause.
+    for f in "$D/RINEX3/"*"_${YEAR}${d3}0000_"*; do
         [ -e "$f" ] || continue
         n3=$((n3 + 1))
-        [ "$MODE" = "--apply" ] && cp -pn "$f" "$D/RINEX3/"
+        [ "$MODE" = "--apply" ] && cp -pn "$f" "$D/$CAMPAIGN/"
     done
 done
 say "    RINEX 2 (-> \$D/$CAMPAIGN): $n2 files"
 say "    RINEX 3 (-> \$D/RINEX3)   : $n3 files"
+[ "$missing_days" -gt 0 ] && say "    !! $missing_days day(s) with fewer than 3 stations — review before running those"
 say ""
 
 # --- 6. products ------------------------------------------------------------
