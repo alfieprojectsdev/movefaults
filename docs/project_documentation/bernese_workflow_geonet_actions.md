@@ -75,6 +75,52 @@ back silently.
 > confirming the sanitizer covers `FREESTA_F`, not only the paths in gap #8.
 
 ### 1.2 Resolve the mapping-function inconsistency
+
+> **SETTLED 2026-08-24 — measured, not argued. It does not matter.**
+>
+> Reprocessing 2025 DOY 121 with the three ambiguity panels set to `WET_GMF3`
+> gives a **bit-identical** solution: the whole SINEX diff is four run-timestamp
+> lines. The intermediate QIF output is identical too.
+>
+> The reason is that those panels do not estimate a troposphere — they
+> *introduce* one from the float solution's `.TRP` and estimate only clock
+> parameters. With no zenith delay estimated, `MAPPNG` has nothing to act on.
+> It is a dead field there. The final panel, by contrast, estimates 870
+> site-specific troposphere parameters, so `MAPPNG` is live there.
+>
+> **Close this as cosmetic** — and record it as *"the field is inert"*, not as
+> *"GMF3 was chosen"*, or a later reader will infer an evaluation that never
+> happened. Full evidence: `geo002_mapping_function_result.md`.
+
+
+
+> **Correction, 2026-08-24 — the table below is measured from the wrong tree.**
+>
+> The panels quoted here come from `config/bernese/gpsuser52-luzon/OPT`, which
+> is PHIVOLCS' **5.2** set. The live 5.4 tree the R740 actually runs
+> (`/home/gps3/GPSUSER/OPT`) differs on the two panels that matter:
+>
+> | panel | doc / declared | **live 5.4** |
+> |---|---|---|
+> | R2S_EDT (float) | `WET_GMF` | **`WET_GMF3`** |
+> | R2S_FIN (final) | `WET_GMF` | **`WET_GMF3`** |
+>
+> `WET_GMF` and `WET_GMF3` are both valid 5.4 cards and are different
+> functions — GMF is the 2006 Global Mapping Function, GMF3 its GPT3/VMF3-era
+> gridded successor. **Every LUZON solution produced on the R740 used GMF3**,
+> the 30-day 2026-08-06 run included.
+>
+> GEO-003's drift test (`test_pcf_context.py`) compares the declared table
+> against the same 5.2 files the table was read from, so it could not have
+> caught this and never fired. A guard pointed at the wrong tree reads exactly
+> like a guard.
+>
+> This does not change §1.2's conclusion — the ambiguity panels still disagree
+> with the float/final panels, which is the point. It changes what "make them
+> agree" means: the target is **`WET_GMF3`**, not `WET_GMF`. Being measured by
+> `scripts/run_gmf_comparison.sh`.
+
+
 **Files:** `config/bernese/gpsuser52-luzon/OPT/*/GPSEST.INP`
 
 Measured across the panels [REPO]:
@@ -177,10 +223,80 @@ Only worth designing once there is a machine to measure it on. Inputs: GEONET's
 backbone/regional model, Ohkura's PIMO→NMMB→overlap-chained precedent, and
 whatever GSI answers about cluster sizing and recombination (enquiry Q1).
 
-### 2.3 A rapid tier
-GEONET's Q3/R3 exist to give a number before the accurate one is ready. POGF has
-no consumer for that yet. Revisit only if one appears — and after the
-F3-equivalent tier is reliably automated.
+### 2.3 A rapid tier — **corrected 2026-08-24: the consumer exists**
+
+This section said *"POGF has no consumer for that yet. Revisit only if one
+appears."* **That was wrong.** PHIVOLCS already runs a rapid tier — by hand,
+staging ultra-rapid and rapid ephemerides manually after major earthquakes, a
+practice going back to at least 2013.
+
+The error is worth naming because it is a repeat: the conclusion was drawn from
+surveying the codebase and finding no consumer, when the consumer was a manual
+workflow that no document records. An absence of evidence read as evidence of
+absence — the same shape as the troposphere drift test that guarded the 5.2
+tree and therefore never fired.
+
+So the question is not *"should we build a rapid tier?"* but *"should the rapid
+tier already being run by hand be automated?"*
+
+**Why it fits the mission.** The tiers differ in orbit quality, and that maps
+onto which question each can answer:
+
+| tier | orbit error | latency | answers |
+|---|---|---|---|
+| Final (today) | ~2.5 cm | ~2–3 weeks | interseismic velocity, mm/yr |
+| Rapid | ~2.5 cm | ~1 day | the same, sooner |
+| Ultra-rapid | ~5 cm (predicted half) | hours | **coseismic offset, cm to m** |
+
+A coseismic offset from an M6.5+ is tens of centimetres against a ~5 cm orbit
+error. The rapid tier is *scientifically adequate for the question asked at that
+moment*, even though it is not adequate for velocity work, where a 2 cm
+systematic competes with a ~40 mm/yr signal. Matching tier to question is the
+design, not a compromise.
+
+**The strongest argument is when the manual step runs.** It runs after a major
+earthquake — under time pressure, out of hours, feeding hazard assessment.
+Every manual step this project has examined has carried a defect (the discarded
+outlier mask, the out-of-order catalog records, the empty `2024/` directories),
+and all of those were found in calm conditions. Automating the routine path
+saves time; automating the emergency path removes a failure mode from the moment
+it is least affordable.
+
+**Cost is lower than it looks.** `V_ORBDIR` and `V_ORB` are already PCF
+variables, so the BPE chain does not change — `COD0OPSFIN` → `COD0OPSRAP` /
+`COD0OPSULT` is a substitution. The work is: parameterise
+`fetch_igs_products.sh` (it hardcodes `AC="IGS0OPSFIN"` and `COD0OPSFIN` in six
+places), add a PCF variant per tier, and add a driver.
+`scripts/run_gmf_comparison.sh` is the working pattern for a variant tier
+— variant PCF, variant driver, variant `V_RESULT`.
+
+**Capture the manual procedure before automating it.** It encodes decisions —
+which stations, how long to wait for coverage, what to do when the ultra-rapid
+window only partly covers the session. Automating before writing it down bakes
+in choices nobody can later explain. Same argument as the `offsets` catalog.
+
+**The design hazard that matters most: tiers must be distinguishable in the
+output.** GEONET names them Q3/R3/F3 for a reason. A rapid solution landing in
+`SOL/` under the same `FIN_` prefix as a final one gives a coordinate series
+that silently mixes accuracy tiers, and a 2 cm orbit-quality difference then
+appears in the time series as a step with no physical cause — the reprocessing
+artefact of `provenance_record_design.md` arriving by another route, and equally
+indistinguishable from a real offset by statistics alone. So: separate
+`V_RESULT` per tier, tier recorded in provenance, and **velocity estimation
+consuming Final only** unless someone deliberately decides otherwise. The rapid
+tier answers "what just happened"; it must never quietly become an input to
+"how fast is this moving".
+
+**Against VADASE, which it does not duplicate.** `vadase-rt-monitor` gives
+real-time displacement at a single station, seconds after the event. A
+Q3-equivalent gives a network-adjusted coordinate solution across all stations,
+hours later — the consistent offset *field* one would publish or invert for a
+fault model. The gap between "seconds, one station" and "three weeks, whole
+network" is exactly what Q3/R3 fills.
+
+**Sequencing:** a real ticket, not "on demand". Best placed directly after §1.4
+(the HELMCHK gate) — both are earthquake-response capabilities and they share
+the "flag it for a human" plumbing.
 
 ---
 
@@ -204,7 +320,7 @@ service. Scope separately once the routine pipeline is stable.
 | 1.5 | Offset catalog as versioned campaign input | `campaign_models.py`, `campaign_builder.py` | No |
 | 2.1 | `V_CLUFIN`/`V_CLU` tuning (readiness task K) | `pcf_context.py`, `cpu_config.py` | R740 **available** |
 | 2.2 | Backbone/regional network architecture | design task | R740 available |
-| 2.3 | Rapid tier | — | On demand only |
+| 2.3 | Rapid tier — **consumer exists, run manually today** | `fetch_igs_products.sh`, PCF variants | R740 available |
 
 **Explicitly not doing:** shortening the troposphere interval (already shorter
 than the Philippine precedent), and adopting GEONET's single-fixed-station datum

@@ -10,7 +10,13 @@ from bernese_workflow.pcf_context import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-LUZON_OPT = REPO_ROOT / "config" / "bernese" / "gpsuser52-luzon" / "OPT"
+# The repo's **5.2** panel set. Deliberately named so, because it is NOT the
+# tree the R740 runs: the live 5.4 tree at $U/OPT carries WET_GMF3 in R2S_EDT
+# and R2S_FIN where this one carries WET_GMF. A test against this path proves
+# the committed 5.2 config is stable and proves nothing about production.
+# See the note above LUZON_TROPOSPHERE in pcf_context.py.
+LUZON_OPT_52 = REPO_ROOT / "config" / "bernese" / "gpsuser52-luzon" / "OPT"
+LUZON_OPT = LUZON_OPT_52  # back-compat for the existing tests below
 
 # GPSEST panel line:  MAPPNG 1  "WET_GMF"
 _PANEL_VALUE = re.compile(r'^\s*(?P<key>[A-Z0-9_]+)\s+\d+\s+"(?P<value>[^"]*)"')
@@ -102,3 +108,28 @@ def test_final_solve_is_not_coarser_than_gsi_mindanao():
     """
     hh, mm, ss = (int(x) for x in LUZON_TROPOSPHERE["R2S_FIN"].numpar.split())
     assert hh * 3600 + mm * 60 + ss <= 3 * 3600
+
+
+def test_the_declared_table_is_documented_as_describing_the_52_tree():
+    """Guards the correction of 2026-08-24, not a value.
+
+    The troposphere table was measured from the 5.2 config while the R740 runs
+    a 5.4 tree whose float and final panels use WET_GMF3, not WET_GMF. The
+    drift test above could never have caught that: it compares the table
+    against the same 5.2 files the table was read from.
+
+    That is not a reason to delete the test -- pinning the 5.2 config is
+    worth doing. It is a reason to make the scope explicit, so nobody reads a
+    passing suite as evidence about production. This asserts the explanation
+    stays attached to the code.
+    """
+    src = (
+        REPO_ROOT / "services" / "bernese-workflow" / "src" / "bernese_workflow"
+        / "pcf_context.py"
+    ).read_text(encoding="utf-8")
+    assert "WET_GMF3" in src, (
+        "the note recording that the live 5.4 tree uses WET_GMF3 has been "
+        "removed from pcf_context.py -- restore it or record the decision "
+        "that superseded it"
+    )
+    assert "LIVE 5.4 tree" in src

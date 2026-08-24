@@ -36,8 +36,15 @@ trap 'rm -rf "$TMP"' EXIT
 # Lines that legitimately differ between two runs of identical input.
 # %=SNX  : header carries creation time
 # +FILE/REFERENCE ... CREATED / the SNX time fields
+# The DD-MMM-YY HH:MM pattern was added 2026-08-24. Without it, two runs made
+# on different DAYS always differ on the program-header line
+#     *RNX2SNX_20251210: NEQ reduction and SINEX generation   13-AUG-26 09:01
+# and the tool reports DIFFERS for solutions that are otherwise bit-identical.
+# That is the normal case for this script -- a baseline and a variant are
+# rarely produced the same afternoon -- so the omission made it report a
+# spurious difference exactly when it was most likely to be trusted.
 strip() {
-    grep -vE '^%=SNX|CREATED|^\*?[[:space:]]*(CREATION|FILE/REFERENCE)|[0-9]{2}:[0-9]{3}:[0-9]{5}'
+    grep -vE '^%=SNX|CREATED|^\*?[[:space:]]*(CREATION|FILE/REFERENCE)|[0-9]{2}:[0-9]{3}:[0-9]{5}|[0-9]{2}-[A-Z]{3}-[0-9]{2}[[:space:]]+[0-9]{2}:[0-9]{2}'
 }
 
 same=0; differ=0; onlyA=0; onlyB=0

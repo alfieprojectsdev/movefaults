@@ -70,6 +70,32 @@ class TroposphereSettings:
     """Gradient estimation interval. R2S_AMB's "1" is a count, not a time."""
 
 
+# WHICH TREE THIS DESCRIBES -- read before trusting it (corrected 2026-08-24).
+#
+# These values are measured from `config/bernese/gpsuser52-luzon/OPT`, which is
+# PHIVOLCS' **5.2** panel set. That is NOT what the R740 executes. The live 5.4
+# tree at `$U/OPT` (`/home/gps3/GPSUSER/OPT`) differs on the two panels that
+# matter most:
+#
+#     panel      here (5.2 repo)   LIVE 5.4 tree
+#     R2S_EDT    WET_GMF           WET_GMF3
+#     R2S_FIN    WET_GMF           WET_GMF3
+#
+# `WET_GMF` and `WET_GMF3` are both valid 5.4 cards and they are different
+# functions -- GMF is the 2006 Global Mapping Function, GMF3 the GPT3/VMF3-era
+# gridded successor. Every LUZON solution produced on the R740, including the
+# 30-day 2026-08-06 run, used GMF3. GEO-002's table and this one both say GMF.
+#
+# So the drift test that guards this table proves the 5.2 config has not
+# changed. It says nothing about the configuration that actually produces
+# numbers, and it never fired despite a live/declared mismatch existing the
+# whole time. A guard pointed at the wrong tree reads exactly like a guard.
+#
+# Not "fixed" here by editing the values: which tree is authoritative is a
+# project decision, and silently repointing this table would swap one
+# unexamined claim for another. What is fixed is the claim -- the table now
+# says what it describes. See `docs/project_documentation/
+# bernese_workflow_geonet_actions.md` §1.2 and the session log.
 LUZON_TROPOSPHERE: dict[str, TroposphereSettings] = {
     "R2S_AMB": TroposphereSettings("COSZ", "02 00 00", "1"),
     "R2S_EDT": TroposphereSettings("WET_GMF", "02 00 00", "24 00 00"),
