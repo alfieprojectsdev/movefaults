@@ -271,6 +271,11 @@ teardown() {
         rm -rf "$U/OPT/${p}_${VARIANT_TAG}" && say "  removed OPT/${p}_${VARIANT_TAG}"
     done
     rm -f "$U/PCF/$VARIANT_PCF.PCF" && say "  removed PCF/$VARIANT_PCF.PCF"
+    # The driver too. An earlier version left it behind, so a live Bernese tree
+    # kept a stray *_pcs.pl pointing at a campaign that had been deleted --
+    # exactly the kind of thing someone finds later and cannot explain.
+    rm -f "$U/SCRIPT/${VARIANT_PCF}_pcs.pl" \
+        && say "  removed SCRIPT/${VARIANT_PCF}_pcs.pl"
     say ""
     say "NOT removed (delete by hand once the answer is recorded):"
     say "  campaign  $P/$VARIANT_CAMPAIGN"
