@@ -75,6 +75,34 @@ back silently.
 > confirming the sanitizer covers `FREESTA_F`, not only the paths in gap #8.
 
 ### 1.2 Resolve the mapping-function inconsistency
+
+> **Correction, 2026-08-24 — the table below is measured from the wrong tree.**
+>
+> The panels quoted here come from `config/bernese/gpsuser52-luzon/OPT`, which
+> is PHIVOLCS' **5.2** set. The live 5.4 tree the R740 actually runs
+> (`/home/gps3/GPSUSER/OPT`) differs on the two panels that matter:
+>
+> | panel | doc / declared | **live 5.4** |
+> |---|---|---|
+> | R2S_EDT (float) | `WET_GMF` | **`WET_GMF3`** |
+> | R2S_FIN (final) | `WET_GMF` | **`WET_GMF3`** |
+>
+> `WET_GMF` and `WET_GMF3` are both valid 5.4 cards and are different
+> functions — GMF is the 2006 Global Mapping Function, GMF3 its GPT3/VMF3-era
+> gridded successor. **Every LUZON solution produced on the R740 used GMF3**,
+> the 30-day 2026-08-06 run included.
+>
+> GEO-003's drift test (`test_pcf_context.py`) compares the declared table
+> against the same 5.2 files the table was read from, so it could not have
+> caught this and never fired. A guard pointed at the wrong tree reads exactly
+> like a guard.
+>
+> This does not change §1.2's conclusion — the ambiguity panels still disagree
+> with the float/final panels, which is the point. It changes what "make them
+> agree" means: the target is **`WET_GMF3`**, not `WET_GMF`. Being measured by
+> `scripts/run_gmf_comparison.sh`.
+
+
 **Files:** `config/bernese/gpsuser52-luzon/OPT/*/GPSEST.INP`
 
 Measured across the panels [REPO]:
