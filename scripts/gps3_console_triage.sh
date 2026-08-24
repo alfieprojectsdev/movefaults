@@ -175,7 +175,40 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-rule "7. WHAT TO DO WITH THIS"
+rule "7. PHYSICAL CHECKS — do these BEFORE touching the keyboard"
+cat <<'PHYS'
+This section is not automatable. Read it off the rack, and photograph anything
+with a code on it — the codes are more specific than any log you will find.
+
+  [ ] Chassis power/status LED colour. AMBER = hardware fault; note the code.
+  [ ] LCD status panel on the bezel — read and PHOTOGRAPH any error string.
+  [ ] Link LEDs on eno4's physical port. Link light? Activity light?
+  [ ] Is the cable still in eno4, or did someone move it to another port?
+  [ ] iDRAC dedicated NIC — IS IT CABLED? Almost certainly not; that is why
+      this trip was necessary. CABLE IT WHILE YOU ARE HERE.
+  [ ] What is on screen right now: login prompt, emergency/maintenance shell,
+      GRUB menu, or a kernel panic? Each means something different and only
+      one of them is recoverable by typing.
+  [ ] If GRUB: which entry is default? 6.8.0-111-generic is the last
+      known-good — boot it explicitly to get the machine back, and note the
+      exact entry ID before you leave.
+
+BEFORE YOU LEAVE THE ROOM, regardless of what you found:
+
+  [ ] Give iDRAC a network address and VERIFY it answers from another machine.
+      Commands are in RESUME_NEXT.md — read them there, and do not quote that
+      file into anything outbound; the repository is public and it discloses a
+      password in prose.
+  [ ] Change the iDRAC default password AND the SNMP community string before
+      it touches the network. An unprotected BMC has full power, console and
+      boot-device control and is a standard target.
+  [ ] Record the iDRAC address and the R740 MAC addresses somewhere durable.
+
+Leaving without out-of-band access working means the next failure is another
+trip. That is the whole point of coming.
+PHYS
+
+rule "8. WHAT TO DO WITH THIS"
 cat <<'GUIDE'
 Take the report file back with you. The decision tree, shortest first:
 
@@ -190,11 +223,7 @@ Take the report file back with you. The decision tree, shortest first:
   fewer than four mounts   do NOT start work. Diagnose section 3 first.
   I/O errors present       stop. Check the array before anything writes.
 
-WHILE YOU ARE THERE, if the machine is otherwise healthy: give iDRAC a network
-address. Its absence is why this trip was necessary at all, and the commands
-are in RESUME_NEXT.md. Change the default password and the SNMP community
-string before it touches the network — an unprotected BMC is a standard target
-and this one has full power and console control.
+Section 7 above lists what to do physically. Do not skip the iDRAC item.
 GUIDE
 
 rule "END"
