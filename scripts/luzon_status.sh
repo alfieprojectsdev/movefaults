@@ -48,7 +48,19 @@ disk=$(df -h "$S" | awk 'NR==2{print $4" free ("$5" used)"}')
 # timestamp recorded last time. Without this, "no progress" and "slow day" are
 # indistinguishable from a single sample.
 now=$(date +%s); prev_n=-1; prev_t=$now
-[ -r "$STATE" ] && read -r prev_n prev_t < "$STATE" 2>/dev/null
+if [ -r "$STATE" ]; then
+    read -r _n _t < "$STATE" 2>/dev/null
+    # Both fields must be integers or the file is ignored. An empty or
+    # truncated state file otherwise leaves these unset, and the arithmetic
+    # below then treats "" as 0 -- which dates the last progress to 1970 and
+    # reports STALLED on a perfectly healthy run. A false alarm at 3am is
+    # worse than no alarm, because it is the one that gets the alerting
+    # switched off.
+    case "${_n:-}${_t:-}" in
+        *[!0-9]*|"") : ;;                       # non-numeric or empty: ignore
+        *) prev_n="$_n"; prev_t="$_t" ;;
+    esac
+fi
 if [ "$new" -gt "$prev_n" ]; then
     printf '%s %s\n' "$new" "$now" > "$STATE"
     since=0
