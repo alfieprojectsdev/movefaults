@@ -163,8 +163,12 @@ holder, because getting it wrong is harder to undo than leaving it absent. The
 author settled it: **PHIVOLCS/DOST** — the work was produced on institute
 hardware, in the course of employment, in service of PHIVOLCS research mandates.
 
-`LICENSE` now exists at the repository root: MIT, copyright PHIVOLCS/DOST. It
-also states scope explicitly, because a licence on a repository like this one
+`LICENSE` now exists at the repository root: **verbatim MIT**, copyright
+PHIVOLCS/DOST. Scope lives in a separate `NOTICE` file — the two were initially
+one file, which made GitHub's licence detector report **"Other"** rather than
+**"MIT"**, defeating half the purpose of the fix. Machine-legibility is the
+point of 3d; a licence humans can read but tooling cannot classify only half
+counts. The scope notes exist because a licence on a repository like this one
 invites two wrong readings — that it covers the GNSS observations (it does not;
 the file server is the system of record, release is agency policy, and PAGENET
 is NAMRIA's under MOU), and that it covers the third-party tools invoked here

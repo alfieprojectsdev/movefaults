@@ -1,0 +1,34 @@
+NOTICE — scope of the MIT licence in LICENSE
+
+These notes do not modify the licence. They exist because a licence on a
+repository like this one invites two wrong readings.
+
+COPYRIGHT HOLDER vs. AUTHOR
+
+The copyright holder is PHIVOLCS/DOST: this work was produced on institute
+hardware, in the course of employment, in service of PHIVOLCS research
+mandates. Authorship is a separate and factual matter, recorded in CITATION.cff
+and pyproject.toml. Do not "correct" one to match the other; they are different
+things and both are right.
+
+WHAT THE LICENCE COVERS
+
+The software in this repository — packages/, services/, tools/, scripts/,
+analysis/, migrations/ — together with the documentation in docs/.
+
+WHAT IT DOES NOT COVER
+
+  * GNSS observation data. Raw and processed observations are not distributed
+    here; the file server is the system of record. Release of observation data
+    is governed by agency data-release policy, and some of it belongs to other
+    institutions — the PAGENET network is NAMRIA's, shared under a separate
+    MOU/MOA.
+
+  * Third-party software invoked by this code. Bernese GNSS Software (AIUB),
+    teqc (UNAVCO), gfzrnx (GFZ) and RNXCMP each carry their own licences and
+    are not redistributed here. gfzrnx in particular distinguishes free
+    scientific use from operational pipeline use; see
+    docs/project_documentation/gfzrnx_vs_teqc_rinex3_evidence.md.
+
+  * packages/CORS-dashboard/, retained as forensic reference material rather
+    than as work of this project.

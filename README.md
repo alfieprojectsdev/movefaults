@@ -122,7 +122,7 @@ The licence covers the *software and documentation* in this repository. It does
 **not** cover GNSS observation data (the file server is the system of record,
 release is governed by agency policy, and PAGENET is NAMRIA's under a separate
 MOU), nor the third-party tools this code invokes — Bernese, teqc, gfzrnx and
-RNXCMP each carry their own terms. `LICENSE` states the full scope.
+RNXCMP each carry their own terms. [`NOTICE`](NOTICE) states the full scope.
 
 ## ✍️ Citing this work
 
