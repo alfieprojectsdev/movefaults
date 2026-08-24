@@ -59,7 +59,7 @@ echo "Expected: 6.8.0-137-generic if the pending reboot happened."
 echo "6.8.0-111-generic means it booted the OLD kernel — the machine is fine,"
 echo "it simply did not take. Check the GRUB default before trying again."
 echo "Installed kernels:"
-ls -1 /boot/vmlinuz-* 2>/dev/null | sed 's|.*/vmlinuz-|  |' || echo "  (cannot list /boot)"
+find /boot -maxdepth 1 -name 'vmlinuz-*' 2>/dev/null | sort | sed 's|.*/vmlinuz-|  |' || echo "  (cannot list /boot)"
 
 # ---------------------------------------------------------------------------
 rule "2. NETWORK — the reason for this trip"
@@ -82,7 +82,7 @@ echo "                     predictable names; the other three NICs are"
 echo "                     eno1np0/eno2np1/eno3 and were down by design."
 echo
 echo "-- netplan / NetworkManager config (names only) --"
-ls -1 /etc/netplan/*.yaml 2>/dev/null || echo "  no /etc/netplan/*.yaml"
+find /etc/netplan -maxdepth 1 -name '*.yaml' 2>/dev/null | sort || echo "  no /etc/netplan/*.yaml"
 have nmcli && nmcli -t -f NAME,DEVICE,STATE con show 2>/dev/null | head -10
 
 # ---------------------------------------------------------------------------
@@ -165,10 +165,12 @@ if [ -r "$BERN_VAR" ]; then
   # explicitly — this is a documented trap.
   # shellcheck disable=SC1090
   . "$BERN_VAR" >/dev/null 2>&1
+  # $P/$D/$S/$U here are literal labels for the reader, not expansions.
+  # shellcheck disable=SC2016
   printf '  $P = %s\n  $D = %s\n  $S = %s\n  $U = %s\n' \
     "${P:-unset}" "${D:-unset}" "${S:-unset}" "${U:-unset}"
   echo
-  n=$(ls "${S:-/nonexistent}"/LUZON/2025/SOL/FIN_2025*.SNX.gz 2>/dev/null | wc -l)
+  n=$(find "${S:-/nonexistent}/LUZON/2025/SOL" -name 'FIN_2025*.SNX.gz' 2>/dev/null | wc -l)
   printf '  LUZON 2025 solutions: %s (expect 30)\n' "$n"
 else
   echo "  $BERN_VAR not readable — either not this user, or GPSDATA is not mounted."
