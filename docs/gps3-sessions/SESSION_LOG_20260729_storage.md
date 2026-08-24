@@ -34,6 +34,12 @@ T420.
 since been scoped out — it is NAMRIA's network, relevant only to the June
 training (§21.7). The legacy archive is still single-copy; that one stands.
 
+**Update (2026-08-25, §23):** the reboot is done and the 2025 national run is
+in progress. Four defects sat between the 31-day pilot and a full year, each
+satisfied by accident in the pilot; §23.5 lists them. §23.8 records the shape
+they share with three earlier mistakes — **a check that returns "fine" while
+looking in the wrong place**.
+
 **Update (2026-08-13, §22):** parallel sessions proven byte-identical via
 `REPR_MODE`, correcting §21.4. The MATLAB velocity dependency is retired and
 verified against production. PHIVOLCS' wishlist reordered stage 3, and the
@@ -2445,3 +2451,213 @@ reasoning harder.
 The counter-instance worth naming: the disk-capacity check in §22.10 was about
 to be raised as a blocker and was wrong. Running `df` before writing the warning
 is the whole discipline.
+
+---
+
+## 23. The 2025 national run, and four bugs found by preparing for it — 2026-08-24 to 08-25
+
+**Reboot done** (§22.10's blocker): kernel 6.8.0-137, all four volumes mounted,
+network up. Verified from the console-triage script on the USB, not assumed.
+
+This section is mostly about how much of "launch the 2025 run" turned out not
+to be launching anything. Four defects sat between the 31-day pilot and a
+year, and every one of them was invisible until the scope changed.
+
+### 23.1 The GEONET research landed while this session was away
+
+140 commits on `main` since 2026-08-13. Of the GEONET actions
+(`bernese_workflow_geonet_actions.md`): §1.1 fiducial provenance done
+(`fiducial_set.py`), §1.3 troposphere declaration done, §1.5 offsets catalog
+done — **including the BR14/LUZD ordering fix**, with a test asserting the
+committed catalog stays sorted. §1.4, the HELMCHK gate, remains unbuilt.
+
+### 23.2 GEO-002 settled by measurement: the field is inert
+
+The `WET_GMF` / `WET_NIELL` split across the six GPSEST panels does **not**
+affect the solution. Reprocessing DOY 121 with the three ambiguity panels set
+to `WET_GMF3` gives a **bit-identical** result — the whole SINEX diff is four
+run-timestamp lines, and the intermediate QIF output is identical too.
+
+The mechanism, read from the run's own output rather than inferred: those
+panels do not estimate a troposphere, they **introduce** one from the float
+solution's `.TRP` and estimate only clock parameters. With no zenith delay
+estimated there is no mapping function to apply. The final step, in the same
+run, estimates **870** site-specific troposphere parameters — so `MAPPNG` is
+live there and dead upstream.
+
+**Record it as "the field is inert", not "GMF3 was chosen"**, or a later reader
+infers an evaluation that never happened.
+
+### 23.3 …and the value nobody questioned was the one that mattered
+
+`pcf_context.LUZON_TROPOSPHERE` and GEO-002 both record the float and final
+panels as `WET_GMF`. **The live 5.4 tree runs `WET_GMF3`.** Both are valid 5.4
+cards and they are different functions — GMF is the 2006 Global Mapping
+Function, GMF3 its GPT3/VMF3-era successor. Every LUZON solution on this
+machine used GMF3, the 30-day run included.
+
+The drift test could not have caught it: it reads
+`config/bernese/gpsuser52-luzon/OPT`, the **5.2** panel set, which is the same
+source the declared table was measured from. It compares the table against
+itself and passes regardless of what production does. **A guard pointed at the
+wrong tree reads exactly like a guard**, which is worse than no guard.
+
+Not resolved by editing values — which tree is authoritative is a project
+decision. What was corrected is the *claim*: the table now says what it
+describes, `LUZON_OPT` became `LUZON_OPT_52`, and a test pins the explanation.
+
+So the split that was documented and worried about does not matter, and the
+value never questioned is the one acting on the numbers. **A configuration
+question was ranked by how obvious it looked rather than by where it acted.**
+
+### 23.4 The rapid tier already has a consumer
+
+Both GEONET documents concluded a Q3/R3-equivalent tier was "not urgent"
+because "nothing downstream currently consumes a same-day coordinate."
+**Wrong.** PHIVOLCS has run one by hand since at least 2013, staging
+ultra-rapid and rapid ephemerides after major earthquakes.
+
+The error repeats a shape: the conclusion came from surveying the *codebase*
+and finding no consumer, when the consumer is a manual practice no document
+records. Absence of evidence read as evidence of absence — structurally
+identical to §23.3's guard.
+
+Why the tiering fits the mission: a coseismic offset is tens of centimetres
+against a ~5 cm ultra-rapid orbit error, so the rapid tier is **adequate for
+the question asked in the first hours** while remaining inadequate for velocity
+work, where 2 cm competes with a ~40 mm/yr signal. And the strongest argument
+is *when* the manual step runs — after a major earthquake, under time pressure,
+feeding hazard assessment.
+
+The hazard to design around: **tiers whose outputs are not distinguishable**
+produce a series that silently mixes accuracy levels, and an orbit-quality
+difference then reads as ground movement. Separate `V_RESULT` per tier, tier in
+provenance, velocity estimation consuming Final only.
+
+### 23.5 Four things that stood between 31 days and 365
+
+Recorded together because they share a shape: **each was satisfied by accident
+in the pilot, and the accident stopped holding at scale.**
+
+**(a) No fiducial observation downloader existed.** `fetch_igs_products.sh`
+gets orbits and clocks; `igs_downloader.py` is a `ProductDownloader` reading
+`/gnss/products/`. Nothing fetched the fiducial *observations*. The pilot never
+noticed because Abegail's copied set happened to include 32 days of RINEX 3.
+Written as `scripts/fetch_fiducial_obs.sh` — BKG mirror, 2,025 files, zero
+failures. Parallelism measured rather than assumed: one stream ~190 KB/s, four
+~425 KB/s, so the limit is per-connection latency.
+
+**(b) The staging source only held 31 days.** Switched to the national
+datapool, and verified before switching: for the overlapping day, 10 of 15
+stations are byte-identical and 5 differ in **2–4 observation lines out of
+~100,000** — one unit in the last decimal of a carrier phase, ~0.19 mm on L1,
+from conversion by different `teqc` builds.
+
+**The real hazard in that change was not the one flagged beforehand.** The
+national datapool holds hundreds of sites; staging it unfiltered would have
+enlarged the network from 25 stations to whatever matched a date pattern —
+changing the datum, every coordinate, and comparability with the 30 days
+already solved. The station list is now explicit.
+
+**(c) The fiducials went to a directory the pipeline does not read.** While
+rewriting staging, the RINEX 3 block was changed to *count* files instead of
+copying them, on the belief the downloader had placed them. It writes to
+`$D/RINEX3`, a staging area; the PCF sets `V_RNXDIR` to `$D/LUZON` and
+`RNX_COP` globs that one directory for both filename conventions.
+
+DOY 001 therefore ran with **zero fiducials** and died four steps later in
+`RNXGRA`, on a header-only file `CCRNXO` had produced from no input. The error
+named a Japanese station and "Missing satellite system" — nothing about a
+missing directory. **The 31-day window worked throughout, because August's
+staging had put its fiducials in the right place: the only days that worked
+were the ones already done.**
+
+Caught by running one day before committing to 365.
+
+**(d) The `PCF` collision, fifth instance — and the guard defeated itself.**
+`PCF=LUZON_DLY` became `$U/PCF` again. This project already has a guard: a
+config snapshot taken before sourcing `LOADGPS.setvar`, compared after. It did
+not fire, because making the variable configurable as `PCF="${PCF:-LUZON_DLY}"`
+let an already-polluted environment supply the value **before** the snapshot —
+so the assertion compared a bad value against itself and passed. The naming
+rule is the fix; an override spelled with the bare name reintroduces the bug it
+was written to catch.
+
+### 23.6 The parallel run, and the failure mode it exposed
+
+Launched 04:20 with `MAXSESS=6`. Measured steady state **2.15 min/day, a 2.6×
+speedup** over the 5.55 min/day sequential baseline. Load ~10.6 of 24 cores, so
+6 is not the ceiling; it is the number measured, and oversubscription slows
+runs silently.
+
+`luzon_year.pl` differs from `luzon_repr.pl` in exactly two lines: its own
+campaign prefix, and `REPR_MODE_ON_SUCCESS=remove` — which
+`luzon_repr.pl`'s own comment recommends for production, *"or the campaign area
+will grow without bound"* (~103 GB at 365 days). Failures are still kept.
+
+**Then block 1 reported 38 of 57.** DOY 036 failed in `HELMR1` — *"NO
+REDUNDANCY. NO VERIFICATION OF SITES POSSIBLE"* — and **BSW's multi-session
+mode aborts the entire queue on a failed session.** DOY 040–057 were never
+attempted. Eighteen days lost to one.
+
+Two corrections followed:
+
+- **Reported "0 failures" at 05:32, and that was wrong.** The count came from
+  error lines in the shared log, and an aborted queue does not write one per
+  skipped day. The per-block solution count *was* honest — it said 38/57 — and
+  was not read closely enough. **Count what landed, not what did not complain.**
+- **An exclusion list cannot fix this.** DOY 036 had *six* fiducial files
+  present. HELMR1 failing is not predictable from what was downloaded, so
+  resilience was needed, not prediction.
+
+The driver now counts what landed, finds the first gap, and restarts from the
+day after — each pass must make progress or it stops. And **blocks are computed
+from disk rather than hardcoded**, which is the better half of the fix: BSW
+aborting a queue makes restarts *normal* here, so the script must be safe to
+re-run at any point rather than redoing finished work.
+
+On restart the resume logic earned itself within five minutes: DOY 036 failed
+again — deterministic, not transient — and the run **continued to DOY 040-057**
+instead of stopping. One day lost instead of nineteen.
+
+### 23.7 State at the time of writing
+
+| | |
+|---|---|
+| Products | 365/365, zero failures |
+| Fiducial observations | 2,025 downloaded, zero failures |
+| Staged | 16,924 files, all 365 days, 111 GB |
+| Solutions | 83 and climbing |
+| Known-unrecoverable | DOY 036 (HELMR1), plus 6 days excluded upfront |
+| Disk | 3.8 TB free |
+
+Six days — 058-061, 079, 345 — are excluded for having fewer than three
+reference stations, below the minimum for a Helmert transformation. DOY 139
+remains excluded from §19.
+
+**Not yet understood:** why DOY 036 loses redundancy. Its reference file lists
+355 candidate stations, which is the full a-priori set rather than a screened
+selection — so that file is from a different point in the chain than assumed,
+and the cause is still open. One day of 365; recorded rather than guessed at.
+
+### 23.8 The mistake, this session's instances
+
+§22.12 recorded three. This session added four, and the pattern has sharpened:
+**every one was a check that returned "fine" while looking in the wrong place.**
+
+1. **The drift test guarded the 5.2 tree** while production ran 5.4. Green
+   throughout, proving only that a file matched itself.
+2. **"Nothing consumes a same-day coordinate"** — derived from the codebase,
+   contradicted by a decade of manual practice.
+3. **"0 failures"** — counted complaints rather than results, while 19 days
+   were missing.
+4. **The `PCF` guard** — defeated by making the variable configurable, so it
+   compared a corrupted value against itself.
+
+The common repair is the same in all four: **check the thing, not a proxy for
+the thing.** Count solutions on disk, not error lines. Read the tree that runs,
+not the one in the repo. Ask the people, not the code.
+
+And the counter-instance: running one day before committing to 365 caught (c),
+which would otherwise have failed 335 days overnight while the 30 already-done
+days skipped cleanly and made the run look half-successful.
