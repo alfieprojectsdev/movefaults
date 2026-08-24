@@ -145,31 +145,46 @@ for b in $BLOCKS; do
     # the skip list, applied to failures nobody predicted.
     attempt=0
     start="$from"
-    while :; do
+    failed_days=""
+    while [ "$start" -le "$to" ]; do
         attempt=$((attempt + 1))
         n_left=$(( to - start + 1 ))
-        [ "$n_left" -gt 0 ] || break
         sess=$(printf '%03d0' "$start")
         perl "$DRV" "$LUZON_YEAR" "$sess" "$LUZON_PCF" "$n_left" "$LUZON_MAXSESS" \
             >>"$log" 2>&1
 
-        # Count solutions rather than trusting the exit code. A BPE that
-        # reports success having written nothing has happened here before.
-        made=0; firstgap=""
-        for d in $(seq "$from" "$to"); do
-            if ls "$S/LUZON/$LUZON_YEAR/SOL/FIN_${LUZON_YEAR}$(printf '%03d' "$d")0."* \
-                 >/dev/null 2>&1; then
-                made=$((made + 1))
-            elif [ -z "$firstgap" ]; then
-                firstgap="$d"
-            fi
+        # Find the first day from `start` onward that produced nothing. Count
+        # solutions rather than trusting the exit code -- a BPE that reports
+        # success having written nothing has happened here before.
+        firstgap=""
+        for d in $(seq "$start" "$to"); do
+            ls "$S/LUZON/$LUZON_YEAR/SOL/FIN_${LUZON_YEAR}$(printf '%03d' "$d")0."* \
+                >/dev/null 2>&1 || { firstgap="$d"; break; }
         done
-        [ -n "$firstgap" ] || break                 # block complete
-        [ "$firstgap" -gt "$start" ] || break       # no progress this pass
-        start=$(( firstgap + 1 ))                   # step over the bad day
+        [ -n "$firstgap" ] || break        # everything from start onward is done
+
+        # ALWAYS advance past the failed day. An earlier version broke out of
+        # the loop when firstgap was not beyond start, on the reasoning that a
+        # pass making no progress should stop. That is wrong precisely when it
+        # matters: if the FIRST day of a block fails, firstgap equals start and
+        # the whole remainder of the block is abandoned -- which is the failure
+        # this loop exists to prevent, reintroduced one level down. With DOY
+        # 152-344 in the queue that would have cost 193 days to one bad day.
+        #
+        # Advancing unconditionally also guarantees termination: `start` strictly
+        # increases every pass and the loop ends at `to`.
+        failed_days="$failed_days $(printf '%03d' "$firstgap")"
+        start=$(( firstgap + 1 ))
         printf '\n      resume: DOY %03d failed, continuing from %03d (pass %d) ... ' \
                "$firstgap" "$start" "$((attempt + 1))"
     done
+
+    made=0
+    for d in $(seq "$from" "$to"); do
+        ls "$S/LUZON/$LUZON_YEAR/SOL/FIN_${LUZON_YEAR}$(printf '%03d' "$d")0."* \
+            >/dev/null 2>&1 && made=$((made + 1))
+    done
+    [ -n "$failed_days" ] && printf '\n      failed:%s' "$failed_days"
     printf '%d/%d solved  (%d min, %d pass%s)\n' "$made" "$n" \
            "$(( ($(date +%s) - t0) / 60 ))" "$attempt" \
            "$([ "$attempt" -eq 1 ] && echo "" || echo "es")"
