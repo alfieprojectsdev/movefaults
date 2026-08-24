@@ -28,7 +28,6 @@ set -uo pipefail
 HOST_IP="${GPS3_IP:-192.168.48.98}"
 HOST_USER="${GPS3_USER:-gps3}"
 SUBNET="${GPS3_SUBNET:-192.168.48}"
-IFACE_HINT="${GPS3_IFACE:-}"          # optional: force a client interface
 SWEEP=0
 [ "${1:-}" = "--sweep" ] && SWEEP=1
 

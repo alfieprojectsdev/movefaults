@@ -42,7 +42,9 @@ REPORT="${OUT_DIR}/gps3-evidence-${STAMP}.txt"
 exec > >(tee "$REPORT") 2>&1
 
 sec(){ printf '\n\n===== %s %s\n' "$1" "$(printf '=%.0s' $(seq 1 $((60 - ${#1}))))"; }
-run(){ printf '\n--- $ %s\n' "$*"; eval "$@" 2>&1 | sed 's/^/  /' || echo "  (failed: $*)"; }
+# eval on "$*" rather than "$@": these are command STRINGS with pipes and
+# globs that must be re-parsed, not argument vectors.
+run(){ printf '\n--- $ %s\n' "$*"; eval "$*" 2>&1 | sed 's/^/  /' || echo "  (failed: $*)"; }
 IS_ROOT=0; [ "$(id -u)" = "0" ] && IS_ROOT=1
 
 printf 'gps3 evidence — %s\nhost: %s\nreport: %s\n' "$(date)" "$(hostname)" "$REPORT"
@@ -175,11 +177,15 @@ sec "11. BERNESE — is the work intact"
 BV=/home/gps3/BERN54/LOADGPS.setvar
 if [ -r "$BV" ]; then
   # Sourced in a SUBSHELL so this script's environment stays clean.
+  # Path is runtime-determined by design; nothing to follow statically.
+  # shellcheck disable=SC1090
   ( . "$BV" >/dev/null 2>&1
+    # $P/$D/$S/$U here are literal labels for the reader, not expansions.
+    # shellcheck disable=SC2016
     printf '  $P=%s\n  $D=%s\n  $S=%s\n  $U=%s\n' \
       "${P:-unset}" "${D:-unset}" "${S:-unset}" "${U:-unset}"
     printf '  LUZON 2025 solutions: %s (expect 30)\n' \
-      "$(ls "${S:-/nonexistent}"/LUZON/2025/SOL/FIN_2025*.SNX.gz 2>/dev/null | wc -l)" )
+      "$(find "${S:-/nonexistent}/LUZON/2025/SOL" -name 'FIN_2025*.SNX.gz' 2>/dev/null | wc -l)" )
 else
   echo "  $BV unreadable — wrong user, or GPSDATA did not mount (see section 8)."
 fi
