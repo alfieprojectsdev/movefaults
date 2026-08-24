@@ -184,10 +184,15 @@ for b in $BLOCKS; do
         ls "$S/LUZON/$LUZON_YEAR/SOL/FIN_${LUZON_YEAR}$(printf '%03d' "$d")0."* \
             >/dev/null 2>&1 && made=$((made + 1))
     done
-    [ -n "$failed_days" ] && printf '\n      failed:%s' "$failed_days"
-    printf '%d/%d solved  (%d min, %d pass%s)\n' "$made" "$n" \
+    # Printed AFTER the solved line, on its own line. Emitting it before left
+    # the two running together as "failed: 0360/1 solved", which reads as a
+    # DOY 0360 that does not exist. This log is the run's record; a line that
+    # has to be decoded is worse than one that is merely long.
+    failed_note=""
+    [ -n "$failed_days" ] && failed_note=$(printf '\n      failed:%s' "$failed_days")
+    printf '%d/%d solved  (%d min, %d pass%s)%s\n' "$made" "$n" \
            "$(( ($(date +%s) - t0) / 60 ))" "$attempt" \
-           "$([ "$attempt" -eq 1 ] && echo "" || echo "es")"
+           "$([ "$attempt" -eq 1 ] && echo "" || echo "es")" "$failed_note"
 done
 
 printf '\nelapsed %s min\n' "$(( ($(date +%s) - t_all) / 60 ))"
