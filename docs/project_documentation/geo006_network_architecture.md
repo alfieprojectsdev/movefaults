@@ -147,7 +147,7 @@ was not — which is why it needed a model change rather than a correction.
 
 ## 4. What transfers to the PH network
 
-Our 76 stations against GSI's 1,240 is a different regime and the shape should
+Our ~107 stations against GSI's 1,240 is a different regime and the shape should
 not be copied wholesale. Three things do transfer:
 
 1. **Partition by station history, not only by region.** We have the same split
@@ -278,5 +278,5 @@ reachable" needs a method attached):
   the issue index could not be walked.
 
 So the sizing rule remains open, and the obstacle is a retrieval problem rather
-than an absence. **It is also not on the critical path** — see §4: at 76
+than an absence. **It is also not on the critical path** — see §4: at ~107
 stations the question is probably moot.
