@@ -84,6 +84,36 @@ CONF
 chmod 600 ~/.luzon_mail.conf
 ```
 
+### Which address goes where
+
+`MAIL_FROM` is **not** free. Gmail binds it to the account you authenticate as:
+set it to some other address and Gmail will either rewrite it back or reject
+the message outright, as an anti-spoofing measure. It works only if that
+address is already a verified *"Send mail as"* alias on the account.
+
+`MAIL_TO` is free. Nothing constrains where mail is delivered.
+
+So if you want a PHIVOLCS address involved, it goes on `MAIL_TO`:
+
+```
+MAIL_FROM=you@gmail.com          # must equal MAIL_USER
+MAIL_USER=you@gmail.com          # the account holding the app password
+MAIL_TO=you@phivolcs.dost.gov.ph # free
+```
+
+**Prefer the institutional address for `MAIL_TO`**, for the same reason the
+runbooks and session logs are in git rather than someone's notes. A run report
+landing in a personal mailbox is invisible to PHIVOLCS — if the person who set
+it up is away or moves on, nobody else can see that a reprocessing ran, when,
+or whether it failed. In the institutional inbox it is a record the
+organisation holds.
+
+**If PHIVOLCS runs Google Workspace** — many `.gov.ph` domains do — generate the
+app password on the PHIVOLCS account instead and make all three fields
+PHIVOLCS. Same `MAIL_URL`; Workspace uses the same SMTP endpoint. That is the
+cleanest outcome, because nothing personal remains in the configuration. Worth
+checking first: it is the same amount of work either way.
+
 **This file holds a live credential.** It lives in `$HOME`, never in the
 repository, and `chmod 600` is not optional. Anyone who reads it can send mail
 as you. Revoke it from the same Google page when the run is over — an app
