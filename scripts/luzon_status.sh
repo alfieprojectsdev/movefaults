@@ -37,8 +37,14 @@ tot=$(find "$SOL" -name "FIN_${YEAR}*.SNX.gz" 2>/dev/null | wc -l)
 new=$(( tot - KEPT ))
 [ "$new" -lt 0 ] && new=0
 pct=$(( new * 100 / TARGET_NEW ))
-driver=$(pgrep -c -f 'run_luzon_yea[r]\.sh' 2>/dev/null || echo 0)
-jobs=$(pgrep -c -f 'RUNBP[E]|GPSES[T]|MAUPR[P]' 2>/dev/null || echo 0)
+# `pgrep -c` PRINTS 0 and EXITS NON-ZERO when nothing matches, so the obvious
+# `|| echo 0` appends a second zero and yields "0\n0". Every integer test on
+# that then fails with "integer expression expected" -- and the driver-gone
+# branch never fires, so a FINISHED run reports RUNNING forever. Count lines
+# instead: no output means no matches, and `wc -l` says 0 without an exit-code
+# trick.
+driver=$(pgrep -f 'run_luzon_yea[r]\.sh' 2>/dev/null | wc -l)
+jobs=$(pgrep -f 'RUNBP[E]|GPSES[T]|MAUPR[P]' 2>/dev/null | wc -l)
 camps=$(find "$P" -maxdepth 1 -name 'LZY*' 2>/dev/null | wc -l)
 block=$(grep -oE 'DOY [0-9]{3}-[0-9]{3}' "$LOG" 2>/dev/null | tail -1)
 load=$(cut -d' ' -f1-3 /proc/loadavg)
