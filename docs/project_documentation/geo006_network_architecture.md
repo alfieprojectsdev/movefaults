@@ -220,10 +220,16 @@ it now has the mechanism behind it.
 *results*, not architecture. The title says so; the guess was made from the
 author list.
 
-**Where it probably is:** 測地観測センター (2004),「電子基準点 1,200 点の全国整備
-について」, *国土地理院時報* **103**, 1-51 — a 51-page special issue on the
-national buildout, cited by [NAK09]. That predates V3, which fits [NAK09]
-saying the network structure was inherited unchanged from V3 to V4.
+**Where it is, narrowed to a section.** 測地観測センター (2004), *国土地理院時報*
+**103**, 1-51 — specifically **§1.3.1「GEONETの定常解析戦略の変遷」(畑中雄樹)**,
+"evolution of the GEONET routine analysis strategy". The issue's front matter
+was retrieved and its table of contents names that section; the body is a
+separate file, not yet found. Same Hatanaka who co-authored [NAK09], and
+[NAK09] states the network structure was inherited unchanged, so a 2004
+description should still hold for V4.
+
+Retrieval method and URL-pattern notes are in
+`docs/external-sources/README.md` under *Open lead*.
 
 **What was tried, and failed** (per the sources-register rule that "not
 reachable" needs a method attached):

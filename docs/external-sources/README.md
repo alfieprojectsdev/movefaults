@@ -87,6 +87,57 @@ Kept as a negative result: it stops the next reader repeating the guess.
 
 ---
 
+## Open lead — where the cluster-sizing rule is
+
+**Not retrieved. Recorded so the next attempt starts from a target rather than
+a search.**
+
+測地観測センター (2004),「小特集 電子基準点 1,200 点の全国整備について」,
+*国土地理院時報* **103**, 1-51.
+Front matter: <https://www.gsi.go.jp/common/000024797.pdf> — retrieved
+2026-08-25, extracted as `gsi103_2004_frontmatter_extracted.txt`,
+sha256 `42475917730c7ef3…`
+
+That PDF is **table of contents and summary only** (~31 KB of text for a
+51-page issue); the body sections are separate files. But the TOC pins the
+target exactly:
+
+```
+１．３  電子基準点の定常解析（畑中 雄樹）
+  １．３．１  GEONETの定常解析戦略の変遷     ← the cluster design should be here
+  １．３．２  解析戦略の変更点
+  １．３．３  解析結果の精度
+  １．３．４  定常解析のさらなる改良に向けて
+```
+
+Hatanaka §1.3.1 — *"evolution of the GEONET routine analysis strategy"*. Same
+Hatanaka who co-authored [NAK09], and [NAK09] says the network structure was
+inherited unchanged from V3, so a 2004 description should still describe the
+V4-era architecture.
+
+**How to retrieve a GSI PDF from this machine** — the method matters as much as
+the target:
+
+1. `curl` **cannot reach `gsi.go.jp` at all**. The server requires legacy TLS
+   renegotiation that OpenSSL 3 refuses
+   (`error:0A000152 unsafe legacy renegotiation disabled`). This is not a
+   proxy or firewall problem and no curl flag tried worked.
+2. **WebFetch downloads it** and saves the binary locally even when it cannot
+   parse it. Then `pdftotext <file> out.txt` extracts the Japanese cleanly.
+3. Volume index pages **302-redirect to the GSI homepage**, so the issue cannot
+   be walked. Article URLs must come from a web search instead.
+4. **The IDs are sequential in one global namespace**: `000024797` is vol 103
+   (2004), `000054716`–`000054720` are the five vol 118 (2009) papers. The vol
+   103 body sections are probably near `000024797` and could be probed.
+
+**Why this was left open.** It is a number — stations per cluster — that only
+matters if the PH network grows several-fold. At 76 stations a single cluster
+is probably correct (`geo006_network_architecture.md` §4). What *was* recovered
+from [NAK09] is the load-bearing part: the age-based partition, the V3→V4
+combination mechanics, and the single-fixed-point failure mode.
+
+---
+
 ### Already cited in `geonet_bernese_strategy_research.md`
 
 That document carries its own source table with tags **[FIG13] [TSU17] [TAK23]
