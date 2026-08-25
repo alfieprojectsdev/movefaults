@@ -5,17 +5,47 @@ plain bash and cron — it keeps working when every terminal is closed.
 
 ## Option A — check it over SSH (nothing to configure)
 
-```bash
-ssh gps3 repos/movefaults_clean/scripts/luzon_status.sh
-```
-
-Live view from your laptop, refreshing every five minutes:
+From any machine that can reach the R740, in an ordinary terminal:
 
 ```bash
-watch -n 300 'ssh gps3 repos/movefaults_clean/scripts/luzon_status.sh'
+ssh gps3@192.168.48.98 repos/movefaults_clean/scripts/luzon_status.sh
 ```
 
-An SSH key makes this painless. The **exit code carries the headline**, so it
+Live view, refreshing every five minutes:
+
+```bash
+watch -n 300 'ssh gps3@192.168.48.98 repos/movefaults_clean/scripts/luzon_status.sh'
+```
+
+**`watch` runs on YOUR machine**, not the server. It re-opens an SSH connection
+each time and prints the result; the R740 is unaware of it. Ctrl-C stops it and
+leaves the processing run untouched — the two share nothing.
+
+**The IP rather than a hostname, deliberately.** `ssh gps3` works only where
+`gps3` is defined — your `~/.ssh/config`, `/etc/hosts`, or DNS. That is true on
+the T420 and false on a machine you borrow. `192.168.48.98` works from anywhere
+on the PHIVOLCS network. If you prefer the short form, define it once:
+
+```
+# ~/.ssh/config
+Host gps3
+    HostName 192.168.48.98
+    User gps3
+```
+
+then `ssh gps3 repos/movefaults_clean/scripts/luzon_status.sh` works on that
+machine only.
+
+The path is relative to the `gps3` home directory, which is where SSH starts —
+no `cd` needed.
+
+**Set up an SSH key** or `watch` prompts for a password every five minutes:
+
+```bash
+ssh-copy-id gps3@192.168.48.98
+```
+
+The **exit code carries the headline**, so it
 can drive other things:
 
 | code | meaning |
