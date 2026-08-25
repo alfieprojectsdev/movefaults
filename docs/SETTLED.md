@@ -60,13 +60,18 @@ from `CLAUDE.md` because both duplicates were removed.
 | Palawan has **PKLY/PNDO/PPPC only, all continuous CORS** — not a seeding gap | — |
 | The repository is **PUBLIC**. `LICENSE` is MIT, holder **PHIVOLCS/DOST** | verified 2026-08-25 |
 | `offsets`: **within-station chronological order is clean** (70 stations, 89 events). The BR14/LUZD corruption is fixed | verified 2026-08-25 |
+| **No production month has run through `services/bernese-workflow`.** The service has never created a campaign on the R740 | confirmed 2026-08-25 from run history: every 2025 solution came from a Perl driver in `$U/SCRIPT` launched by `scripts/run_luzon_year.sh`. The 2025 run made this *more* true — 358 days through `scripts/` while the service gained tests |
 
 ### Do not quote the "implementation maturity" table as current
 
-`CLAUDE.md`'s table was measured 2026-08-18 and has **already drifted** —
-`bernese-workflow` collects 229 tests today against the 198 recorded, and
-`pogf-geodetic-suite` 144 against 124. Re-measure before citing, or cite the
-date. What is settled is the *shape*: `bernese-workflow` is **~60% complete,
+`CLAUDE.md`'s table was measured 2026-08-18 and is now **wrong by 31 and 20
+tests**: `bernese-workflow` collects **229** against the 198 recorded,
+`pogf-geodetic-suite` **144** against 124. Both figures were measured
+independently on the T420 and the R740, a day apart, and agreed exactly — so
+this is real drift, not a counting artefact.
+
+**Do not cite those numbers at all.** "Re-measure before citing" understates it;
+the recorded values are not stale-ish, they are wrong. What is settled is the *shape*: `bernese-workflow` is **~60% complete,
 not ~10%**, and that misreport stood for months.
 
 ---
@@ -122,6 +127,7 @@ Old documents and older memory still assert these. They are wrong.
 | gfzrnx is "not wired into any module" | **wired**, on two triggers |
 | VADASE has a one-way integration latch bug | **fixed, then removed.** The `ReceiverMode` state machine moves both ways |
 | `automation_stages.md` Stage 3 | the file has **two `## Stage 3` sections** (lines 206 and 393), overlapping and non-identical. One is stale |
+| `CLAUDE.md`: repo-root `src/` is "`src/db/` alone, **four files**" (twice) | **two** tracked source files — `__init__.py` and `models.py`. The four counts `__pycache__/*.pyc`, which is not in the repository. Verified 2026-08-25 |
 
 ---
 
