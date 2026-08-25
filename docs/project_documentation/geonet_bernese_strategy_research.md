@@ -115,14 +115,29 @@ own diagram:
 - **Regional clusters** — geographically subdivided, each containing "Basic
   cluster station" and "Additional cluster station" (and "New station").
 
-**What remains unresolved:** exact cluster sizes, the station-selection rule for
-cluster membership, and the precise `ADDNEQ2` mechanics for combining backbone
-and regional solutions into one national set. The papers that would carry it
-(e.g. Nakagawa et al. 2009, "Development and Validation of GEONET New Analysis
-Strategy (Version 4)", *Journal of the GSI* 118) are in Japanese and were not
-reachable this session. **Flagged, not guessed at** — this is the load-bearing
-part of "how does Bernese scale past a few hundred stations", and it is the
-first question in the drafted enquiry.
+**RESOLVED 2026-08-25 — the paper was reachable after all.** Nakagawa et al.
+(2009), *国土地理院時報* 118, is at <https://www.gsi.go.jp/common/000054716.pdf>
+and yields to `pdftotext`; it needed local extraction rather than a fetch. Full
+account in [`geo006_network_architecture.md`](geo006_network_architecture.md).
+
+The headline, because it does not survive being guessed at: **the partition is
+by station AGE first, not by geography.** ~950 pre-2001 stations form the
+基本網 (basic network) and everything later the 追加網 (additional network);
+*each* is then split into five regional clusters, and the backbone is a few
+stations drawn **from** the basic network's regional clusters.
+
+The `ADDNEQ2` mechanics are settled too: V3 combined clusters pairwise with the
+backbone and produced **non-unique troposphere solutions** at backbone stations;
+V4 replaced this with a strict top-down hierarchy — backbone, then basic
+regional, then additional regional — each layer fixed before the next is
+solved. The change was gated on Bernese 5.0 allowing troposphere parameters in
+normal-equation files.
+
+**Still open:** stations per cluster (~190 implied, no stated rule), how many
+stations form the backbone ("数点ずつ" — a few from each), and **the network
+size at which partitioning becomes necessary** — the question that actually
+decides whether the PH network needs this. Likely in Miyahara et al. (2009),
+same issue, not yet retrieved.
 
 **F5 adds a second axis:** its two headline changes are "incorporating **global
 network processing**" and troposphere enhancements [TAK23, abstract]. So the
@@ -409,9 +424,12 @@ institution that later found the interval mattered more than the mapping
 function.
 
 ### Still unestablished
-- The `ADDNEQ2` mechanics for combining backbone/regional cluster solutions.
-- Cluster sizes and membership rules; the network size at which partitioning
-  becomes necessary.
+- ~~The `ADDNEQ2` mechanics for combining backbone/regional cluster
+  solutions.~~ **Settled 2026-08-25** — top-down hierarchical fixing; see
+  `geo006_network_architecture.md`.
+- Cluster sizes and membership rules; **the network size at which partitioning
+  becomes necessary** — still open, and the one that decides whether PH needs
+  partitioning at all.
 - What "global network processing" means concretely in F5, and how it interacts
   with the single-fixed-station datum.
 - The actual troposphere estimation intervals in F5 (before and after) — the
