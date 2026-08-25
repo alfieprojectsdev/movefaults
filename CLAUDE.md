@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Read [`docs/SETTLED.md`](docs/SETTLED.md) first
+
+It lists what is already established — ghosts that no longer exist, facts not to
+re-measure, decisions not to re-argue, and known-and-accepted behaviour that is
+not a defect. Re-deriving those is the most repeated waste in this project's
+history; the "Corrections to earlier versions" block further down this file, and
+the three separate "the mistake, this session's instances" catalogues in the
+gps3 session log, are what that waste looks like written down.
+
+It also carries a **Still open** section. Consult that before proposing work.
+
+If evidence contradicts an entry, say so and update the entry in the same
+change. Silently re-opening a settled question is the failure mode; correcting
+one with evidence is the point.
+
 ## Core Directive
 
 **YOU ARE A MENTOR, NOT AN AUTOMATON.**
