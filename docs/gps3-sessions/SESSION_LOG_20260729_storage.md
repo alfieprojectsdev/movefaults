@@ -35,8 +35,8 @@ since been scoped out — it is NAMRIA's network, relevant only to the June
 training (§21.7). The legacy archive is still single-copy; that one stands.
 
 **Update (2026-08-25 evening, §24):** **the 2025 national run is COMPLETE** —
-357 of 365 days, over three runs — two restarts for bugs found mid-flight, the
-final one 249 days in 476 minutes. Seven absences are deliberate; DOY 036 is the
+**358 of 365 days**, over three runs plus a targeted recovery of DOY 036 —
+two restarts for bugs found mid-flight, the main run 249 days in 476 minutes. Seven absences are deliberate; DOY 036 is the
 one genuine failure and is diagnosed (§24.3): wrongly-fixed integer ambiguities,
 float RMS 1.68 mm against fixed 37.98 mm. An atmospheric anomaly protocol now
 exists to settle "was it the ionosphere?" in seconds (§24.4), and status
@@ -2831,7 +2831,7 @@ wrapped command is rejected with `bad minute`.
 
 | | |
 |---|---|
-| 2025 LUZON solutions | 357 / 365 in `$S/LUZON/2025/SOL/` |
+| 2025 LUZON solutions | **358 / 365** in `$S/LUZON/2025/SOL/` (DOY 036 float — see below) |
 | Machine | idle, load ~0 |
 | Disk | 3.8 TB free on `GPSDATA` (6% used) |
 | Open PRs | none |
@@ -2841,7 +2841,34 @@ wrapped command is rejected with `bad minute`.
 want of `structlog` and `uvicorn` — environmental, pre-existing, and fixed by
 `uv sync --all-extras`.
 
-**In progress:** DOY 036 being reprocessed with the ambiguity chain removed
+**DOY 036 recovered — the year is 358/365.** Reprocessed with the ambiguity
+chain removed and the result is indistinguishable from its neighbours:
+
+```
+DOY 035 (fixed)  Rms 1.68 mm
+DOY 036 (FLOAT)  Rms 1.79 mm
+DOY 037 (fixed)  Rms 1.69 mm
+```
+
+That closes §24.3 with a controlled experiment rather than an inference: same
+data, same orbits, ambiguity chain removed, RMS 37.98 → 1.79 mm.
+
+**It is a float solution among 357 fixed ones, and it has been placed in
+`$S/LUZON/2025/SOL/` deliberately** rather than kept apart. The reasoning, and
+the argument against, are both in `README-DOY036-FLOAT.txt` beside the
+solutions — because the risk is not the solution, it is that its filename makes
+it indistinguishable. Its formal errors are larger (~0.2-0.35 mm per coordinate)
+and correctly so; that uncertainty travels in the SINEX covariance, so
+**weighted estimation handles it without special treatment and unweighted use
+does not.**
+
+Reproduce with `$U/PCF/LZFLT_DLY.PCF` and `$U/SCRIPT/LZFLT_DLY_pcs.pl`. **A
+warning for anyone reusing that PCF:** three steps (201, 233, 313) use
+`NEXTJOB=901` as an error exit, so PID 901 cannot simply be deleted. Checking
+only `WAIT=` for dangling references missed this twice; the check must cover
+`NEXTJOB` too.
+
+**Superseded:** DOY 036 was reprocessed with the ambiguity chain removed
 (`LZFLT_DLY.PCF`, PIDs 401-499 dropped, 501 rewired to WAIT=399, output
 redirected to `$S/LZFLT`). If it succeeds the year reaches 358/365. **The result
 is a float solution among 357 ambiguity-fixed ones** — acceptable only because
