@@ -32,6 +32,11 @@ blocking.
 
 ## Seven findings, evidence first
 
+*Numbered by how they were found, **not** by priority — see [Sequence](#sequence)
+for the order to act in. Finding 6 is live in merged code and comes before
+finding 1 there, despite the numbering. (A careful reader took the numbering as
+an ordering on first pass, so it is worth saying.)*
+
 ### 1. `disloc.c` is present, and it is the whole MATLAB lock-in
 
 `analysis/08 Bootstrapping/disloc.c` — *"Computes surface displacements for
@@ -96,6 +101,17 @@ Not the open-ended port the absence of source suggests.
 02 Time Series/Outliers-input name.py                import numpy, os, glob, msvcrt
 ```
 
+**Verifying this has a trap in it.** The import is combined, so the obvious
+search finds nothing:
+
+```
+grep -rn 'import msvcrt' analysis/  ->  0 hits
+grep -rln 'msvcrt'       analysis/  ->  4 files
+```
+
+Search the **bare token**. Confirmed independently from the R740 side, which hit
+the zero-hit result first and would have concluded the finding was wrong.
+
 `msvcrt` is a Windows-only stdlib module, so the import alone raises
 `ModuleNotFoundError` on Linux. Its only appearance in the *body* of any of
 these files is **commented out**:
@@ -135,9 +151,17 @@ one must pick a wrong option from the menu. A 23 mm vertical error at a
 campaign site is enormous against the millimetre precision everything
 downstream assumes.
 
-No evidence exists here that this has happened. But the script cannot prevent
-it, cannot record which antenna was actually used beyond the three-way menu,
-and nobody would see it afterwards. **The PWA already has this right** — which
+**What is verified and what is not.** The arithmetic above is computed, not
+estimated — the constants come from `antenna_constants.md` and the field-ops
+PWA's own test file. What is **not** verified, and cannot be from this
+repository, is whether a TRM22020.00+gp was ever actually deployed on a
+campaign. That is a field-records question, and the R740 review correctly
+declined to confirm it from the tree.
+
+So the finding is: *the script cannot express this antenna, and if one was ever
+used the error is 21-28 mm.* Whether one was used is the open half. The script
+cannot prevent it, cannot record which antenna was actually used beyond the
+three-way menu, and nobody would see it afterwards. **The PWA already has this right** — which
 is the concrete argument for `automation_stages.md`'s claim that the digital
 logsheet is the stage-1 unlock. It is not convenience, it is correctness.
 
