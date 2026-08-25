@@ -136,8 +136,13 @@ normal-equation files.
 **Still open:** stations per cluster (~190 implied, no stated rule), how many
 stations form the backbone ("数点ずつ" — a few from each), and **the network
 size at which partitioning becomes necessary** — the question that actually
-decides whether the PH network needs this. Likely in Miyahara et al. (2009),
-same issue, not yet retrieved.
+decides whether the PH network needs this.
+
+**Not in Miyahara et al. (2009)** — that guess was made from the author list and
+is disproved by the title, which is deformation *results*; see
+[`geo006_network_architecture.md`](geo006_network_architecture.md) §5. The lead
+is 時報 **103** (2004) §1.3.1「GEONETの定常解析戦略の変遷」(畑中雄樹), with the
+retrieval method in `docs/external-sources/README.md`.
 
 **F5 adds a second axis:** its two headline changes are "incorporating **global
 network processing**" and troposphere enhancements [TAK23, abstract]. So the

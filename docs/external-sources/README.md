@@ -1,9 +1,26 @@
 # External sources — what we took, and from where
 
 **Every idea in this repository that came from outside it should be traceable
-to a source here.** Not for licence compliance — for the same reason the
-`offsets` catalog is in git: a claim whose origin is lost becomes folklore, and
-folklore cannot be checked when it turns out to be wrong.
+to a source here** — for the same reason the `offsets` catalog is in git: a
+claim whose origin is lost becomes folklore, and folklore cannot be checked
+when it turns out to be wrong.
+
+**This file also carries the licence basis for anything redistributed here.**
+An earlier version opened by saying it was "not for licence compliance" and
+then leaned on an unexamined licence assumption to decide what to commit. Both
+could not hold; the licence terms are now stated per source.
+
+### GSI content — Public Data License 1.0
+
+出典：国土地理院ウェブサイト（<https://www.gsi.go.jp/>）
+*Source: Geospatial Information Authority of Japan website.*
+
+**Modification notice:** the `*_extracted.txt` files here are `pdftotext`
+output of GSI PDFs. That conversion is **lossy** — figures, tables and page
+layout are absent, and line breaks follow the PDF's columns rather than the
+sentences. They are processed derivatives, **not** GSI's published documents,
+and should not be presented as such. Each carries a sha256 so a reader can tell
+whether they hold what was actually read.
 
 Two of the entries below were **already found to be wrong or incomplete** once
 the primary source was read. That is the argument for this file.
@@ -200,6 +217,18 @@ Neither manual is committed; both are AIUB's to distribute.
 2. **Record the date retrieved.** A URL is not a citation; a URL plus a date is.
 3. **Say what was taken.** "We read X" is not attribution — the table says which
    *idea* moved, and into which file.
-4. **Keep extracted text, not the source.** A fetch that worked once is not a
-   source that will work later. Publishers' PDFs stay theirs.
+4. **Check the licence, then decide what to keep.** GSI website content is
+   **Public Data License 1.0**, which permits redistribution with attribution
+   and a note that the content was processed. That is why the extracted text
+   below is committed. AIUB and commercial-publisher PDFs carry no such grant
+   and are **not** committed.
+
+   **Extracting text does not change a source's licence — the text is the
+   work.** An earlier version of this rule said "keep extracted text, not the
+   source… publishers' PDFs stay theirs", reasoning from *format*. That is
+   wrong: `pdftotext` output of a paper is the paper, title page through
+   references. It happened to land on the right answer for GSI because PDL 1.0
+   permits redistribution anyway; applied to the AIUB manuals listed below it
+   would have produced infringement while sounding equally principled.
+   Caught in review of PR #141.
 5. **"Not reachable" needs a method attached.** Say what was tried.

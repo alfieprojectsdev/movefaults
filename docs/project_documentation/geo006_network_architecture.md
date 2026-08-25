@@ -164,10 +164,44 @@ not be copied wholesale. Three things do transfer:
 
 ### And one thing that does not
 
-**At 76 stations, a single cluster is probably correct.** GSI partitioned
-because 1,240 would not fit, and Cass's note that the PCF carries station
-information for all of PH points the same way. The 2025 LUZON run processed 26
-stations per day at 1.91 min/day; 76 is roughly 3× the network, not 16×.
+**At ~107 stations, a single cluster is probably still correct — but the
+margin is thinner than an earlier draft of this section claimed.**
+
+The number needs its scope stated, because the repository carries several and
+they count different things:
+
+| figure | what it counts | source |
+|---|---|---|
+| **107** | distinct stations with **2025** RINEX 2 in our local datapool copy | measured 2026-08-25, `/srv/gnss-archive/datapool/PHIVOLCS` |
+| 110 | distinct stations, all years, same top-level directory | measured, same |
+| 439 | stations **catalogued** at the file server, ~52 estimated daily | `CLAUDE.md` |
+| 425–438 | national-network figures in planning documents | `national_network_subnetwork_prep_plan`, research brief |
+| 26 | stations per day in the completed 2025 LUZON run | §24.1 |
+
+**107 is the operative number for a 2025 national run** — it is what we hold
+data for. The 439 is a catalogue including historical and non-continuous sites;
+the planning figures sit between.
+
+> **Correction, from review of PR #141.** This section first said "76
+> stations… roughly 3× the network". **76 was a single day's count** — distinct
+> stations with a `.25o` file on DOY 200 — presented as if it were the national
+> total, with no scope and no source. Across the full year the figure is
+> **107**, and the ratio to the 26/day already processed is ~4×, not 3×.
+>
+> The reviewer also caught that the paragraph argued against itself: it cited
+> Cass's note that the PCF carries station information for **all of PH**, which
+> is plainly not 76.
+
+The conclusion survives the correction, and the reasoning is worth stating
+rather than the number alone: GSI partitioned at **~1,240** stations. At ~107
+we are an order of magnitude below that, and partitioning is a scaling remedy
+whose cost is paid at the combination step — V3's non-unique troposphere (§2)
+is what that cost looks like. **Do not adopt it before the network size demands
+it.**
+
+The threshold at which GSI found it necessary is still not established (§5), so
+"an order of magnitude below 1,240" is an argument from distance, not from a
+known limit.
 
 **Partitioning is a scaling remedy with a cost** — the V3 experience is that
 the combination step is where correctness is lost. Do not adopt it before the
