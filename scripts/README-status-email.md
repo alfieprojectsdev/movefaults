@@ -166,9 +166,9 @@ scripts/luzon_status.sh --email
 It prints `(emailed <address>)` on success and `(email FAILED …)` on failure,
 and either way the processing run is untouched.
 
-**Use one of the three cron forms above, not several.** They all fire on the
-same `*/30` schedule, so keeping two means two status runs at once and, with
-`--email` on both, two messages.
+**Use one of the two cron forms above, not both.** They fire on the same
+`*/30` schedule, so keeping both means two status runs at once and, with
+`--email` on each, two messages every half hour.
 
 ## Why not a mail server
 
