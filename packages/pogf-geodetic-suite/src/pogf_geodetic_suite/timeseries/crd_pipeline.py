@@ -84,12 +84,37 @@ def session_to_decimal_year(session: str) -> float:
     """
     Convert a 5-char Bernese YYDDD session code to a decimal year.
 
-    Two-digit year rule: YY ≤ 80 → 2000 + YY, YY > 80 → 1900 + YY.
+    Two-digit year rule: YY <= 80 -> 2000 + YY, YY > 80 -> 1900 + YY.
+
+    **Convention: ``year + DOY/365.25``, matching ``RUNX_v2.py``.**
+    DOY 1 maps to ``year + 0.0027``, not to ``year.0000``.
+
+    This is deliberate and must not be "corrected". An earlier version used
+    ``(DOY - 1)/365.25``, which is arguably the better definition in isolation
+    -- it puts DOY 1 at the start of the year -- but it disagrees with the
+    legacy pipeline by exactly one day (0.002738 yr) at every epoch.
+
+    Why the legacy convention wins:
+
+    * The hand-maintained ``offsets`` catalog is written in it. Inverting real
+      entries confirms it: ``ALBU 2025.7474`` -> DOY 272.99 and
+      ``AROY 2023.1314`` -> DOY 47.99, whole days under this rule and
+      fractional under the other.
+    * ``parse_offsets_file`` reads those decimal years verbatim and
+      ``estimate_velocity`` splits segments on them, so a series built on the
+      other convention places every offset one day early relative to its own
+      epochs.
+    * Every published PLOT file and velocity came from ``RUNX_v2.py``.
+    * PHIVOLCS staff compute catalog entries by hand using this rule.
+
+    The absolute epoch carries no scientific meaning here; agreement between
+    the series and the catalog does. A pipeline that is "more correct" in
+    isolation while disagreeing with its own offset catalog is strictly worse.
 
     Examples:
-        "23001"  →  2023 + 0/365.25  ≈  2023.0000
-        "23365"  →  2023 + 364/365.25  ≈  2023.9973
-        "99365"  →  1999 + 364/365.25  ≈  1999.9973
+        "23001"  ->  2023 + 1/365.25    ~  2023.0027
+        "23365"  ->  2023 + 365/365.25  ~  2023.9993
+        "99365"  ->  1999 + 365/365.25  ~  1999.9993
     """
     if len(session) < 5:
         raise ValueError(f"Session code must be at least 5 characters, got: {session!r}")
@@ -103,7 +128,9 @@ def session_to_decimal_year(session: str) -> float:
         raise ValueError(f"Day-of-year {doy} out of range in session {session!r}")
 
     year = 2000 + yy if yy <= 80 else 1900 + yy
-    return year + (doy - 1) / 365.25
+    # DOY, not DOY-1 -- see the docstring. Changing this silently shifts
+    # every epoch one day relative to the offsets catalog.
+    return year + doy / 365.25
 
 
 def _extract_session_from_filename(filename: str) -> str | None:
