@@ -206,6 +206,11 @@ def main() -> int:
     if not args.scan and args.doy is None:
         print("give --doy N or --scan", file=sys.stderr)
         return 2
+    # Validate before building the year's table, or an out-of-range day dies
+    # with a bare KeyError from the lookup and tells the caller nothing.
+    if args.doy is not None and not 1 <= args.doy <= 366:
+        print(f"--doy must be 1-366, got {args.doy}", file=sys.stderr)
+        return 2
 
     print(f"reading ionosphere maps from {args.datapool} ...", file=sys.stderr)
     tec = {d: day_tec(args.datapool, args.year, d) for d in range(1, 366)}
