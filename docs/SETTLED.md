@@ -60,6 +60,10 @@ from `CLAUDE.md` because both duplicates were removed.
 | Palawan has **PKLY/PNDO/PPPC only, all continuous CORS** — not a seeding gap | — |
 | The repository is **PUBLIC**. `LICENSE` is MIT, holder **PHIVOLCS/DOST** | verified 2026-08-25 |
 | `offsets`: **within-station chronological order is clean** (70 stations, 89 events). The BR14/LUZD corruption is fixed | verified 2026-08-25 |
+| **GEONET partitions by station AGE first, not geography** — ~950 pre-2001 stations (基本網) and everything later (追加網), *each* then split into 5 regional clusters; the backbone is drawn **from** the basic network's clusters | [NAK09], `geo006_network_architecture.md` §1 |
+| **GEONET V4 combines clusters top-down, each layer fixed before the next** — backbone → basic regional → additional regional. V3's pairwise merging gave **non-unique troposphere** at backbone stations | [NAK09] §2 |
+| **GEONET constrains the whole national network through ONE station (Tsukuba-1).** Under V3 its piecewise-linear coordinate model missed the vertical annual variation, producing an apparent annual signal at **every** GEONET station | [KOT09], §4b |
+| **~107 stations** have 2025 RINEX 2 in our local datapool. Not 76 (one day's count), not 439 (file-server catalogue) | measured 2026-08-25 |
 | **No production month has run through `services/bernese-workflow`.** The service has never created a campaign on the R740 | confirmed 2026-08-25 from run history: every 2025 solution came from a Perl driver in `$U/SCRIPT` launched by `scripts/run_luzon_year.sh`. The 2025 run made this *more* true — 358 days through `scripts/` while the service gained tests |
 
 ### Do not quote the "implementation maturity" table as current
@@ -88,6 +92,8 @@ not ~10%**, and that misreport stood for months.
 | **No cron for the scientific pipeline.** Run *status* has cron; the pipeline does not | its failure mode is silent wrong numbers; scheduling removes the person who would notice |
 | **Non-commercial free tiers are a legitimate fit** (Vercel Hobby et al.) | PHIVOLCS work generates no profit by design |
 | **`analysis/` `01 RINEX conversion` is not ported yet** | downstream of the digital logsheet; porting now automates the wrong half |
+| **Do not partition the PH network into clusters yet** | GSI partitioned at ~1,240 stations; we have ~107. Partitioning is a scaling remedy whose cost is paid at the combination step — V3's non-unique troposphere is what that cost looks like |
+| **Keep the multi-station minimum-constraint datum**; do not adopt GEONET's single fixed station | its failure mode is *global* — one station's unmodelled motion reached all ~1,240 GEONET stations — and it needs a daily wide-area solution to be safe |
 
 ---
 
@@ -127,6 +133,8 @@ Old documents and older memory still assert these. They are wrong.
 | gfzrnx is "not wired into any module" | **wired**, on two triggers |
 | VADASE has a one-way integration latch bug | **fixed, then removed.** The `ReceiverMode` state machine moves both ways |
 | `automation_stages.md` Stage 3 | the file has **two `## Stage 3` sections** (lines 206 and 393), overlapping and non-identical. One is stale |
+| research brief: Nakagawa et al. (2009) is "in Japanese and **not reachable**" | **reachable** — it needed `pdftotext`, not a fetch. "Not reachable" meant "not tried hard enough" |
+| `CLAUDE.md`: repo-root `src/` is "four files" | **two** — `src/db/` only, verified 2026-08-25 |
 | `CLAUDE.md`: repo-root `src/` is "`src/db/` alone, **four files**" (twice) | **two** tracked source files — `__init__.py` and `models.py`. The four counts `__pycache__/*.pyc`, which is not in the repository. Verified 2026-08-25 |
 
 ---
@@ -153,6 +161,20 @@ genuinely unresolved as of 2026-08-25 and *should* be worked on:
 - **`disloc3d` has no source in-tree**; `disloc.c` does. (PR #139, finding 1)
 - **Which of three inversion methods** — grid search, bootstrap, MCMC — is the
   one to port. (PR #139, finding 5)
+- **The network size at which cluster partitioning becomes necessary.** GSI
+  partitioned at ~1,240 and never states a threshold. Until it is known, "~107
+  is well below 1,240" is an argument from distance, not from a limit. Lead:
+  時報 **103** (2004) §1.3.1「GEONETの定常解析戦略の変遷」(畑中雄樹) — retrieval
+  method in `docs/external-sources/README.md`.
+- **Stations per GEONET cluster** (~190 implied across 5 clusters, no stated
+  rule) and **how many form the backbone** ("数点ずつ" — a few from each).
+
+---
+
+**Source tags** used above — `[NAK09]`, `[KOT09]` — resolve in
+[`docs/external-sources/README.md`](external-sources/README.md), which records
+what was taken from each paper, the licence it is redistributed under, and the
+extracted text with its sha256.
 
 ---
 
