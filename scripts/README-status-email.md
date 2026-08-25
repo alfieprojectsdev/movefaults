@@ -43,7 +43,9 @@ no `cd` needed.
 
 ```bash
 ssh-copy-id gps3@192.168.48.98
-``` The **exit code carries the headline**, so it
+```
+
+The **exit code carries the headline**, so it
 can drive other things:
 
 | code | meaning |
