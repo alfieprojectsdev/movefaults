@@ -34,6 +34,14 @@ T420.
 since been scoped out — it is NAMRIA's network, relevant only to the June
 training (§21.7). The legacy archive is still single-copy; that one stands.
 
+**Update (2026-08-25 evening, §24):** **the 2025 national run is COMPLETE** —
+**358 of 365 days**, over three runs plus a targeted recovery of DOY 036 —
+two restarts for bugs found mid-flight, the main run 249 days in 476 minutes. Seven absences are deliberate; DOY 036 is the
+one genuine failure and is diagnosed (§24.3): wrongly-fixed integer ambiguities,
+float RMS 1.68 mm against fixed 37.98 mm. An atmospheric anomaly protocol now
+exists to settle "was it the ionosphere?" in seconds (§24.4), and status
+monitoring runs independently of any session (§24.5).
+
 **Update (2026-08-25, §23):** the reboot is done and the 2025 national run is
 in progress. Four defects sat between the 31-day pilot and a full year, each
 satisfied by accident in the pilot; §23.5 lists them. §23.8 records the shape
@@ -2661,3 +2669,235 @@ not the one in the repo. Ask the people, not the code.
 And the counter-instance: running one day before committing to 365 caught (c),
 which would otherwise have failed 335 days overnight while the 30 already-done
 days skipped cleanly and made the run look half-successful.
+
+---
+
+## 24. The 2025 run completed, and DOY 036 diagnosed — 2026-08-25
+
+**For the T420: this is the state of the R740 as of 2026-08-25 evening.**
+
+### 24.1 The year is done — 357 of 365 across three runs, 358 with DOY 036 recovered
+
+**It did not run once cleanly, and the first version of this section implied it
+did.** Two bugs were found mid-flight and each forced a restart (§24.2). The
+restarts were cheap because blocks are computed from what is on disk, so
+nothing already solved was redone — but the history is three runs, not one, and
+a single elapsed time cannot describe it.
+
+| launched | ended | why it stopped | days solved |
+|---|---|---|---|
+| 04:20 | 06:09 | restarted to add resume-past-failure | 49 |
+| 06:09 | 07:40 | restarted to fix the first-day-failure bug | 59 |
+| **07:40** | **16:02** | **completed** | **249** |
+
+The final run's own log, which is where the 476 minutes comes from:
+
+```
+DOY 036        0/1     (  5 min)   the one genuine failure
+DOY 084        1/1     (  5 min)
+DOY 086-120   35/35    ( 74 min)
+DOY 152-344  193/193   (347 min)
+DOY 346-365   20/20    ( 44 min)
+             249/250   (476 min)
+```
+
+**476 min ÷ 249 days = 1.91 min/day, a 2.9x speedup** on the 5.55 min/day
+sequential baseline. Solutions in `$S/LUZON/2025/SOL/`.
+
+> **Correction, caught in review of PR #138.** This section first read
+> *"357 of 365 days in 476 minutes"*, which divides to 1.33 min/day and
+> contradicts the same paragraph's own speedup figure. **357 is the cumulative
+> total on disk** — 108 days already present plus 249 from the final run — and
+> pairing it with one run's elapsed time is a rate nobody could reproduce.
+>
+> The block table was wrong too, in a way the arithmetic hid: it listed
+> `DOY 040-057` (which ran at 06:14, in the *previous* restart) while omitting
+> DOY 036 and 084, which were in the 476 minutes. It summed to 266 — neither
+> one run nor the year.
+>
+> This matters because the log is the succession plan and elapsed time is what
+> a successor budgets from. Reading 1.33 min/day, they would plan a run a third
+> shorter than it takes.
+
+**Seven days absent, all of them deliberately:**
+
+| days | reason |
+|---|---|
+| 058-061, 079, 345 | fewer than three reference stations — below the minimum for a Helmert transformation, so no way to tie them to the frame |
+| 139 | one station in our copy of the datapool (§19) |
+
+**DOY 036 is not in that table because it is no longer absent.** It failed here,
+was diagnosed (§24.3) and recovered separately as a float solution (§24.6). It
+is named here rather than dropped, because it is the one day in 2025 carrying a
+caveat that matters downstream — and a table headed "absent" that quietly loses
+it would erase exactly the thing someone needs to find.
+
+### 24.2 Two bugs the run itself exposed
+
+**A failed first day would have abandoned its whole block.** The resume loop
+broke out when the first gap was not *beyond* where the pass started — but if
+the FIRST day of a block fails, the gap IS the start. DOY 036 did not expose it
+because that block was one day; DOY 152-344 would have cost **193 days to one
+bad day** and reported the block finished. Fixed and simulated against six
+failure patterns before trusting it.
+
+**A finished run reported RUNNING forever.** `pgrep -c` prints `0` *and* exits
+non-zero when nothing matches, so `|| echo 0` produced `"0\n0"`; every integer
+test on that failed and the driver-gone branch never fired. The half-hourly
+email would have said RUNNING indefinitely. A notification that cannot report
+completion is worse than none, because it is trusted.
+
+### 24.3 DOY 036: wrongly-fixed ambiguities, and everything else eliminated
+
+```
+FLT (float, ambiguities free)   Rms:  1.68 mm   26 files, 3586 params
+FIN (fixed, ambiguities fixed)  Rms: 37.98 mm   26 files, 2053 params
+```
+
+**The float solution is textbook-clean and fixing the ambiguities destroys it.**
+1.68 mm proves the observations, orbits and atmosphere are all fine. Constraining
+1,533 ambiguities to integers then degrades RMS **22x** — a hard, wrong
+constraint the adjustment cannot escape. That explains coordinates landing
+25-85 mm off a priori and every fiducial's North residual being negative in a
+correlated way. Not station noise; a systematic error injected by the fixing
+step.
+
+The HELMR1 failure that stopped the day — *"NO REDUNDANCY. NO VERIFICATION OF
+SITES POSSIBLE"* — is a **symptom**. Five of six fiducials were rejected at
+89 mm RMS, leaving one station against three parameters. The Bernese FAQ entry
+*"HELMTR: TOO MANY PARAMETERS TO ESTIMATE"* describes exactly this and
+attributes it to "outlier rejection procedures eliminating stations with
+exceptionally poor coordinates". **The rejection was correct behaviour on a
+genuinely poor solution.**
+
+Eliminated with evidence, not assumption:
+
+| candidate | how it was ruled out |
+|---|---|
+| Ionosphere / plasma bubble | TEC z = +0.50, intra-day range z = -0.06, Kp 2.7 — see §24.4 |
+| Orbits, ERP, clocks, biases | all four products valid gzip, complete |
+| Thin network | 22 local + 6 fiducial, identical to neighbouring days |
+| Truncated station data | every file within 2% of the previous day |
+| Bad observations | **the float RMS of 1.68 mm settles this** |
+
+**Still open:** *which* ambiguities were fixed wrongly, and why that day. The
+FAQ's `ARSTR3` entry — receiver type not assigned to a receiver group — is a
+known cause of ambiguity-resolution misbehaviour and worth checking against the
+station list, but there is no direct evidence for it here.
+
+### 24.4 An atmospheric anomaly protocol, because the question will recur
+
+`scripts/atmospheric_anomaly.py`. "Maybe it was the ionosphere" either gets
+checked properly once or repeated forever, and checking it by hand cannot be
+applied to 365 days.
+
+Three independent lines, deliberately able to disagree:
+
+1. **Local TEC over the site**, from the CODE global ionosphere maps
+   `fetch_igs_products.sh` **already downloads** — all 365 days on disk, no new
+   data needed.
+2. **Intra-day TEC range**, separate from the mean, because equatorial plasma
+   bubbles are a Philippine problem specifically — the magnetic equator runs
+   just south — and appear as rapid post-sunset structure rather than a raised
+   average. **A day can be quiet by every global measure and still be locally
+   shredded.**
+3. **Kp/ap from GFZ**, independent of our data entirely, so agreement is
+   corroboration rather than one measurement seen twice.
+
+It reports CONFIRMED / ELIMINATED / INCONCLUSIVE **with the numbers** and does
+not decide. Thresholds are stated at the top of the file so a reader can argue
+with a number rather than with code.
+
+The year scan validates the method: the most disturbed days cluster around the
+**March equinox (DOY 76-88)**, which is exactly when equatorial ionisation
+peaks over the Philippines. **DOY 079 is the single most disturbed day of 2025**
+— and is one of the six excluded for too few reference stations, which may be
+symptom rather than coincidence: a disturbed ionosphere degrades data quality,
+which is how stations get dropped. Worth checking. **DOY 154 (Kp 7.0, Ap 60)**
+was a real geomagnetic storm and processed fine — a useful negative control.
+
+### 24.5 Status monitoring that outlives any session
+
+`scripts/luzon_status.sh` + `scripts/README-status-email.md`. Plain bash and
+cron, so it keeps reporting when every terminal is closed.
+
+- **SSH:** `ssh gps3@192.168.48.98 repos/movefaults_clean/scripts/luzon_status.sh`
+- **Email:** `curl` speaks SMTP directly — no mail server, no sudo, nothing
+  installed. Verified reachable from inside the PHIVOLCS network.
+- **Exit code carries the headline** (0 running / 1 finished / 2 stalled /
+  3 driver gone), so cron can mail only when a human is needed.
+
+Note for whoever sets this up: `MAIL_FROM` is bound to the authenticating
+account and cannot be an arbitrary address; `MAIL_TO` is the free one, and the
+institutional address belongs there. And **cron has no line continuation** — a
+wrapped command is rejected with `bad minute`.
+
+### 24.6 State at the time of writing
+
+| | |
+|---|---|
+| 2025 LUZON solutions | **358 / 365** in `$S/LUZON/2025/SOL/` (DOY 036 float — see below) |
+| Machine | idle, load ~0 |
+| Disk | 3.8 TB free on `GPSDATA` (6% used) |
+| Open PRs | none |
+| Tests | 373 pass (`packages/`, `services/bernese-workflow`) |
+
+`services/vadase-rt-monitor` and `services/field-ops` fail collection here for
+want of `structlog` and `uvicorn` — environmental, pre-existing, and fixed by
+`uv sync --all-extras`.
+
+**DOY 036 recovered — the year is 358/365.** Reprocessed with the ambiguity
+chain removed and the result is indistinguishable from its neighbours:
+
+```
+DOY 035 (fixed)  Rms 1.68 mm
+DOY 036 (FLOAT)  Rms 1.79 mm
+DOY 037 (fixed)  Rms 1.69 mm
+```
+
+That closes §24.3 with a controlled experiment rather than an inference: same
+data, same orbits, ambiguity chain removed, RMS 37.98 → 1.79 mm.
+
+**It is a float solution among 357 fixed ones, and it has been placed in
+`$S/LUZON/2025/SOL/` deliberately** rather than kept apart. The reasoning, and
+the argument against, are both in `README-DOY036-FLOAT.txt` beside the
+solutions — because the risk is not the solution, it is that its filename makes
+it indistinguishable. Its formal errors are larger (~0.2-0.35 mm per coordinate)
+and correctly so; that uncertainty travels in the SINEX covariance, so
+**weighted estimation handles it without special treatment and unweighted use
+does not.**
+
+Reproduce with `$U/PCF/LZFLT_DLY.PCF` and `$U/SCRIPT/LZFLT_DLY_pcs.pl`. **A
+warning for anyone reusing that PCF:** three steps (201, 233, 313) use
+`NEXTJOB=901` as an error exit, so PID 901 cannot simply be deleted. Checking
+only `WAIT=` for dangling references missed this twice; the check must cover
+`NEXTJOB` too.
+
+**Superseded:** DOY 036 was reprocessed with the ambiguity chain removed
+(`LZFLT_DLY.PCF`, PIDs 401-499 dropped, 501 rewired to WAIT=399, output
+redirected to `$S/LZFLT`). If it succeeds the year reaches 358/365. **The result
+is a float solution among 357 ambiguity-fixed ones** — acceptable only because
+its larger formal errors travel with it in the SINEX covariance and downstream
+weighting can honour them. It must not be treated as equivalent.
+
+### 24.7 The mistake, continued
+
+§22.12 recorded three instances, §23.8 four. This session added three more, all
+the same shape — **a check that returns "fine" while looking in the wrong
+place**:
+
+1. **"0 failures"** while nineteen days were missing — counted error lines in a
+   log where an aborted queue writes none.
+2. **`pgrep -c`** — trusted an exit code that does not mean what it looks like.
+3. **A dangling-reference check that covered only `WAIT=`** — it passed on a
+   PCF whose error exits used `NEXTJOB=901`, a step that had been deleted. Four
+   attempts at the DOY 036 recovery, two of them lost to the same miss.
+
+All three are one habit: **checking a proxy for the thing rather than the
+thing.** Error lines instead of solutions on disk. An exit code instead of a
+process list. `WAIT=` instead of every reference to a step.
+
+And one new shape worth naming separately: **a guard that defeats itself**. The
+resume loop's "no progress, stop" rule was correct reasoning that became the
+exact failure it was written to prevent, one level down. Guards need testing
+against the case they exist for, not only against the case that prompted them.
