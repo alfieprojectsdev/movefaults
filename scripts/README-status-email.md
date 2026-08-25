@@ -75,6 +75,11 @@ crontab -e
 Cron survives logout and reboot. **An email failure never affects the run** —
 the two are entirely separate processes.
 
+**Start with this form for a first run.** Every thirty minutes is noisy, but
+silence from the quieter form below is indistinguishable from a broken mail
+setup — and you find out which at the moment you most wanted the alert. Run it
+loud until a message has actually arrived, then switch.
+
 ### Quieter alternative: only mail when something needs you
 
 Every 30 minutes for a 13-hour run is 26 emails. To hear only about problems:
@@ -85,7 +90,17 @@ Every 30 minutes for a 13-hour run is 26 emails. To hear only about problems:
 ```
 
 The first call is silent on exit 0 and triggers the second only on **finished,
-stalled, or driver-gone**. Recommended for an overnight run.
+stalled, or driver-gone**. Good for an overnight run once delivery is proven —
+not before, for the reason above.
+
+Prove delivery by hand rather than waiting for cron:
+
+```bash
+scripts/luzon_status.sh --email
+```
+
+It prints `(emailed <address>)` on success and `(email FAILED …)` on failure,
+and either way the processing run is untouched.
 
 ## Why not a mail server
 
