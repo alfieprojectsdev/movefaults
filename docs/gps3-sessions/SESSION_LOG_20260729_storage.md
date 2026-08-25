@@ -2676,7 +2676,7 @@ days skipped cleanly and made the run look half-successful.
 
 **For the T420: this is the state of the R740 as of 2026-08-25 evening.**
 
-### 24.1 The year is done — 357 of 365 days, across three runs
+### 24.1 The year is done — 357 of 365 across three runs, 358 with DOY 036 recovered
 
 **It did not run once cleanly, and the first version of this section implied it
 did.** Two bugs were found mid-flight and each forced a restart (§24.2). The
@@ -2719,13 +2719,18 @@ sequential baseline. Solutions in `$S/LUZON/2025/SOL/`.
 > a successor budgets from. Reading 1.33 min/day, they would plan a run a third
 > shorter than it takes.
 
-**Eight days absent, seven of them deliberately:**
+**Seven days absent, all of them deliberately:**
 
 | days | reason |
 |---|---|
 | 058-061, 079, 345 | fewer than three reference stations — below the minimum for a Helmert transformation, so no way to tie them to the frame |
 | 139 | one station in our copy of the datapool (§19) |
-| **036** | the only genuine failure — see §24.3 |
+
+**DOY 036 is not in that table because it is no longer absent.** It failed here,
+was diagnosed (§24.3) and recovered separately as a float solution (§24.6). It
+is named here rather than dropped, because it is the one day in 2025 carrying a
+caveat that matters downstream — and a table headed "absent" that quietly loses
+it would erase exactly the thing someone needs to find.
 
 ### 24.2 Two bugs the run itself exposed
 
@@ -2877,13 +2882,20 @@ weighting can honour them. It must not be treated as equivalent.
 
 ### 24.7 The mistake, continued
 
-§22.12 recorded three instances, §23.8 four. This session added two more, both
+§22.12 recorded three instances, §23.8 four. This session added three more, all
 the same shape — **a check that returns "fine" while looking in the wrong
 place**:
 
 1. **"0 failures"** while nineteen days were missing — counted error lines in a
    log where an aborted queue writes none.
 2. **`pgrep -c`** — trusted an exit code that does not mean what it looks like.
+3. **A dangling-reference check that covered only `WAIT=`** — it passed on a
+   PCF whose error exits used `NEXTJOB=901`, a step that had been deleted. Four
+   attempts at the DOY 036 recovery, two of them lost to the same miss.
+
+All three are one habit: **checking a proxy for the thing rather than the
+thing.** Error lines instead of solutions on disk. An exit code instead of a
+process list. `WAIT=` instead of every reference to a step.
 
 And one new shape worth naming separately: **a guard that defeats itself**. The
 resume loop's "no progress, stop" rule was correct reasoning that became the
