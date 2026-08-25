@@ -1,4 +1,4 @@
-import numpy, os, glob, msvcrt
+import numpy, os, glob
 import matplotlib.ticker as tick
 import matplotlib.pyplot as plt
 
