@@ -53,6 +53,38 @@ Sugawara, Y. — "Development and Validation of GEONET New Analysis Strategy
 **What we did NOT take:** anything about GSI's semi-dynamic datum, their
 ionosphere handling, or F5. Those are elsewhere or still open.
 
+### [KOT09] — the companion paper on the fixed point
+
+小谷京湖・吉田賢司ほか (2009),「GPS 連続観測システム（GEONET）解析固定点座標算出
+手法について」, *国土地理院時報* **118**.
+
+- **URL:** <https://www.gsi.go.jp/common/000054718.pdf>
+- **Retrieved:** 2026-08-25 · **Language:** Japanese
+- **Local copy:** `kotani2009_gsi118_fixedpoint_extracted.txt`, sha256 `ab39f77b784d78c5…`
+
+| idea | used in |
+|---|---|
+| GEONET V4 constrains the whole network through **one station, Tsukuba-1 (92110)** | `geo006_network_architecture.md` §4b |
+| Under V3 its coordinates came from a piecewise-linear model that missed the vertical annual variation, producing **an apparent annual vertical signal at every GEONET station** | §4b |
+| V4 determines that station daily inside a **wide-area IGS solution** instead | §4b |
+
+Taken because it supplies the *mechanism* behind a conclusion the research
+brief had already reached on other grounds — that POGF's multi-station minimum
+constraint is more robust than a single fixed station.
+
+### [MIY09] — retrieved by citation, and NOT used
+
+宮原伐折羅・野神憩・梅沢武・岩下知真子・川元智司 (2009),「GPS 連続観測システム
+（GEONET）の解析戦略（第４版）から見た地殻変動について」, *国土地理院時報* **118**,
+31-36. <https://www.gsi.go.jp/common/000054720.pdf>
+
+Recorded because **an earlier draft predicted the cluster-sizing rule would be
+here, and that was wrong.** The title — "crustal deformation *as seen from*
+strategy V4" — is deformation results, not architecture. The prediction came
+from the author list rather than the title.
+
+Kept as a negative result: it stops the next reader repeating the guess.
+
 ---
 
 ### Already cited in `geonet_bernese_strategy_research.md`

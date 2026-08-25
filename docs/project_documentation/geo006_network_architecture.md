@@ -176,6 +176,34 @@ stated in this paper and remains open.
 
 ---
 
+## 4b. The single fixed point is harder than it looks — and this favours our design
+
+From **[KOT09]**, the companion paper on fixed-point coordinates, retrieved
+2026-08-25 while chasing the cluster rule.
+
+GEONET V4 constrains the whole national network through **one station,
+Tsukuba-1 (92110)**. Under V3 that station's coordinates came from a
+*piecewise-linear nominal model*, which did not capture its vertical annual
+variation. GSI's own account of the consequence:
+
+> the annual vertical variation was not reflected in the fixed point's
+> coordinates, so **an apparent vertical annual variation appeared in the
+> analysed coordinates of every GEONET station**
+
+One station's unmodelled motion propagated into all ~1,240. Nor could a
+piecewise-linear model absorb coseismic displacement or local ground
+instability at that site. V4 replaced it by determining Tsukuba-1's coordinates
+**daily inside a wide-area IGS solution** rather than from a model.
+
+**This strengthens a conclusion the research brief already reached.** POGF uses
+a multi-station minimum constraint; GEONET's single-fixed-station datum needs a
+dedicated paper and a daily wide-area solution to be safe, and its failure mode
+is *global* — every station in the country inherits the error. The brief called
+the multi-station constraint "the stronger design" before this paper was read;
+it now has the mechanism behind it.
+
+---
+
 ## 5. Still unestablished after this
 
 - **The number of stations per regional cluster.** The paper gives ~950 for the
@@ -187,5 +215,28 @@ stated in this paper and remains open.
 - **What "global network processing" means in F5**, and how it interacts with
   the single-fixed-station datum.
 
-The first three are in Miyahara et al. (2009), in the same issue, which this
-session did not retrieve.
+**Not in Miyahara et al. (2009), as previously guessed.** That paper is
+「…解析戦略（第４版）**から見た地殻変動について**」, 時報 118, 31-36 — deformation
+*results*, not architecture. The title says so; the guess was made from the
+author list.
+
+**Where it probably is:** 測地観測センター (2004),「電子基準点 1,200 点の全国整備
+について」, *国土地理院時報* **103**, 1-51 — a 51-page special issue on the
+national buildout, cited by [NAK09]. That predates V3, which fits [NAK09]
+saying the network structure was inherited unchanged from V3 to V4.
+
+**What was tried, and failed** (per the sources-register rule that "not
+reachable" needs a method attached):
+
+- `vol103-main.html` → 302 redirect to the GSI homepage.
+- `vol103-1.htm` is the special issue's *abstract only*, no article list.
+- Targeted Japanese searches for cluster counts returned nothing specific.
+- `curl` cannot reach `gsi.go.jp` at all from this machine — the server
+  requires legacy TLS renegotiation that OpenSSL 3 refuses
+  (`error:0A000152:SSL routines::unsafe legacy renegotiation disabled`).
+  Retrieval works through WebFetch only, one document at a time, which is why
+  the issue index could not be walked.
+
+So the sizing rule remains open, and the obstacle is a retrieval problem rather
+than an absence. **It is also not on the critical path** — see §4: at 76
+stations the question is probably moot.
