@@ -35,7 +35,8 @@ since been scoped out — it is NAMRIA's network, relevant only to the June
 training (§21.7). The legacy archive is still single-copy; that one stands.
 
 **Update (2026-08-25 evening, §24):** **the 2025 national run is COMPLETE** —
-357 of 365 days in 476 minutes. Seven absences are deliberate; DOY 036 is the
+357 of 365 days, over three runs — two restarts for bugs found mid-flight, the
+final one 249 days in 476 minutes. Seven absences are deliberate; DOY 036 is the
 one genuine failure and is diagnosed (§24.3): wrongly-fixed integer ambiguities,
 float RMS 1.68 mm against fixed 37.98 mm. An atmospheric anomaly protocol now
 exists to settle "was it the ionosphere?" in seconds (§24.4), and status
@@ -2675,20 +2676,48 @@ days skipped cleanly and made the run look half-successful.
 
 **For the T420: this is the state of the R740 as of 2026-08-25 evening.**
 
-### 24.1 The year is done — 357 of 365 days
+### 24.1 The year is done — 357 of 365 days, across three runs
 
-Started 04:20, finished 16:02. **476 minutes**, MAXSESS=6, every block a single
-pass:
+**It did not run once cleanly, and the first version of this section implied it
+did.** Two bugs were found mid-flight and each forced a restart (§24.2). The
+restarts were cheap because blocks are computed from what is on disk, so
+nothing already solved was redone — but the history is three runs, not one, and
+a single elapsed time cannot describe it.
+
+| launched | ended | why it stopped | days solved |
+|---|---|---|---|
+| 04:20 | 06:09 | restarted to add resume-past-failure | 49 |
+| 06:09 | 07:40 | restarted to fix the first-day-failure bug | 59 |
+| **07:40** | **16:02** | **completed** | **249** |
+
+The final run's own log, which is where the 476 minutes comes from:
 
 ```
-DOY 040-057   18/18   ( 46 min)
-DOY 086-120   35/35   ( 74 min)
-DOY 152-344  193/193  (347 min)
-DOY 346-365   20/20   ( 44 min)
+DOY 036        0/1     (  5 min)   the one genuine failure
+DOY 084        1/1     (  5 min)
+DOY 086-120   35/35    ( 74 min)
+DOY 152-344  193/193   (347 min)
+DOY 346-365   20/20    ( 44 min)
+             249/250   (476 min)
 ```
 
-Steady state was **~1.8 min/day, a 3x speedup** over the 5.55 min/day
+**476 min ÷ 249 days = 1.91 min/day, a 2.9x speedup** on the 5.55 min/day
 sequential baseline. Solutions in `$S/LUZON/2025/SOL/`.
+
+> **Correction, caught in review of PR #138.** This section first read
+> *"357 of 365 days in 476 minutes"*, which divides to 1.33 min/day and
+> contradicts the same paragraph's own speedup figure. **357 is the cumulative
+> total on disk** — 108 days already present plus 249 from the final run — and
+> pairing it with one run's elapsed time is a rate nobody could reproduce.
+>
+> The block table was wrong too, in a way the arithmetic hid: it listed
+> `DOY 040-057` (which ran at 06:14, in the *previous* restart) while omitting
+> DOY 036 and 084, which were in the 476 minutes. It summed to 266 — neither
+> one run nor the year.
+>
+> This matters because the log is the succession plan and elapsed time is what
+> a successor budgets from. Reading 1.33 min/day, they would plan a run a third
+> shorter than it takes.
 
 **Eight days absent, seven of them deliberately:**
 
