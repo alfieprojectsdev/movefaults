@@ -80,12 +80,20 @@ the two are entirely separate processes.
 Every 30 minutes for a 13-hour run is 26 emails. To hear only about problems:
 
 ```cron
-*/30 * * * * $HOME/repos/movefaults_clean/scripts/luzon_status.sh >/dev/null 2>&1 || \
-             $HOME/repos/movefaults_clean/scripts/luzon_status.sh --email >/dev/null 2>&1
+*/30 * * * * $HOME/repos/movefaults_clean/scripts/luzon_status.sh >/dev/null 2>&1 || $HOME/repos/movefaults_clean/scripts/luzon_status.sh --email >/dev/null 2>&1
 ```
+
+**One line, however long.** Cron has no line continuation: a trailing `\` does
+not join lines, so the next line is read as a new entry and rejected with
+`bad minute`. An earlier version of this file wrapped that command across two
+lines for readability and could not be installed.
 
 The first call is silent on exit 0 and triggers the second only on **finished,
 stalled, or driver-gone**. Recommended for an overnight run.
+
+**Use one of the three cron forms above, not several.** They all fire on the
+same `*/30` schedule, so keeping two means two status runs at once and, with
+`--email` on both, two messages.
 
 ## Why not a mail server
 
