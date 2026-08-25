@@ -10,6 +10,11 @@ Ishimoto, Yutsudo, Ishikura, Sugawara — Geodetic Observation Center and
 Geography and Crustal Dynamics Research Center, GSI.
 <https://www.gsi.go.jp/common/000054716.pdf>
 
+**Attribution:** `docs/external-sources/README.md` records which specific ideas
+came from this paper and where each landed, alongside the extracted source text
+(`nakagawa2009_gsi118_extracted.txt`, sha256 `4f62c0135922a7fa…`). The PDF
+itself is GSI's to distribute and is not committed.
+
 `geonet_bernese_strategy_research.md` listed this paper by name and said it was
 *"in Japanese and not reachable this session… this is the load-bearing part of
 'how does Bernese scale past a few hundred stations'."* It is reachable; it
