@@ -114,3 +114,7 @@ docs/secrets.md
 # unsent correspondence naming real officials, plus staged campaign config.
 # One `git add .` was the only thing standing between that and a public commit.
 temp/
+
+# Built on first use by pogf_geodetic_suite.modeling.disloc; the .c is the
+# source of truth and the .so is machine-specific.
+packages/pogf-geodetic-suite/src/pogf_geodetic_suite/modeling/_disloc/libdisloc.so
