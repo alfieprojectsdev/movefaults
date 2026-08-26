@@ -96,6 +96,7 @@ not ~10%**, and that misreport stood for months.
 | **Do not partition the PH network into clusters yet** | GSI partitioned at ~1,240 stations; we have ~107. Partitioning is a scaling remedy whose cost is paid at the combination step — V3's non-unique troposphere is what that cost looks like |
 | **Keep the multi-station minimum-constraint datum**; do not adopt GEONET's single fixed station | its failure mode is *global* — one station's unmodelled motion reached all ~1,240 GEONET stations — and it needs a daily wide-area solution to be safe |
 | **Never `--delete-branch` a PR that another open PR is stacked on** | GitHub **auto-closes** the dependent PR when its base branch disappears, and a closed PR can be neither reopened nor retargeted until the branch exists again. Merge the base without `--delete-branch`, retarget the child to `main`, merge it, then delete. Learned 2026-08-26: `merge_pr.sh 144 --merge --delete-branch` closed #146 |
+| **Station proposals are reconciled by group-chat consensus on the code, promoted by whoever is at a laptop** | Answered by Alfie 2026-08-26, closing open question 2 of `field_ops_station_creation_design.md`. The hard half — agreeing the canonical code — happens socially and same-day, so collisions surface in hours rather than in a backlog. Promotion is the bookkeeping that follows, not the decision |
 
 ---
 
