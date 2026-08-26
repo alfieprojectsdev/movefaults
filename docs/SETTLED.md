@@ -95,6 +95,7 @@ not ~10%**, and that misreport stood for months.
 | **Decimal year is `year + DOY/365.25`** — DOY 1 is `year + 0.0027`, not `year.0000`. Do not "correct" it to `(DOY-1)/365.25` | the `offsets` catalog, every published PLOT file and every published velocity are written in it, and staff compute catalog entries by hand this way. The absolute epoch has no scientific meaning; agreement with the catalog does. Settled 2026-08-25, pinned by tests in `test_crd_pipeline.py` |
 | **Do not partition the PH network into clusters yet** | GSI partitioned at ~1,240 stations; we have ~107. Partitioning is a scaling remedy whose cost is paid at the combination step — V3's non-unique troposphere is what that cost looks like |
 | **Keep the multi-station minimum-constraint datum**; do not adopt GEONET's single fixed station | its failure mode is *global* — one station's unmodelled motion reached all ~1,240 GEONET stations — and it needs a daily wide-area solution to be safe |
+| **Never `--delete-branch` a PR that another open PR is stacked on** | GitHub **auto-closes** the dependent PR when its base branch disappears, and a closed PR can be neither reopened nor retargeted until the branch exists again. Merge the base without `--delete-branch`, retarget the child to `main`, merge it, then delete. Learned 2026-08-26: `merge_pr.sh 144 --merge --delete-branch` closed #146 |
 
 ---
 
@@ -120,6 +121,20 @@ Do not open these as findings.
   clutter. Never suggest deleting it to free space.
 - **The Backup Plus drive is retired read-only** after corrupting fresh writes.
   DOSTB holds the complete verified GNSS copy. That migration is done.
+- **`MERGEABLE/UNSTABLE` shortly after a push usually means a check is still
+  running, not that one failed.** Vercel redeploys on every push and the status
+  is not final for a minute or so. **Re-query rather than merging over it** —
+  poll until the state settles, and read
+  `gh api repos/<owner>/<repo>/commits/<sha>/status` if you need to know which
+  context is outstanding.
+
+  Recorded with its correction, because the first version of this entry said
+  *"`UNSTABLE` is just the non-blocking Vercel context, ignore it"* — asserted
+  from `gh pr checks` showing three passes, without checking what was actually
+  outstanding. Every context was `success` at that commit; the state had simply
+  not settled when it was queried. **"Ignore it" would have taught the next
+  session to merge over a genuinely failing check**, which is the opposite of
+  what happened. Caught before this entry was written, 2026-08-26.
 
 ---
 
