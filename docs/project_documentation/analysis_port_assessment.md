@@ -203,6 +203,35 @@ posterior rather than a grid minimum plus a resampling proxy — and it appears
 nowhere in either roadmap. It came from Dr. Kuo-En Ching (NCKU, Taiwan), who is
 acknowledged in the 2024 report for "providing the programs and scripts".
 
+> **CORRECTED 2026-08-26 — this finding was wrong, and so was the follow-up
+> that "sharpened" it.**
+>
+> `analysis/07 Dislocation Model/` — not present when this was written —
+> answers it from the tree. `Dislocation Model (Compilation of Results).docx`
+> records the method used for every modelled Philippine segment:
+>
+> | Method column | where |
+> |---|---|
+> | `Elastic half-space model, grid search, and bootstrap` | the dominant entry |
+> | `Elastic half-space model and grid search` | some runs |
+> | **`Inversion and monte carlo`, 900,000 samples** | Central Luzon (LUZA), Masbate (SIBI), Leyte (CEB1) — the **newest** column in each |
+>
+> So all three methods are in use, on Philippine data, by PHIVOLCS. **MCMC is
+> not a candidate to be evaluated — it is the most recent method already
+> applied.** My claim that it "has never been run on Philippine data" was
+> drawn from `06 Ku-en`'s *committed inputs* being Taiwanese. That remains true
+> of what is in the repository and is not the same statement.
+>
+> The uncertainty question is answered too, and emphatically: every published
+> parameter carries an interval — `Locking depth 40 (35-45)`,
+> `Backslip Rate 27.97 (14.08-29.67)` — at 1,000 bootstrap samples with 68% or
+> 95% confidence stated per run. The bootstrap **wraps** the grid search rather
+> than replacing it, and `bootstrap_v2.py`'s hardcoded reference station `VIGN`
+> appears in the results table as the reference for the first two Central Luzon
+> runs.
+>
+> See [`inversion_method_decision.md`](inversion_method_decision.md).
+
 **Deciding between these three is a scientific decision, not an engineering
 one, and it should be made before any of them is ported.** Porting the grid
 search because it is the incumbent would spend the effort on the weakest
