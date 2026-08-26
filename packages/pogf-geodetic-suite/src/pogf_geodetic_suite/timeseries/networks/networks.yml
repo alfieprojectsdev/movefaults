@@ -1,0 +1,319 @@
+# Network definitions for the CRD -> ENU -> PLOTS pipeline.
+#
+# Replaces the three `analysis/02 Time Series/00_CRD_*.bat` files, whose entire
+# content was one `findstr /V` with ~270 station codes inlined on a single
+# line. Three near-identical scripts differing only in their station list is a
+# config file wearing a script costume.
+#
+# HOW THE THREE DIFFERED, measured from the .bat files rather than assumed:
+#
+#   263 codes excluded by all three   -> common_exclusions
+#   NP      excludes exactly those    -> widest network kept
+#   NAMRIA  excludes 9 more            -> drops far-field IGS stations
+#   PIVS    excludes 8 more            -> drops the regional fiducials
+#
+# NAMRIA keeps the regional ties and discards the global ones; PIVS does the
+# reverse. That distinction was invisible in the .bat files and is the only
+# thing that actually separated them.
+#
+# A station listed here is REMOVED from the CRD before ENU computation. The
+# reference station is chosen separately, at run time.
+
+common_exclusions:
+  - ABMF
+  - ABPO
+  - ADE1
+  - ADE2
+  - ADIS
+  - AJAC
+  - ALBH
+  - ALGO
+  - ALRT
+  - AMC2
+  - AOML
+  - AREQ
+  - AREV
+  - ARTU
+  - ASC1
+  - AUCK
+  - BADG
+  - BAHR
+  - BARH
+  - BHR1
+  - BHR2
+  - BJCO
+  - BJFS
+  - BJNM
+  - BOR1
+  - BRAZ
+  - BREW
+  - BRFT
+  - BRMU
+  - BRST
+  - BRUS
+  - BRUX
+  - BSHM
+  - BUCU
+  - CAGL
+  - CAGZ
+  - CAS1
+  - CEDU
+  - CFAG
+  - CHAN
+  - CHAT
+  - CHPI
+  - CHTI
+  - CHUM
+  - CHUR
+  - CKIS
+  - CNMR
+  - COCO
+  - CONX
+  - CONZ
+  - CRAO
+  - CRO1
+  - DARR
+  - DAV1
+  - DAVR
+  - DGAR
+  - DGAV
+  - DRAG
+  - DRAO
+  - DUBO
+  - DUM1
+  - EBRE
+  - EISL
+  - FAA1
+  - FAIR
+  - FALK
+  - FLIN
+  - FLRS
+  - FORT
+  - FUNC
+  - GANP
+  - GLPS
+  - GLSV
+  - GMAS
+  - GODE
+  - GODZ
+  - GOL2
+  - GOLD
+  - GOUG
+  - GRAS
+  - GRAZ
+  - GUAO
+  - GUAT
+  - HARB
+  - HERS
+  - HERT
+  - HLFX
+  - HNLC
+  - HOB2
+  - HOFN
+  - HOLB
+  - HOLM
+  - HRAO
+  - HYDE
+  - IISC
+  - INVK
+  - IQAL
+  - IRKM
+  - IRKT
+  - ISPA
+  - JOZE
+  - KARR
+  - KAT1
+  - KELY
+  - KERG
+  - KIRI
+  - KIRU
+  - KIT3
+  - KOKB
+  - KOKV
+  - KOSG
+  - KOUR
+  - KRGG
+  - KWJ1
+  - LAUT
+  - LHAS
+  - LHAZ
+  - LMMF
+  - LPAL
+  - LPGS
+  - LROC
+  - MAC1
+  - MAL2
+  - MALI
+  - MAR6
+  - MAS1
+  - MAT1
+  - MATE
+  - MAUI
+  - MAW1
+  - MBAR
+  - MCM4
+  - MDO1
+  - MDVJ
+  - MDVO
+  - MEDI
+  - METS
+  - MKEA
+  - MOBS
+  - MONP
+  - MQZG
+  - MR6G
+  - NAIN
+  - NAMA
+  - NANO
+  - NAUR
+  - NICO
+  - NIST
+  - NISU
+  - NIUM
+  - NKLG
+  - NLIB
+  - NNOR
+  - NOT1
+  - NOUM
+  - NRC1
+  - NRIL
+  - NRMD
+  - NRMG
+  - NURK
+  - NYA1
+  - NYAL
+  - OHI2
+  - OHI3
+  - OHIG
+  - OHIX
+  - ONSA
+  - OS0G
+  - OSN1
+  - OSN2
+  - OUS2
+  - PARC
+  - PDEL
+  - PIE1
+  - POHN
+  - POL2
+  - POLV
+  - POTS
+  - PRDS
+  - PRE1
+  - PRE2
+  - QAQ1
+  - QIKI
+  - QUIN
+  - RABT
+  - RAMO
+  - RCMN
+  - RECF
+  - RESO
+  - REUN
+  - RIGA
+  - RIO2
+  - RIOG
+  - SALU
+  - SANT
+  - SAVO
+  - SCH2
+  - SCOR
+  - SCUB
+  - SFER
+  - SOFI
+  - STHL
+  - STJO
+  - SUTH
+  - SUTM
+  - SUTV
+  - SUWN
+  - SYDN
+  - SYOG
+  - TAEJ
+  - TAH1
+  - TAH2
+  - TASH
+  - TCMS
+  - TEHN
+  - THTI
+  - THU2
+  - THU3
+  - TID1
+  - TID2
+  - TIDB
+  - TIXG
+  - TIXI
+  - TLSE
+  - TOUL
+  - TOW2
+  - TRAB
+  - TRO1
+  - TROM
+  - TUVA
+  - UFPR
+  - UNB3
+  - UNBJ
+  - UNBN
+  - UNBT
+  - UNSA
+  - USN3
+  - USN4
+  - USN5
+  - USNO
+  - UZHL
+  - VACS
+  - VESL
+  - VNDP
+  - WES2
+  - WHIT
+  - WILL
+  - WIND
+  - WSRT
+  - WTZR
+  - XMIS
+  - YAKT
+  - YAR1
+  - YAR2
+  - YEBE
+  - YELL
+  - YIBL
+  - YSSK
+  - ZAMB
+  - ZECK
+  - ZIM2
+  - ZIM3
+  - ZIMM
+
+networks:
+  NP:
+    description: >-
+      No extra exclusions beyond the common IGS set. The widest network,
+      and the base the other two subtract from.
+    extra_exclusions: []
+
+  NAMRIA:
+    description: >-
+      Drops the far-field IGS stations, keeping the regional ties.
+    extra_exclusions:
+      - BAKO
+      - BILI
+      - GUAM
+      - PERT
+      - SHAO
+      - TSKB
+      - TWTF
+      - USUD
+      - WUHN
+
+  PIVS:
+    description: >-
+      Drops the regional fiducials, keeping the global frame stations.
+    extra_exclusions:
+      - AIRA
+      - BILI
+      - BTNG
+      - CUSV
+      - DARW
+      - GUUG
+      - MCIL
+      - PNGM
