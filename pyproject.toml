@@ -20,6 +20,14 @@ dependencies = [
     "scipy>=1.11.0",
     "pymap3d>=3.1.0",
     "pygeodesy>=23.12.1",
+    # Base, not an extra: pogf_geodetic_suite imports click at module level in
+    # rinex_qc, igs_downloader and completeness, and all three are declared in
+    # [project.scripts]. It was previously only under the drive-archaeologist
+    # extra, so `uv sync` + `uv run rinex-qc` was a ModuleNotFoundError.
+    "click>=8.1.0",
+    # Same story: igs_downloader imports requests at module level and
+    # declares the igs-downloader entry point. It was never declared at all.
+    "requests>=2.31.0",
 ]
 
 [project.scripts]
@@ -31,6 +39,8 @@ drive-arch = "drive_archaeologist.cli:main"
 # import (ModuleNotFoundError). Run from the service dir instead:
 #   cd services/vadase-rt-monitor && PYTHONPATH=. uv run python scripts/run_ingestor.py
 rinex-qc = "pogf_geodetic_suite.qc.rinex_qc:main"
+# Preflight: which days can be processed at all, run BEFORE staging a campaign.
+rinex-completeness = "pogf_geodetic_suite.qc.completeness:main"
 igs-downloader = "pogf_geodetic_suite.igs_downloader:main"
 field-ops-api = "field_ops.main:start"
 velocity-reviewer = "velocity_reviewer.cli:main"

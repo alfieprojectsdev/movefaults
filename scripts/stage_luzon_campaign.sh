@@ -10,6 +10,20 @@
 # run anything. Staging is mechanical and reversible; those two involve
 # decisions and are done separately.
 #
+# RUN THE PREFLIGHT FIRST
+# `rinex-completeness` reports, from the datapool alone, which days have too
+# few reference stations to be tied to the frame -- and therefore cannot be
+# processed no matter how cleanly they stage:
+#
+#     uv run rinex-completeness /srv/gnss-archive/datapool/PHIVOLCS \
+#         --year 2025 --from 1 --to 365
+#
+# Exit 1 means at least one day is short; the report names them. The 2025 run
+# lost DOY 058-061, 079 and 345 exactly this way, and each was discovered by
+# failing a BPE run rather than by looking. This is not wired into staging on
+# purpose -- a short day is sometimes staged deliberately, and a preflight that
+# blocks the operator is a preflight the operator learns to skip.
+#
 # DRY RUN BY DEFAULT.
 set -uo pipefail
 
