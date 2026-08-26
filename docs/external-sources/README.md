@@ -197,6 +197,41 @@ the recommendation to shorten it was withdrawn.
 
 ---
 
+## Stanford CDFM — `dc3dm` (Okada DC3D source)
+
+**Recorded, NOT vendored.** Licence terms below are the reason.
+
+Bradley, A.M., *dc3dm: Software to form and apply a 3D DDM operator for a
+nonuniformly discretized rectangular fault*, v0.3, CDFM Group, Geophysics,
+Stanford. <https://pangea.stanford.edu/research/CDFM/software>
+Retrieved 2026-08-26; extracted locally to `temp/dc3dm_v0.3/`.
+
+**Licence: Eclipse Public License 1.0** — weak copyleft. This repository is
+MIT. EPL code may sit inside a differently-licensed larger work, but the EPL
+files stay EPL and must be identified as such. That is a deliberate decision,
+not a free action, so nothing is committed here yet.
+
+**Why it is worth recording anyway:** `external/dc3omp.f` is Okada's `DC3D`
+**with a numerical-accuracy fix by A.M. Bradley (Nov 2012)**. Stock DC3D
+suffers cancellation error in `R + xi` whenever `sqrt(eta^2+q^2)/R` is small,
+producing error in **four cones extending from the rectangle's corners** — not
+merely at exact singularities. If `DC3D` is ever needed, take **this** version
+rather than the NIED original.
+
+| what it would be for | status |
+|---|---|
+| source for `disloc3d`, used by `06 Ku-en` and absent from this tree | the gap `disloc.py` explicitly left open |
+| `dc3dm` itself — hierarchical-matrix DDM on nonuniform meshes for rate-and-state earthquake-cycle simulation | **out of scope**; MOVE Faults does interseismic dislocation inversion |
+
+**Checked and came back negative:** the `disloc.c` vendored into
+`modeling/_disloc/` has the same unguarded pattern — `rrx = 1/(r*(r + xi))`,
+while `r + et` *is* guarded — but probing the singular ray from 1e-1 down to
+exactly 0 gives smooth convergence with no blow-up or discontinuity. No
+evidence it suffers the pathology; Okada 1985 (surface) and 1992 (internal) are
+different formulations. Recorded so the lead is not chased twice.
+
+---
+
 ## Bernese GNSS Software
 
 - **DOCU52.pdf** — Bernese 5.2 documentation, AIUB. Local at `~/bernese-docs/`.
