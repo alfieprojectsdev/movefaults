@@ -316,10 +316,42 @@ Not answered here. Answer them before building, not during.
    labelled; or allow NULL and let the picker's nearby-radius feature simply not
    apply. Note `PLWN` already exists in the inventory with no coordinates, so
    NULL is not unprecedented.
-2. **Who reconciles, and how often?** This is the question that decides whether
-   the design works. A reconcile step nobody runs is the same as no reconcile
-   step, and the shadow-station problem arrives on schedule. Name a person and a
-   cadence, or build a notification.
+2. ~~**Who reconciles, and how often?**~~ **ANSWERED 2026-08-26.**
+
+   > *"We can always discuss over the group chat (live) what the site name or
+   > code will be going forward."*
+
+   That is a real answer, and it splits the question in two.
+
+   **The hard half is resolved socially, and quickly.** Adjudicating a
+   collision and agreeing the canonical code needs people who know the
+   network; no schema does it. If the field-ops group chat settles the code
+   the same day it is created, collisions surface in hours rather than being
+   discovered weeks later by someone reading a queue.
+
+   **That deflates the duplicate-guard anxiety recorded above.** The three
+   layers still stand and the partial unique index is still right, but the
+   scenario they were sized for — two teams colliding and nobody noticing
+   until a reviewer works through a backlog — is not the operating model. The
+   queue stays short and each decision is easy because it was already made in
+   chat.
+
+   **The mechanical half remains: somebody must press promote.** That is
+   bookkeeping after the decision, not the decision. Cadence recorded as:
+   *reconciled by group-chat consensus on the code, promoted by whoever is at
+   a laptop.*
+
+   **Two consequences for the build**, neither yet actioned:
+
+   - Promotion should be **low-friction and low-ceremony**. It is a click
+     confirming something already agreed.
+   - **Reconsider `require_role` on promote.** It was chosen when reconcile
+     looked like an adjudication needing authority. If the adjudication
+     happens in chat, the role gate guards a bookkeeping step and mostly
+     guarantees the promote does not happen while the one admin is in the
+     field. Left as-is in the first implementation, deliberately — loosening
+     a gate is a smaller change than adding one, and this should be decided
+     after watching it run rather than now.
 3. **Does a promoted proposal keep its row?** Recommended yes — it is the only
    record of who proposed the site and when — but it means `station_proposals`
    grows without bound and needs an explicit retention answer.
