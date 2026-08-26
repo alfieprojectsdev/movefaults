@@ -187,6 +187,27 @@ Measured while investigating: `stations.yml` holds **4** stations, not the 35+
 `CLAUDE.md` claims twice, all on `192.168.1.10x` — a placeholder subnet. No
 NTRIP credentials. The ingestor is not a compose service. **Nothing alerts.**
 
+**A follow-up question turned up the best finding of the pair.** Asked whether
+the service could at minimum *display* a Trimble NetR9 stream, tracing the path
+found that `process_sentence` is `if`/`elif` with **no `else`**
+(`domain/processor.py:124-133`). An unrecognised sentence falls off the end and
+is discarded — no log line, no counter, no warning.
+
+**That is not a Trimble problem.** A *Leica* receiver misconfigured to emit
+`GGA` instead of `LVM` produces an identical picture: live TCP session, bytes
+arriving, empty dashboard. Today that is indistinguishable from a dead station,
+and it would be the first thing to go wrong on the first real deployment.
+
+Worth fixing whichever way the vendor question is answered, so it is recorded
+as its own row in that doc's deployment-gaps table rather than buried in the
+NetR9 discussion. Position visibility for a NetR9 is ~half a day and does **not**
+require answering the vendor-neutrality question; displacement from one still
+requires implementing the variometric algorithm.
+
+The exercise also confirmed the hexagonal boundary is doing its job: parsing
+lives in `domain/`, not the adapter, so another payload touches `parsers/` and
+`domain/` and leaves the transport alone.
+
 ---
 
 ## 5. State at the time of writing
@@ -194,7 +215,7 @@ NTRIP credentials. The ingestor is not a compose service. **Nothing alerts.**
 | | |
 |---|---|
 | `main` | `3ade5a6`, local synced |
-| Open PRs | #154, #155, #156 — none merged |
+| Open PRs | #154, #155, #156, #157 — none merged |
 | MATLAB in modelling | **none** — both `.mexw64` replaced and cross-verified |
 | Uncommitted | `uv.lock`, `packages/CORS-dashboard` (both pre-existing) |
 
