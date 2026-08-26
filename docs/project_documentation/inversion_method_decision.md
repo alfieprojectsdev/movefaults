@@ -14,26 +14,42 @@ Item 7 — porting the chosen method — depends on this.
 `analysis_port_assessment.md` finding 5 presented three peer methods. **They are
 not peers.** Inspecting the inputs changed the question:
 
-| | `03 Yu` grid search | `08 Bootstrapping` | `06 Ku-en` MCMC |
+| | `03 Yu` grid search | `08 Bootstrapping` | MCMC |
 |---|---|---|---|
 | method | deterministic grid | resampling around the grid | Metropolis, proper posterior |
-| produced published numbers | **yes** | unclear — see Q2 | **no** |
-| Philippine inputs exist | **yes** | **yes** | **no — Taiwan only** |
+| produced published numbers | **yes** | **yes — wraps the grid search** | **yes — the newest runs** |
+| Philippine segments | many | many | Central Luzon, Masbate, Leyte |
 | driver | MATLAB | Python → `matlab.engine` | MATLAB |
-| uncertainty output | none | parameter spread | full posterior |
+| uncertainty output | none alone | 95% CI, 1,000 samples | full posterior, 900,000 samples |
 
-### The MCMC has never been run on Philippine data
+> **Correction, 2026-08-26.** An earlier version of this section said the MCMC
+> **had never been run on Philippine data** and was therefore not a peer
+> option. **That was wrong**, and the recommendation below is weaker for it.
+>
+> `analysis/07 Dislocation Model/Dislocation Model (Compilation of Results).docx`
+> records the method for every modelled Philippine segment, and
+> `inversion and monte carlo` at **900,000 samples** appears as the *newest*
+> column for **Central Luzon (LUZA), Masbate (SIBI) and Leyte (CEB1)**.
+>
+> The error was specific: I inspected `06 Ku-en`'s **committed inputs**, found
+> them Taiwanese — 39 site codes, zero overlap with our `offsets` catalog — and
+> generalised from *what was committed* to *what exists*. A background agent
+> reached the same conclusion from the same evidence, which reinforced rather
+> than checked it. The answer was in the workbooks, not the repository.
+>
+> What survives: `06 Ku-en`'s **committed example** is Taiwanese, so that
+> particular code path has no Philippine inputs in the tree. What does not
+> survive: the claim that the method has not been applied here. See
+> [`dislocation_model_results.md`](dislocation_model_results.md).
 
-Its committed inputs are Taiwanese. **39 distinct site codes** across
-`vh_cross_A.gmt`, `vp_cross_A.gmt` and `vv_cross_A.gmt` — `G152`, `GS81`,
-`GE97`, `J102`, `KHLZ`, `LIAN`, `MITO`, `AKND` — and **zero overlap** with the
-station codes in our own `offsets` catalog. The same files sit in the
-non-MCMC `2d_model/` too, so **neither Ku-en variant has been exercised on our
-data**; both are Kuo-En Ching's Taiwan worked example.
+### Uncertainty is already published, and the bootstrap already wraps the grid
 
-That matters because choosing the MCMC on methodological merit means also
-building a Philippine input pipeline that does not exist. It is a larger job
-than porting either of the other two, not a smaller one.
+Every published parameter carries an interval — `Locking depth 40 (35-45)`,
+`Backslip 27.97 (14.08-29.67)`, 1,000 samples, 95% CI. So "which method gives
+uncertainties" is not an open question either; all three do, by different
+routes. `bootstrap_v2.py`'s hardcoded `VIGN` reference station appears in the
+results table as the reference for the first two Central Luzon runs, tying the
+script directly to the published record.
 
 ### And it carries a defect that must be fixed before it is weighed
 
@@ -50,15 +66,17 @@ always have taken**. Each term only has to exceed the threshold *on its own* —
 the sum can be tiny. `logrho = -0.5·χ²`, so with enough data points that is
 reachable, especially before the chain finds the mode.
 
-Whether it bites at PHIVOLCS data scale cannot be checked without the inputs —
-which is the previous point again. The fix is one line either way:
+Whether it bit the published 900,000-sample runs is checkable and has not been
+checked. The fix is one line either way:
 
 ```matlab
 accept = log(rand) < (DET2-DET1) + (g2-g1);
 ```
 
-**A biased-but-plausible posterior is worse than an obviously broken one**, so
-this should be fixed before the MCMC is evaluated, not after.
+**A biased-but-plausible posterior is worse than an obviously broken one.**
+Since the method is already in use rather than merely a candidate, this is not
+a precondition for evaluating it — it is a defect in a method that has already
+produced published intervals, and worth checking against those runs.
 
 ---
 
@@ -78,10 +96,11 @@ Reasons, in order of weight:
 4. **The bootstrap already wraps it** and is already partly refactored, with
    `bootstrap_utils.py` and unit tests. It is the cheapest route to uncertainty
    estimates.
-5. **The MCMC remains the methodologically strongest option** and is worth
-   evaluating on its merits — after the `metropolis_log` fix and after someone
-   builds Philippine inputs for it. Recording it here so it is not quietly
-   dropped.
+5. **The MCMC is already in use and is the methodologically strongest option.**
+   It is the newest method applied to Central Luzon, Masbate and Leyte, so this
+   is a recommendation about *porting order*, not about scientific merit. The
+   `metropolis_log` overflow should be fixed before any further MCMC run,
+   whoever does it.
 
 ### The cost objection was mostly an artefact
 
