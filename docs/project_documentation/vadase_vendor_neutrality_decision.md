@@ -173,10 +173,89 @@ deployable today**, and those gaps are nearer-term:
 | the ingestor is **not a compose service** | root `docker-compose.yml` runs `db`, `redis`, `grafana` only |
 | **nothing alerts** | `check_event_threshold` → `logger.warning` → a TimescaleDB row. No email, webhook or SMS anywhere in `src/` |
 | no health or metrics endpoint | nothing reports that the ingestor is alive and stations are streaming |
+| **unrecognised sentences are dropped silently** | `process_sentence` is `if`/`elif` with no `else` — a misconfigured receiver looks exactly like a dead one. See the NetR9 section below |
 
 The alerting gap is the one that matters most: for an earthquake-detection
 system, a detection that reaches only a database and a log line is a detection
 nobody sees. Grafana dashboards exist, but a dashboard is pull, not push.
+
+---
+
+## A worked example: could it show a Trimble NetR9 at all?
+
+Asked directly — *"assuming all the credentials are ready, can it at minimum
+display incoming Trimble NetR9 streams, e.g. live position data?"* The answer
+is **no**, and tracing why is more useful than the answer, because the first
+reason is a defect that bites Leica too.
+
+### 1. Unrecognised sentences are dropped in silence
+
+`domain/processor.py:124-133`:
+
+```python
+async def process_sentence(self, sentence: str):
+    try:
+        if sentence.startswith('$GNLVM') or sentence.startswith('$GPLVM'):
+            await self.handle_velocity(sentence)
+        elif sentence.startswith('$GNLDM') or sentence.startswith('$GPLDM'):
+            await self.handle_displacement(sentence)
+    except NMEAChecksumError:
+        ...
+```
+
+**`if` / `elif`, and no `else`.** A `$GPGGA` position sentence hits neither
+branch, falls off the end and is discarded — no log line, no counter, no
+warning. The connection stays healthy, the dashboard stays empty, and nothing
+anywhere says why.
+
+**This is not a Trimble problem.** A *Leica* receiver misconfigured to emit
+`GGA` instead of `LVM` produces exactly the same picture: a live TCP session,
+bytes arriving, and no data. Today that is indistinguishable from a dead
+station.
+
+**It is worth fixing regardless of which option below is chosen** — an `else`
+that counts unrecognised sentence types by prefix and logs them periodically.
+Small, and it converts the commonest misconfiguration from silent to obvious.
+
+### 2. The NetR9's default output is probably not ASCII at all
+
+Trimble receivers default to **RT17/RT27 or RTCM 3** — binary. The adapter does
+`data.decode('ascii', errors='ignore')` and splits on `\n`
+(`adapters/inputs/tcp.py:79-89`), so binary input becomes mangled fragments cut
+on stray `0x0A` bytes, each then silently dropped by (1).
+
+A NetR9 *can* be configured to emit NMEA on a port. That is a receiver-side
+setting, not a code change — worth knowing, because it means this particular
+obstacle costs nothing to remove.
+
+### 3. There is no display path even for a sentence we do parse
+
+`write_event_detection` fires only above threshold. Nothing serves "current
+position", and the Grafana dashboards read tables the ingestor writes on
+detections and processed epochs. A parsed `GGA` would have nowhere to go.
+
+### What "minimum viable NetR9 visibility" would cost
+
+Roughly half a day, and it does **not** require answering the vendor-neutrality
+question:
+
+| piece | note |
+|---|---|
+| `else` branch counting unrecognised sentences | worth doing regardless; see above |
+| `parse_gga` for position | standard NMEA, unlike `LVM`/`LDM` |
+| a passthrough output port | so a parsed position reaches somewhere visible |
+
+That yields *position*, not displacement. **Displacement from a NetR9 is
+option 2 and nothing less** — the receiver does not compute a variometric
+solution, so there is nothing to receive.
+
+### What this confirms about the architecture
+
+Parsing lives in the **domain** layer, not the adapter. `TCPAdapter` frames
+lines on `\n` and hands strings on; it has never known what a Leica sentence
+is. So supporting another payload touches `parsers/` and `domain/`, and leaves
+the transport alone — which is the hexagonal boundary working as intended, and
+the reason none of the above is expensive.
 
 ---
 
