@@ -41,6 +41,8 @@ drive-arch = "drive_archaeologist.cli:main"
 rinex-qc = "pogf_geodetic_suite.qc.rinex_qc:main"
 # Preflight: which days can be processed at all, run BEFORE staging a campaign.
 rinex-completeness = "pogf_geodetic_suite.qc.completeness:main"
+# The chain RUNX_v2.py drives: network filter -> XYZ -> ENU -> PLOT files.
+crd-to-plots = "pogf_geodetic_suite.timeseries.cli:main"
 igs-downloader = "pogf_geodetic_suite.igs_downloader:main"
 field-ops-api = "field_ops.main:start"
 velocity-reviewer = "velocity_reviewer.cli:main"
