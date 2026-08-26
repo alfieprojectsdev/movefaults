@@ -118,3 +118,5 @@ temp/
 # Built on first use by pogf_geodetic_suite.modeling.disloc; the .c is the
 # source of truth and the .so is machine-specific.
 packages/pogf-geodetic-suite/src/pogf_geodetic_suite/modeling/_disloc/libdisloc.so
+# Same: built on first use from dc3d_core.c (+ dc3d_quadrant.c), never committed.
+packages/pogf-geodetic-suite/src/pogf_geodetic_suite/modeling/_dc3d/libdc3d.so
