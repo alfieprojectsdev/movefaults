@@ -199,7 +199,11 @@ the recommendation to shorten it was withdrawn.
 
 ## Stanford CDFM — `dc3dm` (Okada DC3D source)
 
-**Recorded, NOT vendored.** Licence terms below are the reason.
+**Status changed 2026-08-26: DC3D is now vendored, as a C transliteration.**
+An earlier version of this entry said "recorded, not vendored… nothing is
+committed here yet", and pointed at the gap `disloc.py` left open. PR #153
+closed it. What follows records what was taken, what was left, and why the
+licence did not block it.
 
 Bradley, A.M., *dc3dm: Software to form and apply a 3D DDM operator for a
 nonuniformly discretized rectangular fault*, v0.3, CDFM Group, Geophysics,
@@ -208,8 +212,24 @@ Retrieved 2026-08-26; extracted locally to `temp/dc3dm_v0.3/`.
 
 **Licence: Eclipse Public License 1.0** — weak copyleft. This repository is
 MIT. EPL code may sit inside a differently-licensed larger work, but the EPL
-files stay EPL and must be identified as such. That is a deliberate decision,
-not a free action, so nothing is committed here yet.
+files stay EPL and must be identified as such.
+
+**The licence question turned out to be narrower than the package's licence
+suggests.** `dc3omp.f` is EPL because Bradley added a fix to it, but that fix
+is only the `MQ1` and `MQ2` subroutines — eighty lines of symmetry
+exploitation. The DC3D kernel itself (`DC3D1`, `UA`, `UB`, `UC`, `DCCON0`,
+`DCCON2`) is Okada's, unchanged, and Okada's DC3D is long-standing freely
+distributed scientific source with no copyleft attached.
+
+So the split is by authorship, and it is enforced as a file boundary:
+
+| file | contents | licence |
+|---|---|---|
+| `modeling/_dc3d/dc3d_core.c` | Okada's DC3D, transliterated to C | **none** — cite the paper |
+| `modeling/_dc3d/dc3d_quadrant.c` | Bradley's `MQ1`/`MQ2` | **EPL 1.0**, own header |
+
+Deleting `dc3d_quadrant.c` leaves a working, unencumbered DC3D; `dc3d.py`
+detects its absence. The default path does not use it.
 
 **Why it is worth recording anyway:** `external/dc3omp.f` is Okada's `DC3D`
 **with a numerical-accuracy fix by A.M. Bradley (Nov 2012)**. Stock DC3D
@@ -218,12 +238,54 @@ producing error in **four cones extending from the rectangle's corners** — not
 merely at exact singularities. If `DC3D` is ever needed, take **this** version
 rather than the NIED original.
 
-| what it would be for | status |
+| what it was for | status |
 |---|---|
-| source for `disloc3d`, used by `06 Ku-en` and absent from this tree | the gap `disloc.py` explicitly left open |
+| source for `disloc3d`, used by `06 Ku-en` and absent from this tree | **taken** — `modeling/dc3d.py` + `modeling/disloc3d.py`, PR #153 |
 | `dc3dm` itself — hierarchical-matrix DDM on nonuniform meshes for rate-and-state earthquake-cycle simulation | **out of scope**; MOVE Faults does interseismic dislocation inversion |
 
-**Checked and came back negative:** the `disloc.c` vendored into
+**Was Bradley's fix needed? Measured, not assumed.** His error appears where
+`sqrt(eta^2+q^2)/R` is small, and `06 Ku-en`'s `make_G.m` sets fault length
+5000 to emulate plane strain — which puts our geometry in exactly that regime,
+so the question was live. Across that profile, *including where the fix
+actually fires*, the two implementations agree to machine precision
+(`test_dc3d.py::test_quadrant_fix_agrees_with_the_core_on_our_geometries`).
+
+That does not prove no geometry needs the fix — Bradley documented one. It
+shows ours do not, which is what the default rests on.
+
+### [OKA92] — the primary, and what the transliteration actually cites
+
+Okada, Y. (1992). Internal deformation due to shear and tensile faults in a
+half-space. *Bulletin of the Seismological Society of America*, **82**(2),
+1018-1040. Original Fortran `DC3D` coded by Y. Okada, September 1990,
+distributed by NIED.
+
+- **Language of the copy used:** Fortran 77, via `dc3dm_v0.3/external/dc3omp.f`
+- **Retrieved:** 2026-08-26 · **Extracted to:** `temp/dc3dm_v0.3/`
+
+| idea | used in |
+|---|---|
+| `DC3D` — displacement, strain and tilt at depth from a finite rectangular fault | `modeling/_dc3d/dc3d_core.c` |
+| The `R + xi` / `R + et` substitutions of the 1992 Discussion, points iii-iv | `dccon2()` in the same file |
+| `alpha = (lambda + mu)/(lambda + 2 mu)` | `dc3d.alpha_from_poisson()` |
+
+Rule 1 note: this is the primary read directly, not a secondary description of
+it. The transliteration is line-by-line and the mathematics is unchanged; only
+the language and the COMMON-block state differ.
+
+**Verification, since no reference output was available.** `disloc3d.mexw64`
+cannot run on Linux — that is the entire reason for the port — so there is
+nothing to diff against. Instead the port is checked against the *independent*
+Cervelli transliteration already in this package (`modeling/_disloc/`, PR #147),
+which implements Okada 1985 surface deformation from a different original by a
+different author. At `z = 0` the two must agree, and they do to **1.6e-15**
+across five strikes, three dips and tensile opening. Also against closed form:
+a locked vertical strike-slip fault gives `u = -(s/pi) arctan(x/D)`, matched to
+0.04%.
+
+### Checked and came back negative
+
+**Original note, still standing:** the `disloc.c` vendored into
 `modeling/_disloc/` has the same unguarded pattern — `rrx = 1/(r*(r + xi))`,
 while `r + et` *is* guarded — but probing the singular ray from 1e-1 down to
 exactly 0 gives smooth convergence with no blow-up or discontinuity. No
@@ -266,4 +328,17 @@ Neither manual is committed; both are AIUB's to distribute.
    permits redistribution anyway; applied to the AIUB manuals listed below it
    would have produced infringement while sounding equally principled.
    Caught in review of PR #141.
-5. **"Not reachable" needs a method attached.** Say what was tried.
+
+   **A package's licence is not always the licence of every file in it.**
+   `dc3dm` is EPL 1.0, but its `external/dc3omp.f` is Okada's unencumbered
+   DC3D with an eighty-line EPL contribution bolted on. Reading which author
+   wrote which subroutine turned "we cannot take this without copyleft" into
+   "we can take the kernel freely and isolate the rest in one file".
+
+   The general rule: **split by authorship, and make the split a file
+   boundary**, so a reader can see the boundary without reading the diff and
+   a future maintainer can delete the encumbered half. PR #153.
+5. **A port is a derivative work.** Transliterating to another language does
+   not shed the original's licence, any more than extracting text does. The
+   language changed; the authorship did not.
+6. **"Not reachable" needs a method attached.** Say what was tried.
