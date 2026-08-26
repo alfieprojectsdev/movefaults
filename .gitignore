@@ -48,6 +48,10 @@ Thumbs.db
 *.kin
 *.xlsx
 *.xlsm
+# Exception, same reasoning as the archive manifests above: this one is a
+# RECORD of what was processed, not the bulk data itself. 314 KB, and the
+# R740 needs to pull it from the repo rather than be handed a copy.
+!docs/bern52/BERN52 Inventory.xlsx
 *.gmt
 *.cpt
 
