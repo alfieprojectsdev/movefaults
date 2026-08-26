@@ -92,6 +92,7 @@ not ~10%**, and that misreport stood for months.
 | **No cron for the scientific pipeline.** Run *status* has cron; the pipeline does not | its failure mode is silent wrong numbers; scheduling removes the person who would notice |
 | **Non-commercial free tiers are a legitimate fit** (Vercel Hobby et al.) | PHIVOLCS work generates no profit by design |
 | **`analysis/` `01 RINEX conversion` is not ported yet** | downstream of the digital logsheet; porting now automates the wrong half |
+| **Decimal year is `year + DOY/365.25`** — DOY 1 is `year + 0.0027`, not `year.0000`. Do not "correct" it to `(DOY-1)/365.25` | the `offsets` catalog, every published PLOT file and every published velocity are written in it, and staff compute catalog entries by hand this way. The absolute epoch has no scientific meaning; agreement with the catalog does. Settled 2026-08-25, pinned by tests in `test_crd_pipeline.py` |
 | **Do not partition the PH network into clusters yet** | GSI partitioned at ~1,240 stations; we have ~107. Partitioning is a scaling remedy whose cost is paid at the combination step — V3's non-unique troposphere is what that cost looks like |
 | **Keep the multi-station minimum-constraint datum**; do not adopt GEONET's single fixed station | its failure mode is *global* — one station's unmodelled motion reached all ~1,240 GEONET stations — and it needs a daily wide-area solution to be safe |
 
@@ -143,9 +144,6 @@ Old documents and older memory still assert these. They are wrong.
 A settled-list that suppresses live questions is worse than none. These are
 genuinely unresolved as of 2026-08-25 and *should* be worked on:
 
-- **Decimal year disagrees between `RUNX_v2.py` (`DOY/365.25`) and the merged
-  `crd_pipeline.py` (`(DOY-1)/365.25`)** — exactly one day. Live in merged code.
-  Settle it before anything generates PLOT files. (PR #139, finding 6)
 - **No production month has run through `services/bernese-workflow`.** Until one
   is compared byte-for-byte against `scripts/` output, its 229 tests are
   evidence about the service, not about the science.

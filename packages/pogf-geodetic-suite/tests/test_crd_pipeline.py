@@ -114,15 +114,64 @@ def test_read_crd_file_without_dome(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_session_to_decimal_year_doy_001():
-    # DOY 1 of 2023 = 2023.0000...
-    year = session_to_decimal_year("23001")
-    assert year == pytest.approx(2023.0, abs=0.01)
+    # DOY 1 is year + 1/365.25, NOT year.0000 -- see the function docstring.
+    # Exact, not approx: the two candidate conventions differ by 0.002738, and
+    # the abs=0.01 tolerance this test used to carry was too loose to tell them
+    # apart. That is why the off-by-one survived review.
+    assert session_to_decimal_year("23001") == 2023 + 1 / 365.25
 
 
 def test_session_to_decimal_year_doy_365():
-    # DOY 365 = last day of most years
-    year = session_to_decimal_year("23365")
-    assert year == pytest.approx(2023.997, abs=0.001)
+    assert session_to_decimal_year("23365") == 2023 + 365 / 365.25
+
+
+def test_session_to_decimal_year_matches_runx_v2_for_every_doy():
+    """The convention is RUNX_v2.py's. Pin it across the whole year.
+
+    RUNX_v2.py:
+        day  = int(allyear[2:5]) / 365.25
+        date = int(year) + day
+    """
+    for doy in range(1, 367):
+        legacy = 2023 + doy / 365.25
+        assert session_to_decimal_year(f"23{doy:03d}") == legacy
+
+
+def test_session_to_decimal_year_is_not_the_doy_minus_one_convention():
+    """Guard against the change being silently reverted as a 'correction'.
+
+    (DOY-1)/365.25 puts DOY 1 at year.0000 and is arguably the better
+    definition in isolation, but it disagrees with the offsets catalog by
+    exactly one day at every epoch.
+    """
+    for doy in (1, 100, 273, 365):
+        got = session_to_decimal_year(f"25{doy:03d}")
+        other = 2025 + (doy - 1) / 365.25
+        assert got != other
+        assert got - other == pytest.approx(1 / 365.25, rel=1e-12)
+
+
+@pytest.mark.parametrize(
+    "catalog_entry, expected_doy",
+    [
+        (2025.7474, 273),   # ALBU, the 2025 Bogo earthquake
+        (2017.5147, 188),   # ALBU
+        (2023.1314, 48),    # AROY
+    ],
+)
+def test_offsets_catalog_entries_invert_to_whole_days(catalog_entry, expected_doy):
+    """Real entries from the production `offsets` file land on whole DOYs.
+
+    This is the evidence that the catalog is written in this convention, and
+    it is what makes the choice checkable rather than asserted. Under
+    (DOY-1)/365.25 each of these would invert to a whole day plus one.
+    """
+    year = int(catalog_entry)
+    doy = round((catalog_entry - year) * 365.25)
+    assert doy == expected_doy
+    # and the forward direction agrees to better than a tenth of a day
+    reconstructed = session_to_decimal_year(f"{year % 100:02d}{doy:03d}")
+    assert abs(reconstructed - catalog_entry) < 0.1 / 365.25
 
 
 def test_session_to_decimal_year_19xx_range():
