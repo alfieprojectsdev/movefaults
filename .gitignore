@@ -55,6 +55,18 @@ Thumbs.db
 *.gmt
 *.cpt
 
+# Office documents under analysis/ are the scientists' working files, often
+# tens of MB each. `analysis/07 Dislocation Model/` alone is 62 MB. They are
+# opaque to `git diff` (every revision shows as Bin), cannot be grepped
+# headlessly on the R740, and are bulk binary in a repository whose value is
+# its readable history.
+#
+# Extract, do not vendor. `scripts/extract_dislocation_results.py` turns that
+# directory's results compilation into a CSV plus a markdown summary, both of
+# which ARE committed and both of which regenerate deterministically.
+analysis/**/*.docx
+analysis/**/*.pptx
+
 # Ignore asset folders from saved HTML pages
 *_files/
 

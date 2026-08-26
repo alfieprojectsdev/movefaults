@@ -1,0 +1,490 @@
+segment,table,run,parameter,value
+(methods reference),0,Notes,"Elastic half-space, grid search and bootstrap","We use the interseismic crustal deformation model (Savage, 1983; Matsu’ura et al., 1986) such that the interseismic velocity field can be represented as the sum of rigid block motion at long-term rates across the fault and back-slip rate (slip deficits) on the locked fault (negative dislocation). Because of an irregular spatial distribution of GPS sites in the Luzon area, we only choose three transects across the Philippine Fault wherein GPS data is sufficient to constrain fault slip rates. We project GPS data along these 2-D transects and estimate back-slip rate, fault width, dip, long-term slip rates using an elastic half-space model (Okada, 1985). The positions of our model faults approximately follow the surface trace of the Philippine Fault. An initial value of fault dip is assumed to be 90. We search for the optimal long-term slip rates and fault width using a grid search approach. Data are inverted using a weighted least-squares approach The fit to the data is quantified from the mean of the normalized square residuals, defined as the chi-square divide by the number of data points. A value of 1 means that the model fits the data within uncertainties on average. In order to estimate uncertainties of fault parameters, we apply a bootstrap method by re-sampling GPS data to generate 1000 synthetic data sets and compute fault parameters."
+(methods reference),0,Notes,GPS measurements,"Computed displacement vectors from GPS measurements within the Philippine Archipelago when the station in Puerto Princesa, Palawan (PUER) is held fixed Computed relative displacement vectors from GPS measurements in between selected stations within the Philippine network Philippine GEODYSSEA network; four comparisons can be performed."
+(methods reference),0,Notes,Geodetic trilateration/GPS measurements,Displacement vectors deduced from two least squares adjustments indicate a mean slip rate and its azimuth. Area of interest: central part of the Philippine Fault on Leyte Island
+(methods reference),0,References,"Elastic half-space, grid search and bootstrap","Yu, S. et al. (2011). Present-day crustal deformation along the Philippine Fault in Luzon, Philippines. Journal of Asian Earth Sciences. doi:10.1016/j.jseaes.2010.12.007. Matsu’ura, M., Jackson, D.D., Cheng, A. (1986). Dislocation model for aseismic crustal deformation at Hollister, California. Journal of Geophysical Research, 91, 2661–2674"
+(methods reference),0,References,GPS measurements,"Aurelio, M.A. (2000). Shear partitioning in the Philippines: Constraints from Philippine Fault and global positioning system data. The Island Arc, 9, 584-597."
+(methods reference),0,References,Geodetic trilateration/GPS measurements,"Duquesnoy, Th. et al. (1994). Detection of creep along the Philippine Fault: First results of geodetic measurements on Leyte island, central Philippines. Geophysical Research Letters, 21 (11), 975–978. https://doi.org/10.1029/94GL00640."
+Ambuklao Fault,2,1st modeling results (2024),Angle of projection,"77° from N,CW"
+Ambuklao Fault,2,1st modeling results (2024),Backslip Rate (mm/yr),28.88 (12.02-31.97)
+Ambuklao Fault,2,1st modeling results (2024),Confidence interval,95%
+Ambuklao Fault,2,1st modeling results (2024),Data period,2009-2023
+Ambuklao Fault,2,1st modeling results (2024),Dip Angle (degrees),83 (75-90)
+Ambuklao Fault,2,1st modeling results (2024),Locking depth (km),40 (31-50)
+Ambuklao Fault,2,1st modeling results (2024),Method,"Elastic half-space model, grid search, and bootstrap"
+Ambuklao Fault,2,1st modeling results (2024),Number of samples,1000
+Ambuklao Fault,2,1st modeling results (2024),Number of sites,8 sites
+Ambuklao Fault,2,1st modeling results (2024),Reduced chi-squared,1.00
+Ambuklao Fault,2,1st modeling results (2024),Reference station,BLNA
+Ambuklao Fault,2,1st modeling results (2024),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+Ambuklao Fault,2,1st modeling results (2024),Residuals,1.08
+Ambuklao Fault,2,1st modeling results (2024),Slip Rate (mm/yr),29 (25-33)
+Ambuklao Fault,2,1st modeling results (2024),Top depth (km),1 (0-5)
+Ambuklao Fault,2,1st modeling results (2024),Width (km)*,(locking depth)
+PF: Central Luzon,4,1st modeling results (2021),Angle of projection,"48° from N,CW"
+PF: Central Luzon,4,1st modeling results (2021),Backslip Rate (mm/yr),29 (27.69-31.33)
+PF: Central Luzon,4,1st modeling results (2021),Data period,2000-2020
+PF: Central Luzon,4,1st modeling results (2021),Dip Angle (degrees),80 (77-84)
+PF: Central Luzon,4,1st modeling results (2021),Locking depth (km),17 (15-19)
+PF: Central Luzon,4,1st modeling results (2021),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Central Luzon,4,1st modeling results (2021),Number of samples,1000
+PF: Central Luzon,4,1st modeling results (2021),Number of sites,14 sites
+PF: Central Luzon,4,1st modeling results (2021),Other statistics used,68% CI using quartile
+PF: Central Luzon,4,1st modeling results (2021),Recurrence interval (years),197.89-223.91
+PF: Central Luzon,4,1st modeling results (2021),Reference station,IBAZ
+PF: Central Luzon,4,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Central Luzon,4,1st modeling results (2021),Residuals,0.40
+PF: Central Luzon,4,1st modeling results (2021),Slip Rate (mm/yr),32 (32-33)
+PF: Central Luzon,4,1st modeling results (2021),Top depth (km),0 (0-1)
+PF: Central Luzon,4,1st modeling results (2021),Width (km)*,(locking depth)
+PF: Central Luzon,4,2nd modeling results (2023),Angle of projection,"48° from N,CW"
+PF: Central Luzon,4,2nd modeling results (2023),Backslip Rate (mm/yr),28.16 (23.32-30.89)
+PF: Central Luzon,4,2nd modeling results (2023),Data period,1999-2022
+PF: Central Luzon,4,2nd modeling results (2023),Dip Angle (degrees),86 (80-90)
+PF: Central Luzon,4,2nd modeling results (2023),Locking depth (km),14 (10-19)
+PF: Central Luzon,4,2nd modeling results (2023),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Central Luzon,4,2nd modeling results (2023),Number of samples,1000
+PF: Central Luzon,4,2nd modeling results (2023),Number of sites,13 sites
+PF: Central Luzon,4,2nd modeling results (2023),Other statistics used,95% CI using quartile
+PF: Central Luzon,4,2nd modeling results (2023),Recurrence interval (years),200.71-265.87
+PF: Central Luzon,4,2nd modeling results (2023),Reduced chi-squared,1.14
+PF: Central Luzon,4,2nd modeling results (2023),Reference station,IBAZ
+PF: Central Luzon,4,2nd modeling results (2023),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Central Luzon,4,2nd modeling results (2023),Residuals,0.55
+PF: Central Luzon,4,2nd modeling results (2023),Slip Rate (mm/yr),31 (30-32)
+PF: Central Luzon,4,2nd modeling results (2023),Top depth (km),0 (0-1)
+PF: Central Luzon,4,2nd modeling results (2023),Width (km)*,(locking depth)
+PF: Central Luzon,4,3rd modeling results (2023),Angle of projection,"48° from N,CW"
+PF: Central Luzon,4,3rd modeling results (2023),Bottom depth (km),75.36
+PF: Central Luzon,4,3rd modeling results (2023),Data period,1999-2022
+PF: Central Luzon,4,3rd modeling results (2023),Dip Angle (degrees),79.05
+PF: Central Luzon,4,3rd modeling results (2023),Method,Inversion and monte carlo
+PF: Central Luzon,4,3rd modeling results (2023),Number of samples,"900,000"
+PF: Central Luzon,4,3rd modeling results (2023),Number of sites,22 sites
+PF: Central Luzon,4,3rd modeling results (2023),Other statistics used,"STD, 95% CI using z-distribution and percentile"
+PF: Central Luzon,4,3rd modeling results (2023),Rake,5.52
+PF: Central Luzon,4,3rd modeling results (2023),Reference station,LUZA
+PF: Central Luzon,4,3rd modeling results (2023),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Central Luzon,4,3rd modeling results (2023),Slip Rate (mm/yr),31.82
+PF: Central Luzon,4,3rd modeling results (2023),Top depth (km),16.15
+PF: Central Luzon,4,Bacolcol et al. (2012),Backslip Rate (mm/yr),35 ± 13
+PF: Central Luzon,4,Bacolcol et al. (2012),Dip Angle (degrees),85
+PF: Central Luzon,4,Bacolcol et al. (2012),Locking depth (km),20
+PF: Central Luzon,4,Bacolcol et al. (2012),Method,Elastic half-space model and grid search
+PF: Central Luzon,4,Bacolcol et al. (2012),Number of sites,8 sites
+PF: Central Luzon,4,Bacolcol et al. (2012),Recurrence interval (years),120-170
+PF: Central Luzon,4,Bacolcol et al. (2012),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Central Luzon,4,Bacolcol et al. (2012),Slip Rate (mm/yr),36
+PF: Central Luzon,4,Bacolcol et al. (2012),Top depth (km),0
+PF: Central Luzon,4,Bacolcol et al. (2012),Width (km)*,(locking depth)
+PF: Central Luzon,4,Beavan (2001),Locking depth (km),15
+PF: Central Luzon,4,Beavan (2001),Slip Rate (mm/yr),40
+PF: Central Luzon,4,Daligdig (1997),Recurrence interval (years),300-400
+PF: Central Luzon,4,Daligdig (1997),Slip Rate (mm/yr),15-20
+PF: Central Luzon,4,Galgana (2007),Locking depth (km),25
+PF: Central Luzon,4,Galgana (2007),Slip Rate (mm/yr),29-40
+PF: Central Luzon,4,Yu et al. (2011),Analysis,Coupling ratio suggests that the PF is nearly fully locked in the Luzon area
+PF: Central Luzon,4,Yu et al. (2011),Backslip Rate (mm/yr),37 (33-47)
+PF: Central Luzon,4,Yu et al. (2011),Dip Angle (degrees),89 (80-90)
+PF: Central Luzon,4,Yu et al. (2011),Locking depth (km),15 (10-26)
+PF: Central Luzon,4,Yu et al. (2011),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Central Luzon,4,Yu et al. (2011),Number of samples,1000
+PF: Central Luzon,4,Yu et al. (2011),Number of sites,13 sites
+PF: Central Luzon,4,Yu et al. (2011),Other statistics used,95% CI
+PF: Central Luzon,4,Yu et al. (2011),Recurrence interval (years),~162
+PF: Central Luzon,4,Yu et al. (2011),Reduced chi-squared,1.9
+PF: Central Luzon,4,Yu et al. (2011),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Central Luzon,4,Yu et al. (2011),Slip Rate (mm/yr),37 (32-45)
+PF: Central Luzon,4,Yu et al. (2011),Width (km)*,(locking depth)
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001)",Date and time,30 November 1645
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001)",Date and time,1892
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001)",Depth of epicenter,13 km (Wikipedia)
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001)",Fault type,Strike-slip
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001)",Fault type,Strike-slip
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001)",Location of epicenter,Same segment that rupture in 1990
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001)",Location of epicenter,Epicenter unclear
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001)",Magnitude,Ms 7.5 (Wikipedia)
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Date and time,16 July 1990
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Depth of epicenter,25 km
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Dip,"89° (Velasco et al., 1996) 87.5° (Yoshida and Abe, 1992)"
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Displacement,"predominantly left-lateral with measured vertical and horizontal displacements varying from 0.1-2.5 m and 0.2-6.2 m (Punongbayan et al., 2001)"
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Duration,"30-35s (Velasco et al., 1996)"
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Fault rupture,1200 km
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Fault type,Strike-slip
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Location of epicenter,"15.679° N, 121.172° E"
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Magnitude,Ms 7.8
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Rake,"16° (Velasco et al., 1996) -6.5° (Yoshida and Abe, 1992)"
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Seismic moment,"4.2 +- 0.1 x 1020 Nm (Mw 7.7 (Velasco et al., 1996) 3.9 x 101020 Nm (Mw 7.7) (Yoshida and Abe, 1992)"
+PF: Central Luzon,5,"Philippine Fault (Punongbayan et al., 2001; Yoshida and Abe, 1992; Velasco et al., 1996)",Strike,"153° (Velasco et al., 1996) 154.8° (Yoshida and Abe, 1992)"
+PF: Eastern Mindanao,15,1st modeling results (2021),Angle of projection,"72° from N,CW"
+PF: Eastern Mindanao,15,1st modeling results (2021),Backslip Rate (mm/yr),15.13 (-31.86-39.43)
+PF: Eastern Mindanao,15,1st modeling results (2021),Data period,2007-2019
+PF: Eastern Mindanao,15,1st modeling results (2021),Dip Angle (degrees),85 (75-90)
+PF: Eastern Mindanao,15,1st modeling results (2021),Locking depth (km),149 (130-150)
+PF: Eastern Mindanao,15,1st modeling results (2021),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Eastern Mindanao,15,1st modeling results (2021),Number of samples,1000
+PF: Eastern Mindanao,15,1st modeling results (2021),Number of sites,10 sites
+PF: Eastern Mindanao,15,1st modeling results (2021),Reference station,CDOC
+PF: Eastern Mindanao,15,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Eastern Mindanao,15,1st modeling results (2021),Residuals,0.46
+PF: Eastern Mindanao,15,1st modeling results (2021),Slip Rate (mm/yr),29 (20-40)
+PF: Eastern Mindanao,15,1st modeling results (2021),Top depth (km),0 (0-1)
+PF: Eastern Mindanao,15,1st modeling results (2021),Width (km)*,(locking depth)
+PF: Eastern Mindanao,15,Aurelio (2020),Analysis,major component of this movement is most likely accommodated along the Philippine Fault which trends N165 here Lianga and Mati Faults are possibly contributing a combined left-lateral movement below 10 mm/yr
+PF: Eastern Mindanao,15,Aurelio (2020),Method,Relative GPS velocities between GPS stations
+PF: Eastern Mindanao,15,Aurelio (2020),Number of sites,2 sites
+PF: Eastern Mindanao,15,Aurelio (2020),Reference station,"PUER (Puerto Princesa, Palawa)"
+PF: Eastern Mindanao,15,Aurelio (2020),Remarks,Surficial velocities; relative movement between Davao and Surigao
+PF: Eastern Mindanao,15,Aurelio (2020),Slip Rate (mm/yr),~21 (left-lateral movement)
+PF: Guinayangan Fault,7,1st modeling results (2021),Angle of projection,"42° from N,CW"
+PF: Guinayangan Fault,7,1st modeling results (2021),Backslip Rate (mm/yr),31 (25.99-37.90)
+PF: Guinayangan Fault,7,1st modeling results (2021),Confidence interval,95%
+PF: Guinayangan Fault,7,1st modeling results (2021),Data period,1998-2019
+PF: Guinayangan Fault,7,1st modeling results (2021),Dip Angle (degrees),75 (70-80)
+PF: Guinayangan Fault,7,1st modeling results (2021),Locking depth (km),38 (30-45)
+PF: Guinayangan Fault,7,1st modeling results (2021),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Guinayangan Fault,7,1st modeling results (2021),Number of samples,1000
+PF: Guinayangan Fault,7,1st modeling results (2021),Number of sites,10 sites
+PF: Guinayangan Fault,7,1st modeling results (2021),Reference station,SIBB
+PF: Guinayangan Fault,7,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Guinayangan Fault,7,1st modeling results (2021),Residuals,0.46
+PF: Guinayangan Fault,7,1st modeling results (2021),Slip Rate (mm/yr),36 (34-39)
+PF: Guinayangan Fault,7,1st modeling results (2021),Top depth (km),0 (0-3)
+PF: Guinayangan Fault,7,1st modeling results (2021),Width (km)*,(locking depth)
+PF: Guinayangan Fault,7,Bacolcol et al. (2012),Backslip Rate (mm/yr),44 ± 8
+PF: Guinayangan Fault,7,Bacolcol et al. (2012),Dip Angle (degrees),85
+PF: Guinayangan Fault,7,Bacolcol et al. (2012),Locking depth (km),19
+PF: Guinayangan Fault,7,Bacolcol et al. (2012),Method,Elastic half-space model and grid search
+PF: Guinayangan Fault,7,Bacolcol et al. (2012),Number of sites,6 sites
+PF: Guinayangan Fault,7,Bacolcol et al. (2012),Recurrence interval (years),65-95
+PF: Guinayangan Fault,7,Bacolcol et al. (2012),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Guinayangan Fault,7,Bacolcol et al. (2012),Slip Rate (mm/yr),32
+PF: Guinayangan Fault,7,Bacolcol et al. (2012),Width (km)*,(locking depth)
+PF: Guinayangan Fault,7,Besana and Ando (2005),Recurrence interval (years),65
+PF: Guinayangan Fault,7,Yu et al. (2011),Backslip Rate (mm/yr),40 (33-50)
+PF: Guinayangan Fault,7,Yu et al. (2011),Confidence interval,95%
+PF: Guinayangan Fault,7,Yu et al. (2011),Dip Angle (degrees),70 (52-90)
+PF: Guinayangan Fault,7,Yu et al. (2011),Locking depth (km),28 (20-56)
+PF: Guinayangan Fault,7,Yu et al. (2011),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Guinayangan Fault,7,Yu et al. (2011),Number of samples,1000
+PF: Guinayangan Fault,7,Yu et al. (2011),Number of sites,11 sites
+PF: Guinayangan Fault,7,Yu et al. (2011),Reduced chi-squared,2.6
+PF: Guinayangan Fault,7,Yu et al. (2011),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Guinayangan Fault,7,Yu et al. (2011),Slip Rate (mm/yr),40 (33-52)
+PF: Guinayangan Fault,7,Yu et al. (2011),Width (km)*,(locking depth)
+PF: Hapap Fault,1,1st modeling results (2021),Angle of projection,"103° from N,CW"
+PF: Hapap Fault,1,1st modeling results (2021),Backslip Rate (mm/yr),12 (10.29-16.15)
+PF: Hapap Fault,1,1st modeling results (2021),Confidence interval,68%
+PF: Hapap Fault,1,1st modeling results (2021),Data period,2000-2019
+PF: Hapap Fault,1,1st modeling results (2021),Dip Angle (degrees),85 (81-88)
+PF: Hapap Fault,1,1st modeling results (2021),Locking depth (km),37 (32-43)
+PF: Hapap Fault,1,1st modeling results (2021),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Hapap Fault,1,1st modeling results (2021),Number of samples,1000
+PF: Hapap Fault,1,1st modeling results (2021),Number of sites,9 sites
+PF: Hapap Fault,1,1st modeling results (2021),Reference station,VIGN
+PF: Hapap Fault,1,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Hapap Fault,1,1st modeling results (2021),Residuals,0.07
+PF: Hapap Fault,1,1st modeling results (2021),Slip Rate (mm/yr),19 (17-20)
+PF: Hapap Fault,1,1st modeling results (2021),Top depth (km),0 (0-5)
+PF: Hapap Fault,1,1st modeling results (2021),Width (km)*,(locking depth)
+PF: Hapap Fault,1,2nd modeling results (2024),Angle of projection,"103° from N,CW"
+PF: Hapap Fault,1,2nd modeling results (2024),Backslip Rate (mm/yr),20.92 (12.26-28.80)
+PF: Hapap Fault,1,2nd modeling results (2024),Confidence interval,95%
+PF: Hapap Fault,1,2nd modeling results (2024),Data period,1996-2023
+PF: Hapap Fault,1,2nd modeling results (2024),Dip Angle (degrees),85 (80-90)
+PF: Hapap Fault,1,2nd modeling results (2024),Locking depth (km),19 (15-45)
+PF: Hapap Fault,1,2nd modeling results (2024),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Hapap Fault,1,2nd modeling results (2024),Number of samples,1000
+PF: Hapap Fault,1,2nd modeling results (2024),Number of sites,9 sites
+PF: Hapap Fault,1,2nd modeling results (2024),Reduced chi-squared,2.68
+PF: Hapap Fault,1,2nd modeling results (2024),Reference station,VIGN
+PF: Hapap Fault,1,2nd modeling results (2024),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Hapap Fault,1,2nd modeling results (2024),Residuals,0.42
+PF: Hapap Fault,1,2nd modeling results (2024),Slip Rate (mm/yr),21 (19-29)
+PF: Hapap Fault,1,2nd modeling results (2024),Top depth (km),1 (0-4)
+PF: Hapap Fault,1,2nd modeling results (2024),Width (km)*,(locking depth)
+PF: Hapap Fault,1,3rd modeling results (2024),Angle of projection,"103° from N,CW"
+PF: Hapap Fault,1,3rd modeling results (2024),Backslip Rate (mm/yr),27.97 (14.08-29.67)
+PF: Hapap Fault,1,3rd modeling results (2024),Confidence interval,95%
+PF: Hapap Fault,1,3rd modeling results (2024),Data period,1996-2023
+PF: Hapap Fault,1,3rd modeling results (2024),Dip Angle (degrees),88 (81-90)
+PF: Hapap Fault,1,3rd modeling results (2024),Locking depth (km),40 (35-45)
+PF: Hapap Fault,1,3rd modeling results (2024),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Hapap Fault,1,3rd modeling results (2024),Number of samples,1000
+PF: Hapap Fault,1,3rd modeling results (2024),Number of sites,10 sites
+PF: Hapap Fault,1,3rd modeling results (2024),Reduced chi-squared,2.44
+PF: Hapap Fault,1,3rd modeling results (2024),Reference station,BLNA
+PF: Hapap Fault,1,3rd modeling results (2024),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Hapap Fault,1,3rd modeling results (2024),Residuals,1.16
+PF: Hapap Fault,1,3rd modeling results (2024),Slip Rate (mm/yr),28 (24-30)
+PF: Hapap Fault,1,3rd modeling results (2024),Top depth (km),1 (0-4)
+PF: Hapap Fault,1,3rd modeling results (2024),Width (km)*,(locking depth)
+PF: Hapap Fault,1,Yu et al. (2011),Analysis,Coupling ratio suggests that the PF is nearly fully locked in the Luzon area
+PF: Hapap Fault,1,Yu et al. (2011),Backslip Rate (mm/yr),22 (17-35)
+PF: Hapap Fault,1,Yu et al. (2011),Confidence interval,95%
+PF: Hapap Fault,1,Yu et al. (2011),Dip Angle (degrees),85 (79-90)
+PF: Hapap Fault,1,Yu et al. (2011),Locking depth (km),15 (6-17)
+PF: Hapap Fault,1,Yu et al. (2011),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Hapap Fault,1,Yu et al. (2011),Number of samples,1000
+PF: Hapap Fault,1,Yu et al. (2011),Number of sites,6 sites
+PF: Hapap Fault,1,Yu et al. (2011),Reduced chi-squared,1.0
+PF: Hapap Fault,1,Yu et al. (2011),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Hapap Fault,1,Yu et al. (2011),Slip Rate (mm/yr),24 (20-25)
+PF: Hapap Fault,1,Yu et al. (2011),Width (km)*,(locking depth)
+PF: Infanta Fault,6,1st modeling results (2021),Angle of projection,"85° from N,CW"
+PF: Infanta Fault,6,1st modeling results (2021),Backslip Rate (mm/yr),19.89 (15.77-23.82)
+PF: Infanta Fault,6,1st modeling results (2021),Confidence interval,95%
+PF: Infanta Fault,6,1st modeling results (2021),Data period,2014-2020
+PF: Infanta Fault,6,1st modeling results (2021),Dip Angle (degrees),85 (80-90)
+PF: Infanta Fault,6,1st modeling results (2021),Locking depth (km),12 (10-12)
+PF: Infanta Fault,6,1st modeling results (2021),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Infanta Fault,6,1st modeling results (2021),Number of samples,1000
+PF: Infanta Fault,6,1st modeling results (2021),Number of sites,6 sites
+PF: Infanta Fault,6,1st modeling results (2021),Reference station,CNTA
+PF: Infanta Fault,6,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Infanta Fault,6,1st modeling results (2021),Residuals,0.27
+PF: Infanta Fault,6,1st modeling results (2021),Slip Rate (mm/yr),21 (19-25)
+PF: Infanta Fault,6,1st modeling results (2021),Top depth (km),1 (0-4)
+PF: Infanta Fault,6,1st modeling results (2021),Width (km)*,(locking depth)
+PF: Lianga Fault,14,1st modeling results (2021),Angle of projection,"22° from N,CW"
+PF: Lianga Fault,14,1st modeling results (2021),Backslip Rate (mm/yr),7.7
+PF: Lianga Fault,14,1st modeling results (2021),Data period,2007-2019
+PF: Lianga Fault,14,1st modeling results (2021),Dip Angle (degrees),85
+PF: Lianga Fault,14,1st modeling results (2021),Locking depth (km),2
+PF: Lianga Fault,14,1st modeling results (2021),Method,Elastic half-space model and grid search
+PF: Lianga Fault,14,1st modeling results (2021),Number of sites,5 sites
+PF: Lianga Fault,14,1st modeling results (2021),Reference station,SOMF
+PF: Lianga Fault,14,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Lianga Fault,14,1st modeling results (2021),Residuals,1.15
+PF: Lianga Fault,14,1st modeling results (2021),Slip Rate (mm/yr),9
+PF: Lianga Fault,14,1st modeling results (2021),Top depth (km),0
+PF: Lianga Fault,14,1st modeling results (2021),Width (km)*,(locking depth)
+PF: Masbate,9,1st modeling results (2021),Angle of projection,"55° from N,CW"
+PF: Masbate,9,1st modeling results (2021),Backslip Rate (mm/yr),29 (19-33-26)
+PF: Masbate,9,1st modeling results (2021),Confidence interval,95%
+PF: Masbate,9,1st modeling results (2021),Data period,2010-2020
+PF: Masbate,9,1st modeling results (2021),Dip Angle (degrees),80 (75-80)
+PF: Masbate,9,1st modeling results (2021),Locking depth (km),5 (4-10)
+PF: Masbate,9,1st modeling results (2021),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Masbate,9,1st modeling results (2021),Number of samples,1000
+PF: Masbate,9,1st modeling results (2021),Number of sites,8 sites
+PF: Masbate,9,1st modeling results (2021),Reference station,BALU
+PF: Masbate,9,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Masbate,9,1st modeling results (2021),Residuals,0.14
+PF: Masbate,9,1st modeling results (2021),Slip Rate (mm/yr),34 (31-39)
+PF: Masbate,9,1st modeling results (2021),Top depth (km),0 (0-1)
+PF: Masbate,9,1st modeling results (2021),Width (km)*,(locking depth)
+PF: Masbate,9,2nd modeling results (2023),Angle of projection,"50° from N,CW"
+PF: Masbate,9,2nd modeling results (2023),Backslip Rate (mm/yr),31 (22.38-32.98)
+PF: Masbate,9,2nd modeling results (2023),Confidence interval,95%
+PF: Masbate,9,2nd modeling results (2023),Data period,2003-2020
+PF: Masbate,9,2nd modeling results (2023),Dip Angle (degrees),84 (75-90)
+PF: Masbate,9,2nd modeling results (2023),Locking depth (km),3 (2-5)
+PF: Masbate,9,2nd modeling results (2023),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Masbate,9,2nd modeling results (2023),Number of samples,1000
+PF: Masbate,9,2nd modeling results (2023),Number of sites,15 sites
+PF: Masbate,9,2nd modeling results (2023),Recurrence interval (years),14.86-21.89
+PF: Masbate,9,2nd modeling results (2023),Reduced chi-squared,10.18
+PF: Masbate,9,2nd modeling results (2023),Reference station,SIBI
+PF: Masbate,9,2nd modeling results (2023),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Masbate,9,2nd modeling results (2023),Residuals,1.11
+PF: Masbate,9,2nd modeling results (2023),Slip Rate (mm/yr),33 (29-35)
+PF: Masbate,9,2nd modeling results (2023),Top depth (km),0
+PF: Masbate,9,2nd modeling results (2023),Width (km)*,(locking depth)
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Angle of projection,"50° from N,CW"
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Bottom depth (km),19.77
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Data period,2003-2020
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Dip Angle (degrees),80
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Method,Inversion and monte carlo
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Number of samples,"900,000"
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Number of sites,16 sites
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Rake,1.06
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Reference station,SIBI
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Slip Rate (mm/yr),33.00
+PF: Masbate,9,3rd modeling results (2023) (Figure 4),Top depth (km),2.20
+PF: Masbate,9,Bacolcol et al. (2012),Backslip Rate (mm/yr),15 ± 9
+PF: Masbate,9,Bacolcol et al. (2012),Dip Angle (degrees),80
+PF: Masbate,9,Bacolcol et al. (2012),Locking depth (km),5
+PF: Masbate,9,Bacolcol et al. (2012),Method,Elastic half-space model and grid search
+PF: Masbate,9,Bacolcol et al. (2012),Number of sites,~10 sites
+PF: Masbate,9,Bacolcol et al. (2012),Recurrence interval (years),20-80
+PF: Masbate,9,Bacolcol et al. (2012),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Masbate,9,Bacolcol et al. (2012),Slip Rate (mm/yr),34
+PF: Masbate,9,Bacolcol et al. (2012),Top depth (km),0
+PF: Masbate,9,Bacolcol et al. (2012),Width (km)*,(locking depth)
+PF: Masbate,10,Masbate Segment (Philippine Fault),Date and time,"15 February 2003, 7:01 PM"
+PF: Masbate,10,Masbate Segment (Philippine Fault),Date and time,"18 Aug 2020, 08:03 AM"
+PF: Masbate,10,Masbate Segment (Philippine Fault),Date and time,"16 Feb 2023, 02:10 AM"
+PF: Masbate,10,Masbate Segment (Philippine Fault),Depth of epicenter,22 km
+PF: Masbate,10,Masbate Segment (Philippine Fault),Depth of epicenter,13 km
+PF: Masbate,10,Masbate Segment (Philippine Fault),Depth of epicenter,10 km
+PF: Masbate,10,Masbate Segment (Philippine Fault),Displacement,"The maximum horizontal displacement along the fault was 47cm in Brgy. Sta. Cruz, Palanas while the maximum vertical displacement (23cm) was found in Brgy. Suba, Dimasalang. The average horizontal and vertical displacements mapped along the ground rupture were 15 cm and 5 cm, respectively."
+PF: Masbate,10,Masbate Segment (Philippine Fault),Displacement,"Several cultural features, including rice paddies, fishpond dikes, and roads, were left-laterally displaced and the amount of left-lateral offset ranges from ∼21 to ∼97 cm"
+PF: Masbate,10,Masbate Segment (Philippine Fault),Fault rupture,approximately 18km right-stepping en echelon faults with a general trend of ~N3OW to ~N4OW and had a maximum opening of 20 cm
+PF: Masbate,10,Masbate Segment (Philippine Fault),Fault rupture,extends for 23 km along the Philippine Fault: Masbate Segment
+PF: Masbate,10,Masbate Segment (Philippine Fault),Fault rupture,approximately 24-km long surface rupture
+PF: Masbate,10,Masbate Segment (Philippine Fault),Fault type,Strike-slip
+PF: Masbate,10,Masbate Segment (Philippine Fault),Fault type,Strike-slip
+PF: Masbate,10,Masbate Segment (Philippine Fault),Fault type,Strike-slip
+PF: Masbate,10,Masbate Segment (Philippine Fault),Location of epicenter,"12.2ºN, 123.8ºE"
+PF: Masbate,10,Masbate Segment (Philippine Fault),Location of epicenter,"11.98°N, 124.01°E"
+PF: Masbate,10,Masbate Segment (Philippine Fault),Location of epicenter,"12.32°N, 123.75°E"
+PF: Masbate,10,Masbate Segment (Philippine Fault),Magnitude,Ms 6.2
+PF: Masbate,10,Masbate Segment (Philippine Fault),Magnitude,Mw 6.6
+PF: Masbate,10,Masbate Segment (Philippine Fault),Magnitude,Mw 6.0
+PF: Northern Leyte Fault,11,1st modeling results (2021),Angle of projection,"55° from N,CW"
+PF: Northern Leyte Fault,11,1st modeling results (2021),Backslip Rate (mm/yr),13 (-102.19-29.49)
+PF: Northern Leyte Fault,11,1st modeling results (2021),Confidence interval,95%
+PF: Northern Leyte Fault,11,1st modeling results (2021),Data period,1995-2019
+PF: Northern Leyte Fault,11,1st modeling results (2021),Dip Angle (degrees),75 (70-80)
+PF: Northern Leyte Fault,11,1st modeling results (2021),Locking depth (km),20 (15-25)
+PF: Northern Leyte Fault,11,1st modeling results (2021),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Northern Leyte Fault,11,1st modeling results (2021),Number of samples,1000
+PF: Northern Leyte Fault,11,1st modeling results (2021),Number of sites,8 sites
+PF: Northern Leyte Fault,11,1st modeling results (2021),Reference station,CEB1
+PF: Northern Leyte Fault,11,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Northern Leyte Fault,11,1st modeling results (2021),Residuals,1.02
+PF: Northern Leyte Fault,11,1st modeling results (2021),Slip rate (mm/yr),47 (40-50)
+PF: Northern Leyte Fault,11,1st modeling results (2021),Strike,N 145° E
+PF: Northern Leyte Fault,11,1st modeling results (2021),Top depth (km),0 (0-5)
+PF: Northern Leyte Fault,11,1st modeling results (2021),Width (km)*,(locking depth)
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Angle of projection,"56° from N,CW"
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Backslip Rate (mm/yr),44.73
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Data period,1995-2017
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Dip Angle (degrees),83
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Locking depth (km),1
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Method,"Elastic half-space model, grid search"
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Number of sites,11 sites
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Reduced chi-squared,4.17
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Reference station,CEB1
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Residuals,2.96
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Slip rate (mm/yr),46
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Strike,N 146° E
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Top depth (km),0
+PF: Northern Leyte Fault,11,2nd modeling results (2023),Width (km)*,(locking depth)
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Analysis,“Slip rate” = “block motion” and “long term slip rate”
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Angle of projection,"55° from N,CW"
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Bottom depth (km),16.85
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Confidence interval,STD (68%)
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Data period,1995-2017
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Dip Angle (degrees),80.48
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Method,Inversion and monte carlo
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Number of samples,"900,000"
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Number of sites,sites
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Rake,0.11
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Reference station,CEB1
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Slip rate (mm/yr),47.08
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Strike,N 145° E
+PF: Northern Leyte Fault,11,3rd modeling results (2023),Top depth (km),0.71
+PF: Northern Leyte Fault,11,Duquesnoy et al. (1994),Analysis,motions observed at stations are due to aseismic creep along the fault
+PF: Northern Leyte Fault,11,Duquesnoy et al. (1994),Data period,1991 & 1993
+PF: Northern Leyte Fault,11,Duquesnoy et al. (1994),Method,Trilateration/GPS geodetic network
+PF: Northern Leyte Fault,11,Duquesnoy et al. (1994),Number of sites,9 sites
+PF: Northern Leyte Fault,11,Duquesnoy et al. (1994),Remarks,They used the term “mean slip rate” and “average azimuth”
+PF: Northern Leyte Fault,11,Duquesnoy et al. (1994),Slip rate (mm/yr),26 ± 10
+PF: Northern Leyte Fault,11,Duquesnoy et al. (1994),Strike,N 130° E
+PF: San Manuel Fault,3,1st modeling results (2021),Angle of projection,"45° from N,CW"
+PF: San Manuel Fault,3,1st modeling results (2021),Backslip Rate (mm/yr),21.99 (15.55-23.99)
+PF: San Manuel Fault,3,1st modeling results (2021),Confidence interval,95%
+PF: San Manuel Fault,3,1st modeling results (2021),Data period,2006-2018
+PF: San Manuel Fault,3,1st modeling results (2021),Dip Angle (degrees),75 (70-80)
+PF: San Manuel Fault,3,1st modeling results (2021),Locking depth (km),18 (15-25)
+PF: San Manuel Fault,3,1st modeling results (2021),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: San Manuel Fault,3,1st modeling results (2021),Number of samples,1000
+PF: San Manuel Fault,3,1st modeling results (2021),Number of sites,8 sites
+PF: San Manuel Fault,3,1st modeling results (2021),Reference station,MABN
+PF: San Manuel Fault,3,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: San Manuel Fault,3,1st modeling results (2021),Residuals,0.51
+PF: San Manuel Fault,3,1st modeling results (2021),Slip Rate (mm/yr),22 (17-25)
+PF: San Manuel Fault,3,1st modeling results (2021),Top depth (km),0 (0-3)
+PF: San Manuel Fault,3,1st modeling results (2021),Width (km)*,(locking depth)
+PF: San Manuel Fault,3,1st modeling results (2024),Angle of projection,"45° from N,CW"
+PF: San Manuel Fault,3,1st modeling results (2024),Backslip Rate (mm/yr),19.98 (11.39-22.11)
+PF: San Manuel Fault,3,1st modeling results (2024),Confidence interval,95%
+PF: San Manuel Fault,3,1st modeling results (2024),Data period,2006-2018
+PF: San Manuel Fault,3,1st modeling results (2024),Dip Angle (degrees),71 (65-75)
+PF: San Manuel Fault,3,1st modeling results (2024),Locking depth (km),18 (10-25)
+PF: San Manuel Fault,3,1st modeling results (2024),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: San Manuel Fault,3,1st modeling results (2024),Number of samples,1000
+PF: San Manuel Fault,3,1st modeling results (2024),Number of sites,8 sites
+PF: San Manuel Fault,3,1st modeling results (2024),Reduced chi-squared,4.56
+PF: San Manuel Fault,3,1st modeling results (2024),Reference station,MABN
+PF: San Manuel Fault,3,1st modeling results (2024),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: San Manuel Fault,3,1st modeling results (2024),Residuals,0.70
+PF: San Manuel Fault,3,1st modeling results (2024),Slip Rate (mm/yr),20 (13-24)
+PF: San Manuel Fault,3,1st modeling results (2024),Top depth (km),0 (0-2)
+PF: San Manuel Fault,3,1st modeling results (2024),Width (km)*,(locking depth)
+PF: Southern Leyte Fault,12,1st modeling results (2021),Angle of projection,"73° from N,CW"
+PF: Southern Leyte Fault,12,1st modeling results (2021),Backslip Rate (mm/yr),0.96 (-36.27 - 2.19)
+PF: Southern Leyte Fault,12,1st modeling results (2021),Confidence interval,95%
+PF: Southern Leyte Fault,12,1st modeling results (2021),Data period,2004-2020
+PF: Southern Leyte Fault,12,1st modeling results (2021),Dip Angle (degrees),85 (80-90)
+PF: Southern Leyte Fault,12,1st modeling results (2021),Locking depth (km),96 (90-100)
+PF: Southern Leyte Fault,12,1st modeling results (2021),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Southern Leyte Fault,12,1st modeling results (2021),Number of samples,1000
+PF: Southern Leyte Fault,12,1st modeling results (2021),Number of sites,10 sites
+PF: Southern Leyte Fault,12,1st modeling results (2021),Reference station,ISAB
+PF: Southern Leyte Fault,12,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Southern Leyte Fault,12,1st modeling results (2021),Residuals,0.54
+PF: Southern Leyte Fault,12,1st modeling results (2021),Slip Rate (mm/yr),38 (30-39)
+PF: Southern Leyte Fault,12,1st modeling results (2021),Top depth (km),0 (0-5)
+PF: Southern Leyte Fault,12,1st modeling results (2021),Width (km)*,(locking depth)
+PF: Southern Leyte Fault,12,Bacolcol et al. (2012),Backslip Rate (mm/yr),14
+PF: Southern Leyte Fault,12,Bacolcol et al. (2012),Dip Angle (degrees),80
+PF: Southern Leyte Fault,12,Bacolcol et al. (2012),Locking depth (km),13
+PF: Southern Leyte Fault,12,Bacolcol et al. (2012),Method,"Elastic half-space model, and grid search"
+PF: Southern Leyte Fault,12,Bacolcol et al. (2012),Number of sites,11 sites
+PF: Southern Leyte Fault,12,Bacolcol et al. (2012),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Southern Leyte Fault,12,Bacolcol et al. (2012),Slip Rate (mm/yr),30
+PF: Southern Leyte Fault,12,Bacolcol et al. (2012),Top depth (km),2 km
+PF: Southern Leyte Fault,12,Bacolcol et al. (2012),Width (km)*,(locking depth)
+PF: Surigao Fault,13,1st modeling results (2021),Angle of projection,"75° from N,CW"
+PF: Surigao Fault,13,1st modeling results (2021),Backslip Rate (mm/yr),4.9 (-426.1 - 15.9)
+PF: Surigao Fault,13,1st modeling results (2021),Confidence interval,95%
+PF: Surigao Fault,13,1st modeling results (2021),Data period,2007-2017
+PF: Surigao Fault,13,1st modeling results (2021),Dip Angle (degrees),75 (70-80)
+PF: Surigao Fault,13,1st modeling results (2021),Locking depth (km),1 (0-5)
+PF: Surigao Fault,13,1st modeling results (2021),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: Surigao Fault,13,1st modeling results (2021),Number of samples,1000
+PF: Surigao Fault,13,1st modeling results (2021),Number of sites,5 sites
+PF: Surigao Fault,13,1st modeling results (2021),Reference station,NOMA
+PF: Surigao Fault,13,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Surigao Fault,13,1st modeling results (2021),Residuals,1.45
+PF: Surigao Fault,13,1st modeling results (2021),Slip Rate (mm/yr),25 (13-30)
+PF: Surigao Fault,13,1st modeling results (2021),Top depth (km),0 (0-5)
+PF: Surigao Fault,13,1st modeling results (2021),Width (km)*,(locking depth)
+PF: Surigao Fault,13,Bacolcol et al. (2012),Backslip Rate (mm/yr),27
+PF: Surigao Fault,13,Bacolcol et al. (2012),Dip Angle (degrees),80
+PF: Surigao Fault,13,Bacolcol et al. (2012),Locking depth (km),20
+PF: Surigao Fault,13,Bacolcol et al. (2012),Method,Elastic half-space model and grid search
+PF: Surigao Fault,13,Bacolcol et al. (2012),Number of sites,5 sites
+PF: Surigao Fault,13,Bacolcol et al. (2012),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: Surigao Fault,13,Bacolcol et al. (2012),Slip Rate (mm/yr),37
+PF: Surigao Fault,13,Bacolcol et al. (2012),Top depth (km),0
+PF: Surigao Fault,13,Bacolcol et al. (2012),Width (km)*,(locking depth)
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Angle of projection,"90° from N,CW"
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Backslip Rate (mm/yr),15 (0.43-21.94)
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Confidence interval,95%
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Data period,2007-2017
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Dip Angle (degrees),75 (70-80)
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Locking depth (km),20 (15-25)
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Long-term rate (mm/yr),18 (15-25)
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Method,"Elastic half-space model, grid search, and bootstrap"
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Number of samples,1000
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Number of sites,5 sites
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Reference station,SOMF
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Residuals,0.36
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Top depth (km),1 (0-5)
+PF: West Compostela Valley Fault,16,1st modeling results (2021),Width (km)*,(locking depth)
+PF: West Compostela Valley Fault,16,Bacolcol et al. (2012),Backslip Rate (mm/yr),23
+PF: West Compostela Valley Fault,16,Bacolcol et al. (2012),Dip Angle (degrees),80
+PF: West Compostela Valley Fault,16,Bacolcol et al. (2012),Locking depth (km),20
+PF: West Compostela Valley Fault,16,Bacolcol et al. (2012),Long-term rate (mm/yr),22
+PF: West Compostela Valley Fault,16,Bacolcol et al. (2012),Method,Elastic half-space model and grid search
+PF: West Compostela Valley Fault,16,Bacolcol et al. (2012),Number of sites,5 sites
+PF: West Compostela Valley Fault,16,Bacolcol et al. (2012),Remarks,“Slip rate” = “block motion” and “long term slip rate”
+PF: West Compostela Valley Fault,16,Bacolcol et al. (2012),Top depth (km),0
+PF: West Compostela Valley Fault,16,Bacolcol et al. (2012),Width (km)*,(locking depth)
