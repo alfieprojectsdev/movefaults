@@ -129,6 +129,71 @@ So: **AST and graph analysis on the inputs; scanning and signature matching on
 the outputs.** Effort spent building a parser for log files is effort not spent
 on the artefact that actually has structure.
 
+## Part 2b — what AIUB already specified, and where they put it
+
+Checked against the 5.2 manual (`DOCU52`) rather than assumed. The answer is not
+"AIUB did not think of this". They did, and documented it. The question is
+*where they put it*.
+
+### They specify the error format lexically — which validates the scanner choice
+
+§21.7:
+
+> "An error message starts with three star–characters (`***`) ... A warning
+> message starts with three hash characters (`###`)."
+
+AIUB define errors by a **three-character prefix**, not by grammar. The scanner
+design above is not a workaround for a missing capability; it targets the
+contract AIUB wrote down. §24.11.2 repeats it for the `.MSG` files: "Errors are
+indicated with a string `***`, warnings with a string `###`."
+
+### They built PCF static analysis — in the GUI
+
+§22.11.1, item 4:
+
+> "Already before actually starting the BPE server the menu program checks
+> several things (particularly the Process Control File) for **logical errors
+> (e.g., required waiting for a non–existing script etc.)**. A number of checks
+> are already performed when editing a PCF file using
+> `Menu>BPE>Edit process control file (PCF)`."
+
+That is precisely the dangling-`WAIT` check, implemented by AIUB. It lives in
+the **interactive menu program**. The same paragraph states the assumed
+operating model outright:
+
+> "Before running any new BPE in non-interactive mode, try the interactive mode
+> first. The error messages in both modes are the same but in non-interactive
+> mode **one has to know where to find them**. In interactive mode the menu
+> program tries to display the error messages automatically."
+
+A headless pipeline — the only kind that can process 359 days — gets none of it.
+This is a single-analyst-at-a-workstation model, not an absence of engineering.
+
+### What is genuinely absent
+
+Searched for and not found: **any catalogue mapping an error message to a cause
+or a remedy.** §22.11.2 is titled *"Where to Find Error Messages"*; it lists
+which files to open. It does not say what any message means.
+
+| capability | AIUB | us |
+|---|---|---|
+| error lexical format | specified (`***` / `###`) | scan it |
+| PCF logical checks | built, **GUI-only** | headless equivalent |
+| error → diagnosis → remedy | **nothing** | the knowledge base |
+
+### Why the expertise is siloed
+
+`neqckdim: DIMENSION TOO SMALL` reads identically to a beginner and an expert.
+The manual adds nothing to it. The entire difference is whether the reader has
+seen it before — so the diagnostic knowledge was never designed to be
+transmissible, and PHIVOLCS, NAMRIA and CAAP each rediscover the same failures
+independently.
+
+The knowledge base is therefore not compensating for an oversight. It is
+building the artefact AIUB's operating model never needed, and the one a
+zero-AI-dependence endgame requires: *"ask someone who has seen it"* is exactly
+the dependency being removed.
+
 ## Part 3 — the knowledge base is a data file
 
 A table mapping signature → diagnosis → remedy, as data:
