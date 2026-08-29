@@ -169,30 +169,98 @@ operating model outright:
 A headless pipeline — the only kind that can process 359 days — gets none of it.
 This is a single-analyst-at-a-workstation model, not an absence of engineering.
 
-### What is genuinely absent
+### What is absent from the manual — and what is on the website instead
 
-Searched for and not found: **any catalogue mapping an error message to a cause
-or a remedy.** §22.11.2 is titled *"Where to Find Error Messages"*; it lists
-which files to open. It does not say what any message means.
+**Correction (same day, after checking the website).** The claim first written
+here was "no catalogue mapping an error message to a cause or a remedy exists".
+That is true of the **manual** — §22.11.2 is titled *"Where to Find Error
+Messages"* and lists which files to open, not what any message means — but it
+**overstated the case**, because AIUB publish exactly such a catalogue on the
+web.
+
+The [FAQ](https://www.bernese.unibe.ch/faq) carries ~28 entries, **11 of them
+specific error messages**, each with a cause and a remedy. It is a small
+knowledge base of precisely the kind described in Part 3.
+
+**And today's nine-hour failure is entry 3 of that list.**
+`NEQCKDIM: DIMENSION TOO SMALL`, with AIUB's remedy being the one reached
+independently at cost: adjust *"Maximum number of parameters in combined NEQ"*
+in panel *ADDNEQ2 3.1: Options 1*.
+
+That is the argument of this document in one fact. The knowledge existed, was
+public, was correct, and was **not anywhere the pipeline or its operator could
+reach at the moment of failure.** A knowledge base that lives on a website is
+not in the loop.
+
+What AIUB still do not supply: **a method for choosing the value.** The FAQ says
+only that the number "must be adjusted to the size of the normal equations".
+The observation that the reported figure is ceiling+1 rather than the
+requirement is not there, and remains ours.
+
+### `CHKMAX` shows AIUB solved this problem elsewhere in the same program suite
+
+The FAQ entry for `CHKMAX: Dimension for parameter "MAXzzz" exceeded` describes
+a genuinely different design:
+
+> dimensions "are adjusted from the input files and input options", bounded by
+> built-in defaults; up to **2×** the built-in limit the run proceeds with a
+> warning that it is "an extreme run"; beyond 2× it stops.
+
+So BSW already contains **adaptive dimensioning with a soft and a hard limit**.
+GPSEST sizes itself from its input. ADDNEQ2's `MAXPAR` is the inconsistent
+case — a hand-set panel value in a suite that elsewhere computes the same thing
+automatically. That inconsistency is what cost the nine hours, and it makes the
+plan-phase envelope check in Part 1 a re-implementation of a pattern AIUB
+already established rather than an invention.
+
+Also worth carrying forward: for an oversized network AIUB's own stated remedy
+is **"you may split the network into clusters"** — the same answer GEONET
+reached, and directly relevant to PHNAT at 102 stations.
+
+### Our install is unpatched
+
+Release `2024-11-11` publishes **7 fixes**; our install has **none** of them.
+Verified rather than assumed: `IONOSP2.f90` carries `IGRF10`–`IGRF13` and not
+`IGRF14` (B_33), and `O_RXOWRAP.f90` is dated Oct 2023, predating B_34.
+
+B_34 reduces `RNXGRA` runtime by a factor of 5–6, and `PHREF_DLY` runs RNXGRA
+once per session. B_38 touches `TRPSTORE.f90`, which is on the GPSEST/ADDNEQ2
+path. Neither is a correctness risk for work already done, but an unpatched
+install is a standing item, not a neutral state.
 
 | capability | AIUB | us |
 |---|---|---|
 | error lexical format | specified (`***` / `###`) | scan it |
 | PCF logical checks | built, **GUI-only** | headless equivalent |
-| error → diagnosis → remedy | **nothing** | the knowledge base |
+| adaptive dimension sizing | built for GPSEST (`CHKMAX`), **not** for ADDNEQ2 `MAXPAR` | envelope check in the plan phase |
+| error → diagnosis → remedy | **FAQ: 11 entries, on the website** | machine-readable, in the loop, extensible |
 
-### Why the expertise is siloed
+### Why the expertise is still siloed, despite the FAQ
 
-`neqckdim: DIMENSION TOO SMALL` reads identically to a beginner and an expert.
-The manual adds nothing to it. The entire difference is whether the reader has
-seen it before — so the diagnostic knowledge was never designed to be
-transmissible, and PHIVOLCS, NAMRIA and CAAP each rediscover the same failures
-independently.
+The FAQ exists, is correct, and did not help — because nothing in the pipeline
+consults it and the operator has to already suspect the answer to search for it.
+11 entries also cannot cover a suite of 262 error-emitting source files; the
+five diagnoses this session produced include four that are **not** in the FAQ
+(BLQ column alignment, ATL fiducial coverage, ATL trailing-blank terminator, the
+seven mandatory `$D/REF54` types).
 
-The knowledge base is therefore not compensating for an oversight. It is
-building the artefact AIUB's operating model never needed, and the one a
-zero-AI-dependence endgame requires: *"ask someone who has seen it"* is exactly
-the dependency being removed.
+So the knowledge base is not compensating for an AIUB oversight, and it is not
+duplicating the FAQ either. It is doing two things the FAQ structurally cannot:
+being **in the loop at the moment of failure**, and being **extensible by the
+people who hit the failures**. PHIVOLCS, NAMRIA and CAAP each rediscover the
+same problems because there is no mechanism for one of them to write down what
+they learned in a form the others' pipelines can execute.
+
+The mailing-list archive (<https://www.bernese.unibe.ch/bswmail.php>) is the
+closest existing approximation, and it has the same defect in sharper form: the
+knowledge is there, in prose, searchable only by someone who already knows what
+to ask.
+
+For the zero-AI endgame this is the whole point. *"Ask someone who has seen it"*
+— whether that someone is a colleague, a mailing list, or an assistant — is
+exactly the dependency being removed. Seeding the base from the FAQ's 11 entries
+is a legitimate start, provided the entries are **re-derived and re-worded**
+rather than copied (see the licence note in `external-sources/README.md`).
 
 ## Part 3 — the knowledge base is a data file
 

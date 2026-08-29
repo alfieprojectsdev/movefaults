@@ -178,6 +178,14 @@ genuinely unresolved as of 2026-08-25 and *should* be worked on:
   per-station figure that produced the earlier "~3060" estimate is withdrawn.
   Measure the real ADDNEQ2 parameter count first (run one day with
   `REPR_MODE_ON_SUCCESS=keep` and read the ADDNEQ2 `.OUT`), then size it.
+- **Our BSW install is release `2024-11-11` with none of its 7 published patches
+  applied.** Verified 2026-08-29: `IONOSP2.f90` carries IGRF10–13 not IGRF14
+  (B_33); `O_RXOWRAP.f90` is dated Oct 2023 (B_34, which cuts RNXGRA runtime
+  5–6× — we run RNXGRA once per session). Patches at
+  <https://www.bernese.unibe.ch/UPDATE54>; all require recompilation.
+- **Seed the diagnostic knowledge base from the AIUB FAQ's 11 error entries** —
+  re-derived and re-worded, not copied: AIUB state no licence, so default
+  all-rights-reserved applies. See `external-sources/README.md`.
 - **Stations per GEONET cluster** (~190 implied across 5 clusters, no stated
   rule) and **how many form the backbone** ("数点ずつ" — a few from each).
 
