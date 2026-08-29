@@ -66,6 +66,12 @@ from `CLAUDE.md` because both duplicates were removed.
 | **~107 stations** have 2025 RINEX 2 in our local datapool. Not 76 (one day's count), not 439 (file-server catalogue) | measured 2026-08-25 |
 | **No production month has run through `services/bernese-workflow`.** The service has never created a campaign on the R740 | confirmed 2026-08-25 from run history: every 2025 solution came from a Perl driver in `$U/SCRIPT` launched by `scripts/run_luzon_year.sh`. The 2025 run made this *more* true — 358 days through `scripts/` while the service gained tests |
 
+| **`MAXPAR` in `$U/OPT/R2S_FIN/ADDNEQ2.INP` was 1000 and is now 3000.** It sizes ADDNEQ2's normal-equation parameter array; a network needs ~30 parameters per station (coordinates + hourly troposphere + gradients) | 24/24 PHREF days failed at the 1000 ceiling 2026-08-29; DOY 002 clean at 3000. `bernese_maxpar_limit.md` |
+| **`neqckdim` reports the first request that OVERFLOWS, not the requirement.** Its number is the ceiling plus one and says nothing about how much headroom is needed | the figure was exactly 1001 on all 24 failed days while station counts varied 35–38 |
+| **Cass runs ONE network of ~52–65 stations, not six subnetworks.** Her hierarchy is temporal — daily `F1_` → weekly `WK_` → monthly `MO_` — not GEONET's spatial one | established from her `FN*.CRD` output on the file server, 2026-08-28 |
+| **BLQ is column-sensitive.** A block indented one column left reports as NOT FOUND, not as malformed. `PHIVOLCS.BLQ` has three such: CALU, PTTN, URDT | `*** SR GTOCNL`, PHNAT attempt 4 |
+| **A Bernese campaign needs seven reference file types in `$D/REF54`** — `.CRD .VEL .ABB .STA .BLQ .ATL .CLU` — and `.ATL` needs a trailing blank line as block terminator | PHNAT attempts 1 and 3 |
+
 ### Do not quote the "implementation maturity" table as current
 
 `CLAUDE.md`'s table was measured 2026-08-18 and is now **wrong by 31 and 20
@@ -95,6 +101,9 @@ not ~10%**, and that misreport stood for months.
 | **Decimal year is `year + DOY/365.25`** — DOY 1 is `year + 0.0027`, not `year.0000`. Do not "correct" it to `(DOY-1)/365.25` | the `offsets` catalog, every published PLOT file and every published velocity are written in it, and staff compute catalog entries by hand this way. The absolute epoch has no scientific meaning; agreement with the catalog does. Settled 2026-08-25, pinned by tests in `test_crd_pipeline.py` |
 | **Do not partition the PH network into clusters yet** | GSI partitioned at ~1,240 stations; we have ~107. Partitioning is a scaling remedy whose cost is paid at the combination step — V3's non-unique troposphere is what that cost looks like |
 | **Keep the multi-station minimum-constraint datum**; do not adopt GEONET's single fixed station | its failure mode is *global* — one station's unmodelled motion reached all ~1,240 GEONET stations — and it needs a daily wide-area solution to be safe |
+
+| **Do not inherit one campaign's excluded-days list into another** | LUZON's `058 059 060 061 079 139 345` was derived from LUZON's fiducial coverage. Under PHREF, 079 (3 fiducials) and 139 (8) are fine. Anything computed from a station set must be recomputed when the set changes |
+| **A pre-flight test day must be the worst case for the resource under test** | DOY 200 (33 stations) passed and authorised a year that failed on all 359 days; the busiest days carry 41. A guard that picks its own easy sample is not a guard |
 
 ---
 
@@ -163,6 +172,10 @@ genuinely unresolved as of 2026-08-25 and *should* be worked on:
   is well below 1,240" is an argument from distance, not from a limit. Lead:
   時報 **103** (2004) §1.3.1「GEONETの定常解析戦略の変遷」(畑中雄樹) — retrieval
   method in `docs/external-sources/README.md`.
+- **PHNAT (102 stations) is NOT diagnosed.** Its four failures were attributed to
+  metadata gaps, which were real and were fixed — but at ~30 parameters/station
+  it needs ~3060 and `MAXPAR` is 3000, so it would fail again regardless. Raise
+  to ≥5000 and re-attempt before treating the metadata story as complete.
 - **Stations per GEONET cluster** (~190 implied across 5 clusters, no stated
   rule) and **how many form the backbone** ("数点ずつ" — a few from each).
 

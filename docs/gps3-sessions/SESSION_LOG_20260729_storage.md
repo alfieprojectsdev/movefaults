@@ -2901,3 +2901,155 @@ And one new shape worth naming separately: **a guard that defeats itself**. The
 resume loop's "no progress, stop" rule was correct reasoning that became the
 exact failure it was written to prevent, one level down. Guards need testing
 against the case they exist for, not only against the case that prompted them.
+
+---
+
+## 25. The national network, and a ceiling nobody had hit — 2026-08-25 → 08-29
+
+### 25.1 Why "LUZON" was never the whole country
+
+The 2025 reprocessing everyone had been calling "the year" was the **LUZON**
+campaign: 33 stations. The question "I thought we were processing the entire PH
+data for 2025?" was correct, and the answer was no.
+
+Staging the national set produced `scripts/stage_national_campaign.sh`. Its one
+design rule: **the station list is derived from what is on disk, never
+hardcoded**, and the script refuses to stage a station whose metadata cannot
+describe it. A hardcoded list is a second source of truth that silently rots
+against the datapool.
+
+That run also exposed a staging bug worth keeping: the RINEX 2 glob wildcarded
+the year (`??[oOdD]`), so it copied 8,668 files from 2024 and 2026 — about
+52 GB — into a 2025 campaign. Fixed to interpolate `${LUZON_YEAR: -2}`. PR #159.
+
+### 25.2 PHNAT (102 stations) never completed a day; PHREF (47) worked first time
+
+Four attempts at a 102-station national campaign, four different failures, none
+of them the same:
+
+1. Mandatory reference files must live in `$D/REF54`, and **seven** types are
+   required — `.CRD .VEL .ABB .STA .BLQ .ATL .CLU`. `.ABB` and `.CLU` were the
+   two I had not known about.
+2. `*** SR GTATML` — six of seven **fiducials** were missing from `PHNAT.ATL`.
+   The coverage check I had written tested the 102 PH stations and never the
+   fiducials, which are exactly the stations a national campaign adds.
+3. `ERROR READING` on the last ATL block — the file needs a **trailing blank
+   line** as terminator. A separate merge had also produced doubled `^M` by
+   applying CRLF to a source that already had it.
+4. `*** SR GTOCNL` for PTTN — three blocks in `PHIVOLCS.BLQ` (CALU, PTTN, URDT)
+   are **indented one column left**. BLQ is column-sensitive: a misaligned block
+   reports as NOT FOUND, not as malformed. My `grep -q "\bPTTN\b"` guard passed
+   because it matched a comment.
+
+Against that, the 47-station **PHREF** campaign — built to match the ~52–65
+station core Cass actually processes — ran on the first attempt. The 55 extra
+stations in PHNAT are precisely those whose metadata is least exercised.
+
+**Established empirically:** Cass runs **one network of ~52–65 stations, not six
+subnetworks**. Her hierarchy is temporal — daily `F1_` → weekly `WK_` → monthly
+`MO_` — not GEONET's spatial one. Her ~2 weeks was sequential processing, not a
+partitioned scheme.
+
+### 25.3 The full year returned zero solutions in nine hours
+
+Launched 00:04, checked 09:08: **0 of 359**. Twenty-four days attempted, all
+failed, one error class and no other:
+
+```
+ *** SR neqckdim: DIMENSION TOO SMALL
+                  Requested num. of parameters:        1001
+                  Maximum size of the array   :        1000
+```
+
+`$U/OPT/R2S_FIN/ADDNEQ2.INP` ships `MAXPAR 1000` — the size ADDNEQ2 allocates
+for the normal-equation parameter array. PHREF's station count pushes the
+pre-elimination NEQ past it. Raised to `3000`, the value BSW 5.4 already ships
+in its own generic `ADDNEQ2.INP`; original kept as
+`ADDNEQ2.INP.pre-maxpar-20260829`. Full write-up: `docs/bernese_maxpar_limit.md`.
+
+Confirmed at 10:15 when DOY 002 completed clean.
+
+### 25.4 1001 was never the requirement
+
+`neqckdim` reports **the first request that overflows**, not the total needed.
+That is why the figure was *exactly* 1001 on all 24 days while station
+availability varied between 35 and 38 files per day — a constant that looks like
+a measurement and is actually a ceiling plus one.
+
+The true cost, measured after a day succeeded: coordinates plus per-station
+hourly troposphere and gradients, **~30 parameters per station**. A 34-station
+day needs ~1020. Every day failed, and none failed by much.
+
+This has a consequence nobody has acted on yet: **PHNAT at 102 stations needs
+~3060 parameters and would fail again at 3000.** Its four recorded failures were
+diagnosed as metadata gaps. The gaps were real and were fixed — but MAXPAR was
+never ruled out, and would have blocked that campaign regardless. Do not treat
+§25.2 as a complete diagnosis of PHNAT.
+
+### 25.5 The pre-flight test that certified a broken configuration
+
+Before launching, one day was run as a check: DOY 200. It succeeded — 33
+stations, RMS 1.8–2.0 mm — and that success is what authorised the year.
+
+DOY 200 has **33 stations with data**. The busiest days of 2025 carry 41. The
+test day was drawn from the low end of the distribution and passed *because of
+that*, then certified a configuration that fails on most of the year.
+
+The corrected rule: **a pre-flight day must be the worst case for the resource
+under test**, not an arbitrary one. The re-verification after the fix used DOY
+356, the busiest day of the year, chosen for that reason.
+
+### 25.6 Exclusions are not portable between networks
+
+The year driver was derived from `run_luzon_year.sh`, which carries a hardcoded
+list of days to skip: `058 059 060 061 079 139 345`. Those days were excluded
+for having too few **LUZON** reference stations.
+
+Re-derived against PHREF's own fiducial coverage, the answer is different:
+`079` has 3 fiducials and `139` has 8 — both fine. Blind inheritance would have
+silently discarded two good days. Only 058–061 and 345 genuinely fall below
+three fiducials.
+
+Anything computed from a station set must be recomputed when the station set
+changes, including the lists that look like configuration.
+
+### 25.7 State at the time of writing
+
+- PHREF 2025 running, 6 sessions parallel, ~20–24 days/hour, ETA ~01:00 on
+  2026-08-30. Zero MAXPAR errors, no other `*** SR` class.
+- `MAXPAR 3000` in `$U/OPT/R2S_FIN/ADDNEQ2.INP`, shared by `LUZON_DLY`,
+  `LZFLT_DLY`, `PHNAT_DLY`, `PHREF_DLY` and stock `RNX2SNX`. Safe to share:
+  MAXPAR is a capacity ceiling, not an estimation option, so it cannot alter a
+  solution that already fitted.
+- Hourly status cron is **held** (`#HOLD` prefix) — it still names PHNAT targets
+  and would report the wrong campaign.
+
+### 25.8 To report to Cass
+
+- `PHIVOLCS.BLQ`: CALU, PTTN and URDT are indented one column left.
+- IGS anchors' ocean-loading coefficients are in `PAGENET.BLQ`, not
+  `PHIVOLCS.BLQ`.
+- `SPAB` has no current `.STA` record — the 2025 RINEX header says
+  `LEICA GRX1200GGPRO`, `.STA` says `LEICA MC500` ending 2015-10-22.
+- `BTUN` and `URDT` have self-overlapping intervals.
+- Open question: which ~52 stations does she select, and was her run partitioned?
+
+### 25.9 The mistake, continued
+
+§22.12 recorded three instances, §23.8 four, §24.7 three. This session added
+two, and they are **the same one twice**:
+
+1. **DOY 200 as a pre-flight test** — one day, chosen for convenience,
+   generalised to 365.
+2. **The LUZON exclusion list carried into PHREF** — a set derived from one
+   station population, applied to another.
+
+Both are the shape already named three times in this log: **a single sample
+presented as the population.** What is new is that it appeared in a *guard* —
+the pre-flight check exists specifically to prevent a bad launch, and it
+produced a launch that burned nine hours for nothing.
+
+That echoes §24.7's closing note about guards that defeat themselves. The
+addition here: a guard is only as strong as the *sample it runs on*, and a guard
+that gets to pick its own easy sample is not a guard. Choose the adversarial
+case, or the check is theatre.
