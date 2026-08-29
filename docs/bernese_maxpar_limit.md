@@ -77,6 +77,63 @@ project: **a single sample reported as the population.** The specific
 lesson here is that a pre-flight day must be chosen from the *worst* case
 for the resource being tested, not an arbitrary one.
 
+## Confirmed — and a correction to the first version of this file
+
+DOY 002 completed at 10:15 on 2026-08-29 with `MAXPAR 3000` and no error. The
+year then ran 309+ days clean.
+
+**The first version of this file claimed the requirement is "~30 parameters per
+station", giving ~1020 for a 34-station day. That figure was an inference, not a
+measurement, and it is withdrawn.**
+
+It was reached by assuming the overflow happened at the true total — i.e. that
+because the ceiling was 1000 and the report said 1001, the requirement must be
+about 1001. But the paragraph immediately above it in this same file says why
+that is wrong: `neqckdim` fires on **the first request that overflows**, which
+can occur at any point while the NEQ is being stacked. The true total can be
+anything above the ceiling. I wrote down the correct principle and then
+immediately violated it.
+
+### What is actually known
+
+| bound | evidence |
+|---|---|
+| requirement **> 1000** | 24 of 24 days failed at `MAXPAR 1000` |
+| requirement **< 3000** | 309+ days of 33–38 stations succeeded at `MAXPAR 3000` |
+
+That is the whole of it. For a 33–38 station day the count lies somewhere in
+`(1000, 3000)` and has not been narrowed further.
+
+For scale, the saved SINEX of a 33-station day reports `NUMBER OF UNKNOWNS
+2448` — but that is the session solution including ambiguities, a different
+quantity from the reduced NEQ that ADDNEQ2 allocates for. It is not the answer;
+it is a reminder that the two numbers are not interchangeable.
+
+### Consequence for PHNAT
+
+The earlier "PHNAT needs ~3060, so raise to 5000" rested on the withdrawn
+per-station figure and **should not be relied on**. At 102 stations PHNAT needs
+somewhere between 3× and 8× a 34-station day depending on where in `(1000,
+3000)` the real number sits. It may need far more than 5000.
+
+### How to actually measure it
+
+Successful campaigns are removed by `REPR_MODE_ON_SUCCESS=remove`, taking the
+ADDNEQ2 output with them, which is why this was not measured at the time. Run
+one day with that set to keep, then read the parameter tally out of the ADDNEQ2
+`.OUT` directly. Do this before sizing PHNAT.
+
+## Why the DOY 200 pre-flight test missed this
+The single test day used to validate PHREF before launch had **33 stations
+with data** — enough to stay under 1000. The busiest days of the year carry
+41. A one-day test drawn from the low end of the distribution certified a
+configuration that fails on most of the year.
+
+This is the same error pattern recorded three times previously in this
+project: **a single sample reported as the population.** The specific
+lesson here is that a pre-flight day must be chosen from the *worst* case
+for the resource being tested, not an arbitrary one.
+
 ## Confirmed, with the true numbers
 
 DOY 002 completed at 10:15 on 2026-08-29 with `MAXPAR 3000` and no error.

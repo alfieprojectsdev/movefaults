@@ -66,7 +66,7 @@ from `CLAUDE.md` because both duplicates were removed.
 | **~107 stations** have 2025 RINEX 2 in our local datapool. Not 76 (one day's count), not 439 (file-server catalogue) | measured 2026-08-25 |
 | **No production month has run through `services/bernese-workflow`.** The service has never created a campaign on the R740 | confirmed 2026-08-25 from run history: every 2025 solution came from a Perl driver in `$U/SCRIPT` launched by `scripts/run_luzon_year.sh`. The 2025 run made this *more* true — 358 days through `scripts/` while the service gained tests |
 
-| **`MAXPAR` in `$U/OPT/R2S_FIN/ADDNEQ2.INP` was 1000 and is now 3000.** It sizes ADDNEQ2's normal-equation parameter array; a network needs ~30 parameters per station (coordinates + hourly troposphere + gradients) | 24/24 PHREF days failed at the 1000 ceiling 2026-08-29; DOY 002 clean at 3000. `bernese_maxpar_limit.md` |
+| **`MAXPAR` in `$U/OPT/R2S_FIN/ADDNEQ2.INP` was 1000 and is now 3000.** For a 33–38 station day the requirement is bounded to `(1000, 3000)` and **is not known more precisely** — the "~30 parameters per station" in the first version of `bernese_maxpar_limit.md` was an inference from the overflow report and is **withdrawn** | 24/24 days failed at 1000; 309+ days clean at 3000. Measurement method in `bernese_maxpar_limit.md` |
 | **`neqckdim` reports the first request that OVERFLOWS, not the requirement.** Its number is the ceiling plus one and says nothing about how much headroom is needed | the figure was exactly 1001 on all 24 failed days while station counts varied 35–38 |
 | **Cass runs ONE network of ~52–65 stations, not six subnetworks.** Her hierarchy is temporal — daily `F1_` → weekly `WK_` → monthly `MO_` — not GEONET's spatial one | established from her `FN*.CRD` output on the file server, 2026-08-28 |
 | **BLQ is column-sensitive.** A block indented one column left reports as NOT FOUND, not as malformed. `PHIVOLCS.BLQ` has three such: CALU, PTTN, URDT | `*** SR GTOCNL`, PHNAT attempt 4 |
@@ -172,10 +172,12 @@ genuinely unresolved as of 2026-08-25 and *should* be worked on:
   is well below 1,240" is an argument from distance, not from a limit. Lead:
   時報 **103** (2004) §1.3.1「GEONETの定常解析戦略の変遷」(畑中雄樹) — retrieval
   method in `docs/external-sources/README.md`.
-- **PHNAT (102 stations) is NOT diagnosed.** Its four failures were attributed to
-  metadata gaps, which were real and were fixed — but at ~30 parameters/station
-  it needs ~3060 and `MAXPAR` is 3000, so it would fail again regardless. Raise
-  to ≥5000 and re-attempt before treating the metadata story as complete.
+- **PHNAT (102 stations) is NOT diagnosed, and cannot be sized yet.** Its four
+  failures were attributed to metadata gaps, which were real and were fixed —
+  but `MAXPAR` was never ruled out. How much it needs is **unknown**: the
+  per-station figure that produced the earlier "~3060" estimate is withdrawn.
+  Measure the real ADDNEQ2 parameter count first (run one day with
+  `REPR_MODE_ON_SUCCESS=keep` and read the ADDNEQ2 `.OUT`), then size it.
 - **Stations per GEONET cluster** (~190 implied across 5 clusters, no stated
   rule) and **how many form the backbone** ("数点ずつ" — a few from each).
 
