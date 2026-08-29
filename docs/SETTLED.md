@@ -72,6 +72,10 @@ from `CLAUDE.md` because both duplicates were removed.
 | **BLQ is column-sensitive.** A block indented one column left reports as NOT FOUND, not as malformed. `PHIVOLCS.BLQ` has three such: CALU, PTTN, URDT | `*** SR GTOCNL`, PHNAT attempt 4 |
 | **A Bernese campaign needs seven reference file types in `$D/REF54`** — `.CRD .VEL .ABB .STA .BLQ .ATL .CLU` — and `.ATL` needs a trailing blank line as block terminator | PHNAT attempts 1 and 3 |
 
+| **The 2025 PHREF year is 360/360**, 47-station campaign, 846 min at MAXSESS=6, every block first-pass, zero errors after the MAXPAR fix | verified by full-population check 2026-08-30, `verify_phref_year.sh` |
+| **No 2025 daily solutions exist on the file server.** `F1_` dailies are retained for 2012, 2015–17, 2019, 2026 only. 2025 has 53/53 weeklies and 12/12 monthlies | surveyed 2026-08-29; comparison must run at weekly cadence |
+| **BSWMAIL is an announcement list, not a support forum** — 429 messages over 31 years (~5–11/yr), and it contains **zero** hits for `neqckdim`, `MAXPAR` or `DIMENSION TOO SMALL`. The AIUB **FAQ** is the real precedent: 11 error entries with causes and remedies | measured against a local mirror 2026-08-29 |
+
 ### Do not quote the "implementation maturity" table as current
 
 `CLAUDE.md`'s table was measured 2026-08-18 and is now **wrong by 31 and 20

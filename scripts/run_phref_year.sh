@@ -201,4 +201,8 @@ done
 printf '\nelapsed %s min\n' "$(( ($(date +%s) - t_all) / 60 ))"
 printf 'solutions now in %s: %s\n' "$S/PHREF/$PHREF_YEAR/SOL" \
        "$(find "$S/PHREF/$PHREF_YEAR/SOL" -name "FIN_${PHREF_YEAR}*.SNX.gz" 2>/dev/null | wc -l)"
-printf 'kept failed campaigns: %s\n' "$(find "$P" -maxdepth 1 -name 'PHR*' 2>/dev/null | wc -l)"
+# 'PHR*' also matches the base campaign PHREF itself, which is not a failed
+# session -- it reported "kept failed campaigns: 1" on a run that had none.
+# The LUZON original could not hit this: its base was LUZON and its REPR prefix
+# LZY*. Match the REPR session form specifically: PHR + 5 digits + 0.
+printf 'kept failed campaigns: %s\n' "$(find "$P" -maxdepth 1 -name 'PHR[0-9][0-9][0-9][0-9][0-9]0' 2>/dev/null | wc -l)"

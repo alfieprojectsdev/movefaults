@@ -3053,3 +3053,49 @@ That echoes §24.7's closing note about guards that defeat themselves. The
 addition here: a guard is only as strong as the *sample it runs on*, and a guard
 that gets to pick its own easy sample is not a guard. Choose the adversarial
 case, or the check is theatre.
+
+### 25.10 The year completed — 360/360, and what the count missed
+
+Finished 2026-08-30 00:03. **360 of 360**, every block first pass:
+
+```
+DOY 001-057   57/57    138 min
+DOY 062-199  138/138   303 min
+DOY 201-344  144/144   336 min
+DOY 346-365   20/20     67 min
+elapsed      846 min (14.1 h), MAXSESS=6
+```
+
+Zero retries and zero `*** SR` of any class after the MAXPAR fix, against 24
+consecutive failures before it.
+
+Full-population verification (`scripts/verify_phref_year.sh`, written for this):
+360 present, none missing, no solution under 20 kB, sizes 53–84 kB, station
+counts 32–41 in a clean unimodal spread, 360 `.NQ0` normal equations retained
+for weekly stacking, 1.7 GB.
+
+**The count-based check declared victory early and was wrong.** A watch armed on
+`>= 359` fired at 359, because 359 is the number of days to *process* and the
+target is 360 — 359 plus the retained DOY 200. The per-day check found DOY 365
+absent; it was still running, not failed. Same error as §25.9, in my own
+monitoring rather than in the science, and caught only because the population
+check existed.
+
+That is now the fifth instance in this log of a sample or a proxy standing in
+for the population, and the first one a *script* caught rather than a person.
+That is the argument for writing the check down.
+
+### 25.11 Two bugs the completion exposed
+
+**`kept failed campaigns: 1` on a run with none.** The driver counted
+`find $P -name 'PHR*'`, which matches the base campaign `PHREF` as well as the
+`PHR250010`-style REPR session campaigns. The LUZON original could not hit
+this — base `LUZON`, REPR prefix `LZY*`. Derived scripts inherit globs that were
+safe only because of the names they were written against. Fixed to
+`PHR[0-9][0-9][0-9][0-9][0-9]0`.
+
+**A background process killed with its parent task.** The first BSWMAIL fetch
+reported exit 0 having retrieved 10 of 429 messages, with an empty log. Same
+shape as the manual `perl` invocation earlier in the session: `nohup ... &`
+inside a tool call does not survive the call. `setsid` does. An exit code of 0
+from a job that did 2% of its work is the purest form of the proxy problem.
