@@ -2904,7 +2904,7 @@ against the case they exist for, not only against the case that prompted them.
 
 ---
 
-## 25. The national network, and a ceiling nobody had hit — 2026-08-25 → 08-29
+## 25. The national network, and a ceiling nobody had hit — 2026-08-25 → 08-30
 
 ### 25.1 Why "LUZON" was never the whole country
 
@@ -2976,15 +2976,36 @@ That is why the figure was *exactly* 1001 on all 24 days while station
 availability varied between 35 and 38 files per day — a constant that looks like
 a measurement and is actually a ceiling plus one.
 
-The true cost, measured after a day succeeded: coordinates plus per-station
-hourly troposphere and gradients, **~30 parameters per station**. A 34-station
-day needs ~1020. Every day failed, and none failed by much.
+**Correction, made the same evening.** The first version of this section went on
+to state the true cost as "**~30 parameters per station**, so ~1020 for a
+34-station day", and derived from that a claim that PHNAT at 102 stations needs
+~3060 and should be raised to 5000. **Both are withdrawn.**
 
-This has a consequence nobody has acted on yet: **PHNAT at 102 stations needs
-~3060 parameters and would fail again at 3000.** Its four recorded failures were
-diagnosed as metadata gaps. The gaps were real and were fixed — but MAXPAR was
-never ruled out, and would have blocked that campaign regardless. Do not treat
-§25.2 as a complete diagnosis of PHNAT.
+The figure was reached by assuming the overflow happened *at* the true total —
+which is precisely what the paragraph above says is false. The principle was
+written down and then violated two sentences later.
+
+What is actually known:
+
+| bound | evidence |
+|---|---|
+| requirement **> 1000** | 24 of 24 days failed at `MAXPAR 1000` |
+| requirement **< 3000** | 360 days of 32–41 stations succeeded at `MAXPAR 3000` |
+
+Nothing narrower. A 33-station SINEX reports `NUMBER OF UNKNOWNS 2448`, but that
+is the session solution including ambiguities — a different quantity from the
+reduced NEQ ADDNEQ2 allocates for, and a reminder that the two are not
+interchangeable.
+
+**PHNAT therefore cannot be sized at all yet**, and its four failures remain
+undiagnosed: the metadata gaps were real and were fixed, but MAXPAR was never
+ruled out and may or may not have blocked it independently. Do not treat §25.2
+as a complete diagnosis.
+
+The measurement is cheap and has not been done: run one day with
+`REPR_MODE_ON_SUCCESS=keep` and read the parameter tally from the ADDNEQ2
+`.OUT`, which REPR mode otherwise deletes on success. That deletion is why it
+was not measured while 360 opportunities went past.
 
 ### 25.5 The pre-flight test that certified a broken configuration
 
@@ -3013,7 +3034,7 @@ three fiducials.
 Anything computed from a station set must be recomputed when the station set
 changes, including the lists that look like configuration.
 
-### 25.7 State at the time of writing
+### 25.7 State mid-run (superseded by §25.17)
 
 - PHREF 2025 running, 6 sessions parallel, ~20–24 days/hour, ETA ~01:00 on
   2026-08-30. Zero MAXPAR errors, no other `*** SR` class.
@@ -3099,3 +3120,212 @@ reported exit 0 having retrieved 10 of 429 messages, with an empty log. Same
 shape as the manual `perl` invocation earlier in the session: `nohup ... &`
 inside a tool call does not survive the call. `setsid` does. An exit code of 0
 from a job that did 2% of its work is the purest form of the proxy problem.
+
+### 25.12 The comparison target is not what the plan assumed
+
+The intended validation was "compare our daily solutions against Cass's". The
+file-server survey killed that: **there are no 2025 daily solutions.** `F1_`
+dailies are retained for 2012, 2015–17, 2019 and 2026 only. For 2025 what
+exists is **53/53 weeklies** (`WK_2347`–`WK_2399`) and 12/12 monthlies.
+
+So the comparison runs at weekly cadence, which means an extra step on our side
+— stacking 360 daily `.NQ0` into 53 weekly NEQs on her GPS-week boundaries —
+that the original plan did not contain. All 360 NQ0 are retained, so the input
+exists.
+
+Station overlap is complete: her `WK_2375` carries 93 stations and **all 33 in
+our DOY 200 solution are among them**, none missing.
+
+It also cannot be a raw difference. Different Bernese version (5.2 vs 5.4),
+different station count (93 vs 33–41) and different constraints mean the two
+realise the datum differently, so coordinate differences would be dominated by
+translation, rotation and scale carrying no information. The procedure is a
+7-parameter Helmert fit on common stations, then residuals in North/East/Up —
+**an agreement test, not a reproduction test**, and written up as one in
+`phref_vs_production_comparison_plan.md`.
+
+### 25.13 What AIUB already built, and where they put it
+
+Prompted by the question of whether BSW ships the diagnostic capability being
+designed. Checked against `DOCU52` and the support website rather than assumed.
+
+**They specify the error format lexically.** §21.7 and §24.11.2: errors begin
+`***`, warnings `###`. Errors are defined by a three-character prefix, not a
+grammar — which independently supports scanning rather than parsing program
+output. `' *** SR '` is one fixed literal emitted from **262 source files**.
+
+**They built PCF static analysis.** §22.11.1 item 4: the menu program checks the
+PCF for logical errors, example given being "required waiting for a non-existing
+script" — exactly the dangling-`WAIT` check. It lives in the **interactive
+menu**. The same paragraph states the operating model: run interactively first,
+because in non-interactive mode "one has to know where to find them". A headless
+pipeline gets none of it.
+
+**They publish an error catalogue — on the website, not in the manual.** The
+FAQ carries ~28 entries, **11 of them specific error messages** with causes and
+remedies. An earlier claim in this session that no such catalogue exists was
+true of the manual and **overstated**; it is corrected in
+`bpe_orchestration_design.md`.
+
+**And this morning's nine-hour failure is FAQ entry 3.** `NEQCKDIM: DIMENSION
+TOO SMALL`, with AIUB's remedy being the one reached independently at cost. The
+knowledge existed, was public, was correct, and was nowhere the pipeline or its
+operator could reach at the moment of failure. What AIUB still do not give is a
+**method for choosing the value** — only that it "must be adjusted to the size
+of the normal equations".
+
+**`CHKMAX` shows they solved this elsewhere in the same suite.** Its FAQ entry
+describes dimensions "adjusted from the input files and input options", bounded
+by built-in defaults, running with a warning up to 2× and stopping beyond it.
+GPSEST sizes itself; **ADDNEQ2's `MAXPAR` is the inconsistent hand-set case.**
+The plan-phase envelope check is therefore re-implementing an AIUB pattern, not
+inventing one. Their stated remedy for an oversized network is also on record:
+*split it into clusters* — the same answer GEONET reached.
+
+### 25.14 The mailing lists: one useful, one not
+
+Both mirrored locally by `scripts/fetch_gnss_mail_archives.py`, to
+`~/gnss-mail-archive/` — **outside the repository**, which is public, because
+neither AIUB nor IGS states a licence and absence of a notice is not permission.
+
+**IGSMAIL: useful, and for a question we had no corpus for.** 23 MB, 1992–2026,
+bulk-downloadable per year. It carries satellite health, antenna model changes,
+frame transitions, station discontinuities — the *data-side* record. That is the
+class of question **DOY 036** raised (§24.3: wrongly-fixed ambiguities, cause
+never established) and never had a source for.
+
+**BSWMAIL: a negative result, recorded as one.** 428/429 messages, 1.8 MB,
+1995–2026. Searched for this session's failures:
+
+```
+DIMENSION TOO SMALL   0     ocean loading   5
+MAXPAR                0     ATL             3
+neqckdim              0
+```
+
+Today's failure appears **nowhere in 31 years**. The reason is visible in the
+corpus: ~5–11 messages per year, with subjects like "Position vacancy at AIUB"
+and "Download via http works again". It is an **announcement list, not a support
+forum** — which matches AIUB's own description, and which should have been
+weighted before fetching rather than after.
+
+Not wasted — permanently searchable offline, and the loading-model hits are
+relevant to the BLQ and ATL failures of §25.2. But it is not the knowledge base,
+and the FAQ's 11 entries remain the only real precedent. Against 262
+error-emitting source files, and with **four of this session's five diagnoses
+absent from it**, the base still has to be built.
+
+### 25.15 The orchestration design, made concrete
+
+`docs/project_documentation/bpe_orchestration_design.md`, with `roadmap.md`
+Tier 3 rewritten to match reality. The stated endgame — **no AI in the loop**,
+mechanical automation, staff-maintainable — is treated as a hard constraint, and
+it rules things out: no LLM triage, knowledge in human-editable data files, and
+an unknown error must **halt rather than guess**.
+
+The run model is a **plan and a ledger, not a loop**: plan (exclusions derived
+from data, resource envelope computed, worst-case preflight chosen), preflight,
+execute, ledger (append-only, carrying the error signature), verify by
+population. **The circuit breaker is the first thing to build** — K consecutive
+attempts sharing one signature halts the run, encoding the distinction that a
+per-session failure is data and N identical failures are configuration. It would
+have turned today's nine hours into twenty minutes.
+
+Diagnostics split by artefact: **scan the outputs, parse the inputs.** Program
+output is regular (one fixed literal, 262 emitters, no nesting); the PCF is a
+graph (`PHREF_DLY`: 64 steps, 70 edges) where dangling `WAIT=`/`NEXTJOB=`,
+unreachable steps and resource mis-sizing are statically detectable. §24.7's four
+attempts lost to a checker that covered `WAIT=` but not `NEXTJOB=` is what a
+keyword check costs where an edge walk would not have failed.
+
+Migration is a strangler: `backends.py` already invokes `startBPE.pm` correctly
+and is not touched; the service takes the decision layer only, in the order
+scanner → breaker → ledger → plan → static analysis.
+
+**Measured:** at `MAXSESS=6` on 24 cores the R740 runs **53% idle**. RH-006 was
+"gated on measurement, not hardware" — that is the measurement, and there is
+roughly a factor of two available in parallelism before anything subtler.
+
+### 25.16 The install is unpatched, and patching is not free
+
+Release `2024-11-11` publishes **7 fixes**; **none** are applied. Verified:
+`IONOSP2.f90` carries IGRF10–13 not IGRF14 (B_33); `O_RXOWRAP.f90` is dated Oct
+2023 (B_34). Patch files are publicly downloadable (HTTP 200 confirmed); only
+`UPDATE54` is protected, and that is for bringing *older* releases current.
+
+Three constraints, in `bsw54_patch_plan.md`:
+
+1. **Cumulative.** AIUB: "It may damage your installation if you try to
+   establish only selected bug-fixes." So taking B_34 for its 5–6× RNXGRA
+   speedup and leaving the rest is exactly the damaging move.
+2. **It changes results.** B_33 alters the geomagnetic model for higher-order
+   ionosphere corrections; B_38 touches `TRPSTORE.f90` on the GPSEST/ADDNEQ2
+   path. The 358-day LUZON and 360-day PHREF years were produced unpatched and
+   will not be bit-comparable afterwards. **Therefore the production comparison
+   runs first, on this build.**
+3. **Never under a running BPE.**
+
+Also: today's `MAXPAR 3000` lives in a panel, B_35 ships updated panels, and the
+documented panel-update path (`UPDPAN`) can overwrite it. Diff and re-apply;
+do not assume it survived.
+
+Automatable: fetch, placement, `makemake.pl -r $C`, `CBERN COMPLINK`, the
+EXAMPLE regression against BRN-001's 0.0000 mm bar, and a day-level diff to
+quantify constraint 2. Not automatable: `UPDPAN` if it proves menu-only, and
+`configure.pm`, an interactive chooser. Both need a tty.
+
+### 25.17 State at hand-over — 2026-08-30 00:30
+
+- **PHREF 2025: 360/360, verified by population.** 846 min, every block first
+  pass, zero errors after the MAXPAR fix. 360 `.NQ0` retained. 1.7 GB in
+  `$S/PHREF/2025/SOL`.
+- Machine idle; no campaigns, no BSW processes, no monitors.
+- `MAXPAR 3000` in `$U/OPT/R2S_FIN/ADDNEQ2.INP`; original at
+  `ADDNEQ2.INP.pre-maxpar-20260829`. Shared by five PCFs.
+- Status cron **held** (`#HOLD`) — it still names PHNAT targets and would report
+  the wrong campaign. Re-point before un-holding.
+- Mail archives at `~/gnss-mail-archive/` (gitignored, never to be committed).
+- PR **#160** open against `main` with the session's work.
+
+**Next, in order:**
+
+1. **The production comparison** — stack 360 dailies into 53 weeklies, fetch her
+   53 `WK_*.SNX` (only when the BPE is idle), Helmert-align, report residuals.
+   Build the stacker against GPS week **2375** first: her solution for it is
+   already local, so the stacker can be checked against a known answer before
+   being run 53 times. That is §25.5's lesson applied deliberately.
+2. **Measure the ADDNEQ2 parameter count** — one day with
+   `REPR_MODE_ON_SUCCESS=keep`. Nothing about PHNAT can be sized until this
+   exists.
+3. **The patches**, after 1.
+4. **MAXSESS above 6**, on the next run rather than mid-flight.
+
+### 25.18 The mistake, this session's tally
+
+§22.12 recorded three, §23.8 four, §24.7 three. This session: **five**, and they
+are one error wearing five hats — *a proxy standing in for the thing it
+measures.*
+
+1. **DOY 200 as pre-flight** — the easiest day of the year, generalised to 365.
+2. **LUZON's exclusion list inherited into PHREF** — a set derived from one
+   station population applied to another.
+3. **"~30 parameters per station"** — an inference from the overflow report,
+   written down one paragraph after correctly explaining why that inference is
+   invalid.
+4. **A completion watch armed on 359** — the count of days to *process*, where
+   the target was 360. It declared success with DOY 365 still running.
+5. **A background fetch reporting exit 0** having retrieved 10 of 429 messages,
+   with an empty log.
+
+What is new is *where* they occurred. Three of the five were in **checking
+machinery** — the pre-flight, the completion watch, the fetch's exit status.
+§24.7 closed on "guards need testing against the case they exist for". This
+session sharpens it: **a guard that chooses its own sample is not a guard**, and
+an exit code is not a result.
+
+The one that ended well is worth naming too. `verify_phref_year.sh` caught
+mistake 4 within two minutes of it being made — the first time in this log that
+a *script* caught the population error rather than a person noticing later. That
+is the entire argument for the ledger and the verify phase in
+`bpe_orchestration_design.md`, demonstrated by accident on the day it was
+written.
