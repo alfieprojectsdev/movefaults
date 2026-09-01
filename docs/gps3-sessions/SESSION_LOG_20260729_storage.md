@@ -3329,3 +3329,215 @@ a *script* caught the population error rather than a person noticing later. That
 is the entire argument for the ledger and the verify phase in
 `bpe_orchestration_design.md`, demonstrated by accident on the day it was
 written.
+
+---
+
+## 26. The production comparison, and patch prep — 2026-09-01
+
+Started 02:05 on a scheduled wake-up, on the **unpatched** build by design.
+
+### 26.1 Driving ADDNEQ2 without the BPE
+
+The comparison needs weekly solutions and we produce daily ones, so 360 daily
+`.NQ0` had to be stacked. Running ADDNEQ2 standalone took most of the session's
+debugging and none of it was conceptual — it was all the undocumented shape of
+the panel interface. Recorded in `stack_phref_weekly.sh` so it is paid once:
+
+1. **The panel path arrives on stdin, not argv.** `MYGETARG` tries `getarg`
+   first, but this build falls through to `READ(*,'(A)')`. Passing the panel as
+   an argument produces a bare Fortran end-of-file backtrace with no hint.
+2. **Multi-value keys are `KEY <n>` alone on the line**, then one indented
+   quoted value per line. Putting the first value on the count line — which
+   looks natural, and is how single-value keys are written — makes the parser
+   run off the end of the list and try to open the *next key's name* as a file.
+   The error is `OPNERR: FILE NAME : MSG_INPFILE`, which does not obviously
+   mean "your list is malformed".
+3. **`${VAR}` resolves from an `ENVIRONMENT` key inside the panel**, not from
+   the shell. `RPLENVAR` reads `inpKey%keys(envKey)`, and the panel ships that
+   key empty because BPE fills it at runtime.
+4. **The values in it need inner quotes.** `READ(...,*)` is list-directed, and
+   in list-directed input a bare `/` **terminates the read** — so
+   `"MODEL /home/gps3/..."` assigns the name and leaves the value empty. The
+   symptom is `${MODEL}` surviving into a filename unresolved, which reads like
+   a missing variable rather than a quoting rule.
+5. **`TRP_ELIM` and `GRD_ELIM` must both be `BEFORE_STACKING`** to get a
+   coordinates-only weekly. With only `TRP_ELIM` set, the troposphere
+   *gradients* survive: 105 coordinate parameters plus 552 gradient parameters,
+   and a 139 MB SINEX against her 1.1 MB.
+
+Verified structurally before being trusted: our stacked week and hers carry the
+**identical epoch span** `25:195:00000 25:200:86370`, one coordinate set each,
+105 parameters against her 279 for 93 stations.
+
+### 26.2 The measurement the MAXPAR failure had left open
+
+The first successful stack printed the breakdown §25.4 could not obtain,
+because `REPR_MODE_ON_SUCCESS=remove` had been deleting it 360 times:
+
+```
+Station coordinates                99 – 105
+Site-specific troposphere         885 – 935
+Total explicit parameters         984 – 1040     <- what neqckdim checks
+Total implicit (ambiguities)     1119 – 1464
+Total adjusted                   2153 – 2448
+```
+
+So a single day needs **~30 explicit parameters per station** — which is the
+figure §25.4 withdrew.
+
+**The withdrawal was right about the method and wrong about the number.** The
+original reasoning — "it reported 1001, so the requirement is ~1001" — is
+invalid regardless of the answer it produced: had `MAXPAR` been 500 the same
+reasoning would have yielded ~15/station. It was close only because the true
+value happened to sit just above the ceiling. The method stays withdrawn; the
+number is now measured and stands.
+
+Consequence for PHNAT is unchanged in direction and now has a basis: 102
+stations × ~30 ≈ **3060 explicit**, above the current 3000, so `MAXPAR` would
+block it again independently of the metadata fixes.
+
+Also worth recording: `NUMBER OF UNKNOWNS 2448` in the daily SINEX, which §25.4
+dismissed as "a different quantity", is the *adjusted* total for that day. It
+was the right family of number, wrongly discounted.
+
+### 26.3 The result: agreement at the millimetre level, 53 of 53 weeks
+
+| | median | mean | min | max |
+|---|---|---|---|---|
+| North | **1.29** | 1.36 | 0.67 | 2.38 |
+| East | **2.37** | 2.75 | 1.57 | 6.47 |
+| Up | 7.09 | 7.31 | 5.84 | 10.25 |
+| horizontal | **2.77** | 3.10 | 1.80 | 6.73 |
+
+mm, post-Helmert, every week of 2025, no week without a counterpart.
+
+The Helmert parameters matter as much as the residuals: ~6 cm translation (two
+different datum realisations, expected), but **scale under 2 ppb and rotations
+under 0.6 mas** — no systematic geometric distortion between BSW 5.2 on Windows
+with 93 stations and BSW 5.4 on Linux with 35.
+
+Full write-up, including a *"what this does not establish"* section, in
+`phref_vs_production_comparison_results.md`.
+
+### 26.4 An East-only signature, found by counting
+
+**18 of 1,979 station-weeks exceed 15 mm horizontal, and 17 of those 18 are
+East-dominated.** Overall RMS is N 1.86 mm against E 7.47 mm — East is four
+times North.
+
+That asymmetry is the finding. Real site motion, a coordinate offset or a
+metadata error would not select one component this strongly; ambiguity
+resolution does, and East is the component most sensitive to it in this
+geometry.
+
+`LGYE` carries 11 of the 18: `+18 -19 +20 -26 -19 -26 +44 +76 +61 -31 +30` mm
+East over weeks 2347–2375, then nothing for the rest of the year. **The
+alternating sign rules out both a coordinate offset and real deformation**,
+which are one-directional.
+
+### 26.5 A story I nearly told
+
+LGYE showed 36 mm East in the first week compared, and LGYE is at Legazpi,
+beside Mayon. A volcanic-deformation explanation was available, attractive, and
+would have been written down had the population not been checked next.
+
+**LGYE's median across 53 weeks is 3.60 mm.** It is an ordinary station with
+episodic excursions, and the sign alternates — which no volcano does.
+
+This is the same shape as §25.18's five, and the difference is that the plan
+required the population, so the sample never got the chance to stand for it.
+Sixth instance of the pattern; first one prevented by procedure rather than
+caught after the fact.
+
+### 26.6 One bad station corrupts every other one
+
+The first pass fitted all common stations. Week 2352 came back at E RMS
+**46.77 mm** with ANTP, PIMO and LGYE all apparently elevated.
+
+They were not. `GUMA` was at **-281 mm East** and dragging the transformation;
+the others were reading its contamination. Rejecting GUMA alone brings the same
+week to **2.54 mm**.
+
+AIUB document exactly this for their own `HELMR1` — *"if one of the stations has
+an exceptionally wrong coordinate, the residuals for all stations may exceed the
+thresholds"* — which is the second time in two sessions that the FAQ turned out
+to describe a problem we had just met.
+
+The fit is now iterative, rejecting at **4σ or 15 mm, whichever is larger**, so a
+clean week does not start discarding good stations for being 4σ from an
+already-tight mean. 8 weeks of 53 reject anything; every rejection is named.
+**The threshold was not tuned to improve the result** — GUMA survives in week
+2370 at 3.5σ and is reported as retained-but-notable.
+
+### 26.7 Patch preparation, and one step that turned out not to exist
+
+`UPDPAN` was the only part of the patch plan needing a person at the terminal.
+It is not needed: the single panel in the patch set is `ETRS89.INP`, and `$PAN`
+resolves to **`$C/SUPGUI/PAN`** — the *master* panels, not `$U/PAN`. `UPDPAN`
+propagates master to user, and we do not run ETRS89.
+
+So **`MAXPAR 3000` in `$U/OPT/R2S_FIN` is not at risk**, and the whole procedure
+is non-interactive. §25.16's warning about diffing and re-applying it is
+superseded.
+
+All 15 files fetched and **verified to differ from what is installed** — 14
+differ, 1 is new, none identical, which independently confirms the install was
+unpatched. Snapshots cover SOURCE, SUPGUI **and the built executables**: a
+failed compile leaves a half-built `EXE_GNU`, which is the actual risk, and
+restoring 105 MB of binaries beats rebuilding from restored source.
+
+Baselines that can only be taken beforehand: sha256 of all 88 executables, the
+PHREF DOY 200 solution, the EXAMPLE campaign solution.
+
+`scripts/bsw/{apply,verify,rollback}_bsw54_patches.sh`. Apply refuses to run
+under a live BPE, with a missing snapshot, or with anything other than exactly
+15 staged files; keeps a `.pre-patch` copy of everything it replaces; and
+afterwards reports which executables actually changed, warning if any that
+existed before is missing after — which is what a failed link looks like.
+
+Not executed. Nothing left requires a person, so what remains is a decision:
+whether to change the software that produced 717 days of solutions, knowing
+B_33 and B_38 can move the numbers. `verify` turns that into a measurement
+rather than a hope — same day, same stations, re-run and diff.
+
+### 26.8 Where AI may and may not sit, written down before it is asked again
+
+Prompted by a proposal to run `llama.cpp` on the R740. Two sections added to
+`bpe_orchestration_design.md`, both governed by one test: **the pipeline must
+behave identically whether the model is present, broken, or absent.**
+
+**§4b, generation.** One slot passes: drafting a candidate knowledge-base entry
+at an unrecognised-signature halt, for human approval. It runs only on halt,
+its output is text for review, and removing it changes nothing but the human's
+time. The argument for the prohibitions: a small model asked about
+`*** SR GTOCNL` will not say it does not know — it will produce fluent, wrong
+prose about ocean loading, and **an articulate wrong diagnosis is worse than
+silence** in a pipeline whose failure mode is silent wrong numbers. The real
+cause was a BLQ block indented one column left.
+
+**§4c, learning.** The premise needed correcting first: VNNI *is* idle even
+under a full BPE, because Bernese is float64 and VNNI is int8 — but it sits
+**inside a core**, so it cannot be used without spending one. Idle is not free.
+
+The filter that decides everything: **tabular problems gain nothing from VNNI;
+only waveform-shaped ones do.** That leaves one candidate — VADASE
+seismic/artefact discrimination, against a gap `CLAUDE.md` already calls
+"empirically unconfirmed" — and it is blocked on **labels, not compute**: 88
+daily offsets against 46 MB of unlabelled 1 Hz `.rtl`. Whether PHIVOLCS' seismic
+catalogue can be joined to that archive is now an open item in `SETTLED.md` §6,
+to be settled before any model code.
+
+**VNNI is a reason to implement on this machine, never a reason to choose a
+problem.**
+
+### 26.9 State — 2026-09-01 05:00
+
+- PHREF 2025: **360/360**, verified; **53/53 weeklies** stacked; **53/53 weeks
+  compared**. Machine idle.
+- Build **unpatched**, deliberately — the comparison belongs to it.
+- Patches staged, snapshotted, baselined, scripted, **not applied**.
+- Uncommitted: 5 scripts, 3 new docs, 3 modified.
+
+**Next:** apply the patches and run `verify` to measure what they move; then
+re-run the comparison on the patched build; `MAXSESS` above 6 on the next full
+run; PHNAT with `MAXPAR` ≥ 5000.

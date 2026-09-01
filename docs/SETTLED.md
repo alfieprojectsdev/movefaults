@@ -76,6 +76,10 @@ from `CLAUDE.md` because both duplicates were removed.
 | **No 2025 daily solutions exist on the file server.** `F1_` dailies are retained for 2012, 2015–17, 2019, 2026 only. 2025 has 53/53 weeklies and 12/12 monthlies | surveyed 2026-08-29; comparison must run at weekly cadence |
 | **BSWMAIL is an announcement list, not a support forum** — 429 messages over 31 years (~5–11/yr), and it contains **zero** hits for `neqckdim`, `MAXPAR` or `DIMENSION TOO SMALL`. The AIUB **FAQ** is the real precedent: 11 error entries with causes and remedies | measured against a local mirror 2026-08-29 |
 
+| **PHREF 2025 agrees with PHIVOLCS production at 1.29 mm N / 2.37 mm E / 7.09 mm U (median, 53 of 53 weeks)** after 7-parameter Helmert alignment. An agreement test, not reproduction — different BSW version, network and constraints | `phref_vs_production_comparison_results.md`, 2026-09-01, unpatched build |
+| **A single day's ADDNEQ2 NEQ needs ~1000–1040 EXPLICIT parameters** (coords + site troposphere) for 33–35 stations, i.e. **~30 per station**; adjusted total incl. pre-eliminated ambiguities is 2153–2448. `neqckdim` checks the *explicit* count | measured from a successful stack, `WKG_2375.OUT`, 2026-09-01 |
+| **Outliers in the comparison are East-dominated: 17 of 18 station-weeks over 15 mm.** Overall RMS N 1.86 vs E 7.47 mm. The asymmetry points at ambiguity resolution, not metadata or site motion | 1,979 station-weeks |
+
 ### Do not quote the "implementation maturity" table as current
 
 `CLAUDE.md`'s table was measured 2026-08-18 and is now **wrong by 31 and 20
@@ -94,6 +98,9 @@ not ~10%**, and that misreport stood for months.
 
 | decision | why it is closed |
 |---|---|
+| **No LLM in the processing path.** One slot only: drafting a candidate knowledge-base entry at an unrecognised-signature halt, for human approval. Never chooses a resource bound, skips a session, classifies an error benign, or writes a campaign file | a small model asked about `*** SR GTOCNL` produces fluent wrong prose rather than "I don't know", and an articulate wrong diagnosis is worse than silence in a pipeline whose failure mode is silent wrong numbers. `bpe_orchestration_design.md` §4b |
+| **Use `grep`/BM25 for the mail and manual corpora, not RAG** | searching BSWMAIL for the MAXPAR failure returned a correct *negative* in milliseconds; a model would have produced something |
+| **VNNI is a reason to implement on the R740, never a reason to choose a problem** | it is idle even under BPE (Bernese is float64, VNNI is int8) but sits inside a core, so it costs cores to use. Only waveform-shaped problems benefit; tabular ones gain nothing. §4c |
 | **Per-component architecture** (VADASE hexagonal, ingestion Celery, bernese BPEBackend+Command/Builder, others flat) | decided 2026-04-15 |
 | **teqc first, gfzrnx as fallback** on exactly two triggers: teqc refusing a RINEX 3 file, and teqc not installed. Any *other* teqc failure raises | teqc is more exercised and its output is what downstream parses. gfzrnx needs a commercial licence for operational use |
 | **All substantive work reaches `main` through a PR**; branches live ≤1 week | a branch that outlived its purpose became a second trunk and cost a full session to reconcile (PR #57) |
@@ -176,12 +183,16 @@ genuinely unresolved as of 2026-08-25 and *should* be worked on:
   is well below 1,240" is an argument from distance, not from a limit. Lead:
   時報 **103** (2004) §1.3.1「GEONETの定常解析戦略の変遷」(畑中雄樹) — retrieval
   method in `docs/external-sources/README.md`.
-- **PHNAT (102 stations) is NOT diagnosed, and cannot be sized yet.** Its four
-  failures were attributed to metadata gaps, which were real and were fixed —
-  but `MAXPAR` was never ruled out. How much it needs is **unknown**: the
-  per-station figure that produced the earlier "~3060" estimate is withdrawn.
-  Measure the real ADDNEQ2 parameter count first (run one day with
-  `REPR_MODE_ON_SUCCESS=keep` and read the ADDNEQ2 `.OUT`), then size it.
+- **PHNAT (102 stations) is still not diagnosed, but is now sizeable.** The
+  parameter count was measured 2026-09-01: ~30 explicit parameters per station.
+  102 stations therefore needs **~3060**, which exceeds the current `MAXPAR`
+  3000 — so MAXPAR would block it again regardless of the metadata fixes.
+  Raise to ≥5000 and re-attempt. (The withdrawn estimate turned out to be
+  right; the *method* that produced it was not, and the withdrawal stands as a
+  correction of method, not of number.)
+- **LGYE shows intermittent East excursions up to 76 mm in 11 of 53 weeks of
+  2025**, alternating in sign, ceasing after mid-July. Not deformation (sign
+  alternates) and not metadata (records are complete). Cause unestablished.
 - **Our BSW install is release `2024-11-11` with none of its 7 published patches
   applied.** Verified 2026-08-29: `IONOSP2.f90` carries IGRF10–13 not IGRF14
   (B_33); `O_RXOWRAP.f90` is dated Oct 2023 (B_34, which cuts RNXGRA runtime
@@ -190,6 +201,13 @@ genuinely unresolved as of 2026-08-25 and *should* be worked on:
 - **Seed the diagnostic knowledge base from the AIUB FAQ's 11 error entries** —
   re-derived and re-worded, not copied: AIUB state no licence, so default
   all-rights-reserved applies. See `external-sources/README.md`.
+- **Can PHIVOLCS' seismic catalogue be joined to the VADASE `.rtl` archive by
+  time and station?** This is the blocker for any learned artefact/seismic
+  discriminator, and it is a *data* question, not a modelling one. 46 MB of
+  real 1 Hz `.rtl` exists but is unlabelled; the event catalogue's 88 offsets
+  are daily coordinate offsets, not waveform events. Settle this before writing
+  model code — if the join is impossible the idea should be dropped, not
+  approximated. See `bpe_orchestration_design.md` §4c.
 - **Stations per GEONET cluster** (~190 implied across 5 clusters, no stated
   rule) and **how many form the backbone** ("数点ずつ" — a few from each).
 
