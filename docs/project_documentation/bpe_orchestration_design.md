@@ -321,6 +321,144 @@ find out?"*
 
 Automate the orchestration hard. Leave the judgement alone.
 
+## Part 4b — where an LLM may and may not sit
+
+Recorded because the question will be reopened, and it should not be reopened
+without the safety argument attached. Prompted 2026-09-01 by a proposal to run
+`llama.cpp` on the R740's CPU.
+
+### The test any AI component must pass
+
+**The pipeline must behave identically whether the model is present, broken, or
+absent.** Anything that fails this is not a candidate, however useful it looks.
+
+### The one slot that passes
+
+Part 1 halts on an unrecognised error signature and presents raw evidence. A
+human then diagnoses it from nothing. That human step is the expensive one.
+
+A local model may, **at that halt and only there**, draft a candidate knowledge
+base entry — proposed `(sr, kind)`, diagnosis, remedy — for a person to accept,
+edit or bin. The committed artefact is still the human-approved YAML row.
+
+It passes the test because it runs only on halt, never in the processing path;
+its output is text for review, never a config change or a resume decision; and
+removing it changes nothing except how long the human takes.
+
+### Prohibitions, stated so they are not re-litigated
+
+An LLM must never: choose `MAXPAR` or any other resource bound; decide whether
+to skip or retry a session; classify an error as benign; write a panel, a PCF
+or any campaign file; or gate a run in either direction.
+
+### Why "fallback" is the wrong word
+
+Asked about `*** SR GTOCNL`, a small model will not say it does not know. It
+will produce fluent, confident, wrong prose about ocean loading. **That is
+strictly worse than silence here**, because an articulate wrong diagnosis is
+far more likely to be acted on than a blank screen — and this pipeline's
+failure mode is silent wrong numbers.
+
+The actual cause on 2026-08-28 was a BLQ block indented one column left. No
+model infers that; every model will cheerfully offer an alternative.
+
+So a local model is **not a fallback for diagnostic reasoning**. It is a
+drafting aid at a point where a human is already required. Collapsing that
+distinction reintroduces exactly the dependency the zero-AI endgame exists to
+remove.
+
+### Where a model is simply the wrong tool
+
+IGSMAIL (23 MB), BSWMAIL (1.8 MB) and both manuals are held locally. The
+instinct is retrieval-augmented generation; the correct tool is `grep`.
+Searching BSWMAIL for the MAXPAR failure returned a clean and *correct negative*
+in milliseconds. A model asked the same question would have produced something.
+
+Use BM25 or ripgrep for lookup. Reserve generation for drafting.
+
+---
+
+## Part 4c — where learned models may and may not sit
+
+Companion to 4b. Same test applies: **the pipeline must behave identically
+whether the model is present, broken, or absent.** Prompted 2026-09-01 by the
+observation that the R740's AVX-512 VNNI unit is unused.
+
+### "Idle VNNI" is real, and it is not free compute
+
+VNNI is idle even during a full BPE, because Bernese is float64 geodesy and
+VNNI is an **int8** dot-product unit — BSW never issues a VNNI instruction.
+
+But VNNI is a unit **inside a core**, not a separate device. It cannot be
+reached without occupying the core it sits in. So idleness here does not mean
+spare capacity; it means that *if* a core is spent, int8 work extracts more per
+cycle than Bernese does. Any deployment needs cpuset pinning, with the BPE
+owning a fixed set of cores and the model the remainder — the same reasoning
+that keeps bulk transfers off the machine during a run.
+
+The question is therefore not "what runs for free" but **"what is worth cores"**.
+
+### VNNI only pays for waveform-shaped problems
+
+| problem shape | right tool | does VNNI help? |
+|---|---|---|
+| tabular (predict which station-days resolve badly, from baseline length, obs count, geometry) | gradient-boosted trees | **no** — seconds on one core, quantization meaningless |
+| sequence / waveform (1 Hz displacement streams) | small 1-D CNN, int8 | **yes** — this is VNNI's shape |
+
+**Do not pick a model to justify the silicon.** Only waveform data makes VNNI
+relevant at all, and that filter removes most candidates immediately.
+
+### The one candidate worth the cores: VADASE artefact discrimination
+
+It is the only sequence-shaped problem in the repository, and it is a real gap
+rather than one invented to fit the hardware. `CLAUDE.md` records the third
+receiver state — *anomalous spikes* — as **"empirically unconfirmed"**. Current
+logic is thresholds plus a leaky integrator plus the `ReceiverMode` state
+machine: good engineering, but separating real displacement from receiver
+artefact is a classification problem wearing a threshold's clothes.
+
+Task, stated narrowly: **given a window of 1 Hz E/N/U displacement, classify
+seismic / receiver-artefact / quiet.** Streaming, CPU-only and latency-bound
+across 35+ stations — exactly where int8 throughput matters.
+
+### Two things that would sink it, and one is a blocker today
+
+**Labels — this is the actual blocker.** The event catalogue holds **88
+offsets**, and they are *daily* coordinate offsets, not 1 Hz waveform events.
+46 MB of real `.rtl` exists (48 files) but is unlabelled. A training set
+requires PHIVOLCS' seismic catalogue joined to the VADASE archive by time and
+station. **Establish whether that join is possible before writing any model
+code.** If it is not, this is unbuildable and should be dropped rather than
+approximated.
+
+**Error asymmetry.** A missed earthquake and a false alarm are not equally
+costly, and a learned detector that *suppresses* a real event is the worst
+outcome this project can produce. Therefore: a model may **raise** a candidate
+the thresholds missed; it must never **clear** one the thresholds raised.
+Augment, never veto.
+
+That constraint also makes deployment cheap — a detector that can only add
+candidates needs no trust to be useful, and its absence changes nothing.
+
+### Ruled out, with reasons
+
+- **Learning anything from the weekly comparison residuals.** 1,979
+  station-weeks with **18** positives. There is no supervised problem here; the
+  East-dominated signature was found by counting, and counting was correct.
+- **Replacing outlier rejection in the velocity pipeline.** The existing
+  statistics are auditable and reproduce published output. A learned
+  replacement would break comparability for no gain.
+- **RINEX QC classification.** teqc and gfzrnx already answer it
+  deterministically.
+
+### The rule
+
+**VNNI is a reason to implement on this machine. It is never a reason to choose
+a problem.** On current evidence there is one candidate, and it is blocked on
+data rather than on compute.
+
+---
+
 ## Part 5 — migration: strangle, do not rewrite
 
 `scripts/` has produced 358 complete days (LUZON) and is mid-run on PHREF.
