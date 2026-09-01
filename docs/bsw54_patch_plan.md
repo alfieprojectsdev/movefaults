@@ -145,3 +145,82 @@ plan does not claim step 6 is solved when it is not.
 The PHREF↔production comparison should run **first**, on the unpatched build
 that produced the year. Patch after that lands. Otherwise the comparison
 straddles a software change and neither result means what it says.
+
+---
+
+## Prep completed 2026-09-01 — what changed in this plan
+
+The comparison against production has landed on the unpatched build
+(`phref_vs_production_comparison_results.md`), so the ordering constraint is
+satisfied and patching may proceed.
+
+### `UPDPAN` is not needed, so nothing here requires a tty
+
+The plan said step 6 might need a person because `UPDPAN` is menu-driven. That
+turned out not to apply. The only panel in the patch set is `ETRS89.INP`, and
+its destination `$PAN` resolves to **`$C/SUPGUI/PAN`** — the *master* panels,
+not `$U/PAN`. `UPDPAN` exists to propagate master panels into user space, and
+we do not run ETRS89.
+
+Consequence: **our `MAXPAR 3000` in `$U/OPT/R2S_FIN/ADDNEQ2.INP` is not at
+risk**, and the whole procedure is non-interactive. The earlier warning about
+diffing and re-applying MAXPAR is superseded — nothing writes to `$U`.
+
+### The full file set — 15 files, 7 fixes
+
+| bug | files | dest |
+|---|---|---|
+| B_33 | `IGRF14SYN.f` (new), `IONOSP2.f90` | `$LG` |
+| B_34 | `O_RXOWRAP.f90`; `RNXGRA.f` | `$LG`; `$FG` |
+| B_35 | `ETRSIN.f90` `GETCO3.f90` `ITRF2ETRF.f90` `ITRF2ITRF.f90`; `ETRS89.f`; `ETRS89.INP`; `ETRS89.HLP` | `$LG`; `$FG`; `$PAN`; `$HLP` |
+| B_36 | `UPDMEA.f90` | `$LG` |
+| B_37 | `D_RXNTYPE.f90` | `$LG` |
+| B_38 | `TRPSTORE.f90` | `$LG` |
+| B_39 | `D_GRID.f90` | `$LG` |
+
+All 15 fetched (HTTP 200, non-empty) and **verified to differ from what is
+installed** — 14 differ, 1 is new. None is identical, which independently
+confirms the install is unpatched.
+
+### Prepared and in place
+
+| artefact | location |
+|---|---|
+| staged patch files | `~/bsw-patches-2024-11-11/` |
+| rollback snapshots | `~/BERN54-{SOURCE,SUPGUI,EXE_GNU}-pre-patch-20260901.tar.gz` |
+| pre-patch fingerprint, 88 executables | `~/bsw-patch-baseline/exe-sha256-pre.txt` |
+| pre-patch PHREF DOY 200 solution | `~/bsw-patch-baseline/FIN_20252000-prepatch.SNX` |
+| pre-patch EXAMPLE solution | `~/bsw-patch-baseline/EXAMPLE-FIN_20230100-prepatch.*` |
+
+The executables are snapshotted as well as the source: a failed compile leaves
+a half-built `EXE_GNU`, which is the actual risk, and re-compiling from restored
+source takes far longer than restoring the binaries.
+
+### Scripts
+
+```
+scripts/bsw/apply_bsw54_patches.sh --check   # preconditions, no writes (passes)
+scripts/bsw/apply_bsw54_patches.sh --place   # copy files, no compile
+scripts/bsw/apply_bsw54_patches.sh --all     # place + makemake.pl + CBERN COMPLINK
+scripts/bsw/verify_bsw54_patches.sh          # markers, rebuild diff, day-level check
+scripts/bsw/rollback_bsw54_patches.sh 20260901
+```
+
+`--all` refuses to run if any BSW process is live, if a snapshot is missing, or
+if the staged set is not exactly 15 files. It keeps a `.pre-patch` copy of every
+file it replaces, writes a manifest with sha256, and afterwards reports **which
+executables actually changed** by diffing the fingerprints — including a warning
+if any executable that existed before is missing after, which is what a failed
+link looks like.
+
+It is idempotent: files already identical to their patch are skipped, so a
+re-run after a partial failure resumes.
+
+### The remaining step is a decision, not a task
+
+Nothing left requires a person at the terminal. What it does require is someone
+choosing to change the software that produced 717 days of solutions, knowing
+that **B_33 and B_38 can move the numbers**. `verify_bsw54_patches.sh` turns
+that from a worry into a measurement: same day, same station set, re-run and
+compare — the Helmert parameters should be ~zero and the residuals *are* the
+effect of the patches.
