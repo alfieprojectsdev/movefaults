@@ -145,10 +145,22 @@ def _extract_session_from_filename(filename: str) -> str | None:
         "PIVSMIND.CRD"   →  None   (no numeric session)
     """
     stem = Path(filename).stem
-    # Prefer 5-digit run at the end of the stem
-    m = re.search(r"(\d{5})$", stem)
+
+    # 4-digit-year form FIRST: RNX2SNX writes FIN_YYYYDDDS (7 digits, S =
+    # sub-session). Taking "the last five digits" of FIN_20250010 yields
+    # "50010", which parses as year 2050 DOY 010 -- every epoch silently
+    # misdated by 25 years, and any day whose tail exceeds 366 (DOY >= 100 with
+    # certain sub-sessions) REJECTED outright. That is how 360 daily CRD files
+    # became 144 usable epochs, all in 2050.
+    m = re.search(r"(?<!\d)(\d{4})(\d{3})(\d)$", stem)
+    if m:
+        return m.group(1)[2:] + m.group(2)
+
+    # 2-digit-year form: F1_23001, FIN_23001, AB23001
+    m = re.search(r"(?<!\d)(\d{5})$", stem)
     if m:
         return m.group(1)
+
     # Fall back to any 5-digit run
     m = re.search(r"(\d{5})", stem)
     return m.group(1) if m else None
