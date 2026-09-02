@@ -3541,3 +3541,63 @@ problem.**
 **Next:** apply the patches and run `verify` to measure what they move; then
 re-run the comparison on the patched build; `MAXSESS` above 6 on the next full
 run; PHNAT with `MAXPAR` ≥ 5000.
+
+### 26.10 The patch attempt destroyed the install, and the snapshot saved it
+
+`--check` passed. `--all` placed the 15 files, ran `makemake.pl` clean, then ran
+`CBERN COMPLINK` — which **removes every executable before rebuilding**. The log
+carried 6,080 error lines:
+
+```
+make: gfortran: No such file or directory
+make: cc:       No such file or directory
+```
+
+**There is no compiler on this machine.** BSW was installed from prebuilt AIUB
+binaries, so nothing had ever needed to build. 88 executables to zero.
+
+Recovered completely: sha256 identical across all 88, and confirmed
+functionally by re-running a weekly stack and reproducing an earlier result
+exactly. Two gaps the rollback did not cover, cleaned by hand — `IGRF14SYN.f`
+is a *new* file so the old tarball could not remove it, and 14 `.pre-patch`
+copies were left behind.
+
+**The evidence had been sitting in front of me since 26.x.** On 2026-09-01
+pytest failed collecting `test_dc3d.py` with `No such file or directory: 'cc'`.
+I noted it, excluded the test, and moved on. Same fact — *this machine cannot
+compile* — reported plainly two days early, and discarded because it arrived in
+a test run rather than a build.
+
+What the machinery got right: snapshotting **executables** and not just source
+is what made recovery possible at all, and the missing-executable guard caught
+the failure immediately rather than at the next production run.
+
+What it got wrong is the point. **`--check` verified snapshots, staged files and
+idle processes — everything except whether anything could rebuild what the
+operation was about to delete.** Same shape as §25.5's pre-flight: a guard that
+inspects what is convenient rather than what the operation depends on. It now
+requires the toolchain *and compiles a trivial program*, because a compiler on
+`PATH` is not proof it can build.
+
+**A consequence to weigh rather than file away:** the toolchain was installed
+2026-09-02, so this machine's BSW is no longer the AIUB prebuilt binaries
+**BRN-001 verified at 0.0000 mm**. After a rebuild it is a locally compiled
+build. Re-running EXAMPLE post-patch is what re-establishes that claim, not a
+formality.
+
+### 26.11 The mistake, extended
+
+§25.18 recorded five, all one shape: a proxy standing in for the thing. This
+session adds two more, and both are about **evidence already in hand**.
+
+6. **The missing compiler, reported and ignored.** `pytest` said `cc` did not
+   exist. It was true, it was load-bearing, and it was filed as noise because
+   of where it appeared.
+7. **A baseline quoted from the wrong run.** After the rollback I compared the
+   restored build against `N 1.90 / E 5.47` and briefly read a real difference,
+   when that figure came from the 7-day bulk stack and the rerun was the 6-day
+   standalone panel. The build was bit-identical; my comparison was not.
+
+§25.18 closed on *a guard that chooses its own sample is not a guard*. These two
+sharpen it in a different direction: **the failure is not always a missing
+check — sometimes the check ran, reported correctly, and was not believed.**

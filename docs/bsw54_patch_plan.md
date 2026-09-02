@@ -224,3 +224,84 @@ that **B_33 and B_38 can move the numbers**. `verify_bsw54_patches.sh` turns
 that from a worry into a measurement: same day, same station set, re-run and
 compare — the Helmert parameters should be ~zero and the residuals *are* the
 effect of the patches.
+
+---
+
+## The first attempt failed and destroyed the install — 2026-09-02
+
+Recorded because the failure is more instructive than the fix.
+
+### What happened
+
+`--check` passed. `--all` placed all 15 files, ran `makemake.pl` (exit 0), then
+ran `CBERN COMPLINK`, which reported exit 0 while the log carried **6,080 error
+lines**:
+
+```
+make: gfortran: No such file or directory
+make: cc:       No such file or directory
+```
+
+**`CBERN COMPLINK` removes every executable before rebuilding.** With no
+compiler, the removal succeeded and the rebuild did not. The install went from
+88 working executables to **zero** — unable to run anything at all.
+
+### Why the machine had no compiler
+
+BSW was installed here from **prebuilt AIUB binaries**. Nothing had ever needed
+to build, so nothing had ever revealed the absence.
+
+### The evidence was visible for days and was misread
+
+On 2026-09-01, `pytest` failed collecting `test_dc3d.py`:
+
+```
+FileNotFoundError: [Errno 2] No such file or directory: 'cc'
+```
+
+That was noted, the test excluded, and the session moved on. It is the same
+fact — *this machine cannot compile* — reported plainly, two days before it
+mattered, and read as an unrelated nuisance because it appeared in a test run
+rather than in a build.
+
+### What the safety machinery got right
+
+- **Snapshotting the executables, not just the source.** This is what made
+  recovery possible. Restoring `SOURCE` alone would have left a tree that still
+  could not be built into anything runnable. That decision was made because "a
+  failed compile leaves a half-built `EXE_GNU`, which is the actual risk" — it
+  turned out to be more right than intended.
+- **The missing-executable guard.** `apply` compares the executable
+  fingerprint before and after and warns when anything that existed before is
+  gone. It printed `WARNING: 88 executable(s) present before and MISSING now`,
+  which is how the failure was noticed immediately rather than at the next run.
+- **Single-command rollback.** Restored all three trees; verified **bit-for-bit
+  identical** across all 88 executables by sha256, and confirmed functionally by
+  re-running a weekly stack and reproducing an earlier result exactly.
+
+Two things the rollback did not cover, now handled: `IGRF14SYN.f` is a **new**
+file, so restoring the old tarball did not remove it; and 14 `.pre-patch`
+copies were left behind. Both cleaned by hand.
+
+### What it got wrong
+
+**`--check` verified everything except the prerequisite the operation depends
+on.** It confirmed snapshots existed, files were staged, and no BPE was
+running — then authorised an operation whose first act is deleting every
+executable, without checking that anything could rebuild them.
+
+That is the same shape as the DOY 200 pre-flight in §25.5: a guard that
+inspects what is convenient rather than what the operation actually needs.
+
+`--check` now requires `gfortran`, `gcc`, `make` and `perl` on `PATH`, **and
+compiles a trivial program** — a compiler on `PATH` is not proof it can build.
+
+### Consequence to weigh, not just note
+
+The toolchain was installed on 2026-09-02. This machine's BSW is therefore no
+longer purely the AIUB prebuilt binaries that **BRN-001 verified at 0.0000 mm
+against the shipped reference**. After a rebuild it becomes a locally compiled
+build with `gfortran 13.3.0`, and that verification no longer describes it.
+
+Re-running the EXAMPLE campaign after patching is therefore not optional
+box-ticking — it is what re-establishes the claim BRN-001 made.

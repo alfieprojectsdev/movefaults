@@ -48,6 +48,43 @@ n=$(find "$STAGE" -type f 2>/dev/null | wc -l)
 [ "$n" -eq 15 ] || die "expected 15 staged patch files under $STAGE, found $n"
 say "15 patch files staged"
 
+# THE CHECK THIS SCRIPT ORIGINALLY LACKED.
+#
+# On 2026-09-02 --check passed on a machine with no compiler. --all then placed
+# the files, ran CBERN COMPLINK, and the link step DELETED ALL 88 EXECUTABLES
+# before failing with "make: gfortran: No such file or directory". The install
+# was left unable to run anything until the snapshot was restored.
+#
+# BSW was installed here from prebuilt AIUB binaries, so a toolchain was never
+# required until the moment something needed rebuilding. The evidence had been
+# visible for days -- pytest could not collect test_dc3d.py, reporting
+# "No such file or directory: 'cc'" -- and was read as an unrelated nuisance.
+#
+# A precondition check that verifies everything except the one prerequisite the
+# operation actually depends on is not a precondition check.
+missing=""
+for tool in gfortran gcc make perl; do
+    command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
+done
+[ -z "$missing" ] || die "no build toolchain --$missing not on PATH.
+       CBERN COMPLINK removes every executable before rebuilding, so running
+       without a compiler leaves the install unusable. Install with:
+           sudo apt install gfortran gcc make
+       Note this makes the install locally compiled rather than the AIUB
+       prebuilt binaries BRN-001 verified at 0.0000 mm."
+say "toolchain present ($(gfortran --version 2>/dev/null | head -1))"
+
+# A compiler on PATH is not proof it can build. Compile one trivial unit.
+_probe=$(mktemp -d)
+printf 'program t\nend program t\n' > "$_probe/t.f90"
+if gfortran -o "$_probe/t" "$_probe/t.f90" >"$_probe/log" 2>&1; then
+    say "gfortran compiles a trivial program"
+else
+    rm -rf "$_probe"
+    die "gfortran is on PATH but cannot compile: see the error above"
+fi
+rm -rf "$_probe"
+
 declare -A DEST=( [LIB_FOR]="$LG" [PGM_FOR]="$FG" [SUPGUI_PAN]="$PAN" [SUPGUI_HLP]="$HLP" )
 
 todo=0; already=0
