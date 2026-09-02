@@ -331,3 +331,56 @@ class TestFourDigitYearSessionCodes:
     def test_two_digit_year_forms_still_work(self):
         for name in ("F1_23001.CRD", "FIN_23001.CRD", "AB23001.CRD"):
             assert _extract_session_from_filename(name) == "23001"
+
+
+class TestAPrioriStationsAreNotObservations:
+    """A Bernese CRD lists every a priori station, observed or not.
+
+    Estimated stations carry trailing flag columns ("A   G"); a priori
+    carry-through ends at the Z coordinate. Including the latter fabricates
+    epochs: CLAV has 31 days of RINEX in 2025 but a CRD entry on all 360, so
+    its plotted series was a flat a priori line with a 31-day step that looked
+    exactly like a real displacement.
+
+    Found 2026-09-01 while investigating that apparent displacement.
+    """
+
+    @staticmethod
+    def _crd(tmp_path, body: str) -> Path:
+        p = tmp_path / "T_25001.CRD"
+        p.write_text(
+            "TEST: coordinates\n"
+            + "-" * 80 + "\n"
+            "LOCAL GEODETIC DATUM: IGS20             EPOCH: 2025-01-01 12:00:00\n\n"
+            "NUM  STATION NAME           X (M)          Y (M)          Z (M)     FLAG\n\n"
+            + body,
+            encoding="ascii",
+        )
+        return p
+
+    def test_unflagged_a_priori_rows_are_skipped(self, tmp_path):
+        p = self._crd(
+            tmp_path,
+            "    1  EEEE EEEE        -3121950.75632  5178608.38503  2022180.48849    A      G\n"
+            "    2  AAAA AAAA        -3186293.42891  5286624.50395  1601158.41680\n",
+        )
+        got = {r[0] for r in read_crd_file(p)}
+        assert got == {"EEEE"}, "an unflagged a priori row was read as an observation"
+
+    def test_estimated_only_false_returns_everything(self, tmp_path):
+        p = self._crd(
+            tmp_path,
+            "    1  EEEE EEEE        -3121950.75632  5178608.38503  2022180.48849    A      G\n"
+            "    2  AAAA AAAA        -3186293.42891  5286624.50395  1601158.41680\n",
+        )
+        assert len({r[0] for r in read_crd_file(p, estimated_only=False)}) == 2
+
+    def test_domes_form_is_still_parsed(self, tmp_path):
+        p = self._crd(
+            tmp_path,
+            "    1  PIMO 22003M001   -3186293.42891  5286624.50395  1601158.41680    A      G\n",
+        )
+        rows = read_crd_file(p)
+        assert len(rows) == 1
+        assert rows[0][0] == "PIMO"
+        assert rows[0][1] == pytest.approx(-3186293.42891)

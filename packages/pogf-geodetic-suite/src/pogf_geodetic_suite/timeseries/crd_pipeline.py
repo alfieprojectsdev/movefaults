@@ -34,7 +34,18 @@ class StationEpoch:
 # ---------------------------------------------------------------------------
 
 
-def read_crd_file(path: Path) -> list[tuple[str, float, float, float]]:
+# Estimated stations carry at least one trailing flag token after Z -- BSW 5.4
+# writes two ("A   G", "W   G"), older files and some panels write one
+# ("IGS14"). A priori carry-through ends at the Z coordinate with nothing
+# after it, which is the only case this needs to exclude. Anchoring on
+# "something non-numeric follows Z" is therefore both sufficient and tolerant
+# of the flag vocabulary, which is not fixed across versions.
+_FLAGGED = re.compile(r"[-+]?\d+\.\d+\s+(?![-+]?\d)\S+")
+
+
+def read_crd_file(
+    path: Path, *, estimated_only: bool = True
+) -> list[tuple[str, float, float, float]]:
     """
     Parse a Bernese 5.4 CRD file; return ECEF coordinates per station.
 
@@ -49,6 +60,21 @@ def read_crd_file(path: Path) -> list[tuple[str, float, float, float]]:
         WITHOUT dome: NUM  NAME  X  Y  Z  FLAG
 
     Both are handled by trying to parse the third field as a float.
+
+    ``estimated_only`` (default True) keeps ONLY stations the solution actually
+    estimated, identified by the trailing flag columns (e.g. ``A   G``). A
+    Bernese CRD also lists every station in the a priori file, unchanged and
+    unflagged, whether or not it was observed that day.
+
+    Including those is not a cosmetic problem. CLAV has 31 days of RINEX in
+    2025; its CRD entry appears on all 360, carrying the a priori coordinate
+    verbatim on the other 329. Plotted, that is a flat line with a 31-day step
+    in it -- indistinguishable from a real 31-day displacement, and its
+    suspiciously perfect 1.6 mm scatter is the signature of a number that was
+    never measured. Across a 38-station comparison, 2136 of 13680 epochs
+    (15.6%) were a priori carry-through presented as observations.
+
+    Pass ``estimated_only=False`` only to read an a priori file deliberately.
     """
     results: list[tuple[str, float, float, float]] = []
     with path.open(encoding="ascii", errors="replace") as fh:
@@ -61,6 +87,8 @@ def read_crd_file(path: Path) -> list[tuple[str, float, float, float]]:
             except ValueError:
                 continue
             station = parts[1][:4].upper()
+            if estimated_only and not _FLAGGED.search(line):
+                continue   # a priori carry-through, not an estimate
             # Detect whether dome is present: if parts[2] is not a float, it is.
             try:
                 x = float(parts[2])

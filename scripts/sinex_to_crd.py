@@ -111,7 +111,11 @@ def write_crd(path: Path, epoch: datetime, rows, title: str) -> None:
     ]
     for i, (site, dome, x, y, z) in enumerate(rows, 1):
         name = f"{site} {dome}".strip()
-        L.append(f"{i:>3}  {name:<16}{x:>15.5f}{y:>15.5f}{z:>15.5f}")
+        # Every station in a SINEX SOLUTION/ESTIMATE block WAS estimated, so
+        # each row carries the flags that mark it as such. Without them
+        # read_crd_file(estimated_only=True) discards the whole file as a
+        # priori carry-through.
+        L.append(f"{i:>3}  {name:<16}{x:>15.5f}{y:>15.5f}{z:>15.5f}    A      G")
     path.write_text("\n".join(L) + "\n", encoding="utf-8")
 
 

@@ -105,6 +105,23 @@ def main() -> int:
             ax.plot(a[:, 0], y, label=label, **st)
         ax.set_ylabel(f"{name} (mm)")
         ax.grid(alpha=0.25, lw=0.5)
+
+        # Robust limits. A handful of failed days (TGDN has two, up to 4.6 m
+        # off) otherwise set the scale and compress the real signal into a flat
+        # line. Clipping the VIEW keeps them visible at the frame edge instead
+        # of deleting them -- the count is annotated, so nothing is hidden.
+        allv = np.concatenate([
+            (a[:, col] * 1000.0) - (np.mean(a[:, col] * 1000.0) if args.detrend else 0.0)
+            for _, a in loaded
+        ])
+        med = np.median(allv)
+        mad = np.median(np.abs(allv - med)) or 1.0
+        lo, hi = med - 8 * 1.4826 * mad, med + 8 * 1.4826 * mad
+        n_out = int(np.sum((allv < lo) | (allv > hi)))
+        if n_out:
+            ax.set_ylim(lo, hi)
+            ax.text(0.995, 0.04, f"{n_out} beyond axis", transform=ax.transAxes,
+                    ha="right", va="bottom", fontsize=7, color="#666")
     axes[0].legend(loc="upper right", fontsize=9, framealpha=0.9)
     axes[-1].set_xlabel("decimal year")
 
