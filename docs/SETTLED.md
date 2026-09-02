@@ -85,6 +85,9 @@ from `CLAUDE.md` because both duplicates were removed.
 | **BSW on gps3 is now LOCALLY COMPILED** (gfortran 13.3.0), not AIUB prebuilt. All 88 executables rebuilt 2026-09-02 | verified to reproduce the prebuilt binaries on both our pipeline and EXAMPLE |
 | **gps3 had no compiler until 2026-09-02** — BSW was installed from prebuilt AIUB binaries. `gfortran`/`gcc`/`make` now present (gfortran 13.3.0) | the absence surfaced as `pytest` failing to collect `test_dc3d.py` with `No such file or directory: 'cc'` |
 
+| **HD-LBU2 is on gps3** at `/srv/gnss-archive/legacy/RECOVERED_HD-LBU2_WD20EARS_WCAZA4430660` — 122 GB including 6,145 `.crd` back to 1996 | synced 2026-09-02 15:46, eight minutes after CR-20260902 was written saying the drive was unmounted |
+| **The CRD catalog covers 2,195 site codes** from 8,664 files, 512,215 rows. Accuracy against the IGS20 reference: max 0.50 m over seven known stations | `docs/bern52/crd_catalog.csv` |
+
 ### Do not quote the "implementation maturity" table as current
 
 `CLAUDE.md`'s table was measured 2026-08-18 and is now **wrong by 31 and 20
@@ -120,6 +123,8 @@ not ~10%**, and that misreport stood for months.
 
 | **Do not quote BRN-001's "0.0000 mm vs reference" as an acceptance bar** | the distribution ships EMPTY `EXAMPLE/SOL` and `EXAMPLE/STA`, so what it compared against is not recoverable. Use the reproducible test instead: re-run EXAMPLE and diff against the previous build's result |
 | **Verify a rebuild against a day from the MAIN run, never the pre-flight test day** | DOY 200's stored solution predates PIMO's addition, so re-running it compares 34 stations to 33 and yields 1.88 mm of pure network change. DOY 201 gives 0.00 mm |
+| **The CRD catalog does NOT harmonise reference frames or epochs, deliberately** | its inputs span WGS-84, ITRF2005/2008/2014 and IGS20 from the 1990s to 2025. Frame differences are decimetre-level and 30 years of Philippine Mobile Belt motion at ~8 cm/yr is ~2.5 m; the matching problem needs ~100 m, set by the accuracy of a RINEX header position. A transformation chain would be real work for zero gain. `docs/bern52/crd_catalog.md` |
+| **A site code that names more than one monument is clustered, never averaged** | CATA is three monuments — two Philippine sites ~220 km apart plus an Argentine station in a global ITRF file. Averaging places it in empty ocean. The catalog publishes the largest cluster and flags `ambiguous` |
 | **Do not inherit one campaign's excluded-days list into another** | LUZON's `058 059 060 061 079 139 345` was derived from LUZON's fiducial coverage. Under PHREF, 079 (3 fiducials) and 139 (8) are fine. Anything computed from a station set must be recomputed when the set changes |
 | **Snapshot built executables, not just source, before any rebuild** | a failed compile leaves a half-built `EXE_GNU`; restoring source alone leaves nothing runnable. This is what made the 2026-09-02 recovery possible |
 | **A pre-flight test day must be the worst case for the resource under test** | DOY 200 (33 stations) passed and authorised a year that failed on all 359 days; the busiest days carry 41. A guard that picks its own easy sample is not a guard |
