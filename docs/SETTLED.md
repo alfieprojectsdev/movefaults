@@ -81,6 +81,8 @@ from `CLAUDE.md` because both duplicates were removed.
 | **Outliers in the comparison are East-dominated: 17 of 18 station-weeks over 15 mm.** Overall RMS N 1.86 vs E 7.47 mm. The asymmetry points at ambiguity resolution, not metadata or site motion | 1,979 station-weeks |
 
 | **`CBERN COMPLINK` deletes every executable before rebuilding.** Running it without a toolchain leaves the install with zero working programs | 2026-09-02: 88 → 0, recovered from snapshot. `bsw54_patch_plan.md` |
+| **The 2024-11-11 patches are APPLIED and verified inert on this configuration.** DOY 201 (same 35 stations): 0.00 mm. EXAMPLE (340 stations): max 0.010 mm, which is CRD print precision | 2026-09-02, `bsw54_patch_plan.md`. B_33's IGRF14 affects higher-order ionosphere corrections this PCF does not apply; B_38 is a no-op for the numbers |
+| **BSW on gps3 is now LOCALLY COMPILED** (gfortran 13.3.0), not AIUB prebuilt. All 88 executables rebuilt 2026-09-02 | verified to reproduce the prebuilt binaries on both our pipeline and EXAMPLE |
 | **gps3 had no compiler until 2026-09-02** — BSW was installed from prebuilt AIUB binaries. `gfortran`/`gcc`/`make` now present (gfortran 13.3.0) | the absence surfaced as `pytest` failing to collect `test_dc3d.py` with `No such file or directory: 'cc'` |
 
 ### Do not quote the "implementation maturity" table as current
@@ -116,6 +118,8 @@ not ~10%**, and that misreport stood for months.
 | **Do not partition the PH network into clusters yet** | GSI partitioned at ~1,240 stations; we have ~107. Partitioning is a scaling remedy whose cost is paid at the combination step — V3's non-unique troposphere is what that cost looks like |
 | **Keep the multi-station minimum-constraint datum**; do not adopt GEONET's single fixed station | its failure mode is *global* — one station's unmodelled motion reached all ~1,240 GEONET stations — and it needs a daily wide-area solution to be safe |
 
+| **Do not quote BRN-001's "0.0000 mm vs reference" as an acceptance bar** | the distribution ships EMPTY `EXAMPLE/SOL` and `EXAMPLE/STA`, so what it compared against is not recoverable. Use the reproducible test instead: re-run EXAMPLE and diff against the previous build's result |
+| **Verify a rebuild against a day from the MAIN run, never the pre-flight test day** | DOY 200's stored solution predates PIMO's addition, so re-running it compares 34 stations to 33 and yields 1.88 mm of pure network change. DOY 201 gives 0.00 mm |
 | **Do not inherit one campaign's excluded-days list into another** | LUZON's `058 059 060 061 079 139 345` was derived from LUZON's fiducial coverage. Under PHREF, 079 (3 fiducials) and 139 (8) are fine. Anything computed from a station set must be recomputed when the set changes |
 | **Snapshot built executables, not just source, before any rebuild** | a failed compile leaves a half-built `EXE_GNU`; restoring source alone leaves nothing runnable. This is what made the 2026-09-02 recovery possible |
 | **A pre-flight test day must be the worst case for the resource under test** | DOY 200 (33 stations) passed and authorised a year that failed on all 359 days; the busiest days carry 41. A guard that picks its own easy sample is not a guard |
@@ -212,11 +216,6 @@ genuinely unresolved as of 2026-08-25 and *should* be worked on:
   are daily coordinate offsets, not waveform events. Settle this before writing
   model code — if the join is impossible the idea should be dropped, not
   approximated. See `bpe_orchestration_design.md` §4c.
-- **BRN-001's "0.0000 mm vs reference" no longer describes this install after
-  any rebuild.** It verified the AIUB *prebuilt binaries*; a toolchain was
-  installed 2026-09-02, so a rebuilt BSW is locally compiled with gfortran
-  13.3.0. Re-running the EXAMPLE campaign post-patch is what re-establishes the
-  claim.
 - **Stations per GEONET cluster** (~190 implied across 5 clusters, no stated
   rule) and **how many form the backbone** ("数点ずつ" — a few from each).
 

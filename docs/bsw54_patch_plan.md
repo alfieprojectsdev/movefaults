@@ -305,3 +305,69 @@ build with `gfortran 13.3.0`, and that verification no longer describes it.
 
 Re-running the EXAMPLE campaign after patching is therefore not optional
 box-ticking — it is what re-establishes the claim BRN-001 made.
+
+---
+
+## Applied and verified — 2026-09-02
+
+With the toolchain installed, `--all` completed: 15 files placed, `makemake.pl`
+clean, `CBERN COMPLINK` **exit 0 with zero hard errors in 28,610 log lines**,
+and **88 of 88 executables rebuilt** with none missing.
+
+All 88 binaries changed, which is expected: every one is now compiled locally
+with gfortran 13.3.0 rather than being an AIUB prebuilt.
+
+### Verification — three tests, because one would not have been enough
+
+| test | result |
+|---|---|
+| patch markers in source | `IGRF14` in `IONOSP2.f90`, `IGRF14SYN.f` present, `.pre-patch` copies kept |
+| **our production path** — PHREF DOY 201, identical 35-station network | **0.00 mm** RMS; Helmert T = (−0.01, 0.00, −0.01) mm, scale −0.00 ppb |
+| **AIUB's own campaign** — EXAMPLE, 340 stations | max 3-D difference **0.010 mm** at JOZ2; **1 station of 340** differs by more than 0.001 mm |
+
+The 0.010 mm is the CRD format's 5-decimal print precision — a last-digit
+rounding difference, not a numerical disagreement.
+
+**The patched local build reproduces the AIUB prebuilt binaries**, on our
+pipeline and on a campaign we did not design.
+
+### Why zero and not merely small
+
+B_33 changes the geomagnetic field model used for **higher-order ionosphere
+corrections**, which this PCF does not apply. B_38 removes redundant station-ID
+lookups when troposphere SINEX output is disabled — a no-op for the numbers.
+The two fixes that *could* have moved results do not touch this configuration.
+
+That is a finding, not a disappointment: it means the 2025 year and the
+production comparison remain valid statements about this pipeline, and future
+reprocessing on the patched build is comparable with them.
+
+### The first comparison was confounded, and would have been reported wrongly
+
+`verify` nominates **DOY 200** as the baseline day. DOY 200 is the one day in
+the year whose stored solution predates PIMO's addition to the campaign — 33
+stations against the year's 35. The re-run therefore compared **34 stations to
+33**, and produced 1.88 mm North with ANTP at 10.8 mm.
+
+None of that was the patches. Re-running **DOY 201**, which the year run solved
+*with* PIMO, gives 0.00 mm. Reporting the DOY 200 figure as "the effect of the
+patches" would have been wrong by its entire magnitude.
+
+`verify_bsw54_patches.sh` should choose a baseline day from the main run rather
+than the pre-flight test day. Recorded rather than silently patched, because
+the same trap will recur for anyone re-verifying later.
+
+### Test days restored
+
+The re-runs overwrote `FIN_20252000` and `FIN_20252010` in `$S`, leaving 358
+unpatched days and 2 patched ones. Both were restored from the saved baselines,
+so **the 2025 year is homogeneous unpatched** and still matches what
+`phref_vs_production_comparison_results.md` describes.
+
+### Correction to this document's earlier claim
+
+Earlier revisions cited BRN-001's "0.0000 mm vs reference" as the acceptance
+bar. **The distribution ships empty `EXAMPLE/SOL` and `EXAMPLE/STA`** — there is
+no AIUB expected-solution file, so what BRN-001 compared against is not
+recoverable from what is on disk. The EXAMPLE test above is the defensible
+substitute: same campaign, same input, AIUB binaries versus this build.

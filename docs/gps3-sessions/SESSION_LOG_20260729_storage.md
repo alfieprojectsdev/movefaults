@@ -3601,3 +3601,72 @@ session adds two more, and both are about **evidence already in hand**.
 §25.18 closed on *a guard that chooses its own sample is not a guard*. These two
 sharpen it in a different direction: **the failure is not always a missing
 check — sometimes the check ran, reported correctly, and was not believed.**
+
+### 26.12 The patches went on, and change nothing measurable
+
+Toolchain installed, `--all` re-run: 15 files placed, `CBERN COMPLINK` exit 0
+with **zero hard errors in 28,610 log lines**, **88 of 88** executables rebuilt.
+All 88 changed, because all 88 are now locally compiled rather than AIUB
+prebuilt.
+
+Verified three ways rather than one:
+
+```
+production path   PHREF DOY 201, same 35 stations   0.00 mm RMS, Helmert ~0
+AIUB's campaign   EXAMPLE, 340 stations             max 0.010 mm at JOZ2
+                                                    1 of 340 above 0.001 mm
+```
+
+The 0.010 mm is the CRD format's 5-decimal print precision. **The patched local
+build reproduces the AIUB prebuilt binaries** on our pipeline and on a campaign
+we did not design.
+
+Zero rather than small-but-nonzero has a reason: B_33's IGRF14 affects
+higher-order ionosphere corrections that this PCF does not apply, and B_38
+removes redundant station-ID lookups when troposphere SINEX output is off. The
+two fixes that could move numbers do not touch this configuration. That keeps
+the 2025 year and the production comparison valid, and makes future
+reprocessing comparable with them.
+
+### 26.13 The verification nearly reported a network change as a patch effect
+
+`verify` nominates **DOY 200** as the baseline day, and DOY 200 is the one day
+in the year whose stored solution **predates PIMO's addition to the campaign**.
+The re-run compared 34 stations against 33 and produced 1.88 mm North with ANTP
+at 10.8 mm.
+
+None of it was the patches. DOY 201 — solved *with* PIMO during the year run —
+gives **0.00 mm**. Publishing the DOY 200 number as the patch effect would have
+been wrong by its entire magnitude, and it would have looked plausible: a few
+millimetres is exactly what one expects a geomagnetic model change to produce.
+
+The tell was the station count, which the comparison tool prints on every run
+and which I read only after the numbers looked interesting.
+
+Also corrected here: this project has repeatedly cited BRN-001's **"0.0000 mm
+vs reference"** as an acceptance bar. The distribution ships **empty**
+`EXAMPLE/SOL` and `EXAMPLE/STA` — there is no AIUB expected-solution file, so
+what that figure compared against is not recoverable from disk. It should stop
+being quoted as though its basis is known.
+
+Both test days were restored from saved baselines, so the year stays
+homogeneous unpatched and still matches what the published comparison
+describes.
+
+### 26.14 The mistake, extended again
+
+§26.11 recorded seven. Two more, and both are near-misses caught by procedure
+rather than by noticing:
+
+8. **A confounded baseline nearly published.** The DOY 200 comparison mixed a
+   software change with a network change. What saved it was the habit of
+   printing the station count on every comparison — a number that existed
+   because an earlier session needed it for a different reason.
+9. **A borrowed acceptance bar.** "0.0000 mm vs reference" was quoted in three
+   documents as though its provenance were known. It was not checked until the
+   moment it had to be reproduced, and it could not be.
+
+The pattern §25.18 named — *a proxy standing in for the thing* — now has a
+second face: **a number inherited from an earlier session, carried forward
+without its basis.** 1001 parameters, the LUZON exclusion list, BRN-001's
+0.0000 mm. Each was true in its original context and meaningless in the new one.
