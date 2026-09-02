@@ -16,9 +16,13 @@
 # EMAIL is optional and off unless a config file exists. See --email below.
 set -uo pipefail
 
+# Campaign-parameterised so the same script serves the national run. Pointed at
+# PHNAT while still hard-coded to LUZON's 328/30, it would report a percentage
+# of the wrong denominator -- which reads as progress rather than as an error.
 YEAR="${LUZON_STATUS_YEAR:-2025}"
-TARGET_NEW=328          # days this run is meant to produce
-KEPT=30                 # solved 2026-08-06 and deliberately retained
+CAMPAIGN="${LUZON_STATUS_CAMPAIGN:-LUZON}"
+TARGET_NEW="${LUZON_STATUS_TARGET:-328}"   # days this run is meant to produce
+KEPT="${LUZON_STATUS_KEPT:-30}"            # solved earlier and deliberately retained
 STALL_MIN="${LUZON_STALL_MIN:-45}"
 STATE="$HOME/.luzon_status_state"
 MAILRC="$HOME/.luzon_mail.conf"
@@ -30,8 +34,8 @@ EMAIL=no
 source "$HOME/BERN54/LOADGPS.setvar" >/dev/null 2>&1 || {
     echo "ERROR: cannot source LOADGPS.setvar" >&2; exit 3; }
 
-SOL="$S/LUZON/$YEAR/SOL"
-LOG="$HOME/luzon-year.log"
+SOL="$S/$CAMPAIGN/$YEAR/SOL"
+LOG="${LUZON_STATUS_LOG:-$HOME/luzon-year.log}"
 
 tot=$(find "$SOL" -name "FIN_${YEAR}*.SNX.gz" 2>/dev/null | wc -l)
 new=$(( tot - KEPT ))
@@ -43,9 +47,9 @@ pct=$(( new * 100 / TARGET_NEW ))
 # branch never fires, so a FINISHED run reports RUNNING forever. Count lines
 # instead: no output means no matches, and `wc -l` says 0 without an exit-code
 # trick.
-driver=$(pgrep -f 'run_luzon_yea[r]\.sh' 2>/dev/null | wc -l)
+driver=$(pgrep -f "${LUZON_STATUS_DRIVER:-run_luzon_yea[r]\.sh}" 2>/dev/null | wc -l)
 jobs=$(pgrep -f 'RUNBP[E]|GPSES[T]|MAUPR[P]' 2>/dev/null | wc -l)
-camps=$(find "$P" -maxdepth 1 -name 'LZY*' 2>/dev/null | wc -l)
+camps=$(find "$P" -maxdepth 1 -name "${LUZON_STATUS_CAMPGLOB:-LZY*}" 2>/dev/null | wc -l)
 block=$(grep -oE 'DOY [0-9]{3}-[0-9]{3}' "$LOG" 2>/dev/null | tail -1)
 load=$(cut -d' ' -f1-3 /proc/loadavg)
 disk=$(df -h "$S" | awk 'NR==2{print $4" free ("$5" used)"}')
@@ -86,7 +90,7 @@ bar_w=32; filled=$(( pct * bar_w / 100 ))
 bar=$(printf '%*s' "$filled" '' | tr ' ' '#')$(printf '%*s' "$(( bar_w - filled ))" '')
 
 read -r -d '' REPORT <<EOF
-LUZON ${YEAR} reprocessing — $(date '+%F %H:%M:%S %Z')
+${CAMPAIGN} ${YEAR} reprocessing — $(date '+%F %H:%M:%S %Z')
 $(printf '%.0s-' {1..58})
   status     ${status}
   progress   [${bar}] ${pct}%
@@ -107,7 +111,7 @@ if [ "$EMAIL" = yes ]; then
     else
         # shellcheck disable=SC1090
         . "$MAILRC"
-        subj="LUZON ${YEAR}: ${new}/${TARGET_NEW} — ${status%% *}"
+        subj="${CAMPAIGN} ${YEAR}: ${new}/${TARGET_NEW} — ${status%% *}"
         {
             printf 'From: %s\nTo: %s\nSubject: %s\n\n' "$MAIL_FROM" "$MAIL_TO" "$subj"
             printf '%s\n' "$REPORT"

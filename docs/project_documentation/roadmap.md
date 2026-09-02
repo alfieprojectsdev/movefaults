@@ -156,7 +156,36 @@ movefaults_clean/
 
 > Primary scientific processing engine. Depends on robust data ingestion from Tier 2.
 
-**Deliverable 1.3: Automated Bernese Processing Workflow** 🔄 **CORE BUILT — R740-HARDENING IS THE FRONTIER**
+**Deliverable 1.3: Automated Bernese Processing Workflow** 🔄 **CORE BUILT — THE GAP IS THE DECISION LAYER, AND IT IS WIDENING**
+
+> **Status correction (2026-08-29).** The previous framing — "R740-hardening is
+> the frontier" — is retired. It implied the service was one hardening push from
+> production. Measured against what has actually run since:
+>
+> | path | days of 2025 solutions produced |
+> |---|---|
+> | `scripts/` + Perl drivers | **683** (LUZON 358 complete; PHREF 325/359, run in progress 2026-08-29) |
+> | `services/bernese-workflow` | **0** |
+>
+> The gap has *widened*, not closed. `scripts/` gained a year driver, block
+> resume, staging, data-derived exclusions, and status/email reporting. The
+> service gained tests. Neither is wrong; the roadmap simply stopped describing
+> which one runs production.
+>
+> **The worked example, 2026-08-29.** The PHREF year launched and returned zero
+> solutions in nine hours. All 24 attempted days died on one panel value:
+> `ADDNEQ2 MAXPAR = 1000`. This document has listed "ADDNEQ2 MAXPAR" as one of
+> exactly **three** parameters needing an override **since March 2026** (see the
+> INP-diff milestone below). The design knew. The production path had nowhere to
+> put the knowledge, so it was rediscovered at a cost of nine hours.
+>
+> That is the case for the migration, and it is not about automation. It is
+> about **where knowledge lives**. Design: `bpe_orchestration_design.md`.
+>
+> **Endgame constraint (stated 2026-08-29):** AI assistance here is bounded to
+> BSW configuration experiments on the R740. The target system has **no AI in
+> the loop** — mechanical automation, a human-editable knowledge base, and an
+> unknown error that halts rather than guesses.
 
 > **Status correction (2026-07-01):** this deliverable is NOT "starting" — the core orchestrator is
 > built and the real PHIVOLCS PAGENET pipeline was run headless end-to-end on live data during the
@@ -174,7 +203,28 @@ movefaults_clean/
 - Module 13/14 HELMCHK passed: RMS 8.64 mm, 6 fiducials accepted, 0 rejected (sub-10mm datum gate).
 - The orchestrator's **execution contract is validated on real data.**
 
-**THE FRONTIER — R740 orchestrator hardening (14 evidence-backed gaps):**
+**THE FRONTIER — the decision layer (see `bpe_orchestration_design.md`):**
+Build order, each independently useful and testable without Bernese:
+1. **Error-signature scanner** + golden corpus of captured `.PRT` files.
+   Bernese emits `' *** SR '` as one fixed literal from 262 source files —
+   this is a *regular* language, so a scanner, not an AST.
+2. **Circuit breaker**: K consecutive attempts sharing one signature halts the
+   run. A per-session failure is data; N identical failures are configuration.
+   Converts today's nine-hour null run into twenty minutes.
+3. **Ledger** — append-only run state, replacing disk-scanning (which cannot
+   tell "broken" from "slow").
+4. **Plan phase** — exclusions derived from data, resource envelope computed,
+   **worst-case** preflight session selected.
+5. **PCF/panel static analysis** — the PCF *is* a graph (`PHREF_DLY`: 64 steps,
+   70 edges). Dangling `WAIT=`/`NEXTJOB=`, unreachable steps, resource
+   mis-sizing, all catchable before launch. This is where parsing earns its
+   keep; the logs are not.
+
+**Measured 2026-08-29:** at `MAXSESS=6` on 24 cores the R740 is **53% idle**.
+RH-006 was "gated on measurement, not hardware" — this is the measurement, and
+there is roughly a factor of two in parallelism alone.
+
+**Prior gap list (2026-08-12), still valid where not superseded:**
 See `docs/project_documentation/bernese_orchestrator_r740_readiness.md` for the full P0/P1/P2 plan.
 Every failure worked around BY HAND in training is a thing the orchestrator must do AUTOMATICALLY:
 - P0: per-session station validator (PLG2 hard-abort), parameterize backends, GEN/SESSIONS.SES,

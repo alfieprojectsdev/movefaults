@@ -66,6 +66,25 @@ from `CLAUDE.md` because both duplicates were removed.
 | **~107 stations** have 2025 RINEX 2 in our local datapool. Not 76 (one day's count), not 439 (file-server catalogue) | measured 2026-08-25 |
 | **No production month has run through `services/bernese-workflow`.** The service has never created a campaign on the R740 | confirmed 2026-08-25 from run history: every 2025 solution came from a Perl driver in `$U/SCRIPT` launched by `scripts/run_luzon_year.sh`. The 2025 run made this *more* true — 358 days through `scripts/` while the service gained tests |
 
+| **`MAXPAR` in `$U/OPT/R2S_FIN/ADDNEQ2.INP` was 1000 and is now 3000.** For a 33–38 station day the requirement is bounded to `(1000, 3000)` and **is not known more precisely** — the "~30 parameters per station" in the first version of `bernese_maxpar_limit.md` was an inference from the overflow report and is **withdrawn** | 24/24 days failed at 1000; 309+ days clean at 3000. Measurement method in `bernese_maxpar_limit.md` |
+| **`neqckdim` reports the first request that OVERFLOWS, not the requirement.** Its number is the ceiling plus one and says nothing about how much headroom is needed | the figure was exactly 1001 on all 24 failed days while station counts varied 35–38 |
+| **Cass runs ONE network of ~52–65 stations, not six subnetworks.** Her hierarchy is temporal — daily `F1_` → weekly `WK_` → monthly `MO_` — not GEONET's spatial one | established from her `FN*.CRD` output on the file server, 2026-08-28 |
+| **BLQ is column-sensitive.** A block indented one column left reports as NOT FOUND, not as malformed. `PHIVOLCS.BLQ` has three such: CALU, PTTN, URDT | `*** SR GTOCNL`, PHNAT attempt 4 |
+| **A Bernese campaign needs seven reference file types in `$D/REF54`** — `.CRD .VEL .ABB .STA .BLQ .ATL .CLU` — and `.ATL` needs a trailing blank line as block terminator | PHNAT attempts 1 and 3 |
+
+| **The 2025 PHREF year is 360/360**, 47-station campaign, 846 min at MAXSESS=6, every block first-pass, zero errors after the MAXPAR fix | verified by full-population check 2026-08-30, `verify_phref_year.sh` |
+| **No 2025 daily solutions exist on the file server.** `F1_` dailies are retained for 2012, 2015–17, 2019, 2026 only. 2025 has 53/53 weeklies and 12/12 monthlies | surveyed 2026-08-29; comparison must run at weekly cadence |
+| **BSWMAIL is an announcement list, not a support forum** — 429 messages over 31 years (~5–11/yr), and it contains **zero** hits for `neqckdim`, `MAXPAR` or `DIMENSION TOO SMALL`. The AIUB **FAQ** is the real precedent: 11 error entries with causes and remedies | measured against a local mirror 2026-08-29 |
+
+| **PHREF 2025 agrees with PHIVOLCS production at 1.29 mm N / 2.37 mm E / 7.09 mm U (median, 53 of 53 weeks)** after 7-parameter Helmert alignment. An agreement test, not reproduction — different BSW version, network and constraints | `phref_vs_production_comparison_results.md`, 2026-09-01, unpatched build |
+| **A single day's ADDNEQ2 NEQ needs ~1000–1040 EXPLICIT parameters** (coords + site troposphere) for 33–35 stations, i.e. **~30 per station**; adjusted total incl. pre-eliminated ambiguities is 2153–2448. `neqckdim` checks the *explicit* count | measured from a successful stack, `WKG_2375.OUT`, 2026-09-01 |
+| **Outliers in the comparison are East-dominated: 17 of 18 station-weeks over 15 mm.** Overall RMS N 1.86 vs E 7.47 mm. The asymmetry points at ambiguity resolution, not metadata or site motion | 1,979 station-weeks |
+
+| **`CBERN COMPLINK` deletes every executable before rebuilding.** Running it without a toolchain leaves the install with zero working programs | 2026-09-02: 88 → 0, recovered from snapshot. `bsw54_patch_plan.md` |
+| **The 2024-11-11 patches are APPLIED and verified inert on this configuration.** DOY 201 (same 35 stations): 0.00 mm. EXAMPLE (340 stations): max 0.010 mm, which is CRD print precision | 2026-09-02, `bsw54_patch_plan.md`. B_33's IGRF14 affects higher-order ionosphere corrections this PCF does not apply; B_38 is a no-op for the numbers |
+| **BSW on gps3 is now LOCALLY COMPILED** (gfortran 13.3.0), not AIUB prebuilt. All 88 executables rebuilt 2026-09-02 | verified to reproduce the prebuilt binaries on both our pipeline and EXAMPLE |
+| **gps3 had no compiler until 2026-09-02** — BSW was installed from prebuilt AIUB binaries. `gfortran`/`gcc`/`make` now present (gfortran 13.3.0) | the absence surfaced as `pytest` failing to collect `test_dc3d.py` with `No such file or directory: 'cc'` |
+
 ### Do not quote the "implementation maturity" table as current
 
 `CLAUDE.md`'s table was measured 2026-08-18 and is now **wrong by 31 and 20
@@ -84,6 +103,9 @@ not ~10%**, and that misreport stood for months.
 
 | decision | why it is closed |
 |---|---|
+| **No LLM in the processing path.** One slot only: drafting a candidate knowledge-base entry at an unrecognised-signature halt, for human approval. Never chooses a resource bound, skips a session, classifies an error benign, or writes a campaign file | a small model asked about `*** SR GTOCNL` produces fluent wrong prose rather than "I don't know", and an articulate wrong diagnosis is worse than silence in a pipeline whose failure mode is silent wrong numbers. `bpe_orchestration_design.md` §4b |
+| **Use `grep`/BM25 for the mail and manual corpora, not RAG** | searching BSWMAIL for the MAXPAR failure returned a correct *negative* in milliseconds; a model would have produced something |
+| **VNNI is a reason to implement on the R740, never a reason to choose a problem** | it is idle even under BPE (Bernese is float64, VNNI is int8) but sits inside a core, so it costs cores to use. Only waveform-shaped problems benefit; tabular ones gain nothing. §4c |
 | **Per-component architecture** (VADASE hexagonal, ingestion Celery, bernese BPEBackend+Command/Builder, others flat) | decided 2026-04-15 |
 | **teqc first, gfzrnx as fallback** on exactly two triggers: teqc refusing a RINEX 3 file, and teqc not installed. Any *other* teqc failure raises | teqc is more exercised and its output is what downstream parses. gfzrnx needs a commercial licence for operational use |
 | **All substantive work reaches `main` through a PR**; branches live ≤1 week | a branch that outlived its purpose became a second trunk and cost a full session to reconcile (PR #57) |
@@ -95,6 +117,12 @@ not ~10%**, and that misreport stood for months.
 | **Decimal year is `year + DOY/365.25`** — DOY 1 is `year + 0.0027`, not `year.0000`. Do not "correct" it to `(DOY-1)/365.25` | the `offsets` catalog, every published PLOT file and every published velocity are written in it, and staff compute catalog entries by hand this way. The absolute epoch has no scientific meaning; agreement with the catalog does. Settled 2026-08-25, pinned by tests in `test_crd_pipeline.py` |
 | **Do not partition the PH network into clusters yet** | GSI partitioned at ~1,240 stations; we have ~107. Partitioning is a scaling remedy whose cost is paid at the combination step — V3's non-unique troposphere is what that cost looks like |
 | **Keep the multi-station minimum-constraint datum**; do not adopt GEONET's single fixed station | its failure mode is *global* — one station's unmodelled motion reached all ~1,240 GEONET stations — and it needs a daily wide-area solution to be safe |
+
+| **Do not quote BRN-001's "0.0000 mm vs reference" as an acceptance bar** | the distribution ships EMPTY `EXAMPLE/SOL` and `EXAMPLE/STA`, so what it compared against is not recoverable. Use the reproducible test instead: re-run EXAMPLE and diff against the previous build's result |
+| **Verify a rebuild against a day from the MAIN run, never the pre-flight test day** | DOY 200's stored solution predates PIMO's addition, so re-running it compares 34 stations to 33 and yields 1.88 mm of pure network change. DOY 201 gives 0.00 mm |
+| **Do not inherit one campaign's excluded-days list into another** | LUZON's `058 059 060 061 079 139 345` was derived from LUZON's fiducial coverage. Under PHREF, 079 (3 fiducials) and 139 (8) are fine. Anything computed from a station set must be recomputed when the set changes |
+| **Snapshot built executables, not just source, before any rebuild** | a failed compile leaves a half-built `EXE_GNU`; restoring source alone leaves nothing runnable. This is what made the 2026-09-02 recovery possible |
+| **A pre-flight test day must be the worst case for the resource under test** | DOY 200 (33 stations) passed and authorised a year that failed on all 359 days; the busiest days carry 41. A guard that picks its own easy sample is not a guard |
 
 ---
 
@@ -163,6 +191,31 @@ genuinely unresolved as of 2026-08-25 and *should* be worked on:
   is well below 1,240" is an argument from distance, not from a limit. Lead:
   時報 **103** (2004) §1.3.1「GEONETの定常解析戦略の変遷」(畑中雄樹) — retrieval
   method in `docs/external-sources/README.md`.
+- **PHNAT (102 stations) is still not diagnosed, but is now sizeable.** The
+  parameter count was measured 2026-09-01: ~30 explicit parameters per station.
+  102 stations therefore needs **~3060**, which exceeds the current `MAXPAR`
+  3000 — so MAXPAR would block it again regardless of the metadata fixes.
+  Raise to ≥5000 and re-attempt. (The withdrawn estimate turned out to be
+  right; the *method* that produced it was not, and the withdrawal stands as a
+  correction of method, not of number.)
+- **LGYE shows intermittent East excursions up to 76 mm in 11 of 53 weeks of
+  2025**, alternating in sign, ceasing after mid-July. Not deformation (sign
+  alternates) and not metadata (records are complete). Cause unestablished.
+- **Our BSW install is release `2024-11-11` with none of its 7 published patches
+  applied.** Verified 2026-08-29: `IONOSP2.f90` carries IGRF10–13 not IGRF14
+  (B_33); `O_RXOWRAP.f90` is dated Oct 2023 (B_34, which cuts RNXGRA runtime
+  5–6× — we run RNXGRA once per session). Patches at
+  <https://www.bernese.unibe.ch/UPDATE54>; all require recompilation.
+- **Seed the diagnostic knowledge base from the AIUB FAQ's 11 error entries** —
+  re-derived and re-worded, not copied: AIUB state no licence, so default
+  all-rights-reserved applies. See `external-sources/README.md`.
+- **Can PHIVOLCS' seismic catalogue be joined to the VADASE `.rtl` archive by
+  time and station?** This is the blocker for any learned artefact/seismic
+  discriminator, and it is a *data* question, not a modelling one. 46 MB of
+  real 1 Hz `.rtl` exists but is unlabelled; the event catalogue's 88 offsets
+  are daily coordinate offsets, not waveform events. Settle this before writing
+  model code — if the join is impossible the idea should be dropped, not
+  approximated. See `bpe_orchestration_design.md` §4c.
 - **Stations per GEONET cluster** (~190 implied across 5 clusters, no stated
   rule) and **how many form the backbone** ("数点ずつ" — a few from each).
 

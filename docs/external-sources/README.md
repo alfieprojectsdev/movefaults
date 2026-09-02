@@ -342,3 +342,45 @@ Neither manual is committed; both are AIUB's to distribute.
    not shed the original's licence, any more than extracting text does. The
    language changed; the authorship did not.
 6. **"Not reachable" needs a method attached.** Say what was tried.
+
+---
+
+## AIUB — Bernese GNSS Software support resources
+
+Surveyed 2026-08-29 after asking whether AIUB already ships the diagnostic
+knowledge base described in `bpe_orchestration_design.md`.
+
+### Licence status: none stated — treat as all rights reserved
+
+Neither <https://bernese.aiub.unibe.ch/support/> nor
+<https://www.bernese.unibe.ch/faq> carries a copyright, licence or
+terms-of-use notice. **Absence of a notice is not permission.** Unlike the GSI
+material above (explicitly Public Data License 1.0), AIUB content defaults to
+all rights reserved.
+
+**Therefore:** cite and link, derive our own wording, and record the URL and
+retrieval date. Do **not** bulk-copy FAQ text into the repository, and do not
+mirror the mailing-list archive. Short quotations for identification are fine;
+a copied catalogue is not.
+
+### The resources
+
+| resource | URL | what it is |
+|---|---|---|
+| FAQ | <https://www.bernese.unibe.ch/faq> | ~28 entries, of which **11 are specific error messages** |
+| Mailing list archive | <https://www.bernese.unibe.ch/bswmail.php> | public, all posts since list creation |
+| Bug list, our release | <https://www.bernese.unibe.ch/support/Bugs2024-11-11.php> | 7 entries, patches downloadable |
+| Update files | <https://www.bernese.unibe.ch/UPDATE54> | patch sources |
+
+### What this changed in our own documents
+
+| finding | used in |
+|---|---|
+| The FAQ **is** an error→cause→remedy catalogue (11 error entries). An earlier claim in `bpe_orchestration_design.md` that no such catalogue exists was true of the *manual* and **overstated** — corrected there | `bpe_orchestration_design.md` §2b |
+| `NEQCKDIM: DIMENSION TOO SMALL` — the failure that cost nine hours on 2026-08-29 — **is FAQ entry 3**. AIUB's remedy is the same one reached independently: adjust "Maximum number of parameters in combined NEQ" in panel *ADDNEQ2 3.1: Options 1* | `bernese_maxpar_limit.md`, design §2b |
+| AIUB give **no method for choosing the value** ("must be adjusted to the size of the normal equations"). The observation that the reported number is the ceiling+1 and not the requirement remains ours | `bernese_maxpar_limit.md` |
+| `CHKMAX` documents AIUB's *other* design: dimensions **auto-adjusted from input files**, bounded by built-in limits, with a soft limit (runs, warns) and a hard limit at 2× (stops). ADDNEQ2's `MAXPAR` is the inconsistent case — a manual panel value where GPSEST adapts | design §2b |
+| For an oversized network AIUB's own stated remedy is **"you may split the network into clusters"** — relevant to PHNAT (102 stations) and to the GEO-006 partitioning question | design §2b, `SETTLED.md` §6 |
+| Our install is release `2024-11-11` with **none of its 7 published patches applied** (verified: `IONOSP2.f90` carries IGRF10–13, not IGRF14; `O_RXOWRAP.f90` dated Oct 2023). B_34 reduces RNXGRA runtime 5–6×, and we run RNXGRA once per session | `SETTLED.md` §6 |
+
+Retrieved 2026-08-29 via WebFetch. Bug-list contents summarised, not reproduced.
