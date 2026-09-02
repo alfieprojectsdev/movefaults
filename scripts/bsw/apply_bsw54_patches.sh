@@ -23,6 +23,7 @@ set -uo pipefail
 STAGE="${BSW_PATCH_STAGE:-$HOME/bsw-patches-2024-11-11}"
 BASE="${BSW_PATCH_BASELINE:-$HOME/bsw-patch-baseline}"
 MODE="${1:---check}"
+STAMP="${BSW_PATCH_STAMP:-$(date +%Y%m%d)}"
 
 # shellcheck disable=SC1091
 source "$HOME/BERN54/LOADGPS.setvar" >/dev/null 2>&1 || { echo "FATAL: no LOADGPS"; exit 3; }
@@ -37,8 +38,29 @@ running=$(ps -u "$(id -un)" -o comm --no-headers | grep -cE 'RUNBPE|GPSEST|ADDNE
 [ "$running" -eq 0 ] || die "$running BSW process(es) running -- refusing to replace executables under a live BPE"
 say "no BSW processes running"
 
+# Snapshots were originally taken by hand, which left the safety net depending
+# on someone remembering three tar commands. --snapshot makes it a step of the
+# procedure; the guard below still refuses to proceed without them.
+if [ "$MODE" = "--snapshot" ] || { [ "$MODE" != "--check" ] && \
+     ! ls "$HOME"/BERN54-SOURCE-pre-patch-*.tar.gz >/dev/null 2>&1; }; then
+    say "taking rollback snapshots (stamp $STAMP) ..."
+    BERN_PARENT=$(dirname "$C")
+    tar czf "$HOME/BERN54-SOURCE-pre-patch-$STAMP.tar.gz" -C "$BERN_PARENT" "$(basename "$C")/SOURCE" \
+        || die "cannot snapshot SOURCE"
+    tar czf "$HOME/BERN54-SUPGUI-pre-patch-$STAMP.tar.gz" -C "$BERN_PARENT" "$(basename "$C")/SUPGUI" \
+        || die "cannot snapshot SUPGUI"
+    # The executables matter most: a failed COMPLINK leaves EXE_GNU empty, and
+    # restoring source alone leaves nothing runnable.
+    tar czf "$HOME/BERN54-EXE_GNU-pre-patch-$STAMP.tar.gz" -C "$C/SOURCE/PGM" EXE_GNU \
+        || die "cannot snapshot EXE_GNU"
+    mkdir -p "$BASE"
+    ( cd "$XG" && sha256sum * 2>/dev/null | sort -k2 ) > "$BASE/exe-sha256-pre.txt"
+    say "snapshots written, $(wc -l < "$BASE/exe-sha256-pre.txt") executables fingerprinted"
+    [ "$MODE" = "--snapshot" ] && exit 0
+fi
+
 for t in BERN54-SOURCE BERN54-SUPGUI BERN54-EXE_GNU; do
-    ls "$HOME/$t"-pre-patch-*.tar.gz >/dev/null 2>&1 || die "no rollback snapshot $t-pre-patch-*.tar.gz"
+    ls "$HOME/$t"-pre-patch-*.tar.gz >/dev/null 2>&1 || die "no rollback snapshot $t-pre-patch-*.tar.gz (run with --snapshot)"
 done
 say "rollback snapshots present"
 [ -s "$BASE/exe-sha256-pre.txt" ] || die "no pre-patch executable fingerprint at $BASE"
