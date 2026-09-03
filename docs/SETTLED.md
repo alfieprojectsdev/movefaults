@@ -90,9 +90,11 @@ from `CLAUDE.md` because both duplicates were removed.
 | **The rejected rows are genuine bad data, not a parsing fault** — 2,703 of 519,328 (0.5%): 1,824 above / 656 below the Earth's surface (diverged solutions) and 223 all-zero placeholders, spread over 849 files of which only **12** fail entirely | a parser fault would reject files uniformly. `FN142881.CRD` is one of the twelve: a `GPSEST FINALL` that did not converge, all 52 stations ~600 km off |
 | **The CRD catalog covers 2,189 site codes** from 8,784 files, 519,328 rows (2026-09-03; the corpus is still growing, so treat counts as as-of). Accuracy against the IGS20 reference: max 0.36 m over seven known stations | `docs/bern52/crd_catalog.csv` |
 
-| **Stage 3 attributes 93.5% of 84,198 archive RINEX files to a monument from the header position alone**, with 92 genuine filename conflicts | `docs/bern52/rinex_attribution.md`, 2026-09-03 |
-| **The archive already holds 83,471 RINEX files — more than its 75,379 raw files — and they carry `APPROX POSITION XYZ`.** Stage 3 needs no raw decoding | 200/200 sampled had the header; `runpkr00` is absent so Trimble `.T0x` still cannot be decoded |
-| **`teqc` and `gfzrnx` ARE installed on gps3**, at `~/teqc/teqc` and `~/gfzrnx/gfzrnx_2.2.0_lx64` — they are not on `PATH`, and a `command -v` check reports them missing | 2026-09-03; a PATH check is not an existence check |
+| **Stage 3 attributes 92.8% of 443,199 archive RINEX files to a monument from the header position alone.** 735 filename conflicts, 1,017 directory-path conflicts | `docs/bern52/rinex_attribution.md`, 2026-09-03 |
+| **The archive holds ~444,000 RINEX observation files against 75,381 raw ones** — six times more — and they carry `APPROX POSITION XYZ`. Stage 3 needs no decoding | `CR-20260903-stage3-rinex-first.md`. A Hatanaka header is plaintext, so CRX2RNX is not needed to read a position |
+| **Detect compression by MAGIC BYTES, never by extension.** 165 of 200 sampled plain `.YYd` are `.Z` data with the suffix stripped (`\x1f\x9d`) | trusting the suffix reads them as text and finds no header |
+| **`teqc`, `gfzrnx` AND `runpkr00` are all on gps3 at `~/bin`** (runpkr00 arrived 2026-09-03), not on `PATH` | supersedes the earlier note that runpkr00 was absent |
+| **A `PATH` check is not an existence check** — `command -v` reported teqc and gfzrnx missing while both were installed, and nearly had stage 3 declared blocked | 2026-09-03 |
 
 ### Do not quote the "implementation maturity" table as current
 

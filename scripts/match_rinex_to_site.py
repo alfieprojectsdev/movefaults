@@ -50,6 +50,7 @@ import csv
 import gzip
 import math
 import re
+import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
@@ -65,20 +66,65 @@ _MARKER = re.compile(r"^(.{60})MARKER NAME")
 # RINEX 2 (ssssDDD0.YYo) and RINEX 3 (SSSSMRCCC_..._MO.crx) both start with the
 # 4-char site, which is why the filename is worth recording even when wrong.
 _SITE_FROM_NAME = re.compile(r"^([A-Za-z0-9]{4})")
+# A marker or filename is not always a bare 4-char code: "PHV-BTUN3370.11d"
+# carries a prefix, and taking the first four characters yields "PHV-", which
+# is not a site. Prefer a 4-char alphanumeric run that the catalog knows.
+_CODE_RUN = re.compile(r"[A-Za-z0-9]{4}")
 
 
-def open_text(path: Path):
-    if path.suffix.lower() == ".gz":
-        return gzip.open(path, "rt", encoding="ascii", errors="replace")
-    return path.open("r", encoding="ascii", errors="replace")
+def best_code(text: str, known: set[str]) -> str:
+    """Pick the 4-char run the catalog recognises, else the leading run."""
+    if not text:
+        return ""
+    runs = [m.group(0).upper() for m in _CODE_RUN.finditer(text)]
+    for r in runs:
+        if r in known:
+            return r
+    return runs[0] if runs else ""
+
+
+def header_bytes(path: Path, limit: int = 65536) -> bytes:
+    """Return the head of a RINEX file, decompressing by MAGIC BYTES.
+
+    The extension lies. 165 of 200 sampled plain `.YYd` files in this archive
+    are `.Z`-compressed with the suffix stripped -- almost certainly a FAT or
+    NTFS copy along the way -- and carry the LZW magic \x1f\x9d. Trusting the
+    suffix reads them as text and finds no header at all.
+
+    Hatanaka `.YYd` needs no CRX2RNX here: only the observation RECORDS are
+    compressed, the header is plaintext. Stage 3 reads only the header.
+    """
+    try:
+        with path.open("rb") as fh:
+            magic = fh.read(2)
+    except OSError:
+        return b""
+    try:
+        if magic == b"\x1f\x8b":
+            with gzip.open(path, "rb") as fh:
+                return fh.read(limit)
+        if magic == b"\x1f\x9d":
+            # LZW: no stdlib reader, and zcat is present on this machine.
+            r = subprocess.run(["zcat", "-f", str(path)], capture_output=True,
+                               timeout=60)
+            return r.stdout[:limit]
+        if magic == b"PK":
+            return b""      # zip container; not a bare RINEX, skip
+        with path.open("rb") as fh:
+            return fh.read(limit)
+    except (OSError, EOFError, subprocess.SubprocessError, gzip.BadGzipFile):
+        return b""
 
 
 def read_header(path: Path) -> tuple[tuple[float, float, float] | None, str]:
     """Return (xyz or None, marker name). Reads only the header."""
     xyz, marker = None, ""
+    blob = header_bytes(path)
+    if not blob:
+        return None, ""
     try:
-        with open_text(path) as fh:
-            for line in fh:
+        for line in blob.decode("ascii", "replace").splitlines():
+            if True:
                 if xyz is None:
                     m = _APPROX.match(line)
                     if m:
@@ -90,7 +136,7 @@ def read_header(path: Path) -> tuple[tuple[float, float, float] | None, str]:
                 if not marker:
                     m = _MARKER.match(line)
                     if m:
-                        marker = m.group(1).strip()[:4].upper()
+                        marker = m.group(1).strip().upper()
                 if "END OF HEADER" in line:
                     break
     except (OSError, EOFError):
@@ -132,8 +178,13 @@ def main() -> int:
         return 1
     print(f"  catalog sites: {len(cat)}   match radius: {args.radius:g} m")
 
-    pats = ("*.[0-9][0-9]o", "*.[0-9][0-9]O", "*.[0-9][0-9]d", "*.rnx", "*.crx",
-            "*.crx.gz", "*.rnx.gz")
+    # The archive holds 444,085 RINEX observation files. An earlier version of
+    # this script globbed only the uncompressed forms and saw 84,198 of them --
+    # 19% -- silently, because a missing glob looks exactly like a small corpus.
+    pats = ("*.[0-9][0-9]o", "*.[0-9][0-9]O", "*.[0-9][0-9]d", "*.[0-9][0-9]D",
+            "*.[0-9][0-9]o.gz", "*.[0-9][0-9]O.gz", "*.[0-9][0-9]d.gz",
+            "*.[0-9][0-9]o.Z", "*.[0-9][0-9]O.Z", "*.[0-9][0-9]d.Z",
+            "*.rnx", "*.crx", "*.rnx.gz", "*.crx.gz")
     files = sorted({p for r in args.root for pat in pats for p in r.rglob(pat)
                     if p.is_file()})
     if args.limit:
@@ -142,6 +193,7 @@ def main() -> int:
 
     verdicts: Counter[str] = Counter()
     agree = disagree = no_name = new_attr = 0
+    path_agree = path_disagree = 0
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", newline="", encoding="utf-8") as fh:
         fh.write("# RINEX -> site attribution by header position. CANDIDATES, not\n"
@@ -150,20 +202,35 @@ def main() -> int:
         w = csv.writer(fh)
         w.writerow(["path", "verdict", "matched_site", "distance_m",
                     "n_within_radius", "alternatives", "name_site",
-                    "marker_site", "agrees", "claimed_site", "claimed_m"])
+                    "marker_site", "agrees", "claimed_site", "claimed_m",
+                    "path_site", "path_agrees"])
         for p in files:
-            xyz, marker = read_header(p)
-            nm = _SITE_FROM_NAME.match(p.name)
-            name_site = nm.group(1).upper() if nm else ""
+            xyz, marker_raw = read_header(p)
+            marker = best_code(marker_raw, known)
+            name_site = best_code(p.name, known)
+            # The site the DIRECTORY implies. Path-derived attribution is
+            # inference from how somebody once filed a directory; this is the
+            # first evidence that can contradict it, which is the product.
+            # The component must BE the code, not merely contain it. Matching a
+            # substring made every file under "datapool/PHIVOLCS/" resolve to
+            # PHIV -- which is a real catalog entry, so the bug produced a
+            # confident wrong answer for 394 of 394 files rather than an error.
+            path_site = ""
+            for part in reversed(p.parent.parts):
+                c = part.strip().upper()
+                if len(c) == 4 and c in known:
+                    path_site = c
+                    break
 
             if xyz is None:
                 verdicts["no-header"] += 1
-                w.writerow([p, "no-header", "", "", 0, "", name_site, marker, "", "", ""])
+                w.writerow([p, "no-header", "", "", 0, "", name_site, marker, "",
+                        "", "", path_site, ""])
                 continue
             if not (R_MIN <= math.dist((0, 0, 0), xyz) <= R_MAX):
                 verdicts["bad-position"] += 1
                 w.writerow([p, "bad-position", "", "", 0, "", name_site, marker,
-                            "", "", ""])
+                            "", "", "", path_site, ""])
                 continue
 
             near = sorted(((math.dist(xyz, (x, y, z)), s) for s, x, y, z in cat))
@@ -237,13 +304,26 @@ def main() -> int:
             elif verdict in ("unique", "aliases"):
                 no_name += 1
 
+            # Separate chain: inserting this into the one above made the
+            # no_name branch attach to the path condition instead of the name
+            # condition, and 394 files that agreed were reported as having no
+            # name at all.
+            if path_site and verdict in ("unique", "aliases"):
+                if path_site == site:
+                    path_agree += 1
+                else:
+                    path_disagree += 1
+
             w.writerow([p, verdict, site, f"{dist:.1f}" if dist else "",
                         len(within), "|".join(s for _, s in within[1:4]),
                         name_site, marker,
                         "" if verdict not in ("unique", "aliases")
                         else ("" if not informative
                               else ("yes" if site in informative else "NO")),
-                        claimed, f"{claimed_d:.1f}" if claimed_d is not None else ""])
+                        claimed, f"{claimed_d:.1f}" if claimed_d is not None else "",
+                        path_site,
+                        "" if not path_site or verdict not in ("unique", "aliases")
+                        else ("yes" if path_site == site else "NO")])
 
     print(f"  wrote {args.output}\n")
     for v, n in verdicts.most_common():
@@ -257,6 +337,8 @@ def main() -> int:
           f"  -- agrees {agree}, DISAGREES {disagree}")
     print(f"  name not a known site (position supplies the identity): {new_attr}")
     print(f"  no name at all: {no_name}")
+    print(f"\n  vs the site the DIRECTORY PATH implies:"
+          f"  agrees {path_agree}, DISAGREES {path_disagree}")
     if disagree:
         print("  -> disagreements are the stage 4 report, not errors to suppress")
     return 0
