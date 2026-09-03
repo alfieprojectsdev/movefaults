@@ -88,7 +88,16 @@ R_MIN, R_MAX = 6_353_000.0, 6_390_000.0
 # REFERENCE covers published frame realisations (IGS20, ITRF2014, SLRF2008,
 # IGB08 coordinate lists). Those are authoritative coordinates, not a solution
 # we computed, and they rank alongside GPSEST.
-KIND_RANK = {"RNX2SNX": 5, "GPSEST": 4, "REFERENCE": 4, "COORDINATE": 3,
+# Ranks are UNIQUE on purpose. GPSEST and REFERENCE were both 4, which made
+# `max()` break the tie by set-iteration order -- and that varies between
+# processes, so the committed CSV churned run-to-run with no input change.
+# A regenerable artifact that does not regenerate identically is not diffable,
+# which was the whole reason for committing it.
+#
+# REFERENCE sits just below GPSEST: a published frame realisation is
+# authoritative for a global station, but where we have our own least-squares
+# solution for a site, that is the one this catalog should name.
+KIND_RANK = {"RNX2SNX": 6, "GPSEST": 5, "REFERENCE": 4, "COORDINATE": 3,
              "RXOBV3": 2, "CODSPP": 1, "OTHER": 0}
 _FRAME_TITLE = re.compile(r"^(ITRF|IGS|IGB|SLRF|ETRF)[0-9_]", re.I)
 
@@ -292,13 +301,14 @@ def main() -> int:
     if reject_files:
         top = reject_files.most_common(3)
         print(f"    rejects spread over {len(reject_files)} files; "
-              f"worst: " + ", ".join(f"{Path(f).name}({n})" for f, n in top))
+              f"worst: " + ", ".join(
+                  f"{Path(f).parent.name}/{Path(f).name}({n})" for f, n in top))
         # The number that separates "genuine junk, diffuse" from "one
         # systematic fault": a parser bug would reject whole files uniformly.
         print(f"    files rejected ENTIRELY (diverged solutions, not parse "
               f"failures): {len(wholly_rejected)}")
         for w in wholly_rejected[:3]:
-            print(f"      {w.name}")
+            print(f"      {w.parent.name}/{w.name}")
     print(f"  distinct site codes: {len(by_site)}")
 
     # Median, not mean: one bad CODSPP fix drags a mean; the median across
@@ -328,7 +338,8 @@ def main() -> int:
         rows = main
         lat, lon, h = to_geodetic(mx, my, mz)
         kinds = {r.kind for r in rows}
-        best = max(kinds, key=lambda k: KIND_RANK.get(k, 0))
+        # (rank, name) so an unranked kind still resolves deterministically.
+        best = max(kinds, key=lambda k: (KIND_RANK.get(k, 0), k))
         eps = sorted({r.epoch for r in rows if r.epoch})
         cat[site] = {
             "site": site,
