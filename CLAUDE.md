@@ -219,7 +219,9 @@ uv sync --extra dev                           # dev tools only
 uv sync --extra drive-archaeologist           # drive-arch deps
 uv sync --extra vadase-rt-monitor             # vadase deps
 
-# Run all tests
+# Run all tests -- all six suites, 785 passed / 3 skipped as of 2026-09-03.
+# Suite selection is `testpaths` in pyproject.toml, not discovery, so a new
+# suite has to be added there to be run.
 uv run pytest
 
 # Run tests for a specific service
@@ -367,6 +369,20 @@ from services.vadase_rt_monitor.src.parsers.nmea_parser import parse_lvm
 ```
 
 This is because `pyproject.toml` maps `"services/vadase-rt-monitor/src" = ""` in `[tool.hatch.build.targets.wheel.sources]`.
+
+**`src` is a namespace package and must stay one.** Two directories supply
+portions of it: `src/db/` at the repo root, which the ingestion pipeline
+imports as `src.db.models`, and this service's `src/`. Neither may contain an
+`__init__.py` — a regular package wins the path scan outright and hides the
+other portion, so adding one here makes `src.db` unimportable in any process
+that also has this service on its path. `services/vadase-rt-monitor/src/__init__.py`
+was exactly that, an empty marker; removing it is what lets a repo-root
+`uv run pytest` collect both suites. It was also being mapped to a top-level
+`__init__.py` at the wheel root by the `sources` rule above, which made the
+whole wheel root a package.
+
+The service's own path is added by `services/vadase-rt-monitor/conftest.py`,
+so `src.*` resolves from the repo root as well as from the service directory.
 
 ### Three-State Receiver Model (Domain Knowledge)
 
