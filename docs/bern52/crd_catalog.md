@@ -18,7 +18,7 @@ are deliberately not harmonised; see `SETTLED.md` for why.
 | rows rejected by the geocentric-radius check | 2,703 (0.5%) |
 | files with no coordinate block | 11 |
 | **distinct site codes** | **2,189** |
-| of which campaign point numbers (not 4-letter codes) | 746 |
+| of which campaign point numbers (not 4-letter codes) | 740 |
 | sites whose published cluster spreads < 1 m | 1,682 |
 
 `best_kind` — the strongest solution seen per site, so a consumer can tell a
@@ -31,7 +31,7 @@ millimetre row from a metre one:
 | GPSEST | 351 | least-squares solution, mm |
 | OTHER | 56 | unrecognised producer — treat as unknown quality |
 
-## What the 2,700 rejects are
+## What the 2,703 rejects are
 
 A total alone cannot distinguish genuine junk from one systematic parsing
 fault — both look like 0.5%. Itemised:
@@ -42,7 +42,7 @@ fault — both look like 0.5%. Itemised:
 | 656 | radius below Earth surface — solution diverged |
 | 223 | placeholder / LEO entry, all-zero coordinates |
 
-Spread over **848 files**, of which only **12 are rejected entirely**. That
+Spread over **849 files**, of which only **12 are rejected entirely**. That
 distribution is the answer: a parser fault would fail files uniformly, whereas
 these are scattered bad rows plus a dozen wholesale failures.
 
@@ -91,7 +91,7 @@ reference file. A naive median would place CATA in empty ocean between them.
 
 Full list: filter `ambiguous == yes` in the CSV.
 
-## Sites too close to separate — 625 within 100 m
+## Sites too close to separate — 616 within 100 m
 
 No RINEX-header match can distinguish these pairs, and stage 3 needs to know
 that in advance rather than discover it by emitting confident wrong answers.
