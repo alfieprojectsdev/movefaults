@@ -90,6 +90,10 @@ from `CLAUDE.md` because both duplicates were removed.
 | **2,700 rejected rows are genuine bad data, not a parsing fault** — 1,824 above / 656 below the Earth's surface (diverged solutions) and 220 all-zero placeholders, spread over 848 files of which only **12** fail entirely | a parser fault would reject files uniformly. `FN142881.CRD` is one of the twelve: a `GPSEST FINALL` that did not converge, all 52 stations ~600 km off |
 | **The CRD catalog covers 2,189 site codes** from 8,784 files, 519,328 rows (2026-09-03; the corpus is still growing, so treat counts as as-of). Accuracy against the IGS20 reference: max 0.36 m over seven known stations | `docs/bern52/crd_catalog.csv` |
 
+| **Stage 3 attributes 93.5% of 84,198 archive RINEX files to a monument from the header position alone**, with 92 genuine filename conflicts | `docs/bern52/rinex_attribution.md`, 2026-09-03 |
+| **The archive already holds 83,471 RINEX files — more than its 75,379 raw files — and they carry `APPROX POSITION XYZ`.** Stage 3 needs no raw decoding | 200/200 sampled had the header; `runpkr00` is absent so Trimble `.T0x` still cannot be decoded |
+| **`teqc` and `gfzrnx` ARE installed on gps3**, at `~/teqc/teqc` and `~/gfzrnx/gfzrnx_2.2.0_lx64` — they are not on `PATH`, and a `command -v` check reports them missing | 2026-09-03; a PATH check is not an existence check |
+
 ### Do not quote the "implementation maturity" table as current
 
 `CLAUDE.md`'s table was measured 2026-08-18 and is now **wrong by 31 and 20
@@ -130,6 +134,7 @@ not ~10%**, and that misreport stood for months.
 | **Verify a rebuild against a day from the MAIN run, never the pre-flight test day** | DOY 200's stored solution predates PIMO's addition, so re-running it compares 34 stations to 33 and yields 1.88 mm of pure network change. DOY 201 gives 0.00 mm |
 | **The CRD catalog does NOT harmonise reference frames or epochs, deliberately** | its inputs span WGS-84, ITRF2005/2008/2014 and IGS20 from the 1990s to 2025. Frame differences are decimetre-level and 30 years of Philippine Mobile Belt motion at ~8 cm/yr is ~2.5 m; the matching problem needs ~100 m, set by the accuracy of a RINEX header position. A transformation chain would be real work for zero gain. `docs/bern52/crd_catalog.md` |
 | **A site code that names more than one monument is clustered, never averaged** | CATA is three monuments — two Philippine sites ~220 km apart plus an Argentine station in a global ITRF file. Averaging places it in empty ocean. The catalog publishes the largest cluster and flags `ambiguous` |
+| **In a position-vs-name conflict, report both and neither wins** | the position decides which monument; a filename only picks among codes the position has already confirmed. A name the catalog does not know (`TEMP`, receiver numbers) is not contradicting evidence at all |
 | **Do not inherit one campaign's excluded-days list into another** | LUZON's `058 059 060 061 079 139 345` was derived from LUZON's fiducial coverage. Under PHREF, 079 (3 fiducials) and 139 (8) are fine. Anything computed from a station set must be recomputed when the set changes |
 | **Snapshot built executables, not just source, before any rebuild** | a failed compile leaves a half-built `EXE_GNU`; restoring source alone leaves nothing runnable. This is what made the 2026-09-02 recovery possible |
 | **A pre-flight test day must be the worst case for the resource under test** | DOY 200 (33 stations) passed and authorised a year that failed on all 359 days; the busiest days carry 41. A guard that picks its own easy sample is not a guard |
