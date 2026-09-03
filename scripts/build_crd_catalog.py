@@ -105,6 +105,17 @@ _HDR_ROW = re.compile(r"^\s*NUM\s+STATION\s+NAME", re.I)
 _DATUM = re.compile(r"LOCAL\s+GEODETIC\s+DATUM:\s*(\S+(?:\s*-\s*\S+)?)", re.I)
 _EPOCH = re.compile(r"EPOCH:\s*(\d{4}-\d{2}-\d{2})")
 _DOMES = re.compile(r"^\d{5}[A-Z]\d{3}$")
+# Some files separate the site code from the DOMES number with something other
+# than a space -- "ASPA%50503S006", "1879X12372S001X". Splitting on whitespace
+# alone leaves the whole string as the site code, so ASPA appeared twice: once
+# correctly and once as ASPA%50503S006, the same monument counted as two.
+# Requires a NON-WORD separator, which is the unambiguous case. One row reads
+# "1879X12372S001X", separated by a letter; matching that would need a rule
+# that could equally split a legitimate site code ending in X, so it is left
+# alone rather than guessed at. Anchoring on the DOMES shape rather than on a
+# separator character keeps genuinely long names like CABANATUAN and TAIWAN
+# untouched.
+_DOMES_TAIL = re.compile(r"^(?P<site>.+?)\W(?P<domes>\d{5}[A-Z]\d{3})\W?$")
 
 # First-line tokens that name a column rather than a station.
 _WANT_HEADERS = {"SITE", "STATION", "STATION_CODE", "CODE", "NAME", "SITE_CODE"}
@@ -209,6 +220,10 @@ def parse_crd(
         parts = name.split()
         site = parts[0].upper()
         domes = parts[1] if len(parts) > 1 and _DOMES.match(parts[1].upper()) else ""
+        if not domes and len(parts) == 1:
+            m = _DOMES_TAIL.match(parts[0].upper())
+            if m:
+                site, domes = m.group("site"), m.group("domes")
         rows.append(Row(site, domes, x, y, z, line[COL_FLAG].strip(),
                         kind, frame, epoch, path))
     return rows, rejects, samples
