@@ -3813,3 +3813,12 @@ being in a reject-reporting patch.
   failing since before this work.
 - Stage 3 (RINEX header extraction and matching) is the next piece and was
   deliberately not started.
+
+> **Superseded figures, added 2026-09-03 from the T420.** The counts in §27 are
+> correct for the 8,664-file corpus this session ran against. Later the same day
+> the GPS_1TB_2 drive was transferred in, taking the corpus to **8,784 files**:
+> 519,328 rows parsed, **2,703** rejected, 223 placeholder rows, spread over 849
+> files. Still 2,195 site codes and still 12 wholly-rejected files, so §27's
+> conclusions all hold — only the totals moved. Left in place rather than edited,
+> because this is a record of a session and those were the numbers in front of
+> it. Current values live in `docs/bern52/crd_catalog.md`.
