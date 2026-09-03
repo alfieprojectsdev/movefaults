@@ -139,12 +139,17 @@ def classify(first_line: str) -> str:
     return up if up in KIND_RANK and up != "OTHER" else "OTHER"
 
 
-def parse_crd(path: Path) -> tuple[list[Row], int]:
-    """Return (rows, rejects). Never raises on a malformed file.
+def parse_crd(
+    path: Path,
+) -> tuple[list[Row], collections.Counter[str], dict[str, str]]:
+    """Return (rows, rejects, samples). Never raises on a malformed file.
 
     `rejects` is a Counter keyed by reason, not a bare total. A count alone
     cannot distinguish 2,700 rows of genuine junk from 2,700 rows lost to one
     systematic parsing fault -- both look like 0.5%. The reasons separate them.
+
+    `samples` holds one offending line per reason, so a new rejection category
+    can be read rather than guessed at.
     """
     try:
         text = path.read_text(encoding="ascii", errors="replace")
