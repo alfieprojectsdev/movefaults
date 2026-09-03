@@ -3670,3 +3670,146 @@ The pattern §25.18 named — *a proxy standing in for the thing* — now has a
 second face: **a number inherited from an earlier session, carried forward
 without its basis.** 1001 parameters, the LUZON exclusion list, BRN-001's
 0.0000 mm. Each was true in its original context and meaningless in the new one.
+
+---
+
+## 27. The CRD coordinate catalog — 2026-09-03
+
+Implemented `~/handover/CR-20260902-crd-catalog.md`, a brief from the T420.
+`drive-arch` cannot attribute 28,803 raw files on DATA0 to sites, because
+Trimble `.T0x` and Leica `.mNN` names carry a receiver serial and nothing else.
+The evidence route is raw → RINEX → `APPROX POSITION XYZ` → match against known
+monuments; this builds the index that match runs against.
+
+### 27.1 The brief was eight minutes out of date
+
+It states HD-LBU2's 6,145 `.crd` are unreachable because the drive is
+unmounted. They were synced to `/srv/gnss-archive/legacy/RECOVERED_HD-LBU2_...`
+at **15:46 on 2026-09-02 — eight minutes after the brief was written at 15:38**.
+
+So the corpus was **8,664 files, not 2,519**, and hazard 8's "design for a later
+merge" was needed immediately rather than eventually. The discrepancy surfaced
+because the first thing done was to reproduce the brief's own file count rather
+than trust it — 8,664 against a stated 2,519 is not a rounding difference.
+
+That brought a **third format the brief does not document**: 1990s GAMIT-era
+files with no `EPOCH` line, a `WGS - 84` datum and CRLF endings. The brief's
+central instruction — parse by fixed columns, never whitespace — held for it,
+and was right: a single file mixes rows with and without a DOMES number, so
+`split()` shifts every field after the station name.
+
+### 27.2 CATA is three monuments, and the median was in the ocean
+
+Hazard 3 warned that a 4-char code can name different monuments across eras.
+`CATA` is the worked example: two Philippine sites **~220 km apart**, plus an
+Argentine station that appears in a global ITRF reference file. Its global
+median lands in empty ocean between them — a confident, fictitious point of
+exactly the kind this catalog exists to avoid producing.
+
+So ambiguous codes are **clustered and the largest published**, never averaged,
+with `n_clusters` and `cluster_extent_m` recording what else exists. 118 sites
+are affected.
+
+### 27.3 An acceptance criterion that could not be met, and was not claimed
+
+The brief's headline acceptance is **190 / 271 want-list sites**. That list
+lives in `scripts/want_list_diff.py`, uncommitted on the T420 and not present
+on gps3. `--want-list` became a parameter, coverage prints every run, and
+against the committed `stations.csv` it is 134/138.
+
+Reported as not met rather than substituted with the number that was available.
+The T420 later ran it against the real list: **259/271**, with the 12 missing
+matching their independent list exactly.
+
+### 27.4 Two bugs found by the T420, both mine, both the same shape
+
+**The `--want-list` header skip.** It hardcoded `STATION_CODE` — the header of
+the one CSV it was tested against — so `SITE` counted as a station, because it
+is four characters and looks exactly like a site code. One input, generalised.
+
+**The `cluster_rows` docstring.** It claimed single-linkage; the code compares
+each point only to `c[0]`, the cluster leader. That is leader clustering, and
+it is order-dependent in a way single-linkage is not. Worse than a wrong
+comment: it would survive review by anyone who read the docstring instead of
+the loop.
+
+### 27.5 The committed CSV was not reproducible
+
+Found reviewing the follow-up PR. `GPSEST` and `REFERENCE` were both given rank
+4, so `max()` broke the tie by **set-iteration order, which varies between
+Python processes**. Two runs over identical input produced different
+`best_kind` for `KAYT` and `TAIW`.
+
+Those two rows appeared in the follow-up's diff despite that PR not touching
+classification, and were **nearly read as an intended consequence of it**.
+
+It matters because it defeats the reason for committing the CSV: a regenerable
+artifact that does not regenerate identically is not diffable, and every future
+run churns rows with no input change. Fixed with unique ranks and a
+`(rank, name)` sort key, so an unranked kind still resolves deterministically
+rather than relying on the ranks staying distinct. Verified by two full
+8,664-file runs being byte-identical.
+
+The ordering also encodes a judgement: **REFERENCE now ranks below GPSEST**. A
+published frame realisation is authoritative for a global station, but where we
+have our own least-squares solution for a site, that is what the catalog should
+name.
+
+### 27.6 "2,700 rejects" was a count, not a diagnosis
+
+The T420 flagged this as non-blocking and was right to flag it: 0.5% is equally
+consistent with genuine junk and with one systematic parsing fault. Itemised:
+
+```
+1824  radius above Earth surface (failed solution)
+ 656  radius below Earth surface (failed solution)
+ 220  placeholder / LEO (radius ~0)
+```
+
+But the itemisation is not the answer — **the distribution is**. Rejects spread
+over **848 files, of which only 12 fail entirely**. A parser fault would reject
+files uniformly.
+
+`FN142881.CRD` is one of the twelve and looks alarming until examined: **all 52
+rows rejected, every one well-formed**. It is a `GPSEST FINALL` run that did not
+converge, placing all 52 stations ~600 km off at 491 km altitude — its `ALAB` is
+**607,454 m** from the catalog position. The radius check is rejecting a bad
+file, not misreading a good one.
+
+### 27.7 A smoke test that could not reach the bug
+
+Three early-return paths in `parse_crd` still yielded the old 2-tuple after the
+reject refactor, and crashed the full run. **The 6-file smoke test passed**,
+because that corpus contains no unreadable files and never reached those lines.
+
+Same gap as `--check` verifying everything except the compiler in §26.10: the
+test exercised the happy path, and the happy path was not where the change was.
+
+### 27.8 The mistake, extended
+
+§26.14 recorded nine. Three more, and the first two are the pattern already
+named:
+
+10. **A hardcoded CSV header**, from the single file it was tested against.
+11. **A docstring asserting a property the code does not have** — single-linkage
+    where the implementation is leader clustering.
+12. **Non-deterministic output committed as a diffable artifact**, whose only
+    symptom was two rows appearing in an unrelated diff.
+
+Number 12 is worth separating. The others are a claim outrunning its evidence;
+this one is **evidence that changes when nothing else does**, and it is only
+visible if you ask why a diff contains something the change should not touch.
+The instinct that caught it was noticing that `KAYT` and `TAIW` had no business
+being in a reject-reporting patch.
+
+### 27.9 State — 2026-09-03
+
+- `main` at `fb3a6b5`. **0 open PRs.** All work merged.
+- Catalog: **2,195 site codes** from 8,664 files, 512,215 rows, max **0.50 m**
+  deviation across seven IGS stations against the shipped IGS20 reference.
+  Output is byte-reproducible.
+- **Full suite green: 786 passed, 2 skipped** with `uv sync --all-extras`. The
+  T420's `conftest.py` fix cleared the 23 collection errors that had been
+  failing since before this work.
+- Stage 3 (RINEX header extraction and matching) is the next piece and was
+  deliberately not started.

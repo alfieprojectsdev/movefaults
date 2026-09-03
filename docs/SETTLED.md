@@ -86,6 +86,8 @@ from `CLAUDE.md` because both duplicates were removed.
 | **gps3 had no compiler until 2026-09-02** — BSW was installed from prebuilt AIUB binaries. `gfortran`/`gcc`/`make` now present (gfortran 13.3.0) | the absence surfaced as `pytest` failing to collect `test_dc3d.py` with `No such file or directory: 'cc'` |
 
 | **HD-LBU2 is on gps3** at `/srv/gnss-archive/legacy/RECOVERED_HD-LBU2_WD20EARS_WCAZA4430660` — 122 GB including 6,145 `.crd` back to 1996 | synced 2026-09-02 15:46, eight minutes after CR-20260902 was written saying the drive was unmounted |
+| **The CRD catalog's output is byte-reproducible.** `KIND_RANK` values are unique and the tie-break sorts on `(rank, name)` — a tie previously resolved by set-iteration order, which varies between Python processes and churned the committed CSV | verified 2026-09-03: two full 8,664-file runs byte-identical |
+| **2,700 rejected rows are genuine bad data, not a parsing fault** — 1,824 above / 656 below the Earth's surface (diverged solutions) and 220 all-zero placeholders, spread over 848 files of which only **12** fail entirely | a parser fault would reject files uniformly. `FN142881.CRD` is one of the twelve: a `GPSEST FINALL` that did not converge, all 52 stations ~600 km off |
 | **The CRD catalog covers 2,195 site codes** from 8,664 files, 512,215 rows. Accuracy against the IGS20 reference: max 0.50 m over seven known stations | `docs/bern52/crd_catalog.csv` |
 
 ### Do not quote the "implementation maturity" table as current
