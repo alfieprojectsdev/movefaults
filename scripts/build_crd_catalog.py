@@ -50,6 +50,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import collections
 import csv
 import math
 import re
@@ -130,14 +131,19 @@ def classify(first_line: str) -> str:
 
 
 def parse_crd(path: Path) -> tuple[list[Row], int]:
-    """Return (rows, n_rejected). Never raises on a malformed file."""
+    """Return (rows, rejects). Never raises on a malformed file.
+
+    `rejects` is a Counter keyed by reason, not a bare total. A count alone
+    cannot distinguish 2,700 rows of genuine junk from 2,700 rows lost to one
+    systematic parsing fault -- both look like 0.5%. The reasons separate them.
+    """
     try:
         text = path.read_text(encoding="ascii", errors="replace")
     except OSError:
-        return [], 0
+        return [], collections.Counter(), {}
     lines = text.splitlines()          # handles CRLF; the 1990s files use it
     if not lines:
-        return [], 0
+        return [], collections.Counter(), {}
 
     kind = classify(lines[0])
     head = "\n".join(lines[:6])
@@ -152,9 +158,11 @@ def parse_crd(path: Path) -> tuple[list[Row], int]:
             start = i + 1
             break
     if start is None:
-        return [], 0
+        return [], collections.Counter(), {}
 
-    rows, rejected = [], 0
+    rows: list[Row] = []
+    rejects: collections.Counter[str] = collections.Counter()
+    samples: dict[str, str] = {}
     for line in lines[start:]:
         if len(line) < 66 or not line[COL_NUM].strip().isdigit():
             continue
@@ -166,17 +174,30 @@ def parse_crd(path: Path) -> tuple[list[Row], int]:
             y = float(line[COL_Y])
             z = float(line[COL_Z])
         except ValueError:
-            rejected += 1
+            rejects["non-numeric coordinate field"] += 1
+            samples.setdefault("non-numeric coordinate field", line[:78])
             continue
-        if not (R_MIN <= math.sqrt(x * x + y * y + z * z) <= R_MAX):
-            rejected += 1
+        radius = math.sqrt(x * x + y * y + z * z)
+        if not (R_MIN <= radius <= R_MAX):
+            # Separated because they mean different things: an all-zero row is
+            # a placeholder or a LEO entry the file never filled in, whereas a
+            # plausible-but-wrong radius is a solution that genuinely failed.
+            # Only the second is evidence about the data.
+            if radius < 1000.0:
+                reason = "placeholder / LEO (radius ~0)"
+            elif radius < R_MIN:
+                reason = "radius below Earth surface (failed solution)"
+            else:
+                reason = "radius above Earth surface (failed solution)"
+            rejects[reason] += 1
+            samples.setdefault(reason, f"{line[:60]}  r={radius:,.0f} m")
             continue
         parts = name.split()
         site = parts[0].upper()
         domes = parts[1] if len(parts) > 1 and _DOMES.match(parts[1].upper()) else ""
         rows.append(Row(site, domes, x, y, z, line[COL_FLAG].strip(),
                         kind, frame, epoch, path))
-    return rows, rejected
+    return rows, rejects, samples
 
 
 def cluster_rows(rows: list[Row], radius: float) -> list[list[Row]]:
@@ -237,18 +258,47 @@ def main() -> int:
     print(f"  CRD files found: {len(files)}")
 
     by_site: dict[str, list[Row]] = defaultdict(list)
-    rejected = n_parsed = no_header = 0
+    rejects: collections.Counter[str] = collections.Counter()
+    reject_files: collections.Counter[str] = collections.Counter()
+    samples: dict[str, str] = {}
+    wholly_rejected: list[Path] = []
+    n_parsed = no_header = 0
     for f in files:
-        rows, rej = parse_crd(f)
-        rejected += rej
-        if not rows and rej == 0:
+        rows, rej, samp = parse_crd(f)
+        rejects.update(rej)
+        if rej:
+            reject_files[str(f)] = sum(rej.values())
+            # A file where EVERY row fails is a different animal from one with
+            # a few bad rows: it is a solution that diverged wholesale, not
+            # scattered junk. FN142881.CRD is one -- all 52 stations sit ~600 km
+            # off at 491 km altitude, from a GPSEST run that did not converge.
+            if not rows:
+                wholly_rejected.append(f)
+        for k, v in samp.items():
+            samples.setdefault(k, v)
+        if not rows and not rej:
             no_header += 1
         for r in rows:
             by_site[r.site].append(r)
             n_parsed += 1
 
-    print(f"  rows parsed: {n_parsed}   rejected by radius/format: {rejected}"
+    total_rej = sum(rejects.values())
+    print(f"  rows parsed: {n_parsed}   rejected: {total_rej}"
           f"   files with no coordinate block: {no_header}")
+    for reason, n in rejects.most_common():
+        print(f"    {n:>6}  {reason}")
+        print(f"            e.g. {samples.get(reason, '')}")
+    # A systematic fault concentrates in a few files; genuine junk spreads out.
+    if reject_files:
+        top = reject_files.most_common(3)
+        print(f"    rejects spread over {len(reject_files)} files; "
+              f"worst: " + ", ".join(f"{Path(f).name}({n})" for f, n in top))
+        # The number that separates "genuine junk, diffuse" from "one
+        # systematic fault": a parser bug would reject whole files uniformly.
+        print(f"    files rejected ENTIRELY (diverged solutions, not parse "
+              f"failures): {len(wholly_rejected)}")
+        for w in wholly_rejected[:3]:
+            print(f"      {w.name}")
     print(f"  distinct site codes: {len(by_site)}")
 
     # Median, not mean: one bad CODSPP fix drags a mean; the median across

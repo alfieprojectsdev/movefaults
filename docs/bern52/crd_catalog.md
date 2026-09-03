@@ -15,7 +15,7 @@ are deliberately not harmonised; see `SETTLED.md` for why.
 |---|---|
 | CRD files read | 8,664 |
 | coordinate rows parsed | 512,215 |
-| rows rejected by the geocentric-radius check | 2,700 |
+| rows rejected by the geocentric-radius check | 2,700 (0.5%) |
 | files with no coordinate block | 7 |
 | **distinct site codes** | **2,195** |
 | of which campaign point numbers (not 4-letter codes) | 746 |
@@ -30,6 +30,26 @@ millimetre row from a metre one:
 | REFERENCE | 905 | published frame realisation (IGS20, ITRF2014, SLRF2008) |
 | GPSEST | 351 | least-squares solution, mm |
 | OTHER | 56 | unrecognised producer — treat as unknown quality |
+
+## What the 2,700 rejects are
+
+A total alone cannot distinguish genuine junk from one systematic parsing
+fault — both look like 0.5%. Itemised:
+
+| rows | reason |
+|---|---|
+| 1,824 | radius above Earth surface — solution diverged |
+| 656 | radius below Earth surface — solution diverged |
+| 220 | placeholder / LEO entry, all-zero coordinates |
+
+Spread over **848 files**, of which only **12 are rejected entirely**. That
+distribution is the answer: a parser fault would fail files uniformly, whereas
+these are scattered bad rows plus a dozen wholesale failures.
+
+`FN142881.CRD` is one of the twelve — a `GPSEST FINALL` run that did not
+converge, putting all 52 of its stations ~600 km off at 491 km altitude. ALAB
+there is 607,454 m from its catalog position. The radius check is rejecting a
+bad file, not misreading a good one.
 
 ## Accuracy check
 
