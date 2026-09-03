@@ -3681,14 +3681,22 @@ Trimble `.T0x` and Leica `.mNN` names carry a receiver serial and nothing else.
 The evidence route is raw → RINEX → `APPROX POSITION XYZ` → match against known
 monuments; this builds the index that match runs against.
 
-### 27.1 The brief was eight minutes out of date
+### 27.1 The brief was out of date when read
+
+*A revision 2 exists and was not read at the time — see §27.10.*
 
 It states HD-LBU2's 6,145 `.crd` are unreachable because the drive is
 unmounted. They were synced to `/srv/gnss-archive/legacy/RECOVERED_HD-LBU2_...`
-at **15:46 on 2026-09-02 — eight minutes after the brief was written at 15:38**.
+at **15:46 on 2026-09-02**, while the brief's mtime read 15:38 the same day —
+eight minutes earlier. That mtime has since been overwritten by revision 2, so
+the eight-minute figure is no longer reproducible from the file; what remains
+checkable is that the brief describes the drive as unmounted while it
+demonstrably was not.
 
-So the corpus was **8,664 files, not 2,519**, and hazard 8's "design for a later
-merge" was needed immediately rather than eventually. The discrepancy surfaced
+So the corpus was **8,664 files, not 2,519** — and by the following afternoon
+**8,784**, because the sync was still running. Hazard 8's "design for a later
+merge" was needed immediately rather than eventually, and any file count here
+is as-of, not a fact. The discrepancy surfaced
 because the first thing done was to reproduce the brief's own file count rather
 than trust it — 8,664 against a stated 2,519 is not a rounding difference.
 
@@ -3805,7 +3813,7 @@ being in a reject-reporting patch.
 ### 27.9 State — 2026-09-03
 
 - `main` at `fb3a6b5`. **0 open PRs.** All work merged.
-- Catalog: **2,195 site codes** from 8,664 files, 512,215 rows, max **0.50 m**
+- Catalog: **2,189 site codes** from 8,784 files, 519,328 rows, max **0.36 m**
   deviation across seven IGS stations against the shipped IGS20 reference.
   Output is byte-reproducible.
 - **Full suite green: 786 passed, 2 skipped** with `uv sync --all-extras`. The
@@ -3813,3 +3821,49 @@ being in a reject-reporting patch.
   failing since before this work.
 - Stage 3 (RINEX header extraction and matching) is the next piece and was
   deliberately not started.
+
+
+### 27.10 Reviewing §27 found a fifth bug, and a revision 2 of the brief
+
+Reviewing this section before merging it turned up three things the section
+itself had wrong.
+
+**There is a revision 2 of the brief, dated 2026-09-03**, which was never read
+because §27 was written against revision 1. It independently reaches the same
+corrected figures — 8,664 files, 2,184 codes, **259/271** want-list — and adds
+a hazard 0 about paths containing spaces. Nothing in the implementation needed
+changing, but the section described a document that had been superseded.
+
+**Five site codes were duplicated in the catalog.** Some files separate the
+site code from the DOMES number with `%` rather than a space, so `ASPA` existed
+twice: once correctly, and once as `ASPA%50503S006`, the same monument counted
+as two entries about a metre apart. Four are now merged by matching a
+DOMES-shaped tail after any non-word separator. The fifth, `1879X12372S001X`,
+is separated by a **letter**; a rule catching that could equally split a
+legitimate code ending in X, so it is left alone rather than guessed at.
+
+That is why the catalog read 2,195 codes against the brief's independently
+measured 2,184 — a discrepancy visible only by comparing two counts of the same
+thing, which is the reason the brief gave one.
+
+**The corpus had grown again**: 8,664 at build time, 8,784 by the afternoon.
+The committed CSV was stale within a day. Counts in this log are now written
+as-of rather than as facts.
+
+Merging accuracy also improved as a side effect: max deviation across the seven
+IGS check stations fell from 0.50 m to **0.36 m**, and TSKB from 0.50 m to
+0.03 m, because its duplicate had been dragging the median.
+
+### 27.11 The mistake, extended
+
+§27.8 recorded twelve. Two more:
+
+13. **A section written against a superseded document**, without checking
+    whether the brief it implemented had changed — despite the whole section
+    being about the brief being out of date.
+14. **A duplicate-detection catalog that duplicated its own entries.** The
+    tool exists to notice that one code names two monuments; it failed to
+    notice that one monument had two codes.
+
+Both are the same blind spot in different clothes: the check was pointed
+outward at the data and never at itself.
