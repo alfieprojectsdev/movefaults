@@ -67,6 +67,7 @@ IBAZ INFA LGYE MAUB MLPA PAGP POLI PTBN S01R SAPN TANY TGDN VIGN"
 
 CAMPAIGN="LUZON"
 YEAR="${YEAR:-2025}"
+YY="${YEAR: -2}"          # RINEX 2 two-digit year, derived so it cannot drift
 DOY_FROM="${DOY_FROM:-1}"
 DOY_TO="${DOY_TO:-365}"
 MODE="${1:-}"
@@ -177,11 +178,10 @@ for doy in $(seq "$DOY_FROM" "$DOY_TO"); do
         # The two-digit year must be MATCHED, not wildcarded. An earlier version
         # used `??[oOdD]`, which accepts any year: staging a 2025 campaign
         # copied 8,668 files from 2024 and 2026 as well. Harmless to the results
-        # -- RNX_COP globs on ${yy}=25 and ignored them -- but it wasted ~7 GB
+        # -- RNX_COP globs on ${yy}=25 and ignored them -- but it wasted ~52 GB
         # and left a directory that misrepresents its own contents to the next
         # reader. Found 2026-08-27 while investigating a different question.
-        yy="${LUZON_YEAR: -2}"
-        for f in "$LUZON_RNX2_SRC/${st}${d3}0.${yy}"[oOdD] "$LUZON_RNX2_SRC/${st}${d3}0.${yy}"[dD].gz; do
+        for f in "$LUZON_RNX2_SRC/${st}${d3}0.${YY}"[oOdD] "$LUZON_RNX2_SRC/${st}${d3}0.${YY}"[dD].gz; do
             [ -e "$f" ] || continue
             n2=$((n2 + 1)); found_today=$((found_today + 1))
             [ "$MODE" = "--apply" ] && cp -pn "$f" "$D/$CAMPAIGN/"
