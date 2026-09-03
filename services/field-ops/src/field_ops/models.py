@@ -307,3 +307,108 @@ class EquipmentHistory(FieldOpsBase):
     def __repr__(self) -> str:
         removed = self.date_removed or "present"
         return f"<EquipmentHistory {self.station_code} {self.model} [{self.date_installed}–{removed}]>"
+
+
+class StationProposal(FieldOpsBase):
+    """
+    A site an observer created from the handset, awaiting reconciliation.
+
+    FO-001. Design: docs/project_documentation/field_ops_station_creation_design.md
+
+    WHY A SEPARATE TABLE RATHER THAN A FLAG ON public.stations
+    -----------------------------------------------------------
+    `public.stations` serves VADASE and Bernese as well as this picker, and
+    field-ops deliberately reads it through raw SQL rather than importing
+    across the service boundary. Keeping proposals here means:
+
+      * "unverified" is structural, not a boolean somebody must remember to
+        filter on — a query that forgets the flag cannot leak a proposed site
+        into the processing chain;
+      * the migration lands in the field-ops alembic tree, not the root one,
+        which per DEPLOY.md cannot reach head on Neon;
+      * it cannot collide with `seed_network_inventory.py`'s deliberate
+        COALESCE upsert.
+
+    `reconciled_at` IS THE STATE MACHINE
+    ------------------------------------
+    NULL   -> pending
+    set + reconciled_station_id  -> promoted
+    set + rejected_reason        -> rejected
+
+    One nullable timestamp that also records *when* beats an enum plus a
+    separate timestamp. The partial unique index in fo007 keys off
+    `reconciled_at IS NULL`, so a code becomes proposable again once an
+    earlier proposal is resolved — a plain unique index would permanently
+    burn every code ever typed, typos included.
+
+    A rejected row is KEPT. A rejected proposal with sheets already filed
+    against it is a data-quality finding, not garbage.
+
+    DEVIATION FROM THE DESIGN, DELIBERATE
+    -------------------------------------
+    The design specifies a PostGIS POINT for `location`. This stores plain
+    `latitude`/`longitude` floats instead, and builds the POINT at promotion
+    with the same `ST_SetSRID(ST_MakePoint(lon, lat), 4326)` the seeder uses.
+
+    Reason: the design names testability as "the largest hidden cost" of this
+    ticket — there is no Postgres fixture, so nothing PostGIS-touching can be
+    tested. Floats keep the entire proposal lifecycle exercisable on the
+    existing SQLite conftest and confine PostGIS to the one promotion
+    function, which is exactly the "station-lookup seam" the design offers as
+    its second option. No information is lost: the picker consumes lat/lon
+    floats anyway (`GET /stations` already extracts them with ST_Y/ST_X).
+    """
+
+    __tablename__ = "station_proposals"
+    __table_args__ = {"schema": SCHEMA}
+
+    id = Column(Integer, primary_key=True)
+
+    # Idempotency key, minted on the handset before going offline. Same
+    # contract as logsheets.client_uuid: a retried sync cannot double-insert.
+    client_uuid = Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
+
+    # VARCHAR(10) to match public.stations.station_code and logsheets.station_code.
+    # Canonically 4 characters.
+    station_code = Column(String(10), nullable=False, index=True)
+    name = Column(String(200))
+
+    # See the deviation note above.
+    latitude = Column(Float)
+    longitude = Column(Float)
+    elevation = Column(Float)
+
+    monitoring_method = Column(String(20), nullable=False, server_default=text("'campaign'"))
+    status = Column(String(30), nullable=False, server_default=text("'active'"))
+
+    # Mirrors public.stations so promotion is a straight copy, not a mapping.
+    municipality = Column(String(100))
+    province = Column(String(100))
+    region = Column(String(100))
+
+    created_by = Column(Integer, ForeignKey(f"{SCHEMA}.users.id"), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+    # Handset time at creation, which may be days earlier than created_at when
+    # the proposal was made offline. Both are kept: they answer different
+    # questions ("when was the observer at the monument" vs "when did we hear").
+    proposed_at = Column(TIMESTAMP(timezone=True))
+
+    reconciled_at = Column(TIMESTAMP(timezone=True))
+    reconciled_by = Column(Integer, ForeignKey(f"{SCHEMA}.users.id"))
+    reconciled_station_id = Column(Integer)
+    rejected_reason = Column(Text)
+
+    notes = Column(Text)
+
+    creator = relationship("User", foreign_keys=[created_by])
+    reconciler = relationship("User", foreign_keys=[reconciled_by])
+
+    def __repr__(self) -> str:
+        if self.reconciled_at is None:
+            state = "pending"
+        elif self.reconciled_station_id is not None:
+            state = f"promoted->{self.reconciled_station_id}"
+        else:
+            state = "rejected"
+        return f"<StationProposal {self.station_code} [{state}]>"
