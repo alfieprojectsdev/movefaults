@@ -96,6 +96,9 @@ _DATUM = re.compile(r"LOCAL\s+GEODETIC\s+DATUM:\s*(\S+(?:\s*-\s*\S+)?)", re.I)
 _EPOCH = re.compile(r"EPOCH:\s*(\d{4}-\d{2}-\d{2})")
 _DOMES = re.compile(r"^\d{5}[A-Z]\d{3}$")
 
+# First-line tokens that name a column rather than a station.
+_WANT_HEADERS = {"SITE", "STATION", "STATION_CODE", "CODE", "NAME", "SITE_CODE"}
+
 A_WGS84 = 6378137.0
 F_WGS84 = 1.0 / 298.257223563
 
@@ -177,8 +180,15 @@ def parse_crd(path: Path) -> tuple[list[Row], int]:
 
 
 def cluster_rows(rows: list[Row], radius: float) -> list[list[Row]]:
-    """Single-linkage grouping of positions, so that one site code that names
-    several monuments is not silently averaged into one point between them."""
+    """Group positions so that one site code naming several monuments is not
+    silently averaged into one point between them.
+
+    Leader clustering, not single-linkage: each row is compared against the
+    first member of each cluster, not every member, so clusters cannot chain
+    across a corridor of intermediate points. At a 1 km radius against real
+    monuments that difference does not arise, and the cheaper rule keeps the
+    published coordinate anchored to one physical point.
+    """
     clusters: list[list[Row]] = []
     for r in rows:
         p = (r.x, r.y, r.z)
@@ -337,9 +347,16 @@ def main() -> int:
 
     if args.want_list:
         want = []
-        for line in args.want_list.read_text(errors="replace").splitlines():
+        for n, line in enumerate(args.want_list.read_text(errors="replace").splitlines()):
             tok = line.split(",")[0].strip().strip('"').upper()
-            if tok and not tok.startswith("#") and tok != "STATION_CODE":
+            # A header only counts as a header on the first line. `SITE` is four
+            # characters, exactly like a site code, so nothing about its shape
+            # gives it away -- and `docs/bern52/gnss_want_list.csv`, the file
+            # most likely to be passed here, leads with it. Left unhandled it
+            # inflates the denominator and reports SITE as a missing station.
+            if n == 0 and tok in _WANT_HEADERS:
+                continue
+            if tok and not tok.startswith("#"):
                 want.append(tok)
         want = sorted(set(want))
         have = [s for s in want if s in cat]
