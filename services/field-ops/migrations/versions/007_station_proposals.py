@@ -75,8 +75,15 @@ exists in the inventory with no coordinates, so NULL is not unprecedented, and
 requiring a number the observer cannot measure invites a fabricated one.
 """
 
+# UUID is imported explicitly rather than reached as `sa.dialects.postgresql`.
+# `sqlalchemy.dialects` exposes a submodule only once something has imported it,
+# so the attribute form happens to resolve during a real Postgres run -- the
+# engine pulls the dialect in first -- and raises AttributeError anywhere that
+# has not: offline `--sql` generation, or a SQLite target. Every other module in
+# this service imports it this way.
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects.postgresql import UUID
 
 revision = "fo007"
 down_revision = "fo006"
@@ -92,7 +99,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         # Idempotency key minted on the handset, same contract as
         # logsheets.client_uuid: a retried sync cannot double-insert.
-        sa.Column("client_uuid", sa.dialects.postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("client_uuid", UUID(as_uuid=True), nullable=False),
         sa.Column("station_code", sa.String(10), nullable=False),
         sa.Column("name", sa.String(200)),
         sa.Column("latitude", sa.Float()),
