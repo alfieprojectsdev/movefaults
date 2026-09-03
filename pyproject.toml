@@ -178,3 +178,33 @@ dev = [
     "aiosqlite>=0.22.1",
     "geoalchemy2>=0.18.1",
 ]
+
+[tool.pytest.ini_options]
+# A repo-root `uv run pytest` used to abort with 23 collection errors while
+# every suite passed individually -- the command CLAUDE.md documents as "run
+# all tests" ran none of them.
+#
+# Two separate causes:
+#
+# 1. Four suites carry a `tests/__init__.py`, so all four are packages named
+#    `tests`. Under pytest's default `prepend` import mode the first one wins
+#    `sys.modules["tests"]` and every later `tests.test_*` lookup fails against
+#    it. `importlib` mode imports each file by its path and never needs the
+#    basenames to be unique, which is what it is for in a monorepo.
+#
+# 2. vadase-rt-monitor imports its own code as `src.*`; that path is added by
+#    its service-level conftest.
+#
+# testpaths is explicit rather than a norecursedirs blocklist so that adding a
+# directory of scripts somewhere cannot quietly enrol it in the test run --
+# `.claude/skills/scripts/tests/` was being collected before this.
+addopts = "--import-mode=importlib"
+consider_namespace_packages = true
+testpaths = [
+    "packages/pogf-geodetic-suite/tests",
+    "services/bernese-workflow/tests",
+    "services/field-ops/tests",
+    "services/ingestion-pipeline/tests",
+    "services/vadase-rt-monitor/tests",
+    "tools/drive-archaeologist/tests",
+]
