@@ -70,6 +70,10 @@ _SITE_FROM_NAME = re.compile(r"^([A-Za-z0-9]{4})")
 # carries a prefix, and taking the first four characters yields "PHV-", which
 # is not a site. Prefer a 4-char alphanumeric run that the catalog knows.
 _CODE_RUN = re.compile(r"[A-Za-z0-9]{4}")
+# RINEX 2 observation (.YYo / .YYd, Hatanaka) or RINEX 3 (.rnx / .crx),
+# optionally compressed. Case-insensitive throughout: the archive holds .Z and
+# .z, .YYo and .YYO, and treating those as different cost 28,679 files once.
+_RINEX_NAME = re.compile(r"\.(\d{2}[od]|rnx|crx)(\.(gz|z))?$", re.I)
 
 
 def best_code(text: str, known: set[str]) -> str:
@@ -178,15 +182,17 @@ def main() -> int:
         return 1
     print(f"  catalog sites: {len(cat)}   match radius: {args.radius:g} m")
 
-    # The archive holds 444,085 RINEX observation files. An earlier version of
-    # this script globbed only the uncompressed forms and saw 84,198 of them --
-    # 19% -- silently, because a missing glob looks exactly like a small corpus.
-    pats = ("*.[0-9][0-9]o", "*.[0-9][0-9]O", "*.[0-9][0-9]d", "*.[0-9][0-9]D",
-            "*.[0-9][0-9]o.gz", "*.[0-9][0-9]O.gz", "*.[0-9][0-9]d.gz",
-            "*.[0-9][0-9]o.Z", "*.[0-9][0-9]O.Z", "*.[0-9][0-9]d.Z",
-            "*.rnx", "*.crx", "*.rnx.gz", "*.crx.gz")
-    files = sorted({p for r in args.root for pat in pats for p in r.rglob(pat)
-                    if p.is_file()})
+    # ONE PATTERN, not a list of globs. Two rounds of this were wrong:
+    # the first globbed only uncompressed forms and read 19% of the archive,
+    # the second added .Z but not lowercase .z and still missed 28,679 files,
+    # almost all .YYd.z. Every omission was silent, because a glob that matches
+    # nothing looks exactly like a corpus that contains nothing.
+    #
+    # A pattern states the rule -- RINEX 2 observation (.YYo/.YYd) or RINEX 3
+    # (.rnx/.crx), optionally compressed -- so a new suffix is covered by
+    # construction rather than by remembering to add a line.
+    files = sorted({p for r in args.root for p in r.rglob("*")
+                    if p.is_file() and _RINEX_NAME.search(p.name)})
     if args.limit:
         files = files[:args.limit]
     print(f"  RINEX files: {len(files)}")
