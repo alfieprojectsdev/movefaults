@@ -3867,3 +3867,207 @@ IGS check stations fell from 0.50 m to **0.36 m**, and TSKB from 0.50 m to
 
 Both are the same blind spot in different clothes: the check was pointed
 outward at the data and never at itself.
+
+---
+
+## 28. Stage 3, stage 4, and the archive's shape — 2026-09-04 → 09-05
+
+### 28.1 Stage 3 read 19% of the archive and said nothing
+
+The first implementation matched 84,198 RINEX files and reported 93.5%
+attribution. The corpus is **471,878**. The globs covered plain RINEX 2 and the
+compressed RINEX 3 pair, omitting every compressed RINEX 2 — `.YYo.gz`,
+`.YYo.Z`, `.YYd.gz`, `.YYd.Z` — which is where most of the archive lives.
+
+Then a second attempt added `.gz` and `.Z` and reached 443,195, still missing
+**28,679 lowercase `.z`** files.
+
+Three passes, three counts, each looking entirely plausible:
+
+```
+glob list, uncompressed only      84,198
+glob list + .gz and .Z           443,195
+one case-insensitive pattern     471,878
+```
+
+**A glob that matches nothing is indistinguishable from a corpus that contains
+nothing.** Nothing errored, nothing warned; the run simply finished sooner. The
+fix is not a longer list — it is stating the rule once as a pattern, so a new
+suffix is covered by construction rather than by remembering.
+
+The T420 caught the first omission independently and, more usefully, fixed it
+by *replacing the list with a pattern* where this session had merely lengthened
+the list. That difference is what exposed the lowercase `.z`.
+
+### 28.2 The extension lies, twice
+
+165 of 200 sampled plain `.YYd` files are `.Z` data with the suffix stripped
+(magic `\x1f\x9d`) — the T420's finding, and correct. This session found the
+converse: **`PBAS3500.17d.z` is gzip** (`\x1f\x8b`) despite its `.z` name.
+
+Two different lies in opposite directions. The reader sniffs magic bytes and
+never consults the extension, which is the only rule that survives both.
+
+No `CRX2RNX` is needed: a Hatanaka file's **header is plaintext**, and stage 3
+reads only the header.
+
+### 28.3 The 89.3% is a finding, not a regression
+
+Attribution fell from 92.8% to 89.3% as the corpus grew, and `none` rose from
+6,196 to 24,146. Reading the drop as a regression would have been wrong.
+
+**18,199 of those files carry a site code the catalog has never held** — 40
+codes, 28 of them `P`-prefixed, whose largest groups sit in
+`RAW/2018/Pagenet_*`. They are **PAGENET stations: NAMRIA's national network**,
+which `SETTLED.md` already recorded as a separate agency's. The catalog is
+built from PHIVOLCS `.crd` files and has no reason to contain them.
+
+Their median distance to the nearest catalogued site is **~8 km** — too far for
+header imprecision, too close for garbage. That distance is the signature of a
+real monument absent from the index, and it is what distinguishes this from a
+matcher fault.
+
+Attribution did not get worse. Files that had been invisible became visible,
+and a large block of them belongs to somebody else.
+
+### 28.4 Three design faults in the matcher, all found by running it
+
+**Everything came back `ambiguous`** on the first trial — 500 of 500. True and
+useless: `BLN2` and `BLNA` are 3 m apart, one monument under two codes, and the
+catalog had already recorded that 625 sites have a neighbour within 100 m.
+Added an `aliases` verdict measuring extent between *catalog* positions, since
+the header is the imprecise term.
+
+**Six files labelled with the wrong alias** on a 0.3 m margin while their own
+code sat in the alias set. The position decides *which monument*; the name only
+picks among codes the position has already confirmed. It never overrides.
+
+**Junk markers beat correct filenames** — literal `SITE` and `TEMP` markers won
+over filenames naming a candidate exactly, producing 65 false disagreements.
+
+Conflicts fell 691 → 281 → 92 as each was fixed. The first version would have
+reported a 691-file problem that was mostly its own.
+
+### 28.5 Two bugs from adding the directory comparison
+
+**`datapool/PHIVOLCS/` resolved to `PHIV`.** Path extraction matched a 4-char
+substring of a directory name, and `PHIV` is a real catalog entry — so the bug
+produced a **confident wrong answer for 394 of 394** sampled files rather than
+an error. The component must *be* the code.
+
+This also retracts a finding reported earlier the same day: the `PHIV ← MASM`
+conflicts were this bug, not data.
+
+**A broken `if/elif` chain.** Inserting the path block mid-chain made the
+`no_name` branch attach to the path condition, reporting 394 agreeing files as
+having no name at all. Caught only because a number moved when nothing should
+have.
+
+### 28.6 Stage 4: 644 of 735 conflicts are the catalog's problem, not the files'
+
+735 filename conflicts and 1,017 path conflicts reduce to **91 and 110
+patterns**. That ratio is the whole justification for the stage.
+
+The largest group was **213 files whose filename *and* marker both say `MALA`**
+against a position matching `TRLC` 263 km away — which reads as 213 mislabelled
+files. **`MALA` is one of the catalog's 118 ambiguous codes**, four clusters
+10,373 km apart; the published row is one cluster and these files came from
+another. Same for `CACA`, `MAUB`, `MUNZ`, `TANY` at 12–16 clusters each.
+
+So the report splits on the catalog's own `ambiguous` flag first: **644 of 735
+need the catalog fixed, not the files.** Only **91** claim a code the catalog
+knows exactly one monument for.
+
+Without that split the recommended first action would have been chasing 213
+files that were never misnamed. It was found by checking the top result before
+publishing rather than after.
+
+### 28.7 The duplicate question, asked by the operator and measured
+
+*"Are we accounting for duplicates with different-cased filenames? Genuinely
+different files with identical names? When is dedup safe?"* — questions from
+years of manual data management, never resolvable at the time because the
+measurement was not affordable.
+
+Measured over 471,874 files and 300 sampled duplicate groups:
+
+```
+44,957 files (9.5%) share a name with another
+   658 groups differ only in casing
+     0 groups have two files in the same directory
+222/300 byte-identical      258/300 share a decompressed header
+```
+
+Three conclusions:
+
+* **Name-based dedup is unsafe** — 26% of same-name groups differ in bytes.
+* **Byte comparison is safe but too strict** — the gap between 222 and 258 is
+  ~12% of groups that are the same observations in a different container.
+  Content identity is station plus epoch span after decompression.
+* **This archive should not be deduplicated at all.** Zero same-directory
+  collisions means the repetition is cross-drive, and which drive held which
+  copy is precisely the evidence `drive-archaeologist` exists to recover. Disk
+  is not scarce.
+
+The conservative choice made years ago — keep every copy, prune nothing —
+is why any of this could be measured now. Deduplicating by name in 2015 would
+have destroyed the 26% that are not identical, irrecoverably.
+
+### 28.8 Finch was off the network, and the week's coordination shape
+
+A subnet sweep from gps3 found 8 live hosts, none a Linux ThinkPad. Not hung
+with a live kernel — which would still answer ICMP and keep `sshd` listening —
+but absent. With the operator away from PHIVOLCS there was no remote path.
+
+That produced `docs/finch/HEADLESS_HARDENING_PLAYBOOK.md` (#170), written from
+gps3 and saying plainly that none of it could be verified against finch.
+
+Two things worth recording about the arrangement itself:
+
+* Coordination ran entirely through `main`, `~/handover` and PR comments,
+  because gps3 and finch are rarely reachable at the same time. That is not
+  tooling preference; it is the only shared medium the two machines have.
+* Cross-session messaging exists but is thin here: the `finch-move` Remote
+  Control sessions were offline, and the only reachable peer was a **cloud**
+  session, which receives but cannot reply. A status message went to it; the
+  answer, if any, lands in its own transcript.
+
+**Tailscale is the decided fix**, chosen over VNC/TeamViewer/AnyDesk because
+those are attended-support tools requiring a GUI on the far end — directly in
+tension with running finch headless. Tailscale is transport, not presentation,
+and is the layer *underneath* VNC rather than a replacement for it, which
+matters because BSW's menu genuinely does need a display sometimes.
+
+### 28.9 The mistake, extended
+
+§27.11 recorded fourteen. Four more:
+
+15. **A glob list read 19% of the archive**, then 94%, each silently. Three
+    passes before the rule was stated once instead of enumerated.
+16. **`command -v` reported teqc and gfzrnx missing** while both were
+    installed off `PATH`, and stage 3 was nearly declared blocked on it. A
+    PATH check is not an existence check.
+17. **A 4-char substring match on a directory name** produced a confident wrong
+    answer for 394 of 394 files, because `PHIV` is a real catalog code.
+18. **A commit pushed to the wrong branch** — the stage 3 fix landed on the
+    stage 4 branch. Caught because `git push` reported "Everything up-to-date"
+    when it should have pushed something.
+
+15 and 16 are the same shape as §26.14's *number inherited without its basis*,
+one step earlier: **a measurement whose method cannot detect its own failure.**
+An empty glob and a missing `PATH` entry both return a clean, plausible,
+wrong answer. The defence is not care; it is choosing a method that fails
+loudly — a pattern instead of a list, an existence test instead of a lookup.
+
+### 28.10 State — 2026-09-05
+
+- `main` at `13f0125`. **#169 merged** (stage 3, 471,878 files, 89.3%).
+- **Open: #170** finch playbook, awaiting finch itself; **#171** stage 4,
+  rebase-able now #169 has landed.
+- Catalog: 2,189 sites. Stage 3 output preserved at
+  `~/stage3-output/matches_all.csv` (48 MB), since `/tmp` is not durable.
+- Finch still offline; the operator may reach the office at lunchtime.
+
+**Next, needing nothing from anyone:** how many of the 75,381 raw files have no
+RINEX counterpart — the number the CR says decides whether decoding is worth
+attempting at all.
