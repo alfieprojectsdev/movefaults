@@ -118,8 +118,13 @@ receivers share one monument.
 **134 / 138** against the committed `data/network_inventory/stations.csv`.
 Missing: `BMJR PKLY PNDO SJSE`.
 
-The brief's acceptance figure of **190 / 271** could not be reproduced: that
-want-list lives in `scripts/want_list_diff.py`, which is uncommitted on the
-T420 and not present on gps3. Pass it with `--want-list` when it lands; the
-coverage line is printed on every run.
+The brief's acceptance figure of **190 / 271** could not be reproduced *here*:
+that want-list lives in `scripts/want_list_diff.py`, uncommitted on the T420 and
+not present on gps3. `--want-list` is a parameter and the coverage line prints
+on every run.
+
+**Settled since:** the T420 ran it against the real list and reported
+**259 / 271**, with the 12 missing matching its own independent list. Revision 2
+of the brief supersedes the 190/271 figure, which was measured before HD-LBU2's
+6,145 `.crd` were transferred.
 
