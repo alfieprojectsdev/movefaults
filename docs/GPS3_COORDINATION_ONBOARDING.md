@@ -202,6 +202,24 @@ finch loses power abruptly on 6 of its last 9 boots with 156 crash records in
 `wtmp`. A conclusion that lives only in a message on that machine is one power
 event from gone. If it mattered enough to say, it matters enough to commit.
 
+### The destination rule, which is stronger than the channel split
+
+"Messages coordinate, the repo records" states the split but not the deadline.
+The sharper rule, and the one that would have caught a real near-miss:
+
+> **Any conclusion another session would need after a crash goes into the repo
+> BEFORE the message announcing it.**
+
+The near-miss, 2026-09-07: finch's shutdown diagnosis — six of nine boots ending
+abruptly, 156 crash records, the causes it could and could not separate —
+existed only inside a `SendMessage` for about an hour, on the machine that dies
+6 of 9 boots. Had it crashed in that window the conclusion would have survived
+only in the other session's transcript, which is not a place anyone looks.
+
+The raw evidence has the same property and is worse, because it expires on a
+timer nobody controls: `journalctl -b -1` becomes `-b -2` at the next boot, and
+on this machine the next boot arrives by crashing.
+
 ### Addressing
 
 Use `ListAgents` to find the peer, and **copy the name exactly as the row
