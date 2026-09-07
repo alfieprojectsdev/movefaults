@@ -4071,3 +4071,269 @@ loudly — a pattern instead of a list, an existence test instead of a lookup.
 **Next, needing nothing from anyone:** how many of the 75,381 raw files have no
 RINEX counterpart — the number the CR says decides whether decoding is worth
 attempting at all.
+
+---
+
+## 29. Tailscale, finch's crash, and a protocol between two machines — 2026-09-07
+
+The day started as a speculative question about CORS connectivity and ended
+with both machines on an overlay network, a diagnosis of why finch keeps
+vanishing, and a written protocol for how the two sessions coordinate. The
+through-line, again, is verification aimed at the wrong object — see §29.9.
+
+### 29.1 The CORS question, reframed
+
+Standing advice held that nationwide remote access to CORS receivers needs
+industrial cellular routers, the alternative being carrier public IPs that do
+not scale past a handful of stations. A second opinion said Tailscale makes
+that advice obsolete.
+
+Both are arguing about the wrong thing. "Remote access" is three jobs:
+
+| Job | Direction | Needs inbound reach? |
+|---|---|---|
+| Real-time stream (RTCM, VADASE NMEA) | station → centre | **No** — if the station pushes |
+| Daily RINEX for Bernese | station → centre | **No** — if the station pushes |
+| Web UI, firmware, diagnosis | centre → station | **Yes.** Irreducibly. |
+
+NTRIP already solved the first two, and it is why casters exist as a distinct
+role: the caster is the only publicly reachable component, and both servers and
+clients connect *outbound* to it. **One public IP for the national network, not
+one per station.**
+
+The part specific to us: the GR30/GR50 datasheet lists NTRIP **server, client
+and caster**. VAD-002 configured ours as *embedded casters* — the receiver is
+the caster, so the centre must dial in to `192.168.1.10x:5017`. **That
+configuration choice, not CGNAT, is what would strand our stations on
+cellular.** And `TCPAdapter._perform_handshake()` is already a working NTRIP
+client, so consuming a central caster is a `stations.yml` change.
+
+Written up as `docs/project_documentation/cors_remote_access_design.md` (PR
+#174). Two corrections in it worth carrying forward:
+
+- **"Free" is wrong.** An unattended station gateway is a Tailscale *tagged
+  resource*, not a free user device — 50 included on the Personal plan, then
+  $1/month each, and unpriced publicly at national scale. Far cheaper than
+  public IPs; not zero, and a recurring USD subscription is its own procurement
+  obstacle for a government agency.
+- **The industrial-router advice was not obsolete**, it answered a different
+  question: lightning (a grounded mast in one of the most strike-prone countries
+  on earth), thermal range, hardware watchdog, dual-SIM, DC input off solar.
+  Both pieces of advice are right about different things.
+
+### 29.2 Demonstrated, not argued
+
+gps3 joined a tailnet (`100.86.209.16`), then finch (`100.111.100.73`).
+
+The proof that matters: `https://100.86.209.16:9090` was reached from an
+Android handset on **Philippine mobile data, wifi off** — carrier CGNAT on one
+end, an office LAN on the other, **no public IP at either end**, no firewall
+change requested. That is the management-plane argument shown end to end on the
+network and carrier a real rollout would use.
+
+An accidental stronger test came first. With reese moved to the wired subnet,
+`https://192.168.48.98:9090` failed while `https://gps3:9090` worked — the
+overlay carried traffic the LAN could not, because the wired subnet has no route
+to `192.168.48.0/24` at all.
+
+**What is still unproven** and is marked so in the document: sustained
+throughput, subnet routing to a device *behind* a gateway, and 90 days
+unattended. Reachability was never the doubtful part once the mechanism was
+understood.
+
+### 29.3 The UDP finding, and its correction the same day
+
+`tailscale netcheck` from gps3:
+
+```
+* UDP: false
+* IPv4: (no addr found)
+* Nearest DERP: Singapore (sin) 29.7ms
+```
+
+gps3 cannot reach Tailscale's STUN servers over UDP, so it cannot hole-punch to
+any peer off its own subnet. Confirmed: `tailscale ping reese` returned
+`via DERP(sin)` at 97–118 ms once reese moved.
+
+This was first written as *"outbound UDP is blocked, so **every** connection
+falls back to a relay"*, generalised to the site. **finch measured `UDP: true`
+and reached gps3 directly at 76 ms.** It is dual-homed — `enp0s25` on
+`192.168.40.x` carries its default route while `wlp3s0` sits on `192.168.48.x`
+alongside gps3 — so that peering is direct because the two share a subnet, not
+because the network permits hole-punching. gps3's own 3 ms path to reese, before
+reese moved, was the same LAN-local case and should have prompted the question
+at the time.
+
+**What survives:** gps3's egress blocks UDP, so any peer not on its subnet
+reaches it by relay. That still constrains the design, because the hub is
+exactly where gps3 sits. What does not survive is the claim about the site.
+One host's `netcheck` cannot support it, and the document now says to re-run it
+per host rather than inherit the result.
+
+### 29.4 Why finch keeps vanishing
+
+finch was diagnosed from its own journals, on finch, before anything rebooted.
+
+The discriminator is how the previous boot *ends*: a clean shutdown shows
+systemd `Stopping …` units and `Reached target Shutdown`; an abrupt loss just
+stops. Boot −1 stops mid-normal-activity — per-minute cron timers fire,
+complete, then nothing.
+
+A trap worth recording: that boot *does* contain three `Reached target
+shutdown.target` lines, which read as a clean shutdown until you check the PIDs
+— they are **user** session managers exiting hours earlier. A naive grep calls
+this clean. `last -x` independently records those sessions as `crash`.
+
+Ruled out with evidence: thermal (54 °C at boot; all matches were driver
+registration), OOM (76.5 % memory free 45 minutes prior), MCE/panic/watchdog
+(zero matches), USB/ATA (zero disconnects or resets). A SMART-housekeeping
+failure logged 77 times was chased and **rejected** — steady 10-minute cadence
+with no change approaching the crash, so it reads as a USB bridge that will not
+pass ATA passthrough.
+
+**Cannot determine** power loss vs PSU vs wedged kernel: all three produce this
+signature exactly.
+
+**The finding that matters is that it is normal behaviour, not an incident:**
+
+```
+-9 13h30m ABRUPT   -8  2h09m clean   -7  0h17m clean
+-6 29h20m ABRUPT   -5  0h27m clean   -4 65h33m ABRUPT
+-3  1h19m ABRUPT   -2 20h04m ABRUPT  -1 12h46m ABRUPT
+```
+
+Six of nine abrupt; the three clean ones are the three shortest, i.e. deliberate
+reboots. **Every long unattended run has died.** `wtmp` carries 156 crash
+records.
+
+### 29.5 The watchdog is an instrument, not just a recovery
+
+finch's argument, and it is the best thing to come out of the diagnosis: the
+journal cannot distinguish a hang from a power loss because in both cases the
+machine stops writing. That is **structural**, not a gap in how the logs were
+read — no further reading of those logs can separate the causes.
+
+A watchdog is the only cheap instrument that does. If it fires and reboots, the
+kernel was wedged. If the machine dies with the watchdog never firing, it lost
+power. That reframes it from recovery to diagnosis, and it is a reason to fit it
+even setting uptime aside. Bound for PR #170.
+
+### 29.6 A protocol between the two sessions
+
+The two Claude Code sessions can now message each other directly, and the user
+has made that the SOP for gps3 ↔ T420 coordination **alongside** the repo.
+Written into `docs/GPS3_COORDINATION_ONBOARDING.md` §5a.
+
+The division: **messages coordinate, the repo records.** The sharper form, which
+finch asked for and which names a deadline:
+
+> Any conclusion another session would need after a crash goes into the repo
+> **before** the message announcing it.
+
+The near-miss that justifies it: finch's diagnosis existed only inside a
+`SendMessage` for about an hour, on the machine that dies 6 of 9 boots.
+
+Three further rules, each earned today:
+
+- **Permission boundaries do not transit the channel.** Neither session asks the
+  other to do work blocked in its own. `sudo` is the routine case and already
+  has an answer: write to `scripts/sudo/`, hand the user an absolute path.
+- **Check for collisions by purpose, not filename.** Both sessions independently
+  wrote a Tailscale installer — `scripts/sudo/setup_tailscale.sh` on gps3,
+  `scripts/sudo/tailscale_setup.sh` on finch. Same directory, same job,
+  transposed name. **These merge cleanly.** No conflict, no warning; the repo
+  silently carries two installers that drift until somebody edits the wrong one.
+  A conflict-based check cannot see it.
+- **Pass reasoning with instructions**, so the peer can tell when an instruction
+  is wrong for its machine — see §29.9(3).
+
+### 29.7 The public-repo near-miss
+
+Told to push the crash journals immediately — *"3 MB of journal in git is a
+trivially recoverable mistake"* — finch stopped and read them first.
+
+**This repository is public.** A branch on origin *is* the disclosure; there is
+no "review after the push". The journals carried two local account names across
+11,644 lines together with the kid-time services enforcing screen limits against
+them — family accounts, not project ones.
+
+The asymmetry the instruction missed: *trivially recoverable* is true of bulk
+data and false of personal data, where history is hard to purge and forks make
+it permanent. finch redacted first, pushed after, and the user has since
+approved the redaction.
+
+**A credential grep would have passed these files cleanly** — every match for
+password/secret/token was a systemd or NetworkManager unit *name*, never a
+value. The scan that mattered was for personal data, and nothing would have
+prompted it.
+
+### 29.8 A push that reported success and did not happen
+
+The first push landed only the 5 KB write-up. `.gitignore:38` is `*.gz`, and
+`git add` skipped both journals **silently** — exit 0, branch created, commit
+real.
+
+Every signal available on finch agreed with a false conclusion: `ls -la` showed
+three plausible files (the *working tree*, which was never in doubt), commit and
+push both exited 0, and **`git status` does not list an ignored file as
+missing.**
+
+It was caught from gps3 by querying the remote:
+
+```
+git ls-tree -r origin/docs/finch-crash-evidence -- docs/finch/
+  -> docs/finch/finch_shutdown_diagnosis.md   5380
+  -> nothing else
+git check-ignore -v docs/finch/finch_lastboot.log.gz
+  -> .gitignore:38:*.gz
+```
+
+Fixed with `!docs/finch/*.gz` beside the existing `!docs/archive-manifests/*.gz`
+negation, rather than `git add -f`, so the exemption is visible in the file
+instead of buried in one commit's flags. Verified from gps3 afterwards by
+decompressing the **origin blobs**: 12,099 and 17,324 lines, zero identifier
+hits. PR #176.
+
+This is the rule the project already writes down — never trust an exit code for
+a gated or filtered operation — applied to merges but not, until now, to `git
+add`.
+
+### 29.9 The mistake, extended
+
+§28.9 ran to 18. This session added six, and they share one shape more tightly
+than any previous batch: **every one verified an object adjacent to the one in
+question.**
+
+1. **`KeyExpiry` read from the wrong node.** A grep over the whole
+   `tailscale status --json` returned two dates and they were attributed to
+   gps3. They belonged to the phone and to reese; `Self.KeyExpiry` was absent,
+   meaning expiry was already disabled. The first read — a script that printed
+   `Self` explicitly — had been correct, and was overridden by a worse method.
+2. **`ip route get` mistaken for reachability.** The handover's claim that
+   `192.168.40.0/24` and `192.168.48.0/24` have no route between them was
+   contradicted on the strength of `ip route get` returning a gateway path. That
+   shows what *would be attempted*, not what answers. Nothing on that subnet
+   ever replied, and reese moving to wired confirmed the original claim. **The
+   handover was right.**
+3. **A recipe verified against the wrong machine.** finch was told to read
+   `$VERSION_CODENAME` from `/etc/os-release`. finch is Linux Mint "zena", for
+   which Tailscale publishes no suite; following it would have written an apt
+   source returning 404 and **broken every subsequent `apt update`**, not just
+   the install. Caught only because the instruction carried its reasoning, so
+   finch could tell it did not apply.
+4. **A datasheet read instead of the code.** "#175 already takes a hostname" —
+   it had `TS_HOSTNAME="finch"` hardcoded at line 53. Adopting it unchanged
+   would have enrolled gps3 as a second node called `finch`.
+5. **One host's `netcheck` claimed for a site** — §29.3.
+6. **The working tree verified instead of the remote** — §29.8. finch's, and
+   the sharpest of the six, because three independent signals all agreed.
+
+The repair is the same one §23.8 named and it has not changed: **check the
+thing, not a proxy for the thing.** Read `Self`, not the document containing
+it. Query origin, not the working tree. Read line 53, not the description.
+
+**The counter-instance, and it is new in kind.** Five of these six were caught
+by *the other machine* rather than by the session that made them, usually within
+the hour. §29.6's protocol exists because that turned out to be reliable, and a
+single session re-reading its own output is not. Two machines are not redundancy
+here; they are the review.
