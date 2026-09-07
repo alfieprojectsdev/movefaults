@@ -114,7 +114,7 @@ today. They are not the same, and conflating them has cost real time.**
 4. **bernese-workflow** orchestrates Bernese BPE for post-processing
 5. **pogf-geodetic-suite** turns solved coordinates into ENU series and
    velocities
-6. **vadase-rt-monitor** independently ingests real-time NMEA from 35+ CORS
+6. **vadase-rt-monitor** independently ingests real-time NMEA from CORS
    stations for rapid earthquake detection — **not** part of the chain above
 
 #### What actually runs today (as of 2026-08-12)
@@ -291,7 +291,7 @@ cd services/vadase-rt-monitor && PYTHONPATH=. uv run python scripts/run_ingestor
 | Infrastructure | `docker-compose.yml` (TimescaleDB on 5433, Redis on 6380) |
 | NMEA parser | `services/vadase-rt-monitor/src/parsers/nmea_parser.py` |
 | Ingestion domain core | `services/vadase-rt-monitor/src/domain/processor.py` |
-| Station definitions (35+) | `services/vadase-rt-monitor/config/stations.yml` |
+| Station definitions (**4 configured**) | `services/vadase-rt-monitor/config/stations.yml` |
 | Event thresholds | `services/vadase-rt-monitor/config/thresholds.yml` |
 | Drive scanner | `tools/drive-archaeologist/src/drive_archaeologist/scanner.py` |
 | File classifier profiles | `tools/drive-archaeologist/src/drive_archaeologist/profiles.py` |
@@ -403,6 +403,21 @@ state machine, not a latch* above for what the code does now.
 
 Line numbers in this file have proven to be the first thing to rot. Name the
 symbol, not the line.
+
+### How many stations, really
+
+**`config/stations.yml` defines 4.** Earlier versions of this file described it
+as "35+" in two places, which conflated two different numbers:
+
+- **35+** is roughly what PHIVOLCS *operates* as a CORS network. It is a fact
+  about the agency, not about this repository.
+- **4** is what this service is *configured to ingest* today, all on
+  `192.168.1.10x:5017` — LAN addresses that only mean anything inside one
+  building.
+
+Both numbers are real and neither is a typo for the other. Quote the one you
+mean, and check the file rather than this sentence, because the configured
+count is the one that will drift.
 
 ### NMEA Sentence Types
 
