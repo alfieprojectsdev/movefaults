@@ -100,6 +100,21 @@ The mechanism Gemini describes is correct:
 - the station gets a stable `100.x.x.x` address that survives the carrier
   reassigning its real IP.
 
+### Demonstrated on a real carrier, 2026-09-07
+
+Not a thought experiment any more. gps3 joined a tailnet, and
+`https://100.86.209.16:9090` (Cockpit) was reached from an Android handset on
+**Philippine mobile data, wifi off** — carrier CGNAT on one end, an office LAN
+with outbound UDP blocked on the other, **no public IP at either end** and no
+change to any firewall.
+
+That is the management-plane claim of this document, demonstrated end to end on
+the actual network and the actual carrier a CORS rollout would use.
+
+**What it does not yet show:** sustained throughput, behaviour over a 90-day
+unattended period, or anything at all about surviving an outdoor enclosure.
+Those remain open and are the expensive ones. See section 9.
+
 That third point is worth more than it looks. It means station identity stops
 being a network property. `stations.yml` could carry permanent addresses
 instead of LAN addresses that only mean anything inside one building.
@@ -293,8 +308,10 @@ A single-station pilot answers nearly everything, cheaply:
    pointing at a caster we run. Confirm the stream arrives with no VPN at all.
    *This step alone may make the rest unnecessary for jobs 1 and 2.*
 3. Bring the gateway onto a tailnet, enable subnet routing, confirm the
-   receiver web UI is reachable from gps3.
-4. Leave it for **90+ days untouched** — the only way to find out whether key
+   receiver web UI is reachable from gps3. **Partly closed 2026-09-07** — the
+   overlay itself is proven over Philippine mobile data (see section 3); what
+   remains untested is subnet routing to a device behind the gateway.
+4. **The one that still matters most.** Leave it for **90+ days untouched** — the only way to find out whether key
    expiry, carrier idle-timeouts, or the enclosure kill it. A pilot shorter
    than the key expiry window does not test the thing most likely to fail.
 5. Measure actual data volume against the §7 estimates.
