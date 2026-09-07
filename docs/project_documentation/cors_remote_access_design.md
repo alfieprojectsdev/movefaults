@@ -225,6 +225,36 @@ lesson at n=1.
    confidentiality one — but for a real-time seismic stream the latency matters,
    and on Headscale *you* own the relay's uptime.
 
+3a. **Measured on the PHIVOLCS LAN, 2026-09-07 — the relay case is not the
+   exception here, it is the only case.** `tailscale netcheck` from gps3:
+
+   ```
+   * UDP: false
+   * IPv4: (no addr found)
+   * Nearest DERP: Singapore (sin) 29.7ms
+   ```
+
+   Outbound UDP is blocked, so WireGuard cannot hole-punch and **every**
+   connection falls back to a DERP relay over TCP/443. Confirmed end to end:
+   with reese moved to the wired subnet, `tailscale ping reese` returned
+   `via DERP(sin)` at 97–118 ms, and gps3 could no longer reach reese's former
+   LAN address at all.
+
+   Three consequences, all of which generalise to a CORS rollout on this
+   network:
+
+   - It still works. `https://gps3:9090` succeeded from a subnet with no route
+     to `192.168.48.0/24` at all. Graceful degradation is real.
+   - **Latency is relay latency, permanently** — every packet goes to Singapore
+     and back. Fine for a terminal; a real decision for a 1 Hz seismic stream.
+   - **Do not move bulk data over the tailnet from inside PHIVOLCS.** Relayed
+     traffic leaves the building and comes back, paying for the link twice.
+     The archive transfers and Bernese file moves belong on the LAN.
+
+   The fix, if network admin will make it, is permitting outbound UDP (41641,
+   and 3478 for STUN). Until then, assume relay. Worth discovering now rather
+   than during a national rollout.
+
 4. **Mobile data volume is the recurring cost nobody costed.** Rough
    order-of-magnitude, to be measured not trusted:
 
