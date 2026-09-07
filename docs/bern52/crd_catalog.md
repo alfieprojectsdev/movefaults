@@ -118,8 +118,28 @@ receivers share one monument.
 **134 / 138** against the committed `data/network_inventory/stations.csv`.
 Missing: `BMJR PKLY PNDO SJSE`.
 
-The brief's acceptance figure of **190 / 271** could not be reproduced: that
-want-list lives in `scripts/want_list_diff.py`, which is uncommitted on the
-T420 and not present on gps3. Pass it with `--want-list` when it lands; the
-coverage line is printed on every run.
+**The acceptance figure is 259 / 271, not 190 / 271.** Revision 1 of
+CR-20260902 carried 190/271; it was measured before HD-LBU2's 6,145 `.crd` were
+transferred, and revision 2 supersedes it. The T420 reproduced 259/271 against
+the committed want-list on 2026-09-07, with the same 12 uncovered sites
+character for character:
+
+```
+CALC CEBM CTE1 JONA KBNK LEY1 LEY5 LOP2 MATA PWSU QZN1 QZNA
+```
+
+If a run reports 190, it is being measured against revision 1's inputs.
+
+**Not independently reproduced on gps3, and the reason is worth recording.**
+`scripts/want_list_diff.py` is committed (`d85df4b`) and the want-list itself is
+`docs/bern52/gnss_want_list.csv` — an earlier version of this section said both
+were uncommitted and T420-only, which stopped being true. What gps3 still lacks
+is the *input*: the script takes a file listing from a drive
+(`want_list_diff.py <path_file>`), and the HD-LBU2 listing lives in the T420's
+`~/drive-arch-runs`. Until that listing is in a shared location, the T420's
+number stands as the only measurement, and this document is repeating a claim
+rather than confirming one.
+
+Note also that `--want-list` is **not** a parameter; the script accepts
+`--label` and `--show`, and the want-list is supplied by `gnss_want_list.py`.
 
