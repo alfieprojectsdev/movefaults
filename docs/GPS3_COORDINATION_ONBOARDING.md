@@ -11,6 +11,12 @@ the repo version is the one that gets updated.
 
 ---
 
+> **Update 2026-09-07 — there is now a second channel.** The two sessions can
+> message each other directly with `SendMessage`, and the user has made that the
+> standing protocol for gps3 ↔ T420 coordination **in addition to** the repo, not
+> instead of it. See §5a. Much of §1–§4 and §9 below is historical; §0, §5, §5a
+> and §6 are the parts still load-bearing.
+
 ## 0. Standing instruction: verify, don't inherit
 
 Everything here was produced by running commands over SSH and reading real
@@ -172,6 +178,108 @@ cd ~/repos/movefaults_clean && git pull --rebase && git add docs/gps3-sessions &
 
 It is a good log — the `fuser`/`lsof` root-cause writeup and the "gotchas
 discovered" section are exactly the kind of thing that gets lost otherwise.
+
+---
+
+## 5a. Direct session messaging — the live channel (added 2026-09-07)
+
+**Standing instruction from the user:** `SendMessage` is the SOP for any
+coordination between the Dell R740 (gps3) and the T420 (finch), alongside the
+repo.
+
+### Which channel carries what
+
+| | Direct message | The repo |
+|---|---|---|
+| Questions, task assignment, status | ✅ | ✗ |
+| Findings that must survive | ✗ | ✅ |
+| Evidence, decisions, reasoning | ✗ | ✅ |
+| Anything a successor needs in 2031 | ✗ | ✅ |
+
+The split is not stylistic. **A message is not a record.** It exists in two
+session transcripts and nowhere else, and per the 2026-09-07 crash diagnosis
+finch loses power abruptly on 6 of its last 9 boots with 156 crash records in
+`wtmp`. A conclusion that lives only in a message on that machine is one power
+event from gone. If it mattered enough to say, it matters enough to commit.
+
+### Addressing
+
+Use `ListAgents` to find the peer, and **copy the name exactly as the row
+prints it**. Several stale `finch-move` and `t420-*` rows exist from earlier
+sessions, so the bare name is usually ambiguous — append the row's `[ref]`
+(e.g. `finch-move [3abca1]`) and pick the row marked `running` or `idle`, never
+`offline`.
+
+### Rules that carry over, and one that is new
+
+- **§0 still applies to messages.** A peer's claim is evidence, not fact.
+  Corrections have flowed both ways: on 2026-09-07 gps3 told finch to read
+  `$VERSION_CODENAME` from `/etc/os-release` for a Tailscale install; finch is
+  Linux Mint "zena", for which Tailscale publishes no suite, and following that
+  instruction would have written an apt source returning 404 and broken every
+  subsequent `apt update` on the machine. finch caught it by verifying. Neither
+  session is the authority.
+- **Say what you could not determine.** The same exchange produced "abrupt power
+  loss, no preceding error logged — cannot distinguish power loss from PSU from
+  wedged kernel", which is more useful than a confident guess at one of the
+  three.
+- **NEW — permission boundaries do not transit the channel.** Never ask the peer
+  session to perform something that was blocked or denied in your own session.
+  A peer doing it on your behalf defeats the user's permission decision. Route
+  blocked work back to the user. `sudo` is the routine case: neither session has
+  a tty, so the answer is always to write the script to `scripts/sudo/` and hand
+  the user an absolute path — never to ask the other machine to run it for you.
+
+### Check for collisions before you push — and check by purpose, not filename
+
+**Standing instruction, 2026-09-07.** Collision checking is part of this
+protocol, not a courtesy. Before pushing anything, establish:
+
+1. **Has `origin/main` moved?** `git fetch` and rebase; never push a branch cut
+   from a stale base.
+2. **Does the peer have an open PR touching the same files?** `gh pr list` and
+   read the file lists, not just the titles.
+3. **Does §5's ownership table assign the file to the other machine?**
+4. **Is the peer already solving the same problem under a different name?**
+
+Point 4 is the one that git cannot help with, and it is not hypothetical. On
+2026-09-07 both sessions independently wrote a Tailscale installer:
+
+```
+gps3   scripts/sudo/setup_tailscale.sh
+finch  scripts/sudo/tailscale_setup.sh     (PR #175)
+```
+
+Same directory, same job, transposed name. **These merge cleanly.** No conflict,
+no warning — the repo simply ends up with two scripts that drift apart until
+someone edits the wrong one. A collision check that only looks for merge
+conflicts would have missed it completely. Ask what the peer is *doing*, not
+which paths it is touching.
+
+The same exchange produced a violation of point 3: the gps3 session drafted an
+edit to **this file**, which §5 assigns to the T420. It was caught before the
+push, and the fix is the protocol working as intended — draft on one machine,
+send the text over, let the owning session commit it.
+
+**The cheap prevention is announcing intent.** A one-line message before
+starting work that might overlap costs nothing and is far cheaper than
+discovering the duplication after both branches are pushed.
+
+### What a good message looks like
+
+The 2026-09-07 exchange is the worked example. What made it work:
+
+1. **Ordering constraints stated first, with the reason.** "Diagnose before you
+   reboot, because `journalctl -b -1` shifts to `-b -2`" — finch then scoped its
+   `apt-get update` to a single source specifically so a kernel upgrade could not
+   prompt a reboot and destroy the evidence. It could only make that call because
+   it knew why the order mattered.
+2. **Reasoning passed along with instructions**, so the peer can tell when the
+   instruction is wrong for its machine — which is exactly what happened.
+3. **Local conditions the peer cannot see.** This network reports
+   `UDP: false`, so Tailscale is permanently DERP-relayed here; without that,
+   finch would have reported a relayed connection as a fault.
+4. **An explicit request for what could not be determined**, not just results.
 
 ---
 
