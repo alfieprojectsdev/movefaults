@@ -240,8 +240,8 @@ lesson at n=1.
    confidentiality one — but for a real-time seismic stream the latency matters,
    and on Headscale *you* own the relay's uptime.
 
-3a. **Measured on the PHIVOLCS LAN, 2026-09-07 — the relay case is not the
-   exception here, it is the only case.** `tailscale netcheck` from gps3:
+3a. **Measured 2026-09-07 — gps3's own path is relayed. That is a statement
+   about gps3, not about the site.** `tailscale netcheck` from gps3:
 
    ```
    * UDP: false
@@ -249,26 +249,47 @@ lesson at n=1.
    * Nearest DERP: Singapore (sin) 29.7ms
    ```
 
-   Outbound UDP is blocked, so WireGuard cannot hole-punch and **every**
-   connection falls back to a DERP relay over TCP/443. Confirmed end to end:
-   with reese moved to the wired subnet, `tailscale ping reese` returned
-   `via DERP(sin)` at 97–118 ms, and gps3 could no longer reach reese's former
-   LAN address at all.
+   gps3 cannot reach Tailscale's STUN servers over UDP, so it cannot discover
+   its own public endpoint and cannot hole-punch to any peer that is not on its
+   own subnet. Confirmed: when reese moved to the wired subnet,
+   `tailscale ping reese` returned `via DERP(sin)` at 97–118 ms, and gps3 could
+   no longer reach reese's former LAN address at all.
 
-   Three consequences, all of which generalise to a CORS rollout on this
-   network:
+   **Correction, same day, from the T420.** An earlier revision of this section
+   read "outbound UDP is blocked, so **every** connection falls back to a DERP
+   relay", and generalised that to the site. finch measured `UDP: true` from its
+   own vantage and reached gps3 **directly** at `192.168.48.98:41641` in 76 ms.
+   The reason is that finch is dual-homed — `enp0s25` on `192.168.40.x` carries
+   its default route while `wlp3s0` sits on `192.168.48.x`, the same subnet as
+   gps3 — so that peering is direct because the two share a subnet, not because
+   the network permits hole-punching. gps3's own direct 3 ms path to reese,
+   before reese moved, was the same LAN-local case.
+
+   **What is actually established:** gps3's egress blocks UDP, so any peer not
+   on gps3's subnet reaches it by relay. Whether that is a site-wide policy or
+   specific to this subnet's egress is **not** established, and one host's
+   `netcheck` cannot settle it. A CORS gateway on a SIM is not on this LAN at
+   all, so this measurement says nothing about its path — it constrains the
+   **hub**, which is the part that matters here, since every station would
+   terminate on a server sitting where gps3 sits.
+
+   Three consequences, which hold for gps3-terminated traffic and are not
+   claimed beyond it:
 
    - It still works. `https://gps3:9090` succeeded from a subnet with no route
-     to `192.168.48.0/24` at all. Graceful degradation is real.
-   - **Latency is relay latency, permanently** — every packet goes to Singapore
-     and back. Fine for a terminal; a real decision for a 1 Hz seismic stream.
-   - **Do not move bulk data over the tailnet from inside PHIVOLCS.** Relayed
-     traffic leaves the building and comes back, paying for the link twice.
-     The archive transfers and Bernese file moves belong on the LAN.
+     to `192.168.48.0/24` at all, and from an Android handset on mobile data.
+     Graceful degradation is real.
+   - **Relayed latency is the planning number for anything off-subnet** — every
+     packet goes to Singapore and back. Fine for a terminal; a real decision for
+     a 1 Hz seismic stream.
+   - **Do not move bulk data over a relayed tailnet path.** It leaves the
+     building and comes back, paying for the link twice. Archive transfers and
+     Bernese file moves belong on the LAN, where they are direct anyway.
 
    The fix, if network admin will make it, is permitting outbound UDP (41641,
-   and 3478 for STUN). Until then, assume relay. Worth discovering now rather
-   than during a national rollout.
+   and 3478 for STUN) on gps3's subnet. Until then, assume relay for anything
+   off-subnet — and **re-run `netcheck` on any host whose path matters**, rather
+   than inheriting this result.
 
 4. **Mobile data volume is the recurring cost nobody costed.** Rough
    order-of-magnitude, to be measured not trusted:
