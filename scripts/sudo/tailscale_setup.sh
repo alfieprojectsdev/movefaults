@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
-# tailscale_setup.sh — put finch on the tailnet gps3 already belongs to.
+# tailscale_setup.sh — join this machine to the project tailnet.
+#
+# Written for finch and generalised to serve gps3 as well: the only
+# host-specific values are the tailnet name and the operator, and both are
+# derived or passed rather than hardcoded. gps3 wrote an equivalent script
+# independently; this one supersedes it because of the codename handling
+# below, which gps3's assumption of /etc/os-release would have got wrong on
+# Mint. Two installers in one directory drift silently -- they do not even
+# merge-conflict -- so there is deliberately one.
 #
 # WHY
 # finch drops off the network and stays off. The last outage ran from
@@ -50,9 +58,18 @@ if [ -z "$LOGIN_USER" ] || [ "$LOGIN_USER" = "root" ]; then
     exit 1
 fi
 
-TS_HOSTNAME="finch"     # what it will be called on the tailnet. The machine's
-                        # own hostname is 't420'; everyone refers to it as
-                        # finch, and the tailnet name is what people will type.
+# What the node will be called on the tailnet. NOT the machine's own hostname:
+# this box answers to `t420` but everyone calls it finch, and the tailnet name
+# is what people will type.
+#
+# Defaulting to the invoking user is not a trick -- on both machines that run
+# this, the login account IS the machine's working name (finch on the T420,
+# gps3 on the R740), so the default is correct on each without a per-host
+# branch. Override for anything else:
+#
+#     sudo bash scripts/sudo/tailscale_setup.sh othername
+#     TS_HOSTNAME=othername sudo -E bash scripts/sudo/tailscale_setup.sh
+TS_HOSTNAME="${TS_HOSTNAME:-${1:-$LOGIN_USER}}"
 
 say() { printf '\n=== %s\n' "$*"; }
 
