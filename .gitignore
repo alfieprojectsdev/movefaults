@@ -40,6 +40,12 @@ Thumbs.db
 # of the repo; these are checksums OF that data, and the whole point of a
 # fingerprint is that it lives somewhere other than the disk it describes.
 !docs/archive-manifests/*.gz
+# ...and the finch crash journals. Same reasoning: `*.gz` is aimed at GNSS
+# data, and these are 240 KB of redacted system journal that must survive the
+# machine that produced them. Committed via this negation rather than
+# `git add -f`, so the exemption is visible here instead of buried in one
+# commit's flags -- `git add` skips an ignored file SILENTLY and still exits 0.
+!docs/finch/*.gz
 *.rar
 *.exe
 *.mp4
