@@ -61,6 +61,9 @@ that code meant.
 | `URDT` | `MARK` | 17 | 5 | 161 km |
 | `MAW1` | `DARW` | 24 | 5 | 7,303 km |
 
+*Showing 15 of 57 ambiguous-code patterns. 42 not listed — raise `--top` to see them.*
+
+
 ### The remaining 91 claim an unambiguous code
 
 Here the catalog knows exactly one monument for that name, so the file
@@ -84,6 +87,9 @@ and the position genuinely disagree about where the receiver was.
 | `PIVS` | `BNBA` | 2 | 131 km | 0/2 |
 | `PIVS` | `BUGS` | 1 | 239 km | all |
 | `LABO` | `PTBN` | 1 | 258 km | all |
+
+*Showing 15 of 34 unambiguous-code patterns. 19 not listed — raise `--top` to see them.*
+
 
 Across all 735 conflicts with a measurable claim: minimum **240 m**, median **263 km**, maximum **12,351 km**. 0 are within 200 m — i.e. inside what header imprecision alone could explain.
 
@@ -120,6 +126,9 @@ This is the first evidence that can contradict it.
 | `SOLI` | `SOLE` | 22 |
 | `SHAO` | `MASB` | 21 |
 
+*Showing 15 of 110 path patterns. 95 not listed — raise `--top` to see them.*
+
+
 ### Directories holding more than one site — the dominant cause
 
 122 directories contain files matching several different
@@ -145,6 +154,9 @@ directory name would mislabel every file in it.
 | `…/masb/2002/031` | 10 — GUAM KAYT MASC MASD MASG MASH … |
 | `…/masb/2002/034` | 10 — GUAM ILO1 ILO2 KAYT MASA MASG … |
 | `…/masb/2002/035` | 10 — GUAM ILO1 ILO2 KAYT MASA MASG … |
+
+*Showing 15 of 122 multi-site directories. 107 not listed — raise `--top` to see them.*
+
 
 ## What to do with this
 
