@@ -2,8 +2,16 @@
 """Decode the raw receiver files that would close an open want-list site-year.
 
 WHY ONLY SOME OF THEM
-The archive holds ~81,000 raw receiver files. Decoding all of them would be
-days of work and would mostly produce RINEX that already exists. Intersecting
+`RAW_EXT` over `/srv/gnss-archive` on gps3 matches **80,954** files:
+46,061 `.t02`, 17,654 `.m00`, 7,683 `.t00`, 4,526 `.t01`, 2,372 `.dat` and the
+rest spread thinly across `.mNN`. Decoding all of them would be days of work
+and would mostly produce RINEX that already exists.
+
+`.tgd` is in `RAW_EXT` and its count in that archive is **zero**. That is
+correct rather than an oversight: `.tgd` is the runpkr00 intermediate this
+script produces itself, in a temp dir, on the way from `.T0x` to teqc. It is
+matched so a stray intermediate left by an earlier run is picked up rather
+than skipped, not because the archive stores any. Intersecting
 the raw inventory against the *still-open* want-list entries reduces that to
 **3,984 files across 17 site-years**, every one of them 2012 -- a single
 campaign whose raw was archived and never converted.
@@ -25,11 +33,20 @@ THREE FORMATS, THREE PATHS -- and the difference is not cosmetic
     .dat             teqc -tr d directly (legacy 4700/4800 era)
     .mNN             teqc -lei mdb   (Leica MDB)
 
-`fixdatweek` is NOT needed for the `.dat` files despite the GPS week rollover
-warning teqc prints on them. Verified: teqc resolves the week from the data and
-produces the correct epoch, and the filenames carry the full date anyway so
-`-week` is derivable if it ever does not. The proprietary Windows tool and its
-Wine workaround are both avoidable here.
+`fixdatweek` is NOT needed for the `.dat` files in THIS corpus, and the scope
+of that claim matters. Every `.dat` reachable from the open want-list entries
+is from 2012 -- 781 of them -- so they sit between the 1999-08-21 and
+2019-04-06 rollovers and cross neither. On those files teqc resolved the week
+from the data and the epoch guard below confirmed the result against the date
+in the filename, file by file.
+
+That is evidence about 781 files on one side of one boundary. It is NOT a
+general property of teqc across rollovers, and it should not be quoted as one.
+What makes it safe to rely on here is not teqc's behaviour but the guard: if
+teqc ever does resolve a week wrongly, the epoch cross-check rejects the file
+rather than filing it under the wrong year. The filenames also carry the full
+date, so `-week` is derivable if it is ever needed. The proprietary Windows
+tool and its Wine workaround are avoidable for this run.
 
 WHAT IS CHECKED, AND WHY EACH CHECK EXISTS
 
@@ -60,6 +77,7 @@ from __future__ import annotations
 import argparse
 import collections
 import csv
+import os
 import re
 import shutil
 import subprocess
@@ -121,6 +139,36 @@ def header_of(p: Path) -> str:
     return txt[:cut] if cut > 0 else txt[:65536]
 
 
+TOOLS = {
+    "runpkr00": "unpacks Trimble .T0x containers",
+    "teqc": "converts .dat/.tgd/.mNN to RINEX",
+}
+
+
+def require_tools(names: list[str]) -> str | None:
+    """Return an error string naming what is missing, or None if all are present.
+
+    `shutil.which` and not a bare `subprocess.run`, because a missing binary
+    surfaces as `FileNotFoundError` with only the program name in it, and this
+    project has already lost time to the opposite confusion -- `command -v`
+    reporting these absent while they were installed but off PATH. On gps3 all
+    three live in `/home/gps3/bin`, which is not on a non-login shell's PATH,
+    so the failure is a PATH problem far more often than a missing install.
+    """
+    missing = [n for n in names if shutil.which(n) is None]
+    if not missing:
+        return None
+    lines = [f"missing on PATH: {', '.join(missing)}"]
+    for n in missing:
+        lines.append(f"    {n:<10} {TOOLS.get(n, '')}")
+    lines.append("")
+    lines.append("  These are not distribution packages. If they are installed,")
+    lines.append("  PATH is the likely cause -- on gps3 they live in $HOME/bin:")
+    lines.append("      export PATH=$HOME/bin:$PATH")
+    lines.append(f"  PATH is currently: {os.environ.get('PATH', '(unset)')}")
+    return "\n".join(lines)
+
+
 def convert(src: Path, work: Path) -> Path | None:
     """Run the right toolchain for this format. Returns the RINEX path or None."""
     suf = src.suffix.lower()
@@ -161,7 +209,7 @@ def main() -> int:
     ap.add_argument("--limit", type=int)
     args = ap.parse_args()
 
-    paths = [l.rstrip("\n") for l in
+    paths = [ln.rstrip("\n") for ln in
              args.archive_list.open(encoding="utf-8", errors="replace")]
     want = load_want(args.want_list)
 
@@ -193,6 +241,19 @@ def main() -> int:
         for (s, y), v in sorted(targets.items(), key=lambda kv: -len(kv[1])):
             print(f"  {s:5s}  {y}  {len(v)}")
         return 0
+
+    # Preflight, and only for what this selection actually needs -- a run with
+    # no .T0x in it has no business demanding runpkr00. Checked here rather
+    # than in `convert`, so a missing tool costs one line instead of one
+    # failure per file, and after --dry-run, which needs neither tool.
+    needed = ["teqc"]
+    if any(re.search(r"\.t0[0-9]$", pth, re.I)
+           for v in targets.values() for pth, _ in v):
+        needed.insert(0, "runpkr00")
+    err = require_tools(needed)
+    if err:
+        print(f"FATAL: {err}", file=sys.stderr)
+        return 2
 
     args.out.mkdir(parents=True, exist_ok=True)
     ok = no_pos = bad_epoch = failed = 0
