@@ -146,6 +146,17 @@ SOLD   [154, 53]   11.03386 N 125.74071 E (Leyte)   and   14.40085 N 121.03742 E
 CENT   [ 53,  53]  two monuments, both campaign-sized
 ```
 
+The NCR SOLD is **Soldiers Hills Village, Putatan, Muntinlupa** — confirmed
+independently of the coordinates, by institutional memory. It sits 1.5 km from
+`MUNT`, which is also in Muntinlupa, so the two are neighbours in the same
+municipality and the code collision is with a site 632 km away in Leyte rather
+than with anything local.
+
+Worth recording because the place name is stronger evidence than a coordinate
+match: it identifies the monument, not merely a position. Nothing else in the
+archive carries it — the site name appears in no header, no station-information
+file, and no README.
+
 The NCR SOLD is NCKU's site `9875`. If its 53 files were ever processed
 alongside Leyte's 154, that solution is contaminated.
 
