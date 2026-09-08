@@ -173,11 +173,17 @@ def read_rinex_header(path: Path) -> "Row | None":
     try:
         raw = path.open("rb").read(4)
         if raw[:2] in (b"\x1f\x8b", b"\x1f\x9d"):      # gzip or LZW
-            out = subprocess.run(["gzip", "-dc", str(path)], capture_output=True,
-                                 timeout=30).stdout
+            # Stream and stop. capture_output=True would decompress the
+            # whole file -- tens of MB of observations -- to read a header
+            # in the first few KB.
+            with subprocess.Popen(["gzip", "-dc", str(path)],
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.DEVNULL) as proc:
+                out = proc.stdout.read(65536)
+                proc.kill()
         else:
             out = path.open("rb").read(65536)
-        txt = out[:65536].decode("latin-1", errors="replace")
+        txt = out.decode("latin-1", errors="replace")
         txt = txt.split("END OF HEADER")[0]
     except Exception:
         return None
@@ -192,10 +198,15 @@ def read_rinex_header(path: Path) -> "Row | None":
     if not (R_MIN <= math.sqrt(x * x + y * y + z * z) <= R_MAX):
         return None      # same sanity gate the CRD rows pass through
 
+    # Take the marker's FIRST TOKEN and require it to be exactly four
+    # characters -- do not truncate a longer one. Slicing [:4] would turn a
+    # marker reading "PHIVOLCS" into site PHIV, which is the substring match
+    # that produced a confident wrong answer for 394 files in stage 3.
     mk = _MARKER.search(txt)
-    site = (mk.group(1).strip().upper() if mk else "")[:4]
-    if not site.isalnum() or len(site) != 4:
+    tok = (mk.group(1).strip().upper().split() or [""])[0] if mk else ""
+    if len(tok) != 4 or not tok.isalnum():
         return None
+    site = tok
     return Row(site=site, domes="", x=x, y=y, z=z, flag="", kind="RNXHDR",
                frame="", epoch="", source=path)
 
