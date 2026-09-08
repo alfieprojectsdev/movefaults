@@ -100,6 +100,12 @@ Usage, on gps3 where the files and tools are:
 
 Output goes to `derived/`, never into `legacy/` -- those trees are faithful
 copies of physical drives and derived products do not belong in them.
+
+`--archive-list` MUST NOT contain the tool's own `--out` directory. A listing
+walked after a previous run contains that run's RINEX, which counts as coverage
+already present, so the selection collapses and the run decodes nothing while
+reporting success. Paths under `--out` are dropped and the count is printed,
+but the cheaper fix is to exclude `derived/` when generating the listing.
 """
 from __future__ import annotations
 
@@ -301,6 +307,21 @@ def main() -> int:
 
     paths = [ln.rstrip("\n") for ln in
              args.archive_list.open(encoding="utf-8", errors="replace")]
+
+    # The output of a previous run must never be an input to this one. Once
+    # `derived/decoded-2012/` exists, a freshly walked archive listing contains
+    # 2,977 .12o files that count as RINEX already present -- so `still_open`
+    # collapses, the selection returns nothing, and the run reports success
+    # having decoded nothing. Observed: 3,984 files selected before the output
+    # existed, 1 after.
+    out_abs = args.out.resolve()
+    kept = [q for q in paths
+            if out_abs not in Path(q).resolve().parents]
+    if len(kept) != len(paths):
+        print(f"  ignored {len(paths) - len(kept)} listed paths under --out "
+              f"({out_abs})\n    <- a previous run's output, not archive input")
+        paths = kept
+
     want = load_want(args.want_list)
 
     have = set()
