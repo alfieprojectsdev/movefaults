@@ -189,8 +189,8 @@ Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops st
 
 `ADDNEQ2.INP` resolves its datum from `FREESTA_F = ${P}/PHIVOLCS\STA\REF190110.FIX`,
 a file not tracked in this repo. Project records disagree on its contents — 12
-stations in `session_log_20260226.md`, 9 in `T420_REPLY_20260805b.md`, "6 accepted"
-in `session_log_20260626.md`. A solution's datum is the least reproducible thing
+stations in `docs/session-logs/session_log_20260226.md`, 9 in `T420_REPLY_20260805b.md`, "6 accepted"
+in `docs/session-logs/session_log_20260626.md`. A solution's datum is the least reproducible thing
 about it and is currently unrecorded.
 
 - Read the resolved `.FIX` at campaign build; record filename, content hash, station list

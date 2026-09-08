@@ -193,10 +193,10 @@ config, not from notes** [REPO], in
 the Bernese datapool and is not tracked in this repository, and the project's own
 records disagree about its contents: a 12-station list
 (`AIRA ALIC BTNG CUSV DAEJ DARW GUUG MCIL NTUS PIMO PNGM TNML`) appears in
-`session_log_20260226.md` [MEM, RAG-derived]; a nine-station set including
+`docs/session-logs/session_log_20260226.md` [MEM, RAG-derived]; a nine-station set including
 Philippine stations (`AIRA ALIC BASC CLAV DAEJ DARW MCIL PIMO PNGM`) appears in
 `T420_REPLY_20260805b.md`; and one Luzon run logged "6 fiducials accepted"
-[`session_log_20260626.md`]. Resolving which is authoritative is separate work.
+[`docs/session-logs/session_log_20260626.md`]. Resolving which is authoritative is separate work.
 
 **The conclusion does not depend on the count.** Whether it is twelve, nine or
 six, POGF uses *several* stations under a minimum constraint where GEONET fixes

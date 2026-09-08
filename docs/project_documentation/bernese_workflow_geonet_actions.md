@@ -58,9 +58,9 @@ architecture in miniature, on our own data, with a stated selection rule.
 
 `ADDNEQ2.INP` resolves its datum from `FREESTA_F = ${P}/PHIVOLCS\STA\REF190110.FIX`
 [REPO]. That file is **not in this repository**, and the project's own records
-disagree about its contents — a 12-station list in `session_log_20260226.md`, a
+disagree about its contents — a 12-station list in `docs/session-logs/session_log_20260226.md`, a
 nine-station set in `T420_REPLY_20260805b.md`, and one run logging "6 fiducials
-accepted" in `session_log_20260626.md`.
+accepted" in `docs/session-logs/session_log_20260626.md`.
 
 A solution's datum is the least reproducible thing about it, and right now the
 run does not record which fiducials defined it.
