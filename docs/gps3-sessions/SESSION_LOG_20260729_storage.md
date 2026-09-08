@@ -4612,16 +4612,43 @@ On gps3 the 494 `.crx` files are neither Chrome nor Hatanaka. They are
 satellite problem files from `GEN/`. One extension, three meanings, two of them
 discovered on the same day on two machines.
 
-**Blast radius, checked rather than assumed.** `match_rinex_to_site.py` and
-`raw_rinex_counterparts.py` both list `crx` as RINEX 3. But the counterpart
-matching keys on `\.(\d{2})[od]$` alone, so **the 94.4% and the 2,060 are
-unaffected**. What is inflated is stage 3's headline file count, by at most 494
-of 471,878 — 0.1%, and those files would have failed header parsing anyway.
-Small, real, and in a merged document.
+**Blast radius — and the first version of this paragraph made the mistake the
+paragraph is about.** It reported 494 inflated files, arrived at by counting
+what matches stage 3's `_RINEX_NAME` pattern and never opening any of them. The
+T420 challenged the figure; checking properly gives a better answer than either
+session had:
+
+```
+match stage 3's pattern in /srv/gnss-archive : 494
+  bare .crx      213   Bernese      SATE 205, POSS 6, KNOW 2
+  .crx.gz/.crx.z 281   GENUINE Hatanaka RINEX 3
+```
+
+The 281 are files like `AIRA00JPN_R_20251500000_01D_30S_MO.crx.gz`, which
+decompress to a `3.0` header. **They are real RINEX 3 and the pattern is
+matching them correctly.** So `crx` in that regex is not a mistake to remove —
+it is doing its job for 281 files and misfiring for 213.
+
+The inflation is therefore **213 of 471,874**, about 0.05pp, and it lands on
+stage 3's attribution headline of **89.3%** — not on the 94.4% counterpart
+figure, which §30.7 computes from `\.(\d{2})[od]$` alone and which `.CRX`
+cannot reach. Naming the wrong percentage in a section about one extension
+meaning three things was its own small instance of the same carelessness.
+
+Consistent with the "would have failed header parsing anyway" reading: stage 3
+records 249 `no-header`, more than 213, so the Bernese files plausibly land
+there already. Not proof — some may be in `none` — but 213 cannot move 89.3% by
+more than 0.05pp either way.
+
+**The fix is not to drop `crx`.** Gate it: require the RINEX 3 long-name shape,
+or sniff for a Hatanaka `CRINEX` header, rather than trusting the extension.
+Which is what this section says to do, and what its own first draft did not.
 
 The general form is the one already in this log twice: an extension is a
-convention, not a type. `.gz` on a file that is LZW, `.crx` on a Bernese table,
-`.Z` in either case. The magic bytes are the fact.
+convention, not a type. `.gz` on a file that is LZW, `.crx` on a Bernese table
+*and* on real RINEX 3 in the same directory tree, `.Z` in either case. The magic
+bytes are the fact — and reading them was the one step the first draft skipped
+while recommending it.
 
 ### 30.14 Hibernation eliminated — with a control, which is the point
 
