@@ -55,6 +55,7 @@ import csv
 import math
 import re
 import statistics
+import subprocess
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
@@ -97,8 +98,12 @@ R_MIN, R_MAX = 6_353_000.0, 6_390_000.0
 # REFERENCE sits just below GPSEST: a published frame realisation is
 # authoritative for a global station, but where we have our own least-squares
 # solution for a site, that is the one this catalog should name.
-KIND_RANK = {"RNX2SNX": 6, "GPSEST": 5, "REFERENCE": 4, "COORDINATE": 3,
-             "RXOBV3": 2, "CODSPP": 1, "OTHER": 0}
+# RNXHDR sits below every Bernese-derived kind, including CODSPP. A RINEX
+# header's APPROX POSITION is whatever the operator or receiver wrote there --
+# a single-point fix at best, metre-level, and sometimes a stale copy from
+# another site. It is in this catalog only to fill gaps, never to compete.
+KIND_RANK = {"RNX2SNX": 7, "GPSEST": 6, "REFERENCE": 5, "COORDINATE": 4,
+             "RXOBV3": 3, "CODSPP": 2, "RNXHDR": 1, "OTHER": 0}
 _FRAME_TITLE = re.compile(r"^(ITRF|IGS|IGB|SLRF|ETRF)[0-9_]", re.I)
 
 _HDR_ROW = re.compile(r"^\s*NUM\s+STATION\s+NAME", re.I)
@@ -149,6 +154,61 @@ def classify(first_line: str) -> str:
     up = tok.upper()
     return up if up in KIND_RANK and up != "OTHER" else "OTHER"
 
+
+
+_APPROX = re.compile(r"^(.{14})(.{14})(.{14})\s*APPROX POSITION XYZ", re.M)
+_MARKER = re.compile(r"^(.{0,60}?)\s*MARKER NAME", re.M)
+
+
+def read_rinex_header(path: Path) -> "Row | None":
+    """Site and APPROX POSITION from a RINEX header, or None.
+
+    Headers are plaintext even in Hatanaka-compressed files -- only the
+    observation records are encoded -- so CRX2RNX is not needed here. Reads
+    only as far as END OF HEADER; these files run to tens of megabytes.
+
+    Returns None rather than raising on anything unexpected. A file that
+    cannot be read is not evidence of anything and must not become a row.
+    """
+    try:
+        raw = path.open("rb").read(4)
+        if raw[:2] in (b"\x1f\x8b", b"\x1f\x9d"):      # gzip or LZW
+            # Stream and stop. capture_output=True would decompress the
+            # whole file -- tens of MB of observations -- to read a header
+            # in the first few KB.
+            with subprocess.Popen(["gzip", "-dc", str(path)],
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.DEVNULL) as proc:
+                out = proc.stdout.read(65536)
+                proc.kill()
+        else:
+            out = path.open("rb").read(65536)
+        txt = out.decode("latin-1", errors="replace")
+        txt = txt.split("END OF HEADER")[0]
+    except Exception:
+        return None
+
+    m = _APPROX.search(txt)
+    if not m:
+        return None
+    try:
+        x, y, z = (float(g) for g in m.groups())
+    except ValueError:
+        return None
+    if not (R_MIN <= math.sqrt(x * x + y * y + z * z) <= R_MAX):
+        return None      # same sanity gate the CRD rows pass through
+
+    # Take the marker's FIRST TOKEN and require it to be exactly four
+    # characters -- do not truncate a longer one. Slicing [:4] would turn a
+    # marker reading "PHIVOLCS" into site PHIV, which is the substring match
+    # that produced a confident wrong answer for 394 files in stage 3.
+    mk = _MARKER.search(txt)
+    tok = (mk.group(1).strip().upper().split() or [""])[0] if mk else ""
+    if len(tok) != 4 or not tok.isalnum():
+        return None
+    site = tok
+    return Row(site=site, domes="", x=x, y=y, z=z, flag="", kind="RNXHDR",
+               frame="", epoch="", source=path)
 
 def parse_crd(
     path: Path,
@@ -277,6 +337,9 @@ def main() -> int:
     ap.add_argument("--want-list", type=Path,
                     help="file of site codes, one per line or first CSV column; "
                          "coverage against it is reported")
+    ap.add_argument("--rinex", type=Path,
+                    help="listing of RINEX paths; header positions fill sites "
+                         "that no CRD file covers, as kind RNXHDR")
     ap.add_argument("--ambiguous-m", type=float, default=1000.0,
                     help="spread above which a code is reported as naming more "
                          "than one monument (default 1000)")
@@ -343,6 +406,28 @@ def main() -> int:
     # So: cluster first, publish the LARGEST cluster, and flag the site. The
     # coordinate is then at least a real monument, and `ambiguous` plus
     # `n_clusters` say not to trust it blindly.
+    # RINEX headers fill GAPS ONLY -- a site already covered by a CRD file is
+    # left untouched. Blending a metre-level header position into the median
+    # alongside millimetre-level GPSEST rows would degrade the coordinate and
+    # inflate spread_m, and the damage would be invisible: the row would look
+    # like every other row. Gap-filling keeps the two provenances disjoint, so
+    # best_kind == RNXHDR identifies exactly the sites resting on one.
+    if args.rinex:
+        have = set(by_site)
+        added = collections.Counter()
+        for ln in args.rinex.read_text(errors="replace").splitlines():
+            ln = ln.strip()
+            if not ln:
+                continue
+            r = read_rinex_header(Path(ln))
+            if r and r.site not in have:
+                by_site.setdefault(r.site, []).append(r)
+                added[r.site] += 1
+        print(f"  RINEX headers filled {len(added)} sites not covered by any CRD"
+              f" ({sum(added.values())} files)")
+        for st, n in added.most_common():
+            print(f"    {st}  {n} file(s)")
+
     cat = {}
     for site, rows in by_site.items():
         clusters = cluster_rows(rows, args.ambiguous_m)
