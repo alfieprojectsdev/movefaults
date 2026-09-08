@@ -106,6 +106,21 @@ def _year_from_path(path: str, site: str) -> int | None:
     no RINEX counterpart in `docs/bern52/raw_rinex_counterparts.md`, which is
     the same fact seen from the other end.
 
+    NOT THE SAME THING AS THE CATALOG CLOSING A SITE
+
+    `build_crd_catalog.py --rinex` also closes PWSU, from a 2015 RINEX header,
+    and takes catalog coverage to 261/271. That is a different measurement and
+    the two must not be added together:
+
+        the catalog closes SITES        -- does any coordinate exist for it
+        this script closes SITE-YEARS   -- was this site observed in this year
+
+    PWSU is the case that shows the difference. It now has a coordinate, from
+    2015. The want-list asks for PWSU **2012**, which nothing in the archive
+    covers, so this script correctly still reports it missing. A reader seeing
+    two changes both described as "closing PWSU" should read them as answering
+    two questions, not as one result counted twice.
+
     WHY IT DOES NOT SIMPLY WALK UP LOOKING FOR FOUR DIGITS
 
     40,070 matching files have a year in NEITHER position. A walk-up would find
