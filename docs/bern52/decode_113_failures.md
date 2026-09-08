@@ -23,8 +23,55 @@ size        every failure  <= 33,684 bytes
 | `convert_failed` | 113 | 4,096 | 29,538 | 33,684 |
 | `ok` | 239 | 57,344 | 703,094 | 758,603 |
 
-A complete IBAZ session is ~700 KB. These are fragments of roughly 4 %, and the
-smallest is **exactly 4,096 bytes — one filesystem block.**
+A complete IBAZ session is ~700 KB. These are fragments of roughly 4 %.
+
+### They are record-aligned, not block-aligned — the recording stopped, not the copy
+
+An earlier version of this note read the 4,096-byte minimum as a filesystem
+block and inferred a copy damaged mid-transfer. **That does not survive the
+data**, which the T420 checked and gps3 confirmed:
+
+```
+multiples of  512 :   5/113
+multiples of 4096 :   5/113
+gcd of all sizes  :   1
+```
+
+Five. A copy stopping at a block boundary would leave nearly all of them
+multiples of 512, and the single 4,096-byte file is a coincidence of the
+minimum — the one datum that made the block reading look right.
+
+They are structured on the **record**. Repeated exact sizes recur across
+different files, and the sizes differ by multiples of **135 bytes**:
+
+```
+31,131 x8    31,266 x7    30,726 x6    30,861 x5    31,401 x4
+```
+
+29 of the 55 distinct sizes appear more than once. Arbitrary truncation
+essentially never produces identical file sizes.
+
+**The control makes it decisive.** Residues mod 135, failures against the 239
+successful files from the same site:
+
+| | distinct residues (of 135) |
+|---|---:|
+| the 113 failures | **8** — three classes hold 106 |
+| the 239 successes | **119** — effectively uniform |
+
+Random truncation would give ~55, one per distinct size. Instead the failures
+are *more* structured than the complete files, which is the opposite of what
+damage produces.
+
+**So the likelier mechanism is a recording that ended cleanly**: short sessions,
+a receiver powered down, a deployment cut short. Median 30,861 bytes against a
+full session's ~700 KB, tightly clustered, fits a site that kept being
+interrupted.
+
+**Stated as far as it goes:** block alignment is disproved, record alignment is
+demonstrated, and the *cause* is inferred rather than shown. The remaining
+discriminator is inside these files — whether the final MDB record is complete
+and its timestamp lands at a plausible session end.
 
 teqc reads them correctly. It reports the survey start with the right year:
 
@@ -38,14 +85,14 @@ problem.** No option recovers observations that are not in the file. The
 failures are correct behaviour on incomplete input.
 
 **IBAZ itself is fine** — 239 of its files converted. The split is within the
-site, not between sites, which is what points at recovery damage rather than a
-format or firmware difference. That these are block-aligned fragments recovered
-from a failing drive is the likely explanation and fits how the archive was
-assembled.
+site, not between sites.
 
-**Nothing here is worth retrying.** Any effort belongs in the drive-archaeologist
-question of whether better copies of those 113 sessions exist elsewhere, not in
-the decoder.
+**Nothing here is worth retrying, and the obvious follow-up is probably not
+worth opening either.** An earlier version proposed asking drive-archaeologist
+whether better copies of these 113 sessions exist on media not yet walked. If
+the recording stopped rather than the copy, **no better copy exists anywhere**
+and that search returns nothing. Settle the final-record question first; it
+costs one read of files already on disk, where walking a drive does not.
 
 ## The 2 epoch rejections are the guard working
 
