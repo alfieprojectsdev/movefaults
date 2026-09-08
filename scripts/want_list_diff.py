@@ -80,6 +80,52 @@ _RAW_DOY = re.compile(
 _YEAR_DIR = re.compile(r"^(19|20)\d{2}$")
 
 
+def _year_from_path(path: str, site: str) -> int | None:
+    """The year for a receiver-named raw file, from the directory it sits in.
+
+    Trimble `.T0x` and Leica `.mNN` names carry a site and a day-of-year but no
+    year, so the year has to come from the filing. That is inference, not
+    evidence, and it is only safe where the layout states the year plainly.
+
+    TWO SHAPES ARE ACCEPTED, AND NOTHING ELSE
+
+        RAW/2017/JOSE330bC.T02        parent is the year
+        RAW/2015/PWSU/pwsu1180.t00    parent is the SITE, grandparent the year
+
+    The second was being dropped, and it is not a rounding error. Measured
+    twice, on both corpora, before and after:
+
+        three drive walks   332 -> 339 site-years closed  (+7)
+                            unresolved raw 29,114 -> 16,670
+        gps3 archive        330 -> 338 site-years closed  (+8)
+
+    No site-year is lost either way. The newly closed are BRGC, IBAZ, JOSE,
+    LUZC, MUNZ, PTBN and SABL, all 2012 -- campaign sites whose raw was never
+    converted, so no RINEX exists to cover them and the raw filename is the
+    only thing that can. That overlaps the sites carrying most of the raw with
+    no RINEX counterpart in `docs/bern52/raw_rinex_counterparts.md`, which is
+    the same fact seen from the other end.
+
+    WHY IT DOES NOT SIMPLY WALK UP LOOKING FOR FOUR DIGITS
+
+    40,070 matching files have a year in NEITHER position. A walk-up would find
+    some unrelated `2019` higher in a path and invent coverage from it, which
+    is the failure the original narrow rule existed to prevent. So the
+    grandparent is read ONLY when the parent is the file's own site code -- the
+    layout is then stating "this site, this year" and is being read, not
+    guessed at.
+    """
+    parts = path.split("/")
+    parent = parts[-2] if len(parts) >= 2 else ""
+    if _YEAR_DIR.match(parent):
+        return int(parent)
+    # `RAW/<year>/<SITE>/<file>` -- the parent must be this file's own site.
+    grandparent = parts[-3] if len(parts) >= 3 else ""
+    if parent.upper() == site and _YEAR_DIR.match(grandparent):
+        return int(grandparent)
+    return None
+
+
 def rinex_year(yy: int) -> int:
     """RINEX two-digit year: 80-99 -> 19xx, else 20xx."""
     return 1900 + yy if yy >= 80 else 2000 + yy
@@ -127,12 +173,10 @@ def scan_paths(path_file: Path) -> tuple[set[tuple[str, int]], int, int]:
                     continue
                 mdoy = _RAW_DOY.match(name)
                 if mdoy:
-                    # Year from the enclosing directory, only when it is a bare
-                    # year. Anything else and the file stays unresolved.
-                    parts = line.rstrip("\n").split("/")
-                    parent = parts[-2] if len(parts) >= 2 else ""
-                    if _YEAR_DIR.match(parent):
-                        present.add((mdoy.group("site").upper(), int(parent)))
+                    site = mdoy.group("site").upper()
+                    year = _year_from_path(line.rstrip("\n"), site)
+                    if year is not None:
+                        present.add((site, year))
                         matched += 1
                         continue
                 raw_unresolved += 1
