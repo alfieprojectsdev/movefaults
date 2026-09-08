@@ -188,10 +188,11 @@ holds the context for why the branch is shaped the way it is.
 
 **A review that finds nothing still says so on the PR.** "Reviewed, no
 findings" and "nobody looked" are different states, and the PR should show
-which one it is in. Green checks are not a review: CodeRabbit skips this repo's
-PRs — "manual review required for this OSS repository" — and skips stacked PRs
-entirely, so a clean check list here means the automation declined, not that it
-approved.
+which one it is in. Green checks are not a review: CodeRabbit does not review
+this repo's PRs at all — *"This repository does not receive automatic reviews
+because it has fewer than 10 stars"* — so a clean check list here means the
+automation never ran, not that it approved. It posts that notice **as a
+comment**, which makes the PR look reviewed at a glance.
 
 This rule is new as of 2026-09-08 and the practice before it was the opposite:
 #178, #181, #183 and #184 were opened by the T420 and merged by gps3. Those
@@ -204,9 +205,43 @@ by hand, a corpus that is not the one named, or a claim whose evidence is real
 but narrower than the sentence around it. Reviewing means re-running the
 measurement where that is possible, not reading for plausibility — the first
 three cross-reviews under this rule found a count that was wrong at every
-revision, an inflation figure counting files outside the walk root, and a
-property attributed to a tool that was really a property of 781 particular
-files.
+revision, an inflation figure that counted every regex match as an error when
+more than half the matches were the pattern working correctly, and a property
+attributed to a tool that was really a property of 781 particular files.
+
+**Two of those three were corrected again by the review of the review**, which
+is the part worth keeping. The `.crx` figure was challenged here as counting
+files outside the walk root; it was not — every file was inside it, and the
+real error was subtler: 494 regex matches, of which **281 were genuine Hatanaka
+RINEX 3** (`AIRA00JPN_R_20251500000_01D_30S_MO.crx.gz`, decompressing to a
+`3.0` header) and only 213 were Bernese. The challenge landed on the right
+number for the wrong reason, because excluding compressed files happened to
+exclude exactly the legitimate ones.
+
+So a cross-review is not a gate that a claim passes once. **Both readings were
+wrong, and the second was wrong in a way that would have looked like
+confirmation** — the reviewer's number matched the truth by coincidence. What
+resolved it was decompressing five files and reading the header, which neither
+session had done before asserting.
+
+### Before you say you are blocked, check
+
+Neither session can see the other's PR activity without asking, so *"blocked on
+your review"* is a guess about a state that is directly observable:
+
+```bash
+gh pr view <n> --json reviews,state,mergeStateStatus
+```
+
+This is cheaper than a message and settles it. On 2026-09-08 both sessions sent
+status messages that crossed — one reporting itself blocked on reviews the
+other had already posted. Nothing deadlocked, but the claim was false when
+made.
+
+The same asymmetry runs the other way and is worth living with: **a sender
+cannot confirm receipt, but can confirm effect.** `gh pr view` shows the peer's
+reviews and `git log origin/main` shows its merges. Observable state beats an
+acknowledgement.
 
 ---
 
