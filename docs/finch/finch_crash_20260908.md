@@ -94,6 +94,93 @@ kernel are still not separable.** The REISUB observation, which looked like the
 discriminator, is void. A dead input path would also produce silence, so even
 with sysrq fully enabled a negative result would have needed care.
 
+## Narrowed, 2026-09-08: not a kernel panic, and the battery is 17%
+
+Two checks after the hardening script ran change the picture. This is the first
+actual narrowing since the investigation started.
+
+### pstore was armed, and is empty
+
+`efi_pstore` is registered on this hardware — EFI firmware, so a panic trace
+persists through firmware with no working filesystem and no live disk. It is
+the one recorder that survives the failure that destroys everything else.
+
+Verified from the committed journals that it was registered during **all
+three** crash boots, not merely now:
+
+```
+finch_crash_20260908.log     efi_pstore WAS registered
+finch_lastboot.log           efi_pstore WAS registered
+finch_boot_minus2.log        efi_pstore WAS registered
+```
+
+`sudo ls -la /sys/fs/pstore/` — **empty**.
+
+So the panic path was armed and wrote nothing. **None of these crashes was a
+kernel panic or an oops.** That is an elimination, not an absence of evidence:
+a panicking kernel writes here, and this one did not.
+
+What remains:
+
+* **power loss**, or
+* **a hang so hard the panic path never ran** — interrupts dead, not merely
+  userspace wedged.
+
+### The battery is at 16.9% of design capacity
+
+Nobody had checked this. finch is a laptop, and the "abrupt power loss"
+hypothesis has been carrying equal weight throughout without anyone asking
+whether the machine has a buffer.
+
+```
+energy_full          9.51 Wh
+energy_full_design  56.16 Wh
+capacity            16.9%          SANYO 45N1001
+cycle_count         0              (EC is not tracking it)
+```
+
+Confirmed independently by `upower` (16.9338%). A cell at this state of wear
+has high internal resistance and can collapse under transient load rather than
+buffering anything — a healthy battery is precisely what stops a mains blip
+from killing a laptop, and this one is not that.
+
+**This does not prove power loss.** It removes the objection that would have
+argued against it: "it is a laptop, it has a battery, so a power cut cannot
+explain this". That objection no longer holds.
+
+### Where the diagnosis now stands
+
+| hypothesis | status |
+|---|---|
+| clean/software shutdown | ruled out — no shutdown sequence, any boot |
+| thermal | ruled out — no critical-temperature event |
+| OOM | ruled out — 76% free 45 min before |
+| **kernel panic / oops** | **ruled out — pstore armed and empty** |
+| **power loss** | **live, and the battery removes the counter-argument** |
+| hard lockup (interrupts dead) | live — would write nothing to pstore either |
+
+Two hypotheses left where there were four. Separating the remaining pair is
+what the watchdog now does, and it went live 2026-09-08 08:19 without needing
+a reboot:
+
+> a machine that comes back on its own was **wedged**;
+> one that stays down **lost power**.
+
+### Instruments now in place
+
+```
+kernel.sysrq = 1                 REISUB will work next time; it could not before
+kernel.panic = 20                a panic reboots rather than sitting silent
+kernel.panic_on_oops = 1
+kernel.hung_task_timeout_secs = 60
+/dev/watchdog + iTCO_wdt         RuntimeWatchdogUSec = 1min, armed
+```
+
+`kernel.hung_task_panic` and `kernel.softlockup_panic` are written but
+commented out in `/etc/sysctl.d/99-finch-diagnostics.conf` — they would turn a
+wedge into a reboot with a trace, at the cost of rebooting a machine that might
+have recovered.
+
 ## The tally, updated — 7 of 10
 
 ```
