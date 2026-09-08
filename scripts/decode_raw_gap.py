@@ -48,6 +48,35 @@ rather than filing it under the wrong year. The filenames also carry the full
 date, so `-week` is derivable if it is ever needed. The proprietary Windows
 tool and its Wine workaround are avoidable for this run.
 
+EVERY INPUT LEAVES THROUGH EXACTLY ONE COUNTER
+
+The first run of this script reported 3,869 decoded ok and left 2,977 files on
+disk. Nothing raised an error; the 892 were only visible to someone who counted
+the directory afterwards. The cause was the RINEX 2 session character,
+hardcoded `0` -- so every source for one site-day wrote to the same path and
+kept the last -- made much worse by Leica `.mNN` names carrying no DOY at all,
+which sent an entire site-year to `site0000.YYo`.
+
+Two things changed and the second matters more than the first. `allocate()`
+uses the session field for what it is for, so a site-day with several sources
+keeps all of them. And the run now RECONCILES: every input leaves through
+exactly one counter, the ok count is compared against the directory, and a
+mismatch is printed to stderr. A summary that cannot be checked against the
+filesystem is how the first 892 stayed invisible.
+
+Every file also gets a row in `decode_manifest.csv` -- outcome and, on failure,
+the tool's own stderr. The first run recorded 113 conversion failures as a
+number with no causes attached, which made them uninvestigable without redoing
+the whole run.
+
+NOTE ON `.dat`, WHICH TWO SCRIPTS DISAGREE ABOUT
+
+`RAW_EXT` here includes `.dat`. `want_list_diff.py`'s `_RAW` does not, and that
+disagreement is silent: it is the entire reason a decode of 16 site-years
+closed 4 want-list entries. The twelve others were already counted as covered
+by their `.t0x`/`.mNN` raw, and the four that closed were precisely the ones
+whose raw is `.dat`. One definition should import the other.
+
 WHAT IS CHECKED, AND WHY EACH CHECK EXISTS
 
   * `APPROX POSITION XYZ` present -- without it stage 3 cannot attribute the
@@ -169,19 +198,68 @@ def require_tools(names: list[str]) -> str | None:
     return "\n".join(lines)
 
 
-def convert(src: Path, work: Path) -> Path | None:
-    """Run the right toolchain for this format. Returns the RINEX path or None."""
+def allocate(out: Path, site: str, year: int, doy: int,
+             hour: int | None) -> tuple[str | None, str]:
+    """Pick a RINEX 2 short name for this site-day that is not already taken.
+
+    The session field is the 8th character. `0` means a daily file; `a`-`x` are
+    the 24 hourly sessions. An earlier version hardcoded `0`, so a site-day with
+    more than one source file wrote every one of them to the same path and kept
+    only the last -- 892 of 3,869 decoded files, 23%, lost with no error raised
+    and a summary reporting them all as ok.
+
+    Preference order, so the common case is unchanged and the format still
+    means what it says:
+
+      1. `0` -- daily, and what a single-file site-day still gets
+      2. the hour letter from TIME OF FIRST OBS, which is what the field is FOR
+      3. any free letter, for sources that collide within the same hour
+
+    Returns `(name, why)`; `why` is empty when nothing had to be disambiguated,
+    and names the reason when it did. `(None, why)` means all 25 were taken,
+    which needs a person rather than a 26th fallback.
+    """
+    yy = str(year)[2:]
+    stem = f"{site.lower()}{doy:03d}"
+
+    plain = f"{stem}0.{yy}o"
+    if not (out / plain).exists():
+        return plain, ""
+
+    if hour is not None and 0 <= hour < 24:
+        c = chr(ord("a") + hour)
+        cand = f"{stem}{c}.{yy}o"
+        if not (out / cand).exists():
+            return cand, f"session {c} from hour {hour:02d}"
+
+    for c in "abcdefghijklmnopqrstuvwx":
+        cand = f"{stem}{c}.{yy}o"
+        if not (out / cand).exists():
+            return cand, f"session {c}, hour ambiguous"
+
+    return None, f"all 25 sessions taken for {stem}"
+
+
+def convert(src: Path, work: Path) -> tuple[Path | None, str]:
+    """Run the right toolchain for this format.
+
+    Returns `(rinex_path, reason)`. On failure the path is None and the reason
+    is the tool's own stderr, trimmed. An earlier version returned bare None
+    and sent stderr to DEVNULL, which made 113 failures in a 3,984-file run
+    uninvestigable without repeating the whole run -- the count was recorded
+    and the cause was thrown away.
+    """
     suf = src.suffix.lower()
     dst = work / "out.obs"
     if re.fullmatch(r"\.t0[0-9]", suf):
         # runpkr00 unpacks the Trimble container; -d keeps the raw stream,
         # -g writes it beside the input.
-        subprocess.run(["runpkr00", "-d", "-g", src.name], cwd=work,
-                       capture_output=True, timeout=300)
+        r = subprocess.run(["runpkr00", "-d", "-g", src.name], cwd=work,
+                           capture_output=True, timeout=300)
         tgd = next((q for q in work.iterdir()
                     if q.suffix.lower() in (".tgd", ".dat") and q != src), None)
         if tgd is None:
-            return None
+            return None, _trim(r.stderr) or f"runpkr00 wrote no .tgd (rc={r.returncode})"
         src = tgd
         suf = src.suffix.lower()
     if suf in (".tgd", ".dat"):
@@ -189,11 +267,23 @@ def convert(src: Path, work: Path) -> Path | None:
     elif re.fullmatch(r"\.m[0-9]{2}", suf):
         args = ["teqc", "-lei", "mdb", src.name]
     else:
-        return None
+        return None, f"no toolchain for {suf}"
     with dst.open("wb") as out:
-        subprocess.run(args, cwd=work, stdout=out,
-                       stderr=subprocess.DEVNULL, timeout=600)
-    return dst if dst.exists() and dst.stat().st_size > 0 else None
+        r = subprocess.run(args, cwd=work, stdout=out,
+                           stderr=subprocess.PIPE, timeout=600)
+    if not dst.exists() or dst.stat().st_size == 0:
+        return None, _trim(r.stderr) or f"teqc produced no output (rc={r.returncode})"
+    return dst, ""
+
+
+def _trim(b: bytes, n: int = 200) -> str:
+    """First meaningful stderr line, collapsed to one line and capped."""
+    txt = b.decode("utf-8", "replace") if isinstance(b, bytes) else str(b)
+    for ln in txt.splitlines():
+        ln = ln.strip()
+        if ln:
+            return ln[:n]
+    return ""
 
 
 def main() -> int:
@@ -257,7 +347,8 @@ def main() -> int:
 
     args.out.mkdir(parents=True, exist_ok=True)
     ok = no_pos = bad_epoch = failed = 0
-    unverified = 0
+    unverified = disambiguated = collided = undated = doy_from_header = 0
+    rows: list[tuple] = []
     todo = [(k, p, d) for k, v in sorted(targets.items()) for p, d in v]
     if args.limit:
         todo = todo[:args.limit]
@@ -266,44 +357,100 @@ def main() -> int:
         src = Path(src_s)
         if not src.exists():
             failed += 1
+            rows.append((src_s, site, year, "", "missing", "not on disk"))
             continue
         with tempfile.TemporaryDirectory() as td:
             work = Path(td)
             local = work / src.name
             shutil.copy2(src, local)
             try:
-                out = convert(local, work)
+                out, why = convert(local, work)
             except subprocess.TimeoutExpired:
-                out = None
+                out, why = None, "timed out"
             if out is None:
                 failed += 1
+                rows.append((src_s, site, year, "", "convert-failed", why))
                 continue
             hdr = header_of(out)
             if "APPROX POSITION XYZ" not in hdr:
                 no_pos += 1
+                rows.append((src_s, site, year, "", "no-APPROX-POSITION", ""))
                 continue
             # Rollover guard. Only checkable where the source name carried a
             # date; Leica DOY-form names cannot be cross-checked.
             tag = ""
-            m = re.search(r"^\s*(\d{4})\s+(\d+)\s+(\d+)\s+.*TIME OF FIRST OBS", hdr, re.M)
+            m = re.search(r"^\s*(\d{4})\s+(\d+)\s+(\d+)\s+(\d+)"
+                          r".*TIME OF FIRST OBS", hdr, re.M)
             if m and doy is not None:
                 got_y = int(m.group(1))
                 if got_y != year:
                     bad_epoch += 1
+                    rows.append((src_s, site, year, "",
+                                 "epoch-mismatch", f"header year {got_y}"))
                     continue
             elif doy is None:
                 tag = "  [epoch-unverified]"
                 unverified += 1
-            dd = doy if doy is not None else 0
-            name = f"{site.lower()}{dd:03d}0.{str(year)[2:]}o"
+
+            # The DOY, and where it comes from. Leica .mNN names carry none, so
+            # an earlier version fell back to 0 -- which meant EVERY Leica file
+            # for a site-year landed on `site0000.YYo` and overwrote the last.
+            # The header has the date whenever teqc could read one, so use it.
+            dd, hour = doy, None
+            if m:
+                hour = int(m.group(4))
+                if dd is None:
+                    dd = doy_of(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+                    doy_from_header += 1
+
+            if dd is None:
+                undated += 1
+                rows.append((src_s, site, year, "", "no-date",
+                             "filename carries no DOY and teqc wrote no "
+                             "TIME OF FIRST OBS"))
+                continue
+
+            name, why = allocate(args.out, site, year, dd, hour)
+            if name is None:
+                collided += 1
+                rows.append((src_s, site, year, "", "name-exhausted", why))
+                continue
+            if why:
+                disambiguated += 1
+                tag += f"  [{why}]"
             shutil.copy2(out, args.out / name)
             ok += 1
+            rows.append((src_s, site, year, name, "ok", why))
             print(f"  {src.name:34s} -> {name}{tag}")
 
+    manifest = args.out / "decode_manifest.csv"
+    with manifest.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["source", "site", "year", "output", "outcome", "detail"])
+        w.writerows(rows)
+
     print(f"\n  decoded ok        : {ok}   (epoch unverified: {unverified})")
+    if doy_from_header:
+        print(f"    DOY from header : {doy_from_header}   <- source name carried none")
+    if disambiguated:
+        print(f"    disambiguated   : {disambiguated}   <- would have overwritten")
     print(f"  no APPROX POSITION: {no_pos}")
     print(f"  epoch mismatch    : {bad_epoch}   <- rollover guard rejected these")
+    print(f"  no usable date    : {undated}")
+    print(f"  name exhausted    : {collided}")
     print(f"  conversion failed : {failed}")
+
+    # The check that would have caught the 892. Every input must leave through
+    # exactly one of the counters above, and every ok must be a file on disk.
+    seen = ok + no_pos + bad_epoch + undated + collided + failed
+    on_disk = len([q for q in args.out.iterdir()
+                   if q.is_file() and q.name != manifest.name])
+    print(f"\n  accounted for     : {seen} of {len(todo)}")
+    print(f"  files on disk     : {on_disk}   (expected {ok})")
+    if seen != len(todo) or on_disk != ok:
+        print("  !! MISMATCH -- inputs or outputs are unaccounted for",
+              file=sys.stderr)
+    print(f"  manifest          : {manifest}")
     return 0 if ok else 1
 
 
