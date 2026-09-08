@@ -4552,3 +4552,168 @@ time — exists because the instruction carried its reason, so the peer could te
 the evidence was void before anyone reasoned from it.
 
 Two machines are not redundancy on this project. They are the review.
+
+### 30.11 Later the same day — a reproduction, an elimination, and a correction to §30.5
+
+**§30.5 IS WRONG AND THIS CORRECTS IT.** That section lists
+`/dev/watchdog + iTCO_wdt   RuntimeWatchdogUSec = 1min` among the instruments
+finch now carries, and says the watchdog is what discriminates "wedged" from
+"power". **The watchdog is not armed.** `/dev/watchdog` has been absent since
+the reboot: `iTCO_wdt` is deny-listed by the distribution, and
+`systemd-modules-load` honours the deny-list **while exiting 0**. The module was
+requested, the request was refused, nothing said so, and `RuntimeWatchdogUSec`
+was set on a device that does not exist.
+
+So the discriminator described in §30.5 does not yet exist, and any crash
+before it does is as ambiguous as the previous three. A fix is written and
+waiting on the user.
+
+That is the fourth instrument this week found to be unarmed *after* being
+relied upon — sysrq, the banner grab, the vacuous `rsync --dry-run` below, and
+now this. The pattern is not "instruments fail". It is that **an instrument's
+own report of its state is not evidence that it is working**, and every one of
+these was reported working by the thing that was not working.
+
+### 30.12 261/271 reproduced independently
+
+`all_HD-LBU2.txt` turned out to have been on gps3 all along, in
+`/srv/gnss-archive/manifests/t420-drive-arch-runs/` — md5
+`42423290bd0a2354900efdabf468f619`, identical to the T420's copy. The doc's
+statement that the T420's was the only measurement was true when written and
+had already stopped being true.
+
+Set intersection of `gnss_want_list.csv` against `crd_catalog.csv`, computed on
+gps3:
+
+```
+want-list sites : 271
+COVERED         : 261 / 271
+uncovered (10)  : CALC CEBM CTE1 JONA KBNK LEY5 LOP2 MATA QZN1 QZNA
+```
+
+Exactly the T420's twelve, minus `LEY1` and `PWSU`, which §30.8 closed. Two
+machines, two implementations, same answer.
+
+**The first attempt reproduced the wrong number**, and it is worth recording
+because the guard caught its own author. Running `want_list_diff.py` against
+HD-LBU2 returned **311 site-years across 150 sites** — a real figure answering a
+different question. 259/271 is *site* coverage in the coordinate catalog;
+`want_list_diff.py` measures *site-years* observed on a drive. That is precisely
+the distinction the two sessions agreed to write down four hours earlier, and
+the first thing it caught was the person who proposed it.
+
+### 30.13 `.crx` means three different things
+
+The T420 found `.crx` matching **Chrome extensions**, inflating a RINEX count on
+one partition by ten files.
+
+On gps3 the 494 `.crx` files are neither Chrome nor Hatanaka. They are
+**Bernese**: `SAT_1992.CRX`, `EXAMPLE.CRX`, magic bytes `SATE` and `POSS` — the
+satellite problem files from `GEN/`. One extension, three meanings, two of them
+discovered on the same day on two machines.
+
+**Blast radius — and the first version of this paragraph made the mistake the
+paragraph is about.** It reported 494 inflated files, arrived at by counting
+what matches stage 3's `_RINEX_NAME` pattern and never opening any of them. The
+T420 challenged the figure; checking properly gives a better answer than either
+session had:
+
+```
+match stage 3's pattern in /srv/gnss-archive : 494
+  bare .crx      213   Bernese      SATE 205, POSS 6, KNOW 2
+  .crx.gz/.crx.z 281   GENUINE Hatanaka RINEX 3
+```
+
+The 281 are files like `AIRA00JPN_R_20251500000_01D_30S_MO.crx.gz`, which
+decompress to a `3.0` header. **They are real RINEX 3 and the pattern is
+matching them correctly.** So `crx` in that regex is not a mistake to remove —
+it is doing its job for 281 files and misfiring for 213.
+
+The inflation is therefore **213 of 471,874**, about 0.05pp, and it lands on
+stage 3's attribution headline of **89.3%** — not on the 94.4% counterpart
+figure, which §30.7 computes from `\.(\d{2})[od]$` alone and which `.CRX`
+cannot reach. Naming the wrong percentage in a section about one extension
+meaning three things was its own small instance of the same carelessness.
+
+Consistent with the "would have failed header parsing anyway" reading: stage 3
+records 249 `no-header`, more than 213, so the Bernese files plausibly land
+there already. Not proof — some may be in `none` — but 213 cannot move 89.3% by
+more than 0.05pp either way.
+
+**The fix is not to drop `crx`.** Gate it: require the RINEX 3 long-name shape,
+or sniff for a Hatanaka `CRINEX` header, rather than trusting the extension.
+Which is what this section says to do, and what its own first draft did not.
+
+The general form is the one already in this log twice: an extension is a
+convention, not a type. `.gz` on a file that is LZW, `.crx` on a Bernese table
+*and* on real RINEX 3 in the same directory tree, `.Z` in either case. The magic
+bytes are the fact — and reading them was the one step the first draft skipped
+while recommending it.
+
+### 30.14 Hibernation eliminated — with a control, which is the point
+
+A third hypothesis was raised from gps3 after the user mentioned hibernating
+finch: a failed resume produces exactly the documented signature — log stops
+mid-activity, no shutdown sequence, no panic, nothing in pstore — because the
+kernel that would have written any of it never came back.
+
+**It was raised on an over-generalisation.** One mentioned hibernation became
+"they hibernate this machine as a matter of routine" in the instruction sent to
+the T420, which then had to be corrected: the hibernation was deliberate,
+one-off, and had nothing to do with any crash. A pattern inferred from a single
+event, committed while proposing a hypothesis about pattern.
+
+The test was worth running anyway, and the T420 ran it properly:
+
+```
+file                   lines   boot-time nosave   actual sleep/hibernate
+finch_lastboot        12,099          7                    0
+finch_boot_minus2     17,324          7                    0
+finch_crash_20260908   6,133          7                    0
+```
+
+The seven `PM: hibernation: Registered nosave` lines per file **are the
+control**. They are printed at boot on every boot, so their presence proves the
+PM subsystem was logging in all three. Zero entry events against a
+demonstrably live logger is a real negative — the pstore standard, applied
+without being asked.
+
+**Eliminated as history, not as mechanism.** `upower`'s critical action is
+`HybridSleep`, which fires with nobody asking, and at 16.9% of design capacity
+finch reaches critical fast and unpredictably. That is configuration to change,
+not something to instrument.
+
+### 30.15 The mistake, extended — instruments that report their own health
+
+§30.9 reached 31 and tabulated five remedies. This half-day adds three, and two
+of them are the same failure as §30.9's, which is the point of recording them.
+
+32. **`rsync --dry-run` without `-v` prints nothing at all.** The T420 used that
+    pattern to verify four transfers; every one was counting an empty stream.
+    What saves it is that each was *also* verified by per-extension count
+    comparison, drive against gps3, and those matched. **DATA0 is the proof:**
+    the count check caught 5 `.rar` (442 MB, VCAC Valenzuela 2016) that the
+    vacuous rsync reported as fine.
+33. **`systemd-modules-load` exits 0 on a deny-listed module.** §30.11. The
+    watchdog was configured, believed, and written into this log as armed.
+34. **A pattern inferred from one event.** §30.14. Corrected within minutes
+    because the user said so, not because anything checked.
+
+And one wrong verdict, which is the `.CZO/.PSO` shape again:
+
+35. **"DC9A88 holds only Bernese stock files, zero project value."** True of the
+    64 files examined, false of the partition. `Users/Decollement/Desktop/
+    ToLizeth/` held eight RINEX closing **four want-list site-years** — BACO,
+    BULA, NAUJ, PUER, all 2013, none covered by any other drive. Generalised
+    from the directories that were recognised. Checking where you expect the
+    data to be, rather than everywhere.
+
+**The new remedy, distinct from the five in §30.9:**
+
+| failure | remedy |
+|---|---|
+| `rsync --dry-run`, `systemd-modules-load`, the banner grab | **a tool silent by default reports success by producing no output** — and piping it to `wc -l` turns that silence into something that looks like a measurement. Confirm the instrument is armed *before* trusting what it does not say. |
+
+That is now the dominant category in this catalogue. Of the thirty-five
+entries, the largest single group is checks that returned nothing, or returned
+"fine", for a reason unrelated to the question asked.
