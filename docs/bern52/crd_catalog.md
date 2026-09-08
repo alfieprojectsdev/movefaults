@@ -113,6 +113,51 @@ receivers share one monument.
 | BEAR | BEA2 | 0.0 m |
 | BHR1 | BHR2 | 0.0 m |
 
+
+## Header-derived coordinates — a second provenance, ranked last
+
+**Added 2026-09-08, on the user's decision.** The catalog can now fill a site
+it has no CRD file for from a RINEX header's `APPROX POSITION XYZ`, recorded as
+`best_kind = RNXHDR`.
+
+**RNXHDR ranks below every Bernese-derived kind, CODSPP included.** A header
+position is whatever the operator or receiver wrote there — a single-point fix
+at best, metre-level, and sometimes a stale copy from another site. A GPSEST
+solution is millimetre-level. `best_kind` already encoded that distinction by
+ranking CODSPP below GPSEST; this extends the same idea rather than inventing
+a new mechanism.
+
+**Gap-fill only. Header rows are never blended into a site that has CRD
+coverage.** Mixing a metre-level position into the median alongside
+millimetre-level rows would degrade the coordinate and inflate `spread_m`, and
+the damage would be invisible — the row would look like every other row. Keeping
+the provenances disjoint means `best_kind = RNXHDR` identifies *exactly* the
+sites resting on one, and a consumer that wants only Bernese-derived
+coordinates can filter on that single column.
+
+Every header row passes the same geocentric-radius gate as a CRD row, and is
+rejected outright if the file has no `MARKER NAME` yielding a 4-character site.
+
+### Want-list coverage: 259 → 261 of 271
+
+Two of the twelve uncovered sites had RINEX in the archive:
+
+| site | file | lat | lon | where |
+|---|---|---|---|---|
+| `LEY1` | `LEY10141.91O` | 11.10749 | 124.65437 | Leyte |
+| `PWSU` | `pwsu1190.15o.gz` | 9.77730 | 118.73480 | Palawan |
+
+Both were read independently on the T420 and on gps3, by different code, and
+agreed to five decimal places. Both land where the site name implies.
+
+**The remaining ten have neither raw nor RINEX anywhere in the archive.** That
+is worth stating precisely, because *"we have not found it"* and *"it is not
+here"* are different claims and only the second is settled — for these ten, it
+is the second.
+
+Regenerate with `--rinex <listing>`; without that flag the behaviour is
+unchanged.
+
 ## Want-list coverage
 
 **134 / 138** against the committed `data/network_inventory/stations.csv`.
