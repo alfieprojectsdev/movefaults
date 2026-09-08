@@ -54,8 +54,17 @@ fi
 say "Is anything actually listening on 22?"
 # The real test. Not `systemctl is-active`, which reads `inactive` for a
 # perfectly healthy socket-activated sshd.
-if ss -lntp 2>/dev/null | grep -q ':22 '; then
-    ss -lntp 2>/dev/null | grep ':22 ' | sed 's/^/  /'
+# Captured once and matched with a here-string rather than `ss | grep -q`.
+# Under `set -o pipefail` that idiom reports a FALSE NEGATIVE whenever the
+# producer is still writing when grep exits on its match: grep -q returns 0,
+# the producer takes SIGPIPE and exits 141, and pipefail promotes 141 to the
+# pipeline's status. It happens to be safe here today because `ss` emits nine
+# lines and finishes first -- but that is a property of this host's listener
+# count, not of the code. `lsmod | grep -qi` in finch_watchdog_fix.sh had the
+# same shape over 164 lines and could never return "yes".
+LISTENERS=$(ss -lntp 2>/dev/null || true)
+if grep -q ':22 ' <<<"$LISTENERS"; then
+    grep ':22 ' <<<"$LISTENERS" | sed 's/^/  /'
 else
     echo "  NOTHING LISTENING ON 22 — this is the failure, investigate before"
     echo "  trusting this path. Check: systemctl status ssh.socket ssh.service"
@@ -80,7 +89,8 @@ else
     # `tailscale status` back to needing root. `set` changes one setting.
     tailscale set --ssh
     echo "  --ssh set"
-    if tailscale status --json 2>/dev/null | grep -qi '"RunSSH": *true'; then
+    TS_JSON=$(tailscale status --json 2>/dev/null || true)
+    if grep -qi '"RunSSH": *true' <<<"$TS_JSON"; then
         echo "  RunSSH: true"
     else
         echo "  RunSSH not reported true — check 'tailscale status --json'"
