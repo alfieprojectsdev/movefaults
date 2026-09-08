@@ -4337,3 +4337,218 @@ by *the other machine* rather than by the session that made them, usually within
 the hour. §29.6's protocol exists because that turned out to be reliable, and a
 single session re-reading its own output is not. Two machines are not redundancy
 here; they are the review.
+
+---
+
+## 30. Two instruments, one elimination, and a test that never worked — 2026-09-08
+
+finch was found unresponsive and rebooted at ~08:00, after Alt+SysRq REISUB
+produced nothing. That observation looked like the discriminator §29.4 could not
+reach. It was not, and establishing why took one command.
+
+### 30.1 REISUB proved nothing, and the check that showed it cost one command
+
+`kernel.sysrq = 438`. **S and B are both disabled.**
+
+```
+0x002 ON   unraw        <- R      0x008 OFF  sync          <- S
+0x010 ON   remount-ro   <- U      0x020 ON   signal procs  <- E, I
+0x040 OFF  reboot       <- B
+```
+
+`B` is the only key whose effect a user could observe, and it never had
+permission to fire. **A perfectly healthy kernel would have produced exactly the
+same silence.**
+
+This is the counter-instance worth recording: the instruction to finch gated
+everything else on reading `/proc/sys/kernel/sysrq` *first*, before reasoning
+from the key combination. Without that gate the session would have built a
+confident story about a hard lockout on evidence that could not support it.
+
+### 30.2 The sysctl override, which nobody was looking for
+
+```
+/etc/sysctl.d/10-magic-sysrq.conf   kernel.sysrq = 176   <- administrator intent
+/usr/lib/sysctl.d/50-default.conf   kernel.sysrq = 438   <- wins
+live                                             438
+```
+
+`systemd-sysctl` applies files **in lexical order by filename across all
+directories**, and `/etc` overrides `/usr/lib` only for the *same* filename.
+Different names, so the vendor default is applied last and beats the
+administrator's file. The machine is configured to want a value it does not
+have, and reading the `/etc` file tells you the wrong answer.
+
+The hardening file is therefore named `99-finch-diagnostics.conf`. A `10-` file
+would have read correct and lost silently.
+
+### 30.3 pstore: armed and empty. Kernel panic is eliminated.
+
+`efi_pstore` was **registered on all three crash boots** — checked against the
+committed journals, not merely against the machine's state today — and
+`/sys/fs/pstore` is empty.
+
+A panicking kernel writes there. This one did not, three times.
+
+**That is an elimination, not an absence of evidence**, and the distinction is
+the whole point: a negative is evidence only from an instrument confirmed to
+have been armed. sysrq is the same test with the opposite outcome — an unarmed
+instrument, whose silence meant nothing. Two poles of one rule, recorded in
+`docs/SETTLED.md`.
+
+### 30.4 The battery inverted the prediction
+
+```
+energy_full         9.51 Wh
+energy_full_design 56.16 Wh      capacity 16.9%      SANYO 45N1001
+```
+
+The reasoning offered from gps3 was that a *healthy* battery would make power
+loss drop out, since a laptop with a working cell does not die from a mains
+blip. The measurement did the opposite: a cell at 16.9% of design has high
+internal resistance and can collapse under transient load.
+
+It does **not** prove power loss. It removes the objection that would have
+argued against it. Four hypotheses are now two: power loss, or a hang so hard
+the panic path never ran.
+
+### 30.5 What finch now carries
+
+```
+kernel.sysrq = 1                 REISUB will mean something next time
+kernel.panic = 20                a panic reboots instead of sitting silent
+kernel.panic_on_oops = 1
+kernel.hung_task_timeout_secs = 60
+/dev/watchdog + iTCO_wdt         RuntimeWatchdogUSec = 1min
+openssh-server on :22            plus Tailscale SSH (RunSSH=true)
+```
+
+All read back from the running system, not from the files that set them.
+
+**The watchdog is the discriminator**: back on its own means wedged, still down
+means power. That separates the two remaining hypotheses, and finch has never
+had it.
+
+### 30.6 Tailscale SSH works, and shadows what it replaces
+
+The user reached finch from a Windows machine with no route to it —
+`ssh finch@finch`, browser check, shell. The ACL rule that makes it work was
+**already present**; the console had also moved from a HuJSON editor to a GUI
+rule builder, so the instructions given for editing it described a page that no
+longer exists.
+
+Worth knowing: **with `--ssh` enabled, `tailscaled` owns port 22 on the tailnet
+address and shadows the system sshd there.** The openssh-server installed as
+"the path that works when Tailscale does not" is therefore only reachable on the
+LAN address. It is still worth having — it survives the control plane being
+unavailable — but it is not a tailnet fallback.
+
+### 30.7 Raw vs RINEX: decoding is not worth doing wholesale
+
+The question CR-20260903 reserved. **94.4% of raw files with a determinable date
+were already converted; 2,060 were not**, concentrated in thirteen sites of
+which seven carry 2,043.
+
+| Tier | Files | No counterpart |
+|---|---:|---:|
+| **Evidence** — site + full calendar date in the name | 36,876 | **2,060 (5.6%)** |
+| *Inference* — site + DOY, year absent | 33,317 | *440 (1.3%)* |
+| Site but no date / serial-named | 6,063 | not matchable |
+
+Filename matching works here **only because PHIVOLCS named these by site**,
+across five conventions. That is not what the formats specify — Trimble `.T0x`
+and Leica `.mNN` are receiver-assigned — and 5,717 files here are serial-named
+exactly as the spec predicts.
+
+The strongest part is not the percentage. The first pass used two conventions
+(denominator 36,655) and found 2,060 un-converted; folding in three further
+conventions the T420 characterised raised the denominator to 36,876 and left the
+count at **exactly 2,060**. A better parser moved the denominator and not the
+result.
+
+### 30.8 Header-derived coordinates: 261/271, ranked last, gap-fill only
+
+Two of the twelve uncovered want-list sites had RINEX whose headers place them
+correctly — `LEY1` in Leyte, `PWSU` in Palawan — read independently on both
+machines, by different code, agreeing to five decimal places.
+
+Taken as `best_kind = RNXHDR`, **ranked below every Bernese-derived kind
+including CODSPP**: a header's `APPROX POSITION` is whatever a receiver believed
+at the time, where CODSPP is metre-level *from our own processing*. Not the same
+claim.
+
+**Ranking was not sufficient, and this is the part that would have been a bug.**
+The catalog takes a median across a site's rows, so a header row landing on a
+site with existing CRD coverage would be blended into that median — degrading a
+millimetre coordinate with a metre one and inflating `spread_m`, while
+`best_kind` still read `GPSEST`. The row would look like every other row.
+Header rows are therefore dropped outright for any site the CRD pass covered.
+Disjoint provenance is a stronger property than ranked provenance.
+
+The ten remaining have **neither raw nor RINEX anywhere**. That is *"it is not
+here"*, which is settled, rather than *"we have not found it"*, which is not.
+
+### 30.9 The mistake, extended — and it is mostly one mistake
+
+§29.9 reached 24. This session added seven, and six are the same failure:
+**a check that returned "fine" or "nothing" for a reason unrelated to the
+question asked.**
+
+1. **The banner grab never worked.** Port 22 on finch was read with a raw TCP
+   read and reported `NO ANSWER`, twice, on two different days. A control
+   against **gps3's own sshd on localhost** returns `NO ANSWER` too. The method
+   never measured anything. The conclusion drawn from it on 09-07 —
+   "nothing is listening" — happened to be true, because openssh was not yet
+   installed. Right answer, worthless evidence, and one control command would
+   have exposed it.
+2. **`--root` widened silently.** Regenerating the catalog with
+   `/home/gps3/GPSDATA` instead of the documented `$P` produced **2,887 sites
+   against the committed 2,189** — a 698-site change credited to a feature that
+   adds two. No error, no warning; a wider root is a legitimate invocation.
+   Caught only because the number was implausible.
+3. **`exec 2>/dev/null` hid a failed `git mv`.** The move of a session log was
+   pushed to a branch that had already merged; `git mv` failed on a path not in
+   the working tree, the error went to a suppressed stream, the commit was a
+   no-op and the push said "Everything up-to-date". The file merged to `main` at
+   the root anyway. **Self-inflicted: the channel that would have said so was
+   muted by the same session that needed to hear it.**
+4. **Directory co-location as a proxy for conversion.** Matching raw to RINEX by
+   shared directory reported **60.3% orphaned** against the real 5.6%. The
+   largest apparent orphan block sits under a tree named `RAW/`, whose
+   conversions live in a parallel tree. It measured the filing convention and
+   the giveaway was in the path.
+5. **"Against convention" asserted without looking.** A session log was moved off
+   the repository root as inconsistent with the `docs/` convention. **Eighteen
+   session logs were already at the root**; the `docs/` ones were the exception.
+   The move was still right, but for the opposite reason, and the repository was
+   briefly left inconsistent in a new way. Settled by moving all eighteen.
+6. **An ACL block prescribed that already existed**, in a console that had been
+   reorganised. The user was sent to edit a HuJSON policy on a page that is now
+   a GUI rule builder, to add a rule already present and working.
+
+And one that is not that shape, recorded because it is a design error rather
+than a verification error:
+
+7. **openssh-server described as a tailnet fallback.** It is not, while
+   Tailscale SSH is enabled — `tailscaled` shadows sshd on the tailnet address.
+   It is a *LAN* fallback.
+
+**The remedies are not one remedy**, which is why collapsing this to "check your
+work" would lose the content. From the T420's framing, extended:
+
+| failure | remedy |
+|---|---|
+| the `.gz` push that landed nothing | verify the **remote state**, not the working tree |
+| `kerneloops.service`, `password` units | read the **line**, not the string match |
+| the `--root` widening | know the **expected magnitude** before running |
+| the banner grab | run a **control against a known-good target** |
+| the suppressed `git mv` | **do not mute stderr** |
+
+### 30.10 The counter-instance, and it is the same one as §29.9
+
+Five of the seven were caught by the other machine, or by a check the other
+machine's report prompted. The sysrq gate — the one thing that went right first
+time — exists because the instruction carried its reason, so the peer could tell
+the evidence was void before anyone reasoned from it.
+
+Two machines are not redundancy on this project. They are the review.
