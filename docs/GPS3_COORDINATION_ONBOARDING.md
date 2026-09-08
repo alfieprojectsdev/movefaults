@@ -173,6 +173,43 @@ cd ~/repos/movefaults_clean && git pull --rebase && git add docs/gps3-sessions &
 It is a good log — the `fuser`/`lsof` root-cause writeup and the "gotchas
 discovered" section are exactly the kind of thing that gets lost otherwise.
 
+### 5a. Cross-review: the author merges
+
+**Whoever opened a PR merges or closes it.** The other session reviews and
+comments; it does not merge, and does not push fixes to a branch it does not
+own. Review findings go on the PR, where the author can act on them or argue
+with them.
+
+The reason is not etiquette. A reviewer who can merge is tempted to fix rather
+than report, and a fix pushed to someone else's branch is invisible to them
+until it has already landed — or, as on 2026-09-07 with #178, fails silently
+and lands nothing while reporting success. The author is also the session that
+holds the context for why the branch is shaped the way it is.
+
+**A review that finds nothing still says so on the PR.** "Reviewed, no
+findings" and "nobody looked" are different states, and the PR should show
+which one it is in. Green checks are not a review: CodeRabbit skips this repo's
+PRs — "manual review required for this OSS repository" — and skips stacked PRs
+entirely, so a clean check list here means the automation declined, not that it
+approved.
+
+This rule is new as of 2026-09-08 and the practice before it was the opposite:
+#178, #181, #183 and #184 were opened by the T420 and merged by gps3. Those
+stand; the rule starts from here.
+
+**What a cross-review is for, on this project specifically.** Both sessions
+write confident prose about measurements the other cannot see, and the failures
+that survive to a PR are almost never syntax. They are a number carried forward
+by hand, a corpus that is not the one named, or a claim whose evidence is real
+but narrower than the sentence around it. Reviewing means re-running the
+measurement where that is possible, not reading for plausibility — the first
+three cross-reviews under this rule found a count that was wrong at every
+revision, an inflation figure counting files outside the walk root, and a
+property attributed to a tool that was really a property of 781 particular
+files.
+
+---
+
 ---
 
 ## 6. Why the git history matters more than usual
