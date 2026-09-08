@@ -66,19 +66,31 @@ magic bytes, .crx under /srv/gnss-archive
       6  POSS
 ```
 
-**The count does not.** There are 254 on the whole machine, and they straddle
-the boundary the argument turns on:
+**The count does not — and the correction to it was also wrong, which is the
+part worth keeping.** Challenged here as 213, on the grounds that the other 281
+were outside the walk root. They were not. Every one was inside
+`/srv/gnss-archive`, and decompressing five of them settles what they are:
 
 ```
-213  /srv/gnss-archive   <- inside --root, in the stage-3 corpus
- 41  /home/gps3          <- BERN54/GLOBAL/CONFIG, SUPGUI/DOC, GPSDATA*/DATAPOOL/REF54
+AIRA00JPN_R_20251500000_01D_30S_MO.crx.gz
+    3.0    COMPACT RINEX FORMAT    CRINEX VER
 ```
 
-So the inflation is at most **213 of 471,874, not 494**, and half the error was
-counting files outside the walk root as though the walk had read them — which
-is a close cousin of the failure the section is about. Two smaller ones: 471,878
-should be 471,874, and the figure stage 3 inflates is the attribution headline
-**89.3%**, not the 94.4% counterparts figure quoted beside it.
+**281 genuine Hatanaka RINEX 3**, matched correctly by a pattern doing its job;
+213 Bernese. So the original error was counting every regex match as an error,
+and the challenge reached the right number for the wrong reason — excluding
+compressed files happened to exclude exactly the legitimate ones. The same
+shortcut would not coincide on a corpus holding uncompressed RINEX 3.
+
+Both readings were wrong, and **the second was wrong in a way that looked like
+confirmation.** What resolved it was `zcat | head -1`, which neither session
+had run before asserting. Two smaller corrections stood: 471,878 should be
+471,874, and the figure stage 3 inflates is the attribution headline **89.3%**,
+not the 94.4% counterparts figure quoted beside it.
+
+It also changes the fix: **`crx` must not be dropped from the RINEX pattern.**
+It serves 281 files and misfires on 213. Gate it on the RINEX 3 long-name shape
+or a CRINEX header instead.
 
 **The load-bearing half was correct and verified.**
 `raw_rinex_counterparts.py:48` is
@@ -104,11 +116,41 @@ explanation is one missing alternative in one regex.
 Perfect consistency, and the decode's entire yield sat inside a disagreement
 between two scripts about whether `.dat` counts as raw.
 
-**Want-list: 347 of 954 site-years closed across 175 sites**, up from 343.
+**Want-list: 347 of 954 site-years closed across 175 sites**, up from 343 —
+**across all drives**. Name the corpus beside any figure from this script: the
+same tool on HD-LBU2 alone gives 311 site-years across 150 sites on current
+`main`. The two differ by drive set, not by method, and quoting either without
+its corpus is how they end up reading as contradictions.
 
 Decode totals: 3,869 decoded ok, 2 rejected by the epoch guard, 113 conversion
-failures, 2,977 files on disk — 892 lost to the `SSSSDDD0.YYo` filename
-collision, documented as a known limitation in #189.
+failures, **2,977 files on disk**.
+
+**The missing 892 are a defect, not an accounting note.** `decode_raw_gap.py`
+builds its output name as:
+
+```python
+dd = doy if doy is not None else 0
+name = f"{site.lower()}{dd:03d}0.{str(year)[2:]}o"
+```
+
+The session character is hardcoded `0`, so every decoded file for one site-day
+writes to the same path and later ones silently overwrite earlier ones — 23% of
+the run, with no error raised and a summary reporting 3,869 ok. It is only
+visible by counting the directory afterwards.
+
+**gps3's review found the worse half of it.** Leica `.mNN` names carry no DOY,
+so `doy` is `None`, `dd` becomes `0`, and **every Leica file for a site-year
+collapses onto `site0000.YYo`** — one collision per site-*year*, not per
+site-day. That is likely most of the 892, and it means the Leica files lose
+most. Deriving a DOY for the Leica path therefore matters more than the session
+character, which is the reverse of the ranking this log first gave.
+
+For want-list closure it costs nothing: one good day closes a site-year. As
+data recovery it is exactly the failure this week has been cataloguing — **a
+run that exits 0 having not done the work** — and it lands on the files most
+worth having, since these are the raw whose RINEX exists nowhere else.
+
+Not fixed in #189. Tracked as the next change to that script.
 
 **The epoch guard earned its place.** Both rejections were genuine filing
 errors, not decode failures: `LUZC050a.m01` sitting in `RAW/2012/` while
@@ -254,7 +296,13 @@ not.
 
 ## 9. Not done
 
-- 113 decode conversion failures, uninvestigated.
+- 113 decode conversion failures — **claimed by gps3**, investigation running
+  there. Uninvestigable from the run itself: `convert()` returns `None` and
+  swallows the tool's stderr, so the reasons were never recorded. **That is its
+  own defect** — a one-line per-file CSV would have saved the re-run.
+- `decode_raw_gap.py`'s output-name collision (§3) — 892 files, unfixed.
+- `want_list_diff.py`'s `_RAW` and `decode_raw_gap.py`'s `RAW_EXT` disagree
+  about whether `.dat` is raw, silently. One should import the other.
 - Three finch hardening scripts still unrun (§7) — each needs a tty this
   session does not have, and is handed over by absolute path.
 - Tailnet ACL `ssh` block and key-expiry disable, both in the Tailscale admin
