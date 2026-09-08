@@ -14,7 +14,7 @@ from files in `/srv/gnss-archive/`, not from recollection.
 
 ### The network is far larger than what was ever processed
 
-**54 sites** in the Metro Manila / Marikina box (14.2–14.9 N, 120.8–121.4 E)
+**60 sites** in the Metro Manila / Marikina box (14.2–14.9 N, 120.8–121.4 E)
 have coordinates in `docs/bern52/crd_catalog.csv`. They fall into two groups
 with very different file counts:
 
@@ -27,7 +27,7 @@ The uniform 52–53 count is the signature of **one coordinated campaign** acros
 the network. The anchors are the dual-frequency "stable fixed points" the
 network was designed around — that design is visible in the data.
 
-### NCKU processed six of those fifty-four
+### NCKU processed six of those sixty
 
 `toto_D/programs from NCKU/Profile/velocity/NONE/fit-h.out` is the only
 velocity output in the archive. Its sites are NCKU-internal numeric IDs, which
@@ -39,9 +39,26 @@ map onto real codes by position:
 | 3950 | TUNA | 5 m | −31.57 | 16.65 | 1.90 |
 | 9865 | PIVS | 18 m | −20.96 | 12.91 | 1.62 |
 | 9866 | MALY | 5 m | 31.51 | 16.30 | 1.93 |
-| 9875 | **SOLD** (NCR) | 12 m | −5.62 | 35.62 | 0.16 |
-| 9906 | RGMH | 4234 m | −5.72 | 17.16 | 0.33 |
+| 9875 | **SOLD** (NCR cluster) | 12 m | −5.62 | 35.62 | 0.16 |
+| 9906 | *unidentified* | — | −5.72 | 17.16 | 0.33 |
 | PIMO | PIMO | 4 m | 0.10 | 0.02 | fixed reference |
+
+**Two rows in that table are weaker than the others and are marked as such.**
+Every identification above matches at 4–18 m, which for a single-point header
+position is as close as this method gets. NCKU `9906` matched `RGMH` at
+**4,234 m** — two orders of magnitude worse, and far enough that it is a
+proximity, not an identification. It is left unidentified rather than printed
+at the credibility the sub-20 m rows earn. Its velocity is still counted,
+because the conclusion below is about all six regardless of which codes they
+carry.
+
+**`SOLD` matches a cluster, not the catalog row.** `crd_catalog.csv` gives
+`SOLD` one representative coordinate and it is the *Leyte* one — 11.0339 N,
+125.7407 E, with `ambiguous=yes`, `n_clusters=2` and a `cluster_extent_m` of
+631,867. The 12 m above is against the second cluster, at 14.40085 N
+121.03742 E. This has a consequence for the count: **`SOLD` is not one of the
+60**, because the box test reads the row's coordinate and that coordinate is in
+Samar. The NCR network is those 60 plus SOLD's NCR cluster.
 
 **Not one site reaches 2σ.** Three are below 0.4σ — indistinguishable from
 zero. The two largest, MALY (+31.5) and TUNA (−31.6), sit at ~1.9σ and point in
@@ -198,7 +215,7 @@ Cheap, and it protects everything downstream.
 
 | claim | source |
 |---|---|
-| 54 NCR sites, file counts | `docs/bern52/crd_catalog.csv` |
+| 60 NCR sites, file counts | `docs/bern52/crd_catalog.csv` @ `55ff4d9` |
 | NCKU velocities and sigmas | `toto_D/programs from NCKU/.../fit-h.out` |
 | Taiwan site coordinates | `DATA0/wvfs/OUT/HL*.OUT`, `ESTIM` records |
 | single-frequency observable | `DATA0/wvfs/OUT/GRA*.OUT`, `TYPES OF OBSERVATIONS: C1 L1 D1` |
