@@ -4758,6 +4758,45 @@ filesystem holds anything is unread. It is strong evidence and not the clean
 elimination the section claims, and the difference matters because §30.3 was
 called the strongest result of the week.
 
+#### Resolved, and the elimination is narrower than either version said
+
+pstore has since been read under root and is genuinely empty:
+
+```
+# sudo ls -la /sys/fs/pstore/
+drwxr-x---  2 root root 0 Sep  9 07:55 .
+drwxr-xr-x 10 root root 0 Sep  9 07:55 ..
+```
+
+Directory mtime is this boot, and records persist across reboots when written,
+so nothing was retained. The retraction above is resolved: the read has now
+actually been made.
+
+**But the scope of what it eliminates is smaller than §30.3 claimed, and smaller
+than the correction above claimed.** What an empty pstore rules out is a panic
+*that reached the panic handler* — that path writes pstore, and nothing is
+there.
+
+**A hang never reaches the panic path and leaves pstore empty by construction.**
+
+So the elimination does not bear against the leading hypothesis at all. §30.16
+narrows the hang to a CPU spinning in kernel mode; that failure produces an
+empty pstore whether or not it occurs. The strongest result of the week turns
+out to be orthogonal to the thing being investigated — it excluded something
+nobody was arguing for.
+
+For crash 4 specifically the empty read carries no information either way: a
+manual SysRq-B is an immediate reset rather than a panic and writes nothing.
+
+**The consequence is the part worth keeping.** With `softlockup_panic` armed, a
+hang of the kind observed converts into a panic — which *does* reach the handler
+and *does* write pstore. It moves the failure from a channel that cannot record
+it onto one that can.
+
+That is the first time in four events that the instrumentation and the failure
+mode have matched. Everything before it was measuring a path the fault never
+took.
+
 ### The watchdog is now armed for real
 
 The post-reboot check §30.11 asked for has passed:
