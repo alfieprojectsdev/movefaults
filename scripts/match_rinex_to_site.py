@@ -120,12 +120,43 @@ def header_bytes(path: Path, limit: int = 65536) -> bytes:
         return b""
 
 
-def read_header(path: Path) -> tuple[tuple[float, float, float] | None, str]:
-    """Return (xyz or None, marker name). Reads only the header."""
-    xyz, marker = None, ""
+_FIRSTOBS = re.compile(r"^\s*(\d{4})\s+\d+\s+\d+\s+\d+.*TIME OF FIRST OBS")
+_FN_R2 = re.compile(r"^[A-Za-z0-9]{4}\d{3}[a-z0-9]?\.(\d{2})[odOD]", re.I)
+_FN_R3 = re.compile(r"^[A-Za-z0-9]{9}_[RSU]_(\d{4})\d{3}", re.I)
+
+
+def year_from_name(name: str) -> int | None:
+    """Observation year from the filename, when the header did not give one.
+
+    RINEX 2 short names carry two digits, so the century is a convention:
+    GPS observations start in 1980, and this archive's oldest is 1993, so
+    >= 80 is 19xx and anything else 20xx. That breaks in 2080 and is
+    correct until then.
+    """
+    m = _FN_R3.match(name)
+    if m:
+        return int(m.group(1))
+    m = _FN_R2.match(name)
+    if m:
+        yy = int(m.group(1))
+        return 1900 + yy if yy >= 80 else 2000 + yy
+    return None
+
+
+def read_header(path: Path) -> tuple[tuple[float, float, float] | None, str, int | None]:
+    """Return (xyz or None, marker name, observation year or None).
+
+    The year comes from TIME OF FIRST OBS, which is the file saying when it
+    was observed. It is checked against the matched site's catalog epoch
+    range: a 2020 file cannot be an observation of a monument whose coverage
+    ended in 2008, and 95 files in this archive are exactly that -- receivers
+    tested at PHIVOLCS HQ before deployment, carrying the HQ position into the
+    field. See docs/bern52/stage4_decisions.md.
+    """
+    xyz, marker, year = None, "", None
     blob = header_bytes(path)
     if not blob:
-        return None, ""
+        return None, "", None
     try:
         for line in blob.decode("ascii", "replace").splitlines():
             if True:
@@ -141,22 +172,83 @@ def read_header(path: Path) -> tuple[tuple[float, float, float] | None, str]:
                     m = _MARKER.match(line)
                     if m:
                         marker = m.group(1).strip().upper()
+                if year is None:
+                    m = _FIRSTOBS.match(line)
+                    if m:
+                        year = int(m.group(1))
                 if "END OF HEADER" in line:
                     break
     except (OSError, EOFError):
-        return None, ""
-    return xyz, marker
+        return None, "", None
+    return xyz, marker, year
 
 
-def load_catalog(path: Path) -> list[tuple[str, float, float, float]]:
-    rows = []
+def load_catalog(path: Path) -> tuple[list[tuple[str, float, float, float]],
+                                      dict[str, tuple[int, int]]]:
+    """Return the position rows, and each site's SOLUTION epoch range.
+
+    NOT an operating period, and the column names invite that misreading.
+    `epoch_min`/`epoch_max` are the range of `EPOCH:` values in the CRD files
+    mentioning a site -- when somebody computed a position, not when the
+    monument was observing. `PTAG` carries 2008 observations against an
+    `epoch_min` of 2009-07-12. See `docs/bern52/crd_catalog.md`.
+
+    Read that way it is still the only column that separates codes sharing a
+    location. The PHIVOLCS roof was re-occupied several times under different
+    codes:
+
+        PHIC <-> PIVS    0.49 m    PHIC 1998-02-21 .. 2006-12-05
+        PHIV <-> PIVS   23.84 m    PIVS 2012-01-01 .. 2014-03-12
+        PHIC <-> PHIV   23.95 m    PHIV 1998-02-15 .. 2008-08-28
+
+    `PHIC` and `PIVS` are **half a metre apart** with non-overlapping ranges.
+    No position fix separates those at any plausible precision, and no
+    improvement to the fix ever will.
+    """
+    rows, epochs = [], {}
     with path.open(encoding="utf-8") as fh:
         for r in csv.DictReader(ln for ln in fh if not ln.startswith("#")):
             try:
                 rows.append((r["site"], float(r["x"]), float(r["y"]), float(r["z"])))
             except (KeyError, ValueError):
                 continue
-    return rows
+            try:
+                lo = int((r.get("epoch_min") or "")[:4])
+                hi = int((r.get("epoch_max") or "")[:4])
+                if lo and hi:
+                    epochs[r["site"]] = (lo, hi)
+            except (KeyError, ValueError):
+                pass
+    return rows, epochs
+
+
+def epoch_verdict(year: int | None, span: tuple[int, int] | None) -> str:
+    """`in`, `outside`, or "" when either side is unknown.
+
+    ON ITS OWN THIS IS NOT A DEFECT SIGNAL, and the first version of this
+    check treated it as one. Measured over the 2016 PHIVOLCS datapool:
+
+        outside the matched site's range        4,732 of 24,769   (19%)
+          of those, filename AGREES with match  4,704             (99.4%)
+          filename disagrees                       28
+
+    The 4,704 are ordinary 2016 observations at CORS whose catalog epochs read
+    2021-09-01..2026-02-12, because `epoch_min`/`epoch_max` record *when a
+    coordinate solution was catalogued*, not when the site operated. Twenty-five
+    sites account for all of them. Flagging those would report a fifth of the
+    archive as suspect and bury the real cases.
+
+    So epoch is a MODIFIER on a disagreement, not a flag by itself: it narrows
+    the 122 files whose filename already contradicts the position down to 28.
+    Reported that way in the summary, and the column is still emitted for every
+    row because it is a fact about the file and costs nothing.
+
+    Never reattributes. The catalog range is derived from files that may
+    themselves be misattributed, so overruling attribution with it is circular.
+    """
+    if year is None or not span:
+        return ""
+    return "in" if span[0] <= year <= span[1] else "outside"
 
 
 def main() -> int:
@@ -174,7 +266,7 @@ def main() -> int:
     ap.add_argument("-o", "--output", type=Path, default=Path("rinex_matches.csv"))
     args = ap.parse_args()
 
-    cat = load_catalog(args.catalog)
+    cat, epochs = load_catalog(args.catalog)
     known = {c[0] for c in cat}
     bysite = {c[0]: (c[1], c[2], c[3]) for c in cat}
     if not cat:
@@ -198,6 +290,7 @@ def main() -> int:
     print(f"  RINEX files: {len(files)}")
 
     verdicts: Counter[str] = Counter()
+    epoch_out = epoch_in = epoch_unknown = epoch_out_disagree = 0
     agree = disagree = no_name = new_attr = 0
     path_agree = path_disagree = 0
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -209,9 +302,11 @@ def main() -> int:
         w.writerow(["path", "verdict", "matched_site", "distance_m",
                     "n_within_radius", "alternatives", "name_site",
                     "marker_site", "agrees", "claimed_site", "claimed_m",
-                    "path_site", "path_agrees"])
+                    "path_site", "path_agrees", "obs_year", "epoch_ok"])
         for p in files:
-            xyz, marker_raw = read_header(p)
+            xyz, marker_raw, obs_year = read_header(p)
+            if obs_year is None:
+                obs_year = year_from_name(p.name)
             marker = best_code(marker_raw, known)
             name_site = best_code(p.name, known)
             # The site the DIRECTORY implies. Path-derived attribution is
@@ -231,12 +326,12 @@ def main() -> int:
             if xyz is None:
                 verdicts["no-header"] += 1
                 w.writerow([p, "no-header", "", "", 0, "", name_site, marker, "",
-                        "", "", path_site, ""])
+                        "", "", path_site, "", obs_year or "", ""])
                 continue
             if not (R_MIN <= math.dist((0, 0, 0), xyz) <= R_MAX):
                 verdicts["bad-position"] += 1
                 w.writerow([p, "bad-position", "", "", 0, "", name_site, marker,
-                            "", "", "", path_site, ""])
+                            "", "", "", path_site, "", obs_year or "", ""])
                 continue
 
             near = sorted(((math.dist(xyz, (x, y, z)), s) for s, x, y, z in cat))
@@ -320,6 +415,17 @@ def main() -> int:
                 else:
                     path_disagree += 1
 
+            # Epoch check -- reports, never reattributes. See epoch_verdict().
+            ep = epoch_verdict(obs_year, epochs.get(site)) if site else ""
+            if ep == "outside":
+                epoch_out += 1
+                if name_site and name_site != site:
+                    epoch_out_disagree += 1
+            elif ep == "in":
+                epoch_in += 1
+            elif site:
+                epoch_unknown += 1
+
             w.writerow([p, verdict, site, f"{dist:.1f}" if dist else "",
                         len(within), "|".join(s for _, s in within[1:4]),
                         name_site, marker,
@@ -329,9 +435,23 @@ def main() -> int:
                         claimed, f"{claimed_d:.1f}" if claimed_d is not None else "",
                         path_site,
                         "" if not path_site or verdict not in ("unique", "aliases")
-                        else ("yes" if path_site == site else "NO")])
+                        else ("yes" if path_site == site else "NO"),
+                        obs_year or "", ep])
 
     print(f"  wrote {args.output}\n")
+    if epoch_out or epoch_in:
+        tot_ep = epoch_out + epoch_in + epoch_unknown
+        print("\n  epoch check (reported, never applied):")
+        print(f"    inside the matched site's range  : {epoch_in}")
+        print(f"    outside it                       : {epoch_out}")
+        print(f"    no year or no range              : {epoch_unknown}"
+              f"   of {tot_ep}")
+        print(f"    OUTSIDE *and* filename disagrees : {epoch_out_disagree}"
+              "   <- the ones worth reading")
+        print("    'outside' alone is dominated by catalog coverage gaps --"
+              " epoch_min/epoch_max record when a solution was catalogued,"
+              " not when the site operated. See epoch_verdict().")
+
     for v, n in verdicts.most_common():
         print(f"    {n:>7}  {v}")
     tot = sum(verdicts.values()) or 1
