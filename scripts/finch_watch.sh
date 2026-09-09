@@ -55,16 +55,30 @@ probe() { ping -c1 -W2 -n "$1" >/dev/null 2>&1 && echo ok || echo fail; }
 # The instrument must report whether it is armed. These timestamps are only
 # usable for correlating against finch's journal if this clock is right, and on
 # 2026-09-10 it was 250 s out -- 25 probe intervals, against lines that state
-# `resolution=10s`. NTP cannot fix it here: UDP/123 is blocked on this network,
-# the same restriction that makes every off-subnet Tailscale path DERP-relayed.
-# See scripts/sudo/fix_gps3_clock.sh.
+# `resolution=10s`.
+#
+# It MEASURES the offset rather than asking systemd whether NTP synced.
+# `NTPSynchronized` is permanently `no` on this host by design: UDP/123 is
+# blocked here, so the clock is kept by scripts/sudo/fix_gps3_clock.sh over
+# HTTP instead. A check reading that flag would report UNSYNCED forever,
+# including when the clock is correct -- a permanent alarm, which is an ignored
+# alarm. One HTTP HEAD answers the question actually being asked.
+#
+# Called at start, hourly, and on DOWN -- not every probe. It is a network
+# call, and a DOWN event is exactly when the network may be the problem, so it
+# is bounded and allowed to fail.
 clock_state() {
-    local sync
-    sync=$(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo unknown)
-    if [ "$sync" = yes ]; then echo "synced"; else echo "UNSYNCED-timestamps-suspect"; fi
+    local d r off
+    d=$(curl -sS -I --max-time 6 https://www.cloudflare.com 2>/dev/null \
+        | grep -i '^date:' | head -1 | cut -d' ' -f2-) || true
+    [ -n "${d:-}" ] || { echo "offset=unknown"; return; }
+    r=$(date -d "$d" +%s 2>/dev/null) || { echo "offset=unknown"; return; }
+    off=$(( $(date +%s) - r ))
+    if [ "${off#-}" -le 5 ]; then echo "offset=${off}s"
+    else echo "offset=${off}s-TIMESTAMPS-SUSPECT"; fi
 }
 
-log "WATCH-START pid=$$ interval=${INTERVAL}s lan=$LAN ts=$TS clock=$(clock_state)"
+log "WATCH-START pid=$$ interval=${INTERVAL}s lan=$LAN ts=$TS clock_$(clock_state)"
 log "WATCH-NOTE  any gap before this line is UNOBSERVED, not finch being up"
 trap 'log "WATCH-STOP  pid=$$ -- from here finch is UNOBSERVED"; exit 0' TERM INT
 
@@ -87,7 +101,7 @@ while :; do
             # somebody will correlate against finch's journal, and an unsynced
             # clock makes that correlation wrong by an unknown amount that is
             # far larger than the stated resolution.
-            log "DOWN  lan=$l ts=$t  last_seen=$(date -d "@$last_ok" '+%H:%M:%S')  resolution=${INTERVAL}s  clock=$(clock_state)"
+            log "DOWN  lan=$l ts=$t  last_seen=$(date -d "@$last_ok" '+%H:%M:%S')  resolution=${INTERVAL}s  clock_$(clock_state)"
         else
             d=$(( n - since ))
             [ "$state" = init ] && d=0
@@ -99,7 +113,7 @@ while :; do
     [ "$new" = UP ] && last_ok=$n
 
     if [ $(( n - last_beat )) -ge 3600 ]; then
-        log "beat  state=$state lan=$l ts=$t  since=$(date -d "@$since" '+%Y-%m-%dT%H:%M:%S')  clock=$(clock_state)"
+        log "beat  state=$state lan=$l ts=$t  since=$(date -d "@$since" '+%Y-%m-%dT%H:%M:%S')  clock_$(clock_state)"
         last_beat=$n
     fi
     sleep "$INTERVAL"

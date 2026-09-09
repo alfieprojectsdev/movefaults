@@ -63,7 +63,26 @@ echo "  median=$(date -d "@$target" '+%F %T')  spread_between_sources=${spread}s
 before=$(date +%s)
 timedatectl set-ntp false >/dev/null 2>&1 || true
 date -s "@$target" >/dev/null
-hwclock --systohc || echo "  WARNING: could not write the RTC"
+
+# Write the RTC too, or the correction is lost at the next boot: the kernel
+# seeds the system clock from the RTC, so gps3 would come back with the old
+# wrong time and stay wrong until the timer fires at OnBootSec=2min. Bounded,
+# but the window lands exactly where a post-crash correlation would be read.
+#
+# hwclock lives in util-linux-extra, which is NOT installed by default on
+# Ubuntu 24.04 -- the first version of this script assumed it was present and
+# printed a warning nobody would have acted on.
+if ! command -v hwclock >/dev/null 2>&1; then
+    echo "  hwclock absent (util-linux-extra); installing"
+    apt-get install -y util-linux-extra >/dev/null 2>&1 || true
+fi
+if command -v hwclock >/dev/null 2>&1; then
+    hwclock --systohc && echo "  RTC written"
+else
+    echo "  WARNING: no hwclock -- the RTC keeps the OLD time and a reboot"
+    echo "           returns gps3 ~4 min fast until the timer runs at +2min."
+    echo "           Timestamps in that window are not correlatable."
+fi
 echo "=== set ==="
 printf '  was %s -> now %s   (moved %+ds)\n' \
     "$(date -d "@$before" '+%F %T')" "$(date '+%F %T')" "$(( target - before ))"
@@ -85,7 +104,8 @@ target=${s[$(( ${#s[@]} / 2 ))]}
 [ $(( s[-1] - s[0] )) -le 5 ] || { logger -t http-timesync "sources disagree; not adjusting"; exit 0; }
 off=$(( $(date +%s) - target ))
 [ "${off#-}" -ge 2 ] || exit 0
-date -s "@$target" >/dev/null && hwclock --systohc 2>/dev/null || true
+date -s "@$target" >/dev/null
+command -v hwclock >/dev/null 2>&1 && hwclock --systohc 2>/dev/null || true
 logger -t http-timesync "adjusted ${off}s"
 INNER
 chmod +x /usr/local/sbin/http-timesync
