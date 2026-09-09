@@ -457,6 +457,17 @@ def main() -> int:
             "ambiguous": "yes" if len(clusters) > 1 else "",
             "cluster_extent_m": f"{all_spread:.1f}" if len(clusters) > 1 else "",
             "frames": "|".join(sorted({r.frame for r in rows if r.frame})),
+            # epoch_min/epoch_max are the range of `EPOCH:` values in the CRD
+            # files that mention this site -- the REFERENCE EPOCH of coordinate
+            # solutions, not the period the monument operated.
+            #
+            # Do not use them as an operating window. On 2026-09-09 a check
+            # that flagged observations outside a site's range reported 4,732
+            # of 24,769 files (19%) as suspect, of which 4,704 were ordinary
+            # observations at 25 CORS whose solutions happen to be catalogued
+            # 2021-2026. PTAG carries 2008 observations against an epoch_min of
+            # 2009-07-12. The column name invites the misreading; this comment
+            # is the only thing standing between the next reader and it.
             "epoch_min": eps[0] if eps else "",
             "epoch_max": eps[-1] if eps else "",
             "best_kind": best,

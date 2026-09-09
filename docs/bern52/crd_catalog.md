@@ -138,7 +138,35 @@ coordinates can filter on that single column.
 Every header row passes the same geocentric-radius gate as a CRD row, and is
 rejected outright if the file has no `MARKER NAME` yielding a 4-character site.
 
-### Want-list coverage: 259 → 261 of 271
+### `epoch_min` / `epoch_max` are not an operating period
+
+They are the range of `EPOCH:` values found in the CRD files that mention a
+site — the **reference epoch of coordinate solutions**. They say when somebody
+computed a position, not when the monument was observing.
+
+The names invite the other reading, and it is an expensive one. A check built
+on it — flag any observation falling outside its site's epoch range — was
+measured before shipping and would have flagged **4,732 of 24,769 files, 19% of
+the 2016 datapool**, of which **4,704 were ordinary observations** at 25 CORS
+whose solutions are catalogued 2021–2026.
+
+Two rows from this catalog make the point directly:
+
+| site | n_files | epoch_min | epoch_max | observations actually in the archive |
+|---|---:|---|---|---|
+| `PTAG` | 3,004 | 2009-07-12 | 2026-02-12 | 2008–2025 — **outside on the low end** |
+| `CNTA` | 619 | 2021-09-01 | 2026-02-12 | includes 2016 |
+
+**Where it does approximate an operating period is the trap.** For a *retired*
+code like `PHIV` — coverage ending 2008-08-28, no later solutions — the range
+and the operating period nearly coincide, which is exactly the case a check
+gets derived from and validated on. It looks strongest where it cannot be
+falsified.
+
+Use it as a **modifier on an existing disagreement**, never as a flag on its
+own. See `scripts/match_rinex_to_site.py`.
+
+## Want-list coverage: 259 → 261 of 271
 
 Two of the twelve uncovered sites had RINEX in the archive:
 
