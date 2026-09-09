@@ -116,6 +116,130 @@ not ~10%**, and that misreport stood for months.
 
 ---
 
+### Codes ending in a digit are often AUXILIARY BENCHMARKS, not aliases
+
+**From the domain owner, 2026-09-09.** An older PHIVOLCS convention named an
+auxiliary benchmark by putting a digit in the 4th character and retaining as
+much of the main benchmark's code as possible — `BUGS` → `BUG2`, `CACA` →
+`CAC2`.
+
+**An auxiliary benchmark is a physically separate mark, not another name for
+the same one.** Treating such a pair as aliases would merge two distinct
+monuments.
+
+Measured across the 545 catalog sites inside the Philippines box, for the 48
+digit-4 codes having a letter-sibling that shares the first three characters:
+
+```
+MAC2 <-> MACZ      0.1 m        BUG2 <-> BUGS     14.7 m
+TAW2 <-> TAWI      0.6 m        CAC2 <-> CACA     16.9 m
+TUA2 <-> TUAO      1.4 m        CDO2 <-> CDOC     18.0 m
+BTU2 <-> BTUN      1.7 m        AUR1 <-> AURO     21.1 m
+BRG1 <-> BRGC      1.8 m        NAV1 <-> NAVA     45.0 m
+BLN2 <-> BLNA      5.2 m
+                                MAR2 <-> MARL   1394.3 m
+                                CEB2 <-> CEBB   2456.2 m
+```
+
+**The distribution is bimodal with an empty middle:** 11 pairs under 50 m, 37
+pairs over 1 km, **nothing between 50 m and 1 km.**
+
+That gap is the useful part. Under ~50 m, a shared three-character prefix means
+the convention; over 1 km it is coincidence — `CEB2` and `CEBB` are simply two
+different Cebu sites. **The separation classifies the pair; the name alone does
+not.**
+
+**There is a third cause, and it produces the same signature.** PHIVOLCS field
+staff also, rarely, ran **multiple receivers at one site** — a field decision
+made on experience. That is the same practice IGS uses for `WTZ2`/`WTZS` and
+`UNB3`/`UNBN`, which sit at 0.0 m in this catalog.
+
+So a digit-4 pair under 50 m has at least three possible causes:
+
+| cause | marks | merging is |
+|---|---|---|
+| co-located receivers, one mark | one | correct |
+| auxiliary benchmark | two | **wrong** |
+| coincidental prefix (>1 km) | two | **wrong** |
+
+Separation narrows this and does not settle it. The sub-2 m pairs — `MAC2`/`MACZ`
+0.1 m, `TAW2`/`TAWI` 0.6 m — are within antenna-setup precision and look like
+co-location; `BLN2`/`BLNA` at 5.2 m and `CAC2`/`CACA` at 16.9 m are deliberate
+offsets. But eleven pairs is not enough to fit a threshold to, and the two
+causes are not separable by distance at the low end.
+
+**A test that looked decisive and is not.** Comparing the pairs' catalog epoch
+ranges for overlap — on the reasoning that co-located receivers run
+simultaneously — returns overlap for 8 of 11, including pairs at 14–45 m that
+are plainly separate marks. **The test is invalid**: `epoch_min`/`epoch_max` are
+*solution reference epochs, not operating periods*, which this file records
+elsewhere and which was documented four hours before the test was run. Overlap
+there means overlapping solution windows, not simultaneous occupation.
+
+Observation years read from RINEX headers would answer it. The catalog columns
+cannot, whatever their names suggest.
+
+**A fourth cause, and it separates two questions that had been treated as
+one.** From the domain owner, from experience: an **instrument change on the
+same antenna mount** produced a time series that did not join smoothly to the
+previous configuration, so the site was **renamed and processed as a new
+monument.**
+
+The mark is physically identical. The rename was deliberate and correct — the
+coordinate series genuinely has an offset at that epoch, and merging the two
+codes would reintroduce a discontinuity that somebody removed on purpose.
+
+> **"Are these the same monument?" and "should these be merged?" are different
+> questions, and this cause makes them come apart.** Three of the four causes
+> answer both together. This one answers *yes* to the first and *no* to the
+> second.
+
+That is the case a distance test cannot see at all, because the separation is
+zero by construction. It is an **offset event encoded in a site code** — the
+same class of fact as `docs/bern52/phivolcs-scripts/event-catalog/offsets`,
+recorded in the naming instead of in the catalog.
+
+The suggestive signature is **same position, disjoint occupation** — and three
+pairs show it:
+
+```
+MAC2/MACZ    0.1 m    2009-09-15..2010-09-25  |  2014-02-12..2014-02-14
+BRG1/BRGC    1.8 m    1996-03-13..2010-04-16  |  2012-02-17..2026-02-12
+NAV1/NAVA   45.0 m    1997-06-09..1999-11-17  |  2001-11-20..2014-06-23
+```
+
+**Do not read those dates as occupation.** They are solution epochs, for the
+reason given above, and the disjointness is a hint rather than a finding. The
+real test is observation years from RINEX headers, which stage 3 reads and the
+catalog does not carry.
+
+**So this class needs institutional memory per case, not more measurement.** Do
+not merge a digit-4 code into its letter-sibling on the strength of the name or
+of the distance. The alias radius must stay below 50 m regardless, or the
+convention's pairs get collapsed into single monuments.
+
+### `LHO2` / `LHOV` — OPEN, and previously recorded here as settled in error
+
+Lignon Hill, Mayon Volcano GPS observation network. **Both accounts came from
+the domain owner and they are in tension:**
+
+1. `LHO2` was a personal disambiguation made around 2009, before the practice of
+   not treating RINEX headers as authoritative for provenance — **same mark,
+   two names.**
+2. The older auxiliary-benchmark convention above — **two marks, ~22 m apart.**
+
+**The position evidence cannot separate them, and an earlier version of this
+entry wrongly said it could.** Stage 3 puts 510 `LHO2`-named files on `LHOV` at
+a median 22 m. That was recorded as independent confirmation of reading 1. It is
+not: **22 m sits squarely inside the auxiliary-benchmark band (0.1–45 m)**, and
+a header position good to ~100 m cannot distinguish a mark from another mark
+22 m away.
+
+`LHO2` has no catalog entry, so it has no published coordinate to compare.
+
+**This needs the domain owner, not more measurement.** Until then, do not merge
+`LHO2` into `LHOV`.
+
 ## 3. Settled decisions — do not re-propose the alternatives
 
 | decision | why it is closed |
