@@ -179,6 +179,40 @@ there means overlapping solution windows, not simultaneous occupation.
 Observation years read from RINEX headers would answer it. The catalog columns
 cannot, whatever their names suggest.
 
+**A fourth cause, and it separates two questions that had been treated as
+one.** From the domain owner, from experience: an **instrument change on the
+same antenna mount** produced a time series that did not join smoothly to the
+previous configuration, so the site was **renamed and processed as a new
+monument.**
+
+The mark is physically identical. The rename was deliberate and correct — the
+coordinate series genuinely has an offset at that epoch, and merging the two
+codes would reintroduce a discontinuity that somebody removed on purpose.
+
+> **"Are these the same monument?" and "should these be merged?" are different
+> questions, and this cause makes them come apart.** Three of the four causes
+> answer both together. This one answers *yes* to the first and *no* to the
+> second.
+
+That is the case a distance test cannot see at all, because the separation is
+zero by construction. It is an **offset event encoded in a site code** — the
+same class of fact as `docs/bern52/phivolcs-scripts/event-catalog/offsets`,
+recorded in the naming instead of in the catalog.
+
+The suggestive signature is **same position, disjoint occupation** — and three
+pairs show it:
+
+```
+MAC2/MACZ    0.1 m    2009-09-15..2010-09-25  |  2014-02-12..2014-02-14
+BRG1/BRGC    1.8 m    1996-03-13..2010-04-16  |  2012-02-17..2026-02-12
+NAV1/NAVA   45.0 m    1997-06-09..1999-11-17  |  2001-11-20..2014-06-23
+```
+
+**Do not read those dates as occupation.** They are solution epochs, for the
+reason given above, and the disjointness is a hint rather than a finding. The
+real test is observation years from RINEX headers, which stage 3 reads and the
+catalog does not carry.
+
 **So this class needs institutional memory per case, not more measurement.** Do
 not merge a digit-4 code into its letter-sibling on the strength of the name or
 of the distance. The alias radius must stay below 50 m regardless, or the
