@@ -52,7 +52,19 @@ probe() { ping -c1 -W2 -n "$1" >/dev/null 2>&1 && echo ok || echo fail; }
 # A gap in the watcher is NOT a gap in finch, and conflating the two would be
 # precisely the failure this exists to avoid. Say so on every start, so nobody
 # later reads a silent stretch as finch having been up.
-log "WATCH-START pid=$$ interval=${INTERVAL}s lan=$LAN ts=$TS"
+# The instrument must report whether it is armed. These timestamps are only
+# usable for correlating against finch's journal if this clock is right, and on
+# 2026-09-10 it was 250 s out -- 25 probe intervals, against lines that state
+# `resolution=10s`. NTP cannot fix it here: UDP/123 is blocked on this network,
+# the same restriction that makes every off-subnet Tailscale path DERP-relayed.
+# See scripts/sudo/fix_gps3_clock.sh.
+clock_state() {
+    local sync
+    sync=$(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo unknown)
+    if [ "$sync" = yes ]; then echo "synced"; else echo "UNSYNCED-timestamps-suspect"; fi
+}
+
+log "WATCH-START pid=$$ interval=${INTERVAL}s lan=$LAN ts=$TS clock=$(clock_state)"
 log "WATCH-NOTE  any gap before this line is UNOBSERVED, not finch being up"
 trap 'log "WATCH-STOP  pid=$$ -- from here finch is UNOBSERVED"; exit 0' TERM INT
 
@@ -71,7 +83,11 @@ while :; do
             # last_ok is the newest moment finch is KNOWN to have been alive.
             # The true death is somewhere in (last_ok, now]; the interval is
             # the resolution, and saying so keeps the number honest.
-            log "DOWN  lan=$l ts=$t  last_seen=$(date -d "@$last_ok" '+%H:%M:%S')  resolution=${INTERVAL}s"
+            # clock= on the DOWN line specifically: this is the timestamp
+            # somebody will correlate against finch's journal, and an unsynced
+            # clock makes that correlation wrong by an unknown amount that is
+            # far larger than the stated resolution.
+            log "DOWN  lan=$l ts=$t  last_seen=$(date -d "@$last_ok" '+%H:%M:%S')  resolution=${INTERVAL}s  clock=$(clock_state)"
         else
             d=$(( n - since ))
             [ "$state" = init ] && d=0
@@ -83,7 +99,7 @@ while :; do
     [ "$new" = UP ] && last_ok=$n
 
     if [ $(( n - last_beat )) -ge 3600 ]; then
-        log "beat  state=$state lan=$l ts=$t  since=$(date -d "@$since" '+%Y-%m-%dT%H:%M:%S')"
+        log "beat  state=$state lan=$l ts=$t  since=$(date -d "@$since" '+%Y-%m-%dT%H:%M:%S')  clock=$(clock_state)"
         last_beat=$n
     fi
     sleep "$INTERVAL"
