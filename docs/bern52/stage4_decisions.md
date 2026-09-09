@@ -11,12 +11,42 @@ asserting it.
 
 ## Summary
 
-| class | files | patterns | who decides |
-|---|---:|---:|---|
-| ambiguous-code conflicts | 644 | 57 | **nobody** — blocked on per-cluster catalog |
-| campaign-directory conflicts | ~900 est. | most of 110 | **nobody** — confirmed; flag, don't auto-apply |
-| stale-header conflicts | **95** | ~15 | **nobody** — confirmed, filename wins |
-| genuine residue | ~90 | ~34 | **a person, per case** |
+**The 735 filename conflicts partition one way only: by whether the claimed
+code is ambiguous.** That sums, and nothing else here does.
+
+| | files | resolved by |
+|---|---:|---|
+| claims an **ambiguous** code | 644 | per-cluster catalog — nobody decides |
+| claims an **unambiguous** code | 91 | see below |
+| | **735** | |
+
+**The stale-header class cuts across that partition and is not a third
+bucket.** 95 files match `PHIV` while named for somewhere else, and they
+split 48 / 47 across the two rows above:
+
+```
+PHIV-matched, filename != PHIV     95
+  of those, claimed code ambiguous 48   <- already inside the 644
+  claimed code unambiguous         47   <- inside the 91
+```
+
+An earlier version of this note listed 644, 95 and ~90 in one table as
+though they were exclusive. They sum to 829 against a total of 735,
+because they are not a partition — they are two classifications on
+different axes. Caught in review; the arithmetic is the tell.
+
+**So the residue is 44 files, not ~90:** 91 unambiguous-code conflicts
+minus the 47 the stale-header rule resolves.
+
+| class | files | who decides |
+|---|---:|---|
+| ambiguous-code | 644 | **nobody** — blocked on per-cluster catalog |
+| stale-header (of the 91) | 47 | **nobody** — filename wins |
+| **genuine residue** | **44** | **a person, per case** (~34 patterns) |
+| campaign-directory *(paths, separate count)* | ~900 | **nobody** — flag and skim |
+
+Path conflicts are counted separately throughout — 1,017 of them across
+110 patterns — and are not part of the 735.
 
 ---
 
@@ -244,10 +274,10 @@ concurrently.
 
 ## 4. The residue — this is the part that needs a person
 
-After the three classes above, roughly 34 patterns and 90 files remain
-where the filename and the header genuinely disagree about an
-unambiguous code, the marker agrees with the filename, and no mechanism
-explains it.
+**44 files** remain, across roughly 34 patterns, where the filename and
+the header genuinely disagree about an unambiguous code, the marker
+agrees with the filename, and no mechanism explains it. That is the 91
+unambiguous-code conflicts minus the 47 the stale-header rule resolves.
 
 ```
 matched   filename says   files   header -> claimed
