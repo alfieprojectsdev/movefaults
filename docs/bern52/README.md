@@ -17,9 +17,46 @@ session logs, several of which retract each other.
   manifests/               drive walks and transfer records
 ```
 
-Four physical drives were evacuated: `HD-LBU2`, `GPS_1TB_2`, `DATA0`, `DC9A88`.
-All four are verified complete by per-extension count comparison and **can stay
-undocked permanently**.
+`legacy/` holds **five** trees. Four are the evacuated drives; the fifth is
+scoped out and named here so a reader counting directories does not find one
+they cannot account for.
+
+| tree | source | status |
+|---|---|---|
+| `RECOVERED_HD-LBU2_WD20EARS_WCAZA4430660` | HD-LBU2 | evacuated, verified |
+| `RECOVERED_GPS_1TB_2_WD10EARS_WCAV5M032380` | GPS_1TB_2 | evacuated, verified |
+| `RECOVERED_SEAGATE_W2A0W9T2_DATA0` | DATA0 | evacuated, verified |
+| `RECOVERED_SEAGATE_W2A0W9T2_DC9A88` | DC9A88 | evacuated, verified |
+| `RECOVERED_DOSTB20150918_from_BackupPlus` | DOST-B backup | **9.0 GB, 14,269 files — deliberately out of scope** as a source of missing GNSS data |
+
+Those four are verified complete by per-extension count comparison and **can
+stay undocked permanently**.
+
+### A sixth drive exists, was walked, and was never transferred
+
+**`New Volume`** — HGST, 465.8 GB, 269 GB used — was walked on 2026-09-08
+(`manifests/t420-drive-arch-runs/all_NewVolume.txt`, 426,992 files) and is
+**not in `legacy/` under any name**. It may still be docked.
+
+It was skipped because it is substantially a copy of HD-LBU2, sharing 297,601
+basenames with it. Measured before this was written:
+
+```
+New Volume GNSS-shaped basenames     98,877
+on the four transferred drives      193,406
+present ONLY on New Volume                0
+```
+
+**Nothing on it carries a name absent from the transferred drives.** So it is
+safe to leave, and this paragraph exists so nobody re-docks and re-walks 269 GB
+to rediscover that.
+
+**Read the limit of that measurement carefully.** It compares *basenames*, and
+this archive has twice demonstrated that a name is not an identity — Leica
+`.mNN` and Trimble `.T0x` names carry no year, so the same basename recurs
+across years. The result is conclusive in one direction only: **nothing there
+is uniquely named.** Two files sharing a name could still differ in content. It
+answers "is anything unique here", not "is every byte duplicated".
 
 `legacy/` mirrors each drive's own layout. Paths are as-mounted, so a
 `/run/media/finch/<LABEL>/` prefix appears in the manifests and not on disk.
@@ -137,3 +174,11 @@ of what is absent.
 Session logs in `docs/gps3-sessions/` and `docs/t420-sessions/` carry the
 reasoning, including several conclusions that were reached, retracted and
 restored. **They are the argument, not the result.** This file is the result.
+
+**The per-topic documents above may contain superseded conclusions**, and
+reading them in the wrong order will hand you something that was overturned
+hours later. `decode_113_failures.md` was correct, retracted, and restored
+inside a single day, and it carries all three states because the reasoning
+failed instructively. **This README is the only file guaranteed current.**
+Where it disagrees with anything else in this directory, it wins — and if it is
+the one that is wrong, correct it here first.
