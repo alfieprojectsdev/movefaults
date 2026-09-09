@@ -23,20 +23,27 @@
 #
 # Removing the app makes this file unnecessary but harmless. Keep it, so that a
 # future re-install does not silently resume commenting.
+#
+# Every key below is verified against schema.v2.json and changes a default.
+# Lines that restate a default are deliberately absent: in a file whose whole
+# argument is that CodeRabbit's output looks like work it is not doing, a
+# setting that looks like it acts and does not would be the same failure one
+# level down.
 reviews:
   # Do not review pull requests automatically.
   auto_review:
     enabled: false
-    drafts: false
   # Do not post the status/skip notice -- this is the key that suppresses the
   # "fewer than 10 stars" comment specifically.
   review_status: false
   # Do not post progress as a GitHub check.
   review_progress: false
-  # Do not write a summary into the PR description.
+  # Do not write a summary into the PR description or walkthrough. This is
+  # what removes the walkthrough's substance -- there is no key that suppresses
+  # the walkthrough outright, and `collapse_walkthrough` only controls whether
+  # it is folded into a <details> block. Setting that to false UN-collapses it,
+  # making the comment more prominent, which an earlier version of this file
+  # did while claiming to suppress it.
   high_level_summary: false
-  # Do not post the walkthrough comment.
-  collapse_walkthrough: false
-  poem: false
 chat:
   auto_reply: false
