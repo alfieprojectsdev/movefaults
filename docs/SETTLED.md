@@ -116,6 +116,43 @@ not ~10%**, and that misreport stood for months.
 
 ---
 
+### `LHO2` and `LHOV` are the same monument — Lignon Hill, Mayon
+
+**Settled 2026-09-09 by the domain owner, from memory of doing the work.**
+Lignon Hill, part of the Mayon Volcano GPS observation network. The `2` was an
+attempt at disambiguation made around 2009, in the author's early months of
+processing GPS data — before the practice of not treating RINEX header
+information as authoritative for provenance had been adopted, and when
+processing time on the hardware then available was expensive enough to
+discourage re-deriving it.
+
+**The position agrees, independently and without being asked.** Stage 3 matched
+by header position alone, with no knowledge of the naming history:
+
+```
+name=LHO2  ->  matched=LHOV   verdict unique   510 files
+name=LHOV  ->  matched=LHOV   verdict unique     9 files
+median header-to-claimed distance                22 m
+LHOV catalog spread across its 108 CRD files     23.04 m
+```
+
+**`LHO2` is not a catalog code at all** — it exists only in filenames, which is
+why it never entered the stage-4 disagreement count: `informative` excludes
+names the catalog does not know, so these 510 files were recorded as new
+attributions rather than as conflicts.
+
+Two things worth keeping from this:
+
+- **Institutional memory and the measurement agreed.** They were arrived at
+  independently — one from doing the work in 2009, one from header positions in
+  2026 — and neither was used to derive the other. That is the strongest form a
+  fact in this archive can take, and it is available for very few of them.
+- **A 664–682 m separation was cited for this pair while the question was
+  open.** It does not appear in the data; the median is 22 m. Whatever produced
+  that figure, do not carry it forward.
+
+Do not re-open whether `LHO2` is a distinct site. It is not.
+
 ## 3. Settled decisions — do not re-propose the alternatives
 
 | decision | why it is closed |
