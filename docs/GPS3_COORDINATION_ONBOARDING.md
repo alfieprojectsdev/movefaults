@@ -294,6 +294,34 @@ the load-bearing half of a claim register.
 Revisit if that gate changes. Recorded rather than dropped, so the reasoning is
 not relitigated from scratch.
 
+### Say when you have reviewed, and sign it
+
+**Tell the peer when you have reviewed their PRs.** One line naming the PRs and
+the verdicts — approve, changes, hold. The detail belongs on the PR; the
+notification exists so the author knows to go and read it.
+
+**Sign every cross-session review** with the machine it came from —
+`Reviewed from gps3.` / `Reviewed from finch.` — as the opening line.
+
+Three failure modes stack on this one signal, which is why it needs both halves:
+
+1. **A review is invisible until the author polls**, and there is no event that
+   prompts them to.
+2. **Polling is badly timed by default.** On 2026-09-09 a query for reviews on
+   #205 returned empty and the review landed four minutes later. Querying fixes
+   a stale assertion; it does not fix a question asked too early.
+3. **`reviews` cannot be attributed.** Both sessions post under one account, so
+   `--json reviews` yields a count and a state and no author. A peer's review
+   and the author's own comment are indistinguishable in the field the protocol
+   says to check — and on #205 exactly that happened: a self-comment and a bot
+   notice together made an unreviewed PR look reviewed.
+
+Reviews posted before this rule are unattributable after the fact. Nothing to
+be done about those; the signing starts from 2026-09-09.
+
+**"Reviewed, no findings" is worth sending too.** It is the case where the
+author is most likely to assume silence means nobody looked.
+
 ### Never assert the peer's state. Query it.
 
 **Anything you are about to say about the peer's side is observable, and you
