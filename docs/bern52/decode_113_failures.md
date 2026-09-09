@@ -25,7 +25,7 @@ size        every failure  <= 33,684 bytes
 
 A complete IBAZ session is ~700 KB. These are fragments of roughly 4 %.
 
-### They are record-aligned, not block-aligned — the recording stopped, not the copy
+### They are record-aligned, not block-aligned — but the copy stopped, not the recording
 
 An earlier version of this note read the 4,096-byte minimum as a filesystem
 block and inferred a copy damaged mid-transfer. **That does not survive the
@@ -87,12 +87,70 @@ failures are correct behaviour on incomplete input.
 **IBAZ itself is fine** — 239 of its files converted. The split is within the
 site, not between sites.
 
-**Nothing here is worth retrying, and the obvious follow-up is probably not
-worth opening either.** An earlier version proposed asking drive-archaeologist
-whether better copies of these 113 sessions exist on media not yet walked. If
-the recording stopped rather than the copy, **no better copy exists anywhere**
-and that search returns nothing. Settle the final-record question first; it
-costs one read of files already on disk, where walking a drive does not.
+**Nothing here is worth retrying** — no decoder change recovers data absent
+from the file, and retry logic would be worse than nothing.
+
+**But better copies do exist, and this note previously argued they would not.**
+That argument is retracted below.
+
+## RETRACTION — 105 of the 113 are recoverable, and were the whole time
+
+Measured 2026-09-09 against `DATA0`, docked on the T420. Every one of the 113
+has a same-named copy there; 224 copies in total were found and stat'd, none
+unreadable.
+
+```
+distinct files with a LARGER copy : 105 / 113
+no larger copy                    :   8
+
+median truncated    ~30,000 bytes
+median drive copy    757,681 bytes      24x larger (range 22x - 186x)
+larger-copy sizes    726,497 - 770,337  vs this site's successes 57,344 - 758,603
+total recoverable    79,056,949 bytes
+```
+
+Genuine MDB, not merely larger — same Leica magic as the files that converted:
+
+```
+IBAZ245A.M00   9c ae 88 00 65 ac 07 96 ...   769,065 bytes
+IBAZ246A.M00   9c ae 88 00 65 ad 07 96 ...   768,446
+IBAZ244F.M41   9c ae 88 00 65 a7 06 5c ...   truncated, matches the archive
+```
+
+The 8 without a better copy are the odd extensions — `.M41 .M49 .M55 .M32
+.M38 .M44` — plus `IBAZ366A.M00`.
+
+### What was wrong, since the measurement was not
+
+The residue analysis above is correct and stays. 8 residues mod 135 across the
+113 against 119 across the 239 successes is real structure, and the control is
+sound.
+
+**The inference drawn from it was wrong.** Record-aligned truncation
+distinguishes structured truncation from arbitrary truncation. It does not
+distinguish *a recording that ended* from *a copy that ended*, because a copy
+stopping on buffered record boundaries produces the identical signature. The
+note used a correct measurement to settle a question that measurement could not
+reach, and then argued against opening the search on that basis.
+
+This is not an instrument returning a wrong answer, which is the failure this
+project has catalogued all week. The instrument was right and was over-read.
+The nearest relative is `spread_m`: a real number, correctly computed, asked to
+mean something it does not.
+
+**The cheap test that settled it was cheaper than the one being argued about.**
+224 `stat` calls against drives already docked, versus reverse-engineering an
+MDB record layout. When a claim is about whether a file exists somewhere, look
+for the file.
+
+### Not yet done
+
+Transferring the 105 to `/srv/gnss-archive` and re-decoding them. 79 MB, but it
+modifies the archive tree and belongs to whoever owns that decision.
+
+**These close no new want-list site-years** — IBAZ 2012 is already closed. What
+they recover is 105 full observation days that exist in the archive only as
+30 KB fragments.
 
 ## The 2 epoch rejections are the guard working
 
