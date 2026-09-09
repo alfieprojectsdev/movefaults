@@ -459,12 +459,19 @@ def main() -> int:
             w.writerow([p, verdict, site, f"{dist:.1f}" if dist else "",
                         len(within), "|".join(s for _, s in within[1:4]),
                         name_site, marker,
-                        "" if verdict not in ("unique", "aliases")
+                        # stale-header belongs here. The verdict fires
+                        # BECAUSE the filename disagrees, so excluding it
+                        # blanks the column that records the disagreement --
+                        # anyone auditing on `agrees == "NO"` would lose
+                        # exactly the rows this flag exists to surface.
+                        "" if verdict not in ("unique", "aliases",
+                                              "stale-header")
                         else ("" if not informative
                               else ("yes" if site in informative else "NO")),
                         claimed, f"{claimed_d:.1f}" if claimed_d is not None else "",
                         path_site,
-                        "" if not path_site or verdict not in ("unique", "aliases")
+                        "" if not path_site or verdict not in ("unique", "aliases",
+                                                               "stale-header")
                         else ("yes" if path_site == site else "NO"),
                         obs_year or "", ep])
 
