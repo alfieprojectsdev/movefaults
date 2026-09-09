@@ -29,6 +29,15 @@ distance attached, not a determination:
                 header position bad enough to be useless. Distance to the
                 nearest site is reported so the two can be told apart.
   * `no-header` no APPROX POSITION at all.
+  * `stale-header` the position matched a monument, but the file's own name
+                names a DIFFERENT site AND it was observed outside any period
+                that monument has a solution for. Known cause: receivers tested
+                at PHIVOLCS HQ before deployment keep the HQ position in the
+                header and carry it into the field. `matched_site` is preserved
+                -- the position match is real; it is the TRUST that is
+                withdrawn. A verdict rather than an extra column, because a
+                consumer filtering on `unique` would otherwise keep receiving
+                these silently.
 
 DISAGREEMENT WITH THE FILENAME IS THE POINT
 Where a file already carries a site code (RINEX marker name, or the first four
@@ -421,6 +430,27 @@ def main() -> int:
                 epoch_out += 1
                 if name_site and name_site != site:
                     epoch_out_disagree += 1
+                    # STALE HEADER. Two independent things are wrong at once:
+                    # the file's own name says a different site, AND it was
+                    # observed outside any period this monument has a solution
+                    # for. A 2020 file cannot be an observation of a monument
+                    # whose coverage ended in 2008.
+                    #
+                    # The known cause is receivers tested at PHIVOLCS HQ before
+                    # field deployment, which keep the HQ position in the
+                    # header and carry it into the field.
+                    #
+                    # The verdict changes; `matched_site` does NOT. The
+                    # position match is real and is preserved -- what is being
+                    # said is that it should not be trusted as an attribution.
+                    # This is deliberately a verdict rather than a quiet extra
+                    # column: a consumer filtering on `unique` would otherwise
+                    # keep receiving these silently, which is exactly the
+                    # failure the flag exists to prevent.
+                    if verdict in ("unique", "aliases"):
+                        verdicts[verdict] -= 1
+                        verdict = "stale-header"
+                        verdicts[verdict] += 1
             elif ep == "in":
                 epoch_in += 1
             elif site:
