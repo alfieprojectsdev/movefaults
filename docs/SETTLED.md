@@ -116,70 +116,64 @@ not ~10%**, and that misreport stood for months.
 
 ---
 
-### `LHO2` and `LHOV` are the same monument — Lignon Hill, Mayon
+### Codes ending in a digit are often AUXILIARY BENCHMARKS, not aliases
 
-**Settled 2026-09-09 by the domain owner, from memory of doing the work.**
-Lignon Hill, part of the Mayon Volcano GPS observation network. The `2` was an
-attempt at disambiguation made around 2009, in the author's early months of
-processing GPS data — before the practice of not treating RINEX header
-information as authoritative for provenance had been adopted, and when
-processing time on the hardware then available was expensive enough to
-discourage re-deriving it.
+**From the domain owner, 2026-09-09.** An older PHIVOLCS convention named an
+auxiliary benchmark by putting a digit in the 4th character and retaining as
+much of the main benchmark's code as possible — `BUGS` → `BUG2`, `CACA` →
+`CAC2`.
 
-**The position agrees, independently and without being asked.** Stage 3 matched
-by header position alone, with no knowledge of the naming history:
+**An auxiliary benchmark is a physically separate mark, not another name for
+the same one.** Treating such a pair as aliases would merge two distinct
+monuments.
+
+Measured across the 545 catalog sites inside the Philippines box, for the 48
+digit-4 codes having a letter-sibling that shares the first three characters:
 
 ```
-name=LHO2  ->  matched=LHOV   verdict unique   510 files
-name=LHOV  ->  matched=LHOV   verdict unique     9 files
-median header-to-claimed distance                22 m
-LHOV catalog spread across its 108 CRD files     23.04 m
+MAC2 <-> MACZ      0.1 m        BUG2 <-> BUGS     14.7 m
+TAW2 <-> TAWI      0.6 m        CAC2 <-> CACA     16.9 m
+TUA2 <-> TUAO      1.4 m        CDO2 <-> CDOC     18.0 m
+BTU2 <-> BTUN      1.7 m        AUR1 <-> AURO     21.1 m
+BRG1 <-> BRGC      1.8 m        NAV1 <-> NAVA     45.0 m
+BLN2 <-> BLNA      5.2 m
+                                MAR2 <-> MARL   1394.3 m
+                                CEB2 <-> CEBB   2456.2 m
 ```
 
-**`LHO2` is not a catalog code at all** — it exists only in filenames, which is
-why it never entered the stage-4 disagreement count: `informative` excludes
-names the catalog does not know, so these 510 files were recorded as new
-attributions rather than as conflicts.
+**The distribution is bimodal with an empty middle:** 11 pairs under 50 m, 37
+pairs over 1 km, **nothing between 50 m and 1 km.**
 
-Two things worth keeping from this:
+That gap is the useful part. Under ~50 m, a shared three-character prefix means
+the convention; over 1 km it is coincidence — `CEB2` and `CEBB` are simply two
+different Cebu sites. **The separation classifies the pair; the name alone does
+not.**
 
-- **Institutional memory and the measurement agreed.** They were arrived at
-  independently — one from doing the work in 2009, one from header positions in
-  2026 — and neither was used to derive the other. That is the strongest form a
-  fact in this archive can take, and it is available for very few of them.
-- **A 664–682 m separation was cited for this pair while the question was
-  open. It belongs to a different group.** `LHO2` and `LHO1` have no catalog
-  entry at all, so no separation for them can be computed. The figure describes
-  `MAB1` against `MAB2`/`MASB`:
+Do not merge a digit-4 code into its letter-sibling on the strength of the name.
+Check the separation first, and note that the alias radius must stay below 50 m
+or the convention's pairs will be collapsed.
 
-  ```
-  MAB1 <-> MAB2   693.4 m       MAB1  n_files=78  spread=695.19 m
-  MAB1 <-> MASB   673.6 m       MAB2  n_files=21  spread=  0.05 m
-  MAB2 <-> MASB    21.8 m       MASB  n_files=104 spread=  5.05 m
-  ```
+### `LHO2` / `LHOV` — OPEN, and previously recorded here as settled in error
 
-  Raising it against Lignon Hill briefly prompted a revised account — that the
-  two were separate antenna mounts on the same hill — which the data does not
-  support and which the domain owner did not need to make. **Attach a number to
-  the pair it was measured on before putting it to anyone.**
+Lignon Hill, Mayon Volcano GPS observation network. **Both accounts came from
+the domain owner and they are in tension:**
 
-Do not re-open whether `LHO2` is a distinct site. It is not.
+1. `LHO2` was a personal disambiguation made around 2009, before the practice of
+   not treating RINEX headers as authoritative for provenance — **same mark,
+   two names.**
+2. The older auxiliary-benchmark convention above — **two marks, ~22 m apart.**
 
-### The real question in that family is `MAB1`, and it is a catalog defect
+**The position evidence cannot separate them, and an earlier version of this
+entry wrongly said it could.** Stage 3 puts 510 `LHO2`-named files on `LHOV` at
+a median 22 m. That was recorded as independent confirmation of reading 1. It is
+not: **22 m sits squarely inside the auxiliary-benchmark band (0.1–45 m)**, and
+a header position good to ~100 m cannot distinguish a mark from another mark
+22 m away.
 
-`MAB1` carries **`spread_m = 695.19` across 78 CRD files** — its own contributing
-solutions disagree by nearly 700 m — while sitting ~690 m from `MAB2` and
-`MASB`, which are 21.8 m apart from each other and internally tight (0.05 m and
-5.05 m).
+`LHO2` has no catalog entry, so it has no published coordinate to compare.
 
-**It is not flagged `ambiguous`**, because clustering runs at `--ambiguous-m`
-1000 m and 695 m falls inside one cluster. So a site whose inputs span 695 m is
-published as a single coordinate with no warning, and the `spread_m` column is
-the only thing that says otherwise.
-
-That is a question for the network's history — whether `MAB1` is one mark, or a
-label reused across two — and it is a better use of institutional memory than
-`LHO2` was.
+**This needs the domain owner, not more measurement.** Until then, do not merge
+`LHO2` into `LHOV`.
 
 ## 3. Settled decisions — do not re-propose the alternatives
 
