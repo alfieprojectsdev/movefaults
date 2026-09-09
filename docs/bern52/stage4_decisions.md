@@ -158,6 +158,63 @@ every one of these 95 is currently attributed to HQ instead of the site
 it was observed at. This is not only a reporting artifact — it is 95
 files filed under the wrong monument.
 
+### The HQ rooftop is many codes on one location — the inverse of `SOLD`
+
+The antenna on the PHIVOLCS roof has been relocated several times, likely under
+a different site code each time. Confirmed as history 2026-09-09, and the
+catalog shows it:
+
+```
+site   dist from PHIV   n_files   spread_m   catalog epochs
+PHIV        0.0 m          236      67.31    1998-02-15 .. 2008-08-28
+PIVS       24.0 m          949      19.17    2012-01-01 .. 2014-03-12
+PHIC       24.1 m           94      79.40    1998-02-21 .. 2006-12-05
+UP02      352.7 m          319     116.61    1997-05-08 .. 2006-12-13
+```
+
+This is `SOLD` inverted. There, **one code named two monuments** 632 km apart.
+Here, **several codes name one rooftop**, 24 m apart with spreads of 19-79 m.
+Both break attribution, and neither is a data error — they are how the naming
+was actually done.
+
+**Position cannot separate these codes and never will.** They are closer
+together than the spread of any one of them, and far closer than the ~35 m a
+header fix is good for. Stage 3's `aliases` verdict on these files is therefore
+correct behaviour, not a defect: it is reporting that the position does not
+decide.
+
+### Epoch does separate them, and stage 3 does not use it
+
+The file's observation year against the matched site's catalog epoch range
+splits the `PHIV` matches perfectly:
+
+```
+the 95 stale-header files    2016  2018  2019  2020  2022  2023
+                             -- every one AFTER PHIV's last epoch, 2008-08-28
+
+the 27 genuinely-PHIV files  1998  1999  2000  2004  2006
+                             -- every one INSIDE PHIV's range
+```
+
+Zero overlap. A 2020 file cannot be an observation of a monument whose catalog
+coverage ended in 2008; it is a 2020 receiver carrying a stale HQ position. That
+is a fourth independent confirmation of the staging explanation, and it arrived
+free from data already in the catalog.
+
+**Recommendation for stage 3:** compare the observation epoch against the
+matched site's `epoch_min`/`epoch_max` and flag matches falling outside it. It
+costs two columns already present in `crd_catalog.csv`, it would have isolated
+this entire class automatically, and it generalises — any site whose code was
+retired and whose position is still being matched will show the same signature.
+
+**Caution on the rooftop codes specifically.** Because the antenna moved, a
+single code's spread is tens of metres, so any position-based rule near HQ
+should treat `PHIV`, `PIVS` and `PHIC` as one location family rather than
+three sites. Distinguishing *which* rooftop position a given file used is an
+epoch question, not a position question, and may not be answerable at all for
+files inside the overlapping 1998-2006 window where `PHIV` and `PHIC` ran
+concurrently.
+
 ---
 
 ## 4. The residue — this is the part that needs a person
