@@ -224,6 +224,35 @@ confirmation** — the reviewer's number matched the truth by coincidence. What
 resolved it was decompressing five files and reading the header, which neither
 session had done before asserting.
 
+### Correcting a merged claim: say who is doing it, first
+
+**When both sessions learn that a merged claim is wrong, say who is correcting
+it before correcting it.** One line is enough.
+
+Every other rule here assumes the peer's work is visible — an open PR, a
+claimed task, a named file. A correction is none of those until it exists, and
+it is the case *most* likely to collide, because both sessions learn the same
+thing at the same moment and both immediately know it needs fixing.
+
+File ownership does not settle it either. On 2026-09-09 both sessions wrote the
+same retraction of the same paragraph in `docs/bern52/decode_113_failures.md`
+within forty minutes — #199 and #200. The document is gps3's; the falsified
+claim had been contributed by the T420. Both had a legitimate reason to be the
+one fixing it, and neither had any way to see the other was already doing so.
+
+Nothing was lost, because the loser of the race is a closed PR rather than an
+overwrite. But the wasted work is real and one line of intent would have
+prevented it.
+
+**What to say:** name the claim and the file. *"The no-better-copy paragraph in
+`decode_113_failures.md` is falsified, I am writing the retraction"* is
+sufficient. The peer then reviews rather than duplicates.
+
+**When the loser has something the winner lacks**, hand over the paragraphs
+rather than opening a competing PR into a file you do not own. #200 carried
+three things #199 did not; naming them was cheaper for both sessions than a
+rebase and a second review.
+
 ### Before you say you are blocked, check
 
 Neither session can see the other's PR activity without asking, so *"blocked on
