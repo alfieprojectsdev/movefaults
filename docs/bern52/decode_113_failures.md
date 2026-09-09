@@ -1,4 +1,16 @@
-# The 113 decode failures: truncated Leica MDB, not a tool problem
+# The 113 decode failures: truncated Leica MDB — and 105 are recoverable
+
+> **Corrected 2026-09-09, after the T420 checked the drives.** An earlier
+> version of this note concluded that the truncation was record-aligned, that
+> the *recording* had therefore stopped rather than the copy, and that no better
+> copy existed anywhere — so a search of unwalked media would return nothing.
+>
+> **That was wrong. 105 of the 113 have full-session copies on DATA0**, a median
+> 757,681 bytes against a median truncated ~30,000 — 24x larger, same Leica MDB
+> magic bytes. Only 8 have no larger copy. The section below is left in place
+> because the reasoning failed in an instructive way, but the conclusion it
+> reached does not hold.
+
 
 **Measured 2026-09-09 on gps3.** `decode_raw_gap.py` reported 113 conversion
 failures in a 3,984-file run and did not record which files, so they could not
@@ -87,12 +99,45 @@ failures are correct behaviour on incomplete input.
 **IBAZ itself is fine** — 239 of its files converted. The split is within the
 site, not between sites.
 
-**Nothing here is worth retrying, and the obvious follow-up is probably not
-worth opening either.** An earlier version proposed asking drive-archaeologist
-whether better copies of these 113 sessions exist on media not yet walked. If
-the recording stopped rather than the copy, **no better copy exists anywhere**
-and that search returns nothing. Settle the final-record question first; it
-costs one read of files already on disk, where walking a drive does not.
+**Retrying the decode against these files is still pointless — but the
+follow-up was worth opening, and this note argued against it.**
+
+The T420 ran the cheap version: stat the same-named copies on the docked drives
+rather than reverse-engineer the MDB record layout.
+
+```
+same-named copies on docked drives : 224   (0 unreadable)
+distinct files with a LARGER copy  : 105 / 113
+no larger copy                     :   8   (the odd extensions, .M41 .M49 .M55 …)
+
+median truncated   ~30,000 bytes
+median drive copy  757,681 bytes      24x larger (range 22x - 186x)
+total recoverable   79 MB, all on DATA0
+```
+
+Verified as genuine rather than merely larger: identical Leica MDB magic
+(`9c ae 88 00 …`) on every one.
+
+**Why the record-alignment reasoning failed, which is the part worth keeping.**
+The measurement was sound — 8 residues mod 135 across the failures against 119
+across the successes, and that control was supplied from gps3 to strengthen the
+case. Record alignment genuinely distinguishes *structured* truncation from
+*arbitrary* truncation.
+
+**It does not distinguish a recording that ended from a copy that ended**, because
+a copy interrupted at buffered record boundaries produces the identical
+signature. A correct measurement was used to settle a question it could not
+settle, and both sessions then argued against opening the search on that basis.
+
+This is a different failure from the rest of the week's catalogue. Nothing
+returned a wrong answer; the instrument was right and the inference from it was
+too strong. Adding a control made the wrong conclusion look better supported
+rather than exposing it — which is the specific hazard of confirming a
+hypothesis instead of trying to break it.
+
+**These 105 close no new want-list site-years** — IBAZ 2012 is already closed.
+The value is 105 full observation days that exist in `/srv/gnss-archive` only as
+30 KB fragments.
 
 ## The 2 epoch rejections are the guard working
 
