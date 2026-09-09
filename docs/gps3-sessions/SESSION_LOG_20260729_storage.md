@@ -4717,3 +4717,99 @@ And one wrong verdict, which is the `.CZO/.PSO` shape again:
 That is now the dominant category in this catalogue. Of the thirty-five
 entries, the largest single group is checks that returned nothing, or returned
 "fine", for a reason unrelated to the question asked.
+
+### 30.16 Crash 4, and two corrections to this section — 2026-09-09
+
+**§30.3's elimination is half-verified and this says which half.** It reads
+"pstore: armed and empty. Kernel panic is eliminated." The T420 has since
+retracted the *empty* half: `ls /sys/fs/pstore` needs root, its first check
+returned without output, and it read that silence as an empty directory. **No
+root read has actually been made.**
+
+Worth noting the trap is not universal, which makes it more dangerous rather
+than less. On gps3 the same command is loud:
+
+```
+$ ls /sys/fs/pstore
+ls: cannot open directory '/sys/fs/pstore': Permission denied     exit 2
+drwxr-x--- root root /sys/fs/pstore
+```
+
+An explicit error and a non-zero status. Whatever produced silence on finch —
+a wrapper, a redirect, a different mode — it did not reproduce here, so a
+reader cannot infer the failure mode from their own machine.
+
+**What survives, verified from the committed journals on gps3:**
+
+```
+finch_lastboot.log.gz        Registered efi_pstore as persistent store backend
+finch_boot_minus2.log.gz     Registered efi_pstore as persistent store backend
+finch_crash_20260908.log.gz  Registered efi_pstore as persistent store backend
+                             pstore: Using crash dump compression: deflate
+```
+
+All three, plus the compression line. **The instrument was demonstrably armed on
+every crash boot** — that half was never in doubt and is checkable by anyone
+from files on `main`.
+
+So the correct statement is narrower than §30.3's: *pstore was armed on all
+three crashes, and no dump record appears in any journal.* Whether the pstore
+filesystem holds anything is unread. It is strong evidence and not the clean
+elimination the section claims, and the difference matters because §30.3 was
+called the strongest result of the week.
+
+### The watchdog is now armed for real
+
+The post-reboot check §30.11 asked for has passed:
+
+```
+07:55:31  Starting finch-watchdog-module.service
+07:55:31  iTCO_wdt.1.auto: Found a Cougar Point TCO device (Version=2)
+07:55:31  Using hardware watchdog 'iTCO_wdt', version 2, device /dev/watchdog0
+07:55:31  Watchdog running with a timeout of 1min
+```
+
+A boot it survived, not a claim from the session that installed it — which is
+the distinction §30.11 existed to draw.
+
+### The signature is necessary but not sufficient
+
+`bootstatus = 0`, so the watchdog did **not** cause this reset. The user pressed
+Alt+SysRq at around 60 seconds of unresponsiveness and beat the 60s timeout.
+
+Boot −1 then ends mid-activity at 07:53:54 with no shutdown sequence — **identical
+to the previous three.** Because a manual SysRq-B resets immediately and the
+journal entry never reaches disk.
+
+**So the signature this log has used throughout to identify a crash cannot
+distinguish a spontaneous wedge from a human forcing a reset.** If any of
+crashes 1–3 involved a manual SysRq, they are not evidence of a spontaneous
+fault. Nothing in §30.4 or §30.11 says so, and it should: the signature is
+necessary, not sufficient.
+
+### What the hang actually was — narrowed by observation, not by logs
+
+Four facts from the user watching it happen:
+
+| observation | what it rules out |
+|---|---|
+| screen and cursor frozen | userspace dead |
+| **CapsLock LED did not toggle** | kernel not servicing input |
+| ssh from another machine failed | network stack dead |
+| **Alt+SysRq did work** | interrupt path alive |
+
+CapsLock is load-bearing. That LED is driven by the kernel input layer, so a
+frozen LED puts the hang **in the kernel, not the desktop**. SysRq still working
+narrows it again: SysRq runs in interrupt context, so interrupts were being
+serviced while normal kernel work was not.
+
+**That is a CPU spinning in kernel mode — precisely what `softlockup_panic`
+detects.** It was not armed: the conf carrying it was written at 08:13, and the
+hang was 07:53:54. **Its silence during the event is therefore worth nothing**,
+which is the §30.3 lesson arriving again within the same day.
+
+Four events have produced no stack. The fifth should self-capture — panic at
+~20s stuck in kernel, pstore write, auto-reboot 20s later, no human required.
+The user has been asked to **wait ~30 s before touching SysRq**, which makes
+even a non-event informative: nothing by 30 s means the CPU is not stuck in
+kernel mode and softlockup is not the mechanism.
