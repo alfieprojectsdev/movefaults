@@ -90,23 +90,64 @@ printf '  was %s -> now %s   (moved %+ds)\n' \
 # Keep it set. A one-shot fix drifts back, and the drift is silent.
 cat > /usr/local/sbin/http-timesync <<'INNER'
 #!/usr/bin/env bash
-set -euo pipefail
+# Keep the clock set. A one-shot fix drifts back, and the drift is silent.
+#
+# TOLERANCES ARE WIDE ON PURPOSE. The first version required 2 of 3 sources
+# and a spread <= 5s, and in two hours it adjusted ZERO times -- "sources
+# disagree" then "only 1 source(s)" -- while systemd reported the timer active.
+# A guard strict enough to never fire is indistinguishable from a broken timer,
+# and this whole exercise exists because of instruments that look armed.
+#
+# An HTTP Date header has 1-second resolution and carries request latency on
+# top, so a few seconds of spread between sources is normal rather than
+# suspicious. The threshold needs to catch a source that is WRONG, not one that
+# is merely slow. 5s did the latter.
+set -uo pipefail
+SRC=(https://www.cloudflare.com https://github.com https://www.google.com
+     https://www.bing.com https://www.wikipedia.org https://duckduckgo.com)
 declare -a got
-for u in https://www.cloudflare.com https://github.com https://www.google.com; do
-    d=$(curl -sS -I --max-time 10 "$u" 2>/dev/null | grep -i '^date:' | head -1 | cut -d' ' -f2-) || continue
+for u in "${SRC[@]}"; do
+    for attempt in 1 2; do
+        d=$(curl -sS -I --max-time 8 "$u" 2>/dev/null | grep -i '^date:' | head -1 | cut -d' ' -f2-) || d=""
+        [ -n "$d" ] && break
+    done
     [ -n "$d" ] || continue
     t=$(date -d "$d" +%s 2>/dev/null) || continue
     got+=("$t")
+    [ "${#got[@]}" -ge 4 ] && break
 done
-[ "${#got[@]}" -ge 2 ] || { logger -t http-timesync "only ${#got[@]} source(s); not adjusting"; exit 0; }
+
+now=$(date +%s)
+if [ "${#got[@]}" -lt 2 ]; then
+    # Log the offset anyway when a single source answered: drift that is
+    # observed but not corrected is still worth seeing accumulate.
+    if [ "${#got[@]}" -eq 1 ]; then
+        logger -t http-timesync "only 1 source; NOT adjusting; observed offset $(( now - got[0] ))s"
+    else
+        logger -t http-timesync "no sources reachable; NOT adjusting; clock unverified"
+    fi
+    exit 0
+fi
+
 IFS=$'\n' s=($(sort -n <<<"${got[*]}")); unset IFS
 target=${s[$(( ${#s[@]} / 2 ))]}
-[ $(( s[-1] - s[0] )) -le 5 ] || { logger -t http-timesync "sources disagree; not adjusting"; exit 0; }
-off=$(( $(date +%s) - target ))
-[ "${off#-}" -ge 2 ] || exit 0
+spread=$(( s[-1] - s[0] ))
+off=$(( now - target ))
+
+# 15s: an HTTP Date is second-resolution plus latency, so single-digit spread is
+# normal. A source that is genuinely wrong is wrong by minutes, as this host was
+# by 250s.
+if [ "$spread" -gt 15 ]; then
+    logger -t http-timesync "sources spread ${spread}s (>15) from ${#got[@]} sources; NOT adjusting; offset would be ${off}s"
+    exit 0
+fi
+if [ "${off#-}" -lt 2 ]; then
+    logger -t http-timesync "offset ${off}s from ${#got[@]} sources, spread ${spread}s; within tolerance"
+    exit 0
+fi
 date -s "@$target" >/dev/null
 command -v hwclock >/dev/null 2>&1 && hwclock --systohc 2>/dev/null || true
-logger -t http-timesync "adjusted ${off}s"
+logger -t http-timesync "adjusted ${off}s from ${#got[@]} sources, spread ${spread}s"
 INNER
 chmod +x /usr/local/sbin/http-timesync
 
