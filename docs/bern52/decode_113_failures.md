@@ -135,8 +135,7 @@ rather than reverse-engineer the MDB record layout.
 ```
 same-named copies on docked drives : 224   (0 unreadable)
 distinct files with a LARGER copy  : 105 / 113
-no larger copy                     :   8   (.M41 .M49 .M55 .M32 .M38 .M44,
-                                            plus IBAZ366A.M00)
+no larger copy                     :   8   (the odd extensions, .M41 .M49 .M55 …)
 
 median truncated   ~30,000 bytes
 median drive copy  757,681 bytes      24x larger (range 22x - 186x)
@@ -146,20 +145,32 @@ total recoverable   79 MB, all on DATA0
 Verified as genuine rather than merely larger: identical Leica MDB magic
 (`9c ae 88 00 …`) on every one.
 
-**The 113 will still fail in any re-run against `/srv/gnss-archive`.** That tree
-holds the truncated copies; the 105 good ones are on DATA0, which only finch can
-reach. So a `decoded-2012-v2` produced on gps3 shows 113 conversion failures
-exactly as `decoded-2012` did, and **that is correct behaviour, not a regression
-in `allocate()`.** Stated here because the two directories are meant to be
-compared side by side, and an unexplained 113 in both is the obvious thing to
-misread.
+**The 113 will still fail in any re-run, anywhere.** The 2012 files are
+truncated *everywhere* — including on DATA0, at their own `RAW/2012/IBAZ/` path,
+at exactly the sizes the archive holds. There is no copy that decodes. So a
+`decoded-2012-v2` shows 113 conversion failures exactly as `decoded-2012` did,
+and **that is correct behaviour, not a regression in `allocate()`.** Stated
+because the two directories are meant to be compared side by side and an
+unexplained 113 in both is the obvious thing to misread.
 
-**The cheap test should have come first.** Two exchanges were spent debating
-whether to reverse-engineer the MDB record layout from residue arithmetic, while
-the deciding evidence was 224 `stat` calls against drives already docked. The
-generalisation is worth more than the instance: **when the claim is whether a
-file exists somewhere, look for the file.** Structural inference about what a
-file's shape implies is what you do when you cannot look, not before trying.
+*(Confirmed by the 2026-09-09 re-run: 2,977 → 3,869 files, 892 recovered by the
+naming fix, 113 failures unchanged.)*
+
+**The cheap test should have come first — and then been checked.** Two exchanges
+went on whether to reverse-engineer the MDB record layout from residue
+arithmetic, while a direct search of drives already docked cost 224 `stat`
+calls. Looking was right and structural inference is what you do when you
+cannot look.
+
+**But looking is not enough, and this episode is its own counter-example.** The
+search found 105 larger files and got the wrong answer, because it matched on
+basename and Leica `.mNN` names carry no year. The full rule needs both halves:
+
+> **Look for the file — then establish it is the same file, by something the
+> filename does not carry.**
+
+Here that was the header epoch. A filename is a claim about identity; a header
+is evidence of it.
 
 **Why the record-alignment reasoning failed, which is the part worth keeping.**
 The measurement was sound — 8 residues mod 135 across the failures against 119
