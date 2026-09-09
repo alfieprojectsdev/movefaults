@@ -56,8 +56,8 @@ from __future__ import annotations
 
 import argparse
 import csv
-import gzip
 import datetime
+import gzip
 import math
 import re
 import subprocess
@@ -239,16 +239,40 @@ def _commit() -> str:
     Returns `unknown` rather than raising: a provenance stamp must never be
     the reason a two-hour run fails to start.
     """
+    here = Path(__file__).resolve().parent
     try:
         h = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
                            capture_output=True, text=True, timeout=10,
-                           cwd=Path(__file__).resolve().parent)
+                           cwd=here)
         if h.returncode != 0:
             return "unknown"
         rev = h.stdout.strip()
+        # Confirm the repository that answered actually TRACKS this file.
+        #
+        # `cwd` only decides which repo git talks to, so a copy of this script
+        # dropped inside any git tree gets that tree's commit -- plausible,
+        # confident and wrong. Both machines ran copies out of /tmp today;
+        # /tmp is not a repo so it degrades to "unknown" correctly, but a
+        # scratch copy inside any checkout would not.
+        #
+        # Checking the path SHAPE is not enough -- a copy at `<other>/scripts/`
+        # satisfies it. `ls-files --error-unmatch` asks the only question that
+        # matters: does this repository know this file? An untracked copy
+        # answers no. A copy that has been committed into another repo answers
+        # yes, and stamping that repo is then correct -- it is a fork, and its
+        # commit is the honest provenance.
+        #
+        # A wrong provenance stamp is worse than none, which is this feature's
+        # own argument: the run it exists to prevent was dangerous precisely
+        # because it was internally consistent and carried no way to tell.
+        t = subprocess.run(["git", "ls-files", "--error-unmatch",
+                            str(Path(__file__).resolve())],
+                           capture_output=True, text=True, timeout=10, cwd=here)
+        if t.returncode != 0:
+            return "unknown"
         d = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
                            capture_output=True, text=True, timeout=10,
-                           cwd=Path(__file__).resolve().parent)
+                           cwd=here)
         return rev + ("-dirty" if d.stdout.strip() else "")
     except Exception:
         return "unknown"
