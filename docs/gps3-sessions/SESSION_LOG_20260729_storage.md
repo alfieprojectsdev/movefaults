@@ -4543,6 +4543,19 @@ work" would lose the content. From the T420's framing, extended:
 | the `--root` widening | know the **expected magnitude** before running |
 | the banner grab | run a **control against a known-good target** |
 | the suppressed `git mv` | **do not mute stderr** |
+| the record-alignment inference (§30.13 / #199) | **ask what the number can decide.** A *different* failure from every row above, and the T420's framing: those are instruments returning a wrong answer, fixed by checking the instrument. This one the instrument was right and the reading went past it. Checking harder would not have caught it — only asking whether the evidence bears on the claim. |
+
+**Those two categories must not collapse**, because the remedies are opposite in
+where they point. "Instrument lied" sends you back to the tool. "Instrument
+over-read" sends you back to the proposition, with the tool exonerated. On
+2026-09-09 a correct residue analysis — 8 classes mod 135 against 119 for the
+controls — was used to conclude that no better copy of 113 files existed
+anywhere. 105 of them were on a docked drive. The measurement was never wrong,
+and **the control supplied to strengthen it made the wrong conclusion look
+better supported rather than exposing it.**
+
+The nearest relative in this log is `spread_m`: a real number, correctly
+computed, asked to support a claim outside what it measures.
 
 ### 30.10 The counter-instance, and it is the same one as §29.9
 
