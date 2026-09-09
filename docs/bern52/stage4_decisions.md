@@ -14,7 +14,7 @@ asserting it.
 | class | files | patterns | who decides |
 |---|---:|---:|---|
 | ambiguous-code conflicts | 644 | 57 | **nobody** — blocked on per-cluster catalog |
-| campaign-directory conflicts | ~900 est. | most of 110 | **nobody** — mechanical, see below |
+| campaign-directory conflicts | ~900 est. | most of 110 | **nobody** — confirmed; flag, don't auto-apply |
 | stale-header conflicts | **95** | ~15 | **nobody** — confirmed, filename wins |
 | genuine residue | ~90 | ~34 | **a person, per case** |
 
@@ -79,10 +79,35 @@ campaign directory has sibling directories matching a session pattern
 three or more distinct site codes on the same DOY. Any of those is
 sufficient to stop treating the parent as a site claim.
 
-**What this leaves for you:** confirm that campaign-region directories
-were in fact the filing convention — you would know, and everything
-above is one directory generalised. If some regional directories *were*
-meant as site claims, the rule needs a carve-out.
+**Confirmed 2026-09-09: campaign-region directories were the general
+convention** — with rare occasions where a directory instead means
+"processed with", a purely functional grouping.
+
+**That exception is why the rule must flag rather than reclassify.** The
+two conventions need opposite readings for the namesake site's own
+files:
+
+| directory means | `mase*.97O` under `1997 masbate` | `GUAM*.97O` under it |
+|---|---|---|
+| campaign region *(general)* | **is** Masbate data — path is good evidence | fiducial — path says nothing |
+| "processed with" *(rare)* | **not necessarily** Masbate data | fiducial — path says nothing |
+
+For the non-namesake files the answer is the same either way, which is
+most of the ~900 and is safe to suppress automatically. For the
+namesake's own files the two conventions disagree, and nothing in the
+directory structure distinguishes them.
+
+So: **the detector emits a list, it does not rewrite attributions.** A
+rule that silently applied the general case would quietly mis-file the
+rare one, and the rare one is invisible precisely because it is rare —
+the same shape as every failure this project has catalogued. The cost of
+flagging is a list somebody skims once; the cost of auto-applying is
+wrong attributions nobody ever looks at again.
+
+Cheap discriminator if the rare cases need finding later: in a
+campaign-region directory the namesake's files should be present across
+most session days, since it is the site being surveyed. In a
+"processed with" grouping there is no reason for that pattern to hold.
 
 ---
 
