@@ -1,16 +1,38 @@
-# The 113 decode failures: truncated Leica MDB — and 105 are recoverable
+# The 113 decode failures: truncated Leica MDB, and no better copy exists
 
-> **Corrected 2026-09-09, after the T420 checked the drives.** An earlier
-> version of this note concluded that the truncation was record-aligned, that
-> the *recording* had therefore stopped rather than the copy, and that no better
-> copy existed anywhere — so a search of unwalked media would return nothing.
+> **Corrected twice on 2026-09-09. The original conclusion was right.**
 >
-> **That was wrong. 105 of the 113 have full-session copies on DATA0**, a median
-> 757,681 bytes against a median truncated ~30,000 — 24x larger, same Leica MDB
-> magic bytes. Only 8 have no larger copy. The section below is left in place
-> because the reasoning failed in an instructive way, but the conclusion it
-> reached does not hold.
-
+> This note first concluded that the truncation was record-aligned, that the
+> *recording* had stopped rather than the copy, and that no better copy existed
+> anywhere. A T420 measurement then claimed 105 of the 113 were recoverable as
+> full sessions on DATA0, and that retraction was merged.
+>
+> **The retraction was wrong and is itself retracted.** It matched files by
+> basename. Leica `.mNN` names carry no year, so `IBAZ245a.m00` in `RAW/2014/`
+> and `RAW/2017/` are different observations that share a name with the 2012
+> file — not better copies of it. The 2012 files are on the drive at their own
+> path, at exactly the archive's sizes:
+>
+> ```
+> 113  SAME size   DATA0/RAW/2012/IBAZ           <- the actual 2012 files
+>  80  larger      DATA0/RAW/2014/IBAZ           <- a different year
+>  31  larger      DATA0/RAW/2017/IBAZ_20171018  <- a different year
+> ```
+>
+> **Confirmed by header, not by path**, because a directory is a filing
+> decision and this project has `LUZC050a.m01` — 2011 data under `RAW/2012/` —
+> on record. `teqc -lei mdb` on 12 of the larger files and on the archive's
+> truncated ones:
+>
+> ```
+> RAW/2014/IBAZ/IBAZ286a.m00           survey starts @ 2014    (6 of 6)
+> RAW/2017/IBAZ_20171018/IBAZ245a.m00  survey starts @ 2017    (6 of 6)
+> RAW/2012/IBAZ/IBAZ245a.m00           survey starts @ 2012
+> archive IBAZ244f/245a/246a           survey starts @ 2012    (read on gps3)
+> ```
+>
+> So the archive transfer was faithful, the truncation predates it, and **the
+> conclusion below stands as originally written.** No files were transferred.
 
 **Measured 2026-09-09 on gps3.** `decode_raw_gap.py` reported 113 conversion
 failures in a 3,984-file run and did not record which files, so they could not
