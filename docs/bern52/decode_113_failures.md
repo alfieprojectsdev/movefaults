@@ -135,7 +135,8 @@ rather than reverse-engineer the MDB record layout.
 ```
 same-named copies on docked drives : 224   (0 unreadable)
 distinct files with a LARGER copy  : 105 / 113
-no larger copy                     :   8   (the odd extensions, .M41 .M49 .M55 …)
+no larger copy                     :   8   (.M41 .M49 .M55 .M32 .M38 .M44,
+                                            plus IBAZ366A.M00)
 
 median truncated   ~30,000 bytes
 median drive copy  757,681 bytes      24x larger (range 22x - 186x)
@@ -144,6 +145,21 @@ total recoverable   79 MB, all on DATA0
 
 Verified as genuine rather than merely larger: identical Leica MDB magic
 (`9c ae 88 00 …`) on every one.
+
+**The 113 will still fail in any re-run against `/srv/gnss-archive`.** That tree
+holds the truncated copies; the 105 good ones are on DATA0, which only finch can
+reach. So a `decoded-2012-v2` produced on gps3 shows 113 conversion failures
+exactly as `decoded-2012` did, and **that is correct behaviour, not a regression
+in `allocate()`.** Stated here because the two directories are meant to be
+compared side by side, and an unexplained 113 in both is the obvious thing to
+misread.
+
+**The cheap test should have come first.** Two exchanges were spent debating
+whether to reverse-engineer the MDB record layout from residue arithmetic, while
+the deciding evidence was 224 `stat` calls against drives already docked. The
+generalisation is worth more than the instance: **when the claim is whether a
+file exists somewhere, look for the file.** Structural inference about what a
+file's shape implies is what you do when you cannot look, not before trying.
 
 **Why the record-alignment reasoning failed, which is the part worth keeping.**
 The measurement was sound — 8 residues mod 135 across the failures against 119
