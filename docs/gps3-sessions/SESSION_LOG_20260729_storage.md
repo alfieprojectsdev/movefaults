@@ -4547,12 +4547,30 @@ work" would lose the content. From the T420's framing, extended:
 
 **Those two categories must not collapse**, because the remedies are opposite in
 where they point. "Instrument lied" sends you back to the tool. "Instrument
-over-read" sends you back to the proposition, with the tool exonerated. On
-2026-09-09 a correct residue analysis — 8 classes mod 135 against 119 for the
-controls — was used to conclude that no better copy of 113 files existed
-anywhere. 105 of them were on a docked drive. The measurement was never wrong,
-and **the control supplied to strengthen it made the wrong conclusion look
-better supported rather than exposing it.**
+over-read" sends you back to the proposition, with the tool exonerated.
+
+**The worked example, and it contains both halves.** On 2026-09-09 a basename
+comparison found 105 of the 113 truncated files had larger same-named copies on
+a docked drive, and that was used to conclude the truncated files were
+recoverable. `os.path.getsize` measured the sizes correctly — 105 files really
+were larger. It was asked to decide they were **the same observations**, which
+a size cannot establish and a shared basename cannot either: Leica `.mNN` names
+carry no year, so the larger files were 2014 and 2017 observations sharing a
+name with a 2012 one. Header epochs settled it.
+
+The other half of the same incident is the counter-instance. The residue
+analysis — 8 classes mod 135 across the failures against 119 across the
+controls — was **correctly read**, its conclusion was right, and it was
+overturned for several hours by the over-read above before header evidence
+restored it. A measurement that survives a wrong challenge is in a stronger
+position than one never challenged, and the catalogue should record that
+alongside the failure.
+
+**What made the wrong conclusion persuasive is the part to remember.** The
+basename comparison came with corroboration: 224 files stat'd, zero unreadable,
+Leica MDB magic bytes verified on every larger copy. All of it real, none of it
+bearing on whether the files were the same observation. **Corroboration that
+does not touch the load-bearing assumption makes a wrong claim look stronger.**
 
 The nearest relative in this log is `spread_m`: a real number, correctly
 computed, asked to support a claim outside what it measures.
