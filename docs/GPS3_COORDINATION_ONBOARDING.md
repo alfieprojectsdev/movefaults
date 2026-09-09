@@ -224,19 +224,121 @@ confirmation** — the reviewer's number matched the truth by coincidence. What
 resolved it was decompressing five files and reading the header, which neither
 session had done before asserting.
 
-### Before you say you are blocked, check
+### Correcting a merged claim
 
-Neither session can see the other's PR activity without asking, so *"blocked on
-your review"* is a guess about a state that is directly observable:
+**The session that introduced a claim corrects it.** No announcement, no
+negotiation, no race — the tiebreak is a fact both sessions already know before
+either speaks, so it cannot cross in flight the way a message can.
+
+*Fallback, when the introducer is unavailable or disagrees the claim is wrong:*
+say who is correcting it before correcting it. One line naming the claim and
+the file. Second choice rather than first, because two announcements can cross
+exactly as two PRs can.
+
+On 2026-09-09 both sessions wrote the same retraction of the same paragraph in
+`docs/bern52/decode_113_failures.md` within forty minutes, as #199 and #200.
+Under introducer-corrects there is nothing to resolve: the T420 contributed the
+claim, so the T420 retracts it.
+
+**When the losing PR has something the winner lacks**, hand the paragraphs over
+rather than open a competing PR into a file you do not own. #200 carried three
+things #199 did not; naming them cost less than a rebase and a second review.
+
+### A correction is the most suspect thing in the repo, not the least
+
+**A correction gets at least the review the claim it replaces got.** A wrong
+statement sitting on `main` creates real pressure to fix it fast, and that
+pressure is exactly what stops anyone interrogating the fix.
+
+Not hypothetical. #199 retracted a *correct* conclusion on a measurement nobody
+examined, and merged quickly **because** `main` was wrong. It had to be
+retracted the same day by #204. A correction arrives with more authority than
+the claim it replaces — newer, citing a measurement, framed as settling
+something — which is precisely why it needs the harder look.
+
+**So a correction states what it rests on, in one line, so a reviewer knows
+what to attack.**
+
+#199 would have had to say *"rests on same-named files being the same
+observation"*. Written down, that sentence is self-refuting in a repo whose own
+`decode_raw_gap.py` docstring records that Leica `.mNN` names carry no year.
+Nobody needed to be clever — they needed the load-bearing assumption placed
+next to a fact already established. Without it a reviewer must reconstruct the
+assumption from the evidence, which is harder, and is what neither session did.
+
+### One session edits a document at a time
+
+Every collision on 2026-09-09 was in the shared-document lane, not in the work
+itself. Claim the document, not the machine.
+
+**Turn-taking between sessions was considered and rejected.** The parallelism is
+where the day's value came from — a decode re-run on gps3 while the T420 stat'd
+drives only it could reach — and serialising costs hours to prevent a closed PR.
+It also would not have prevented the case that actually hurt: with a turn
+boundary elsewhere, both sessions still write the same retraction, only further
+apart, and the second lands on a document that has already changed. Worse than
+a clean conflict.
+
+### Claiming work by draft PR: rejected for now, and why
+
+Proposed as a durable alternative to claiming by message — a message is
+point-in-time and crosses, while a draft PR is timestamped, authored, and
+queryable by the `gh pr list` both sessions already poll.
+
+**Rejected because `gh pr close` is gated on the T420.** The problem is not
+creating a claim but withdrawing one: a register that can be written and not
+erased accumulates stale claims on abandoned work, and the damage is the peer
+declining to start something because a dead claim still stands. Withdrawal is
+the load-bearing half of a claim register.
+
+Revisit if that gate changes. Recorded rather than dropped, so the reasoning is
+not relitigated from scratch.
+
+### Say when you have reviewed, and sign it
+
+**Tell the peer when you have reviewed their PRs.** One line naming the PRs and
+the verdicts — approve, changes, hold. The detail belongs on the PR; the
+notification exists so the author knows to go and read it.
+
+**Sign every cross-session review** with the machine it came from —
+`Reviewed from gps3.` / `Reviewed from finch.` — as the opening line.
+
+Three failure modes stack on this one signal, which is why it needs both halves:
+
+1. **A review is invisible until the author polls**, and there is no event that
+   prompts them to.
+2. **Polling is badly timed by default.** On 2026-09-09 a query for reviews on
+   #205 returned empty and the review landed four minutes later. Querying fixes
+   a stale assertion; it does not fix a question asked too early.
+3. **`reviews` cannot be attributed.** Both sessions post under one account, so
+   `--json reviews` yields a count and a state and no author. A peer's review
+   and the author's own comment are indistinguishable in the field the protocol
+   says to check — and on #205 exactly that happened: a self-comment and a bot
+   notice together made an unreviewed PR look reviewed.
+
+Reviews posted before this rule are unattributable after the fact. Nothing to
+be done about those; the signing starts from 2026-09-09.
+
+**"Reviewed, no findings" is worth sending too.** It is the case where the
+author is most likely to assume silence means nobody looked.
+
+### Never assert the peer's state. Query it.
+
+**Anything you are about to say about the peer's side is observable, and you
+are guessing.** Three of five crossed messages on 2026-09-09 were the T420
+asserting gps3's state from a stale snapshot — *"blocked on your review"* when
+all four reviews were posted, *"#195 is yours to merge"* when it was already
+merged, *"green light on the re-run"* after it had started. Each was one
+command away:
 
 ```bash
 gh pr view <n> --json reviews,state,mergeStateStatus
 ```
 
-This is cheaper than a message and settles it. On 2026-09-08 both sessions sent
-status messages that crossed — one reporting itself blocked on reviews the
-other had already posted. Nothing deadlocked, but the claim was false when
-made.
+Cheaper than a message, and authoritative — GitHub already knows, and both
+sessions can read it. This rule was agreed after the first crossing and then
+broken twice more the same day, which is why it is written here rather than
+left as a habit.
 
 The same asymmetry runs the other way and is worth living with: **a sender
 cannot confirm receipt, but can confirm effect.** `gh pr view` shows the peer's
