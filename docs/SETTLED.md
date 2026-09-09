@@ -148,10 +148,38 @@ Two things worth keeping from this:
   2026 — and neither was used to derive the other. That is the strongest form a
   fact in this archive can take, and it is available for very few of them.
 - **A 664–682 m separation was cited for this pair while the question was
-  open.** It does not appear in the data; the median is 22 m. Whatever produced
-  that figure, do not carry it forward.
+  open. It belongs to a different group.** `LHO2` and `LHO1` have no catalog
+  entry at all, so no separation for them can be computed. The figure describes
+  `MAB1` against `MAB2`/`MASB`:
+
+  ```
+  MAB1 <-> MAB2   693.4 m       MAB1  n_files=78  spread=695.19 m
+  MAB1 <-> MASB   673.6 m       MAB2  n_files=21  spread=  0.05 m
+  MAB2 <-> MASB    21.8 m       MASB  n_files=104 spread=  5.05 m
+  ```
+
+  Raising it against Lignon Hill briefly prompted a revised account — that the
+  two were separate antenna mounts on the same hill — which the data does not
+  support and which the domain owner did not need to make. **Attach a number to
+  the pair it was measured on before putting it to anyone.**
 
 Do not re-open whether `LHO2` is a distinct site. It is not.
+
+### The real question in that family is `MAB1`, and it is a catalog defect
+
+`MAB1` carries **`spread_m = 695.19` across 78 CRD files** — its own contributing
+solutions disagree by nearly 700 m — while sitting ~690 m from `MAB2` and
+`MASB`, which are 21.8 m apart from each other and internally tight (0.05 m and
+5.05 m).
+
+**It is not flagged `ambiguous`**, because clustering runs at `--ambiguous-m`
+1000 m and 695 m falls inside one cluster. So a site whose inputs span 695 m is
+published as a single coordinate with no warning, and the `spread_m` column is
+the only thing that says otherwise.
+
+That is a question for the network's history — whether `MAB1` is one mark, or a
+label reused across two — and it is a better use of institutional memory than
+`LHO2` was.
 
 ## 3. Settled decisions — do not re-propose the alternatives
 
