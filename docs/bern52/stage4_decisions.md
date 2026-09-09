@@ -15,7 +15,7 @@ asserting it.
 |---|---:|---:|---|
 | ambiguous-code conflicts | 644 | 57 | **nobody** — blocked on per-cluster catalog |
 | campaign-directory conflicts | ~900 est. | most of 110 | **nobody** — mechanical, see below |
-| stale-header conflicts | ~120 est. | ~15 | **nobody** — mechanical, see below |
+| stale-header conflicts | **95** | ~15 | **nobody** — confirmed, filename wins |
 | genuine residue | ~90 | ~34 | **a person, per case** |
 
 ---
@@ -110,23 +110,53 @@ datapool/PHIVOLCS/2016/MUNT2800.16d.gz   header matched PHIV, 28 km away
 datapool/PHIVOLCS/2018/AGUS3240.18d.gz   header matched PHIV
 ```
 
-**The likely mechanism is a header carrying the HQ position rather than
-the field position** — a receiver initialised, tested or last-positioned
-at PHIVOLCS before deployment, whose `APPROX POSITION XYZ` was never
-updated. `match_rinex_to_site.py` warns of exactly this: the header is a
-single-point fix and *"a cold start can be kilometres out."*
+**Mechanism confirmed.** Receivers are tested at PHIVOLCS HQ before
+field use as standard practice, and the header keeps the position it
+fixed there. Confirmed as domain practice 2026-09-09, and the data
+agrees on three independent counts.
 
-If so these files are **correctly named and wrongly headered**, which is
-the reverse of what a conflict normally implies, and the filename should
-win for this class.
+**The header positions are a tight cluster at HQ, not cold-start
+scatter** — which matters, because `match_rinex_to_site.py` warns a cold
+start can be kilometres out, and that would be a different and less
+tractable problem:
 
-**Testable before anyone decides.** `TIME OF FIRST OBS` against the
-deployment date, and whether the same receiver serial appears in HQ
-files. Neither has been checked.
+```
+122 PHIV-matched files
+header -> PHIV distance    min 0.7 m   median 34.9 m   max 67.3 m
+```
 
-**What this leaves for you:** confirm that receivers were staged at HQ
-before deployment. If yes, this class is mechanical and the filename
-wins.
+A receiver that has genuinely fixed its position at HQ writes a good HQ
+position. That is what these are.
+
+**Filename and marker agree with each other on every one:**
+
+```
+name == marker : 122 of 122
+name != marker :   0
+```
+
+Two independent records — what somebody typed as the filename, and what
+was configured as the RINEX marker — both name the *field* site, while
+only the position names HQ. A typo produces one disagreement, not two
+records agreeing against a third.
+
+**27 of the 122 are named `PHIV` and are not conflicts at all** — they
+are genuinely HQ data. The remaining **95 are the class**:
+
+```
+ALCA 32   MASM 19   PALA 10   MUNT 7   ATIM 6   TCDR 3   ORAS 3
+LABO 3    JARO 3    and a tail
+```
+
+So these files are **correctly named and wrongly headered**, the reverse
+of what a conflict normally implies. **The filename wins for this
+class**, and it is identifiable mechanically: header within ~70 m of
+`PHIV`, filename equal to marker, filename not `PHIV`.
+
+**Consequence worth stating.** Stage 3 attributes by header position, so
+every one of these 95 is currently attributed to HQ instead of the site
+it was observed at. This is not only a reporting artifact — it is 95
+files filed under the wrong monument.
 
 ---
 
@@ -167,7 +197,7 @@ disagreement about something.
 
 1. Land `feat/crd-catalog-clusters` → removes 644 with no decisions.
 2. Confirm the campaign-directory convention → removes most of 110.
-3. Confirm HQ staging → removes the `PHIV` class, filename wins.
+3. ~~Confirm HQ staging~~ **done** → 95 files, filename wins.
 4. Then look at ~34 patterns, of which the sub-kilometre pairs need
    somebody with site knowledge and the rest need case-by-case reading.
 
@@ -180,7 +210,11 @@ far — means reading 200 patterns to find 34.
 directories, `PHIV`'s catalog row and position, the paths of the
 `PHIV`-matched files, the 644/91 split, the 240 m minimum.
 
+**Confirmed 2026-09-09:** HQ receiver testing before field deployment is
+standard practice, which explains the `PHIV` class. The supporting
+measurements — the 0.7-67.3 m clustering and the 122/122 name-marker
+agreement — were made after the confirmation and agree with it.
+
 **Inferred and not yet tested:** that campaign-region directories were
 the general filing convention rather than one person's habit on one
-drive; that the `PHIV` matches are stale headers from HQ staging. Both
-are stated as questions above rather than folded into the counts.
+drive. Stated as a question above rather than folded into the counts.
