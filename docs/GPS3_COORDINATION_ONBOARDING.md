@@ -294,6 +294,38 @@ the load-bearing half of a claim register.
 Revisit if that gate changes. Recorded rather than dropped, so the reasoning is
 not relitigated from scratch.
 
+### Post reviews with `gh pr review`, not `gh pr comment`
+
+**Both machines standardise on `gh pr review --comment`.** Verified available
+on finch and already in use on gps3, so this costs nothing and removes a split.
+
+```bash
+gh pr review <n> --comment --body "**Reviewed from <machine>.** …"
+```
+
+**The rule that named `reviews` was broken when it was written.** `gh pr
+comment` creates an issue comment; `gh pr review` creates a review object. The
+T420 used the first and gps3 the second:
+
+```
+#201   reviews=0   signed-comments=1     <- a real review, invisible to the check
+#207   reviews=0   signed-comments=1
+#205   reviews=2                          <- gps3's, visible
+```
+
+So "check `--json reviews`" **would have reported every review the T420 has
+posted as absent.** A definite absence is worse than no signal, and this is the
+same failure catalogued all week — a check returning a wrong answer for a
+reason unrelated to the question — written into the protocol *as the fix for an
+earlier instance of it*.
+
+**The signature attributes a review; the channel makes it findable.** Both are
+needed. A signature in a field nobody queries is as invisible as an unsigned
+review.
+
+**Reviews posted before 2026-09-09 are issue comments**, so checking a PR from
+that period needs both.
+
 ### Say when you have reviewed, and sign it
 
 **Tell the peer when you have reviewed their PRs.** One line naming the PRs and
