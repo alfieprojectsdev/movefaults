@@ -185,13 +185,25 @@ def read_header(path: Path) -> tuple[tuple[float, float, float] | None, str, int
 
 def load_catalog(path: Path) -> tuple[list[tuple[str, float, float, float]],
                                       dict[str, tuple[int, int]]]:
-    """Return the position rows, and each site's observed epoch range.
+    """Return the position rows, and each site's SOLUTION epoch range.
 
-    The epoch range is already in the catalog as `epoch_min`/`epoch_max` and
-    was not being used. It is the only column that separates codes sharing a
-    location -- the PHIVOLCS roof carries PHIV (1998-2008), PHIC (1998-2006)
-    and PIVS (2012-2014) within 24 m of each other, which no position fix can
-    tell apart.
+    NOT an operating period, and the column names invite that misreading.
+    `epoch_min`/`epoch_max` are the range of `EPOCH:` values in the CRD files
+    mentioning a site -- when somebody computed a position, not when the
+    monument was observing. `PTAG` carries 2008 observations against an
+    `epoch_min` of 2009-07-12. See `docs/bern52/crd_catalog.md`.
+
+    Read that way it is still the only column that separates codes sharing a
+    location. The PHIVOLCS roof was re-occupied several times under different
+    codes:
+
+        PHIC <-> PIVS    0.49 m    PHIC 1998-02-21 .. 2006-12-05
+        PHIV <-> PIVS   23.84 m    PIVS 2012-01-01 .. 2014-03-12
+        PHIC <-> PHIV   23.95 m    PHIV 1998-02-15 .. 2008-08-28
+
+    `PHIC` and `PIVS` are **half a metre apart** with non-overlapping ranges.
+    No position fix separates those at any plausible precision, and no
+    improvement to the fix ever will.
     """
     rows, epochs = [], {}
     with path.open(encoding="utf-8") as fh:
