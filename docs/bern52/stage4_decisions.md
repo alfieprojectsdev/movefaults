@@ -256,11 +256,33 @@ coverage ended in 2008; it is a 2020 receiver carrying a stale HQ position. That
 is a fourth independent confirmation of the staging explanation, and it arrived
 free from data already in the catalog.
 
-**Recommendation for stage 3:** compare the observation epoch against the
-matched site's `epoch_min`/`epoch_max` and flag matches falling outside it. It
-costs two columns already present in `crd_catalog.csv`, it would have isolated
-this entire class automatically, and it generalises — any site whose code was
-retired and whose position is still being matched will show the same signature.
+**Recommendation for stage 3, with the caveat that matters more than the
+recommendation:** compare the observation epoch against the matched site's
+`epoch_min`/`epoch_max` — but report it as a **modifier on an existing
+disagreement**, never as a flag on its own. Implemented in #206.
+
+The naive version was written first and measured against the 2016 PHIVOLCS
+datapool before it shipped:
+
+```
+outside the matched site's range        4,732 of 24,769   (19%)
+  of those, filename AGREES with match  4,704             (99.4%)
+  filename disagrees                       28
+```
+
+The 4,704 are ordinary 2016 observations at 25 CORS whose catalog epochs read
+`2021-09-01 .. 2026-02-12`. **`epoch_min`/`epoch_max` record when a coordinate
+solution was catalogued, not when the site operated** — the column name invites
+the second reading and it is wrong. Flagging on epoch alone would report a
+fifth of the archive as suspect and bury the real cases in it.
+
+As a modifier it is sharp: the 122 files whose filename already contradicts the
+position narrow to 28.
+
+**Why this claim was wrong when first written here.** It was generalised from
+`PHIV`, where the check had been fitted, and `PHIV` is a *retired* code — the
+one situation where the catalog range really does approximate the operating
+period. It looked strongest exactly where it was derived.
 
 **Caution on the rooftop codes specifically.** Because the antenna moved, a
 single code's spread is tens of metres, so any position-based rule near HQ
