@@ -57,6 +57,7 @@ from __future__ import annotations
 import argparse
 import csv
 import gzip
+import datetime
 import math
 import re
 import subprocess
@@ -231,6 +232,32 @@ def load_catalog(path: Path) -> tuple[list[tuple[str, float, float, float]],
     return rows, epochs
 
 
+
+def _commit() -> str:
+    """Short commit of the working tree, marked `-dirty` if it is.
+
+    Returns `unknown` rather than raising: a provenance stamp must never be
+    the reason a two-hour run fails to start.
+    """
+    try:
+        h = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                           capture_output=True, text=True, timeout=10,
+                           cwd=Path(__file__).resolve().parent)
+        if h.returncode != 0:
+            return "unknown"
+        rev = h.stdout.strip()
+        d = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
+                           capture_output=True, text=True, timeout=10,
+                           cwd=Path(__file__).resolve().parent)
+        return rev + ("-dirty" if d.stdout.strip() else "")
+    except Exception:
+        return "unknown"
+
+
+def _now() -> str:
+    return datetime.datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
 def epoch_verdict(year: int | None, span: tuple[int, int] | None) -> str:
     """`in`, `outside`, or "" when either side is unknown.
 
@@ -304,9 +331,21 @@ def main() -> int:
     path_agree = path_disagree = 0
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", newline="", encoding="utf-8") as fh:
+        # Stamp the commit that produced this file. A run over the whole
+        # archive takes ~2 hours, so a fix landing mid-run yields output
+        # matching NEITHER version -- and on 2026-09-09 an 18,148-row partial
+        # was discarded for exactly that: it carried the `stale-header`
+        # verdict from one commit and the blank-`agrees` bug from the commit
+        # before the fix. Nothing in the file contradicted anything else in
+        # it, so it was internally consistent and silently wrong, and it was
+        # bound for the archive README.
+        #
+        # "Which code wrote this?" should be answerable from the artefact, not
+        # from remembering when the job was launched relative to a commit.
         fh.write("# RINEX -> site attribution by header position. CANDIDATES, not\n"
                  "# determinations: APPROX POSITION is a single-point fix good to\n"
-                 "# ~100 m and sometimes far worse. See match_rinex_to_site.py.\n")
+                 "# ~100 m and sometimes far worse. See match_rinex_to_site.py.\n"
+                 f"# generated {_now()} by match_rinex_to_site.py @ {_commit()}\n")
         w = csv.writer(fh)
         w.writerow(["path", "verdict", "matched_site", "distance_m",
                     "n_within_radius", "alternatives", "name_site",
