@@ -33,6 +33,11 @@
 >
 > So the archive transfer was faithful, the truncation predates it, and **the
 > conclusion below stands as originally written.** No files were transferred.
+>
+> **Read the conclusion as strengthened, not merely restored.** It was not a
+> wrong turn reversed: an alternative hypothesis was raised on apparently good
+> evidence, tested against file headers, and eliminated. A finding that has been
+> doubted and held is in a better position than one never challenged.
 
 **Measured 2026-09-09 on gps3.** `decode_raw_gap.py` reported 113 conversion
 failures in a 3,984-file run and did not record which files, so they could not
