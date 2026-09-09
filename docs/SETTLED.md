@@ -149,9 +149,40 @@ the convention; over 1 km it is coincidence — `CEB2` and `CEBB` are simply two
 different Cebu sites. **The separation classifies the pair; the name alone does
 not.**
 
-Do not merge a digit-4 code into its letter-sibling on the strength of the name.
-Check the separation first, and note that the alias radius must stay below 50 m
-or the convention's pairs will be collapsed.
+**There is a third cause, and it produces the same signature.** PHIVOLCS field
+staff also, rarely, ran **multiple receivers at one site** — a field decision
+made on experience. That is the same practice IGS uses for `WTZ2`/`WTZS` and
+`UNB3`/`UNBN`, which sit at 0.0 m in this catalog.
+
+So a digit-4 pair under 50 m has at least three possible causes:
+
+| cause | marks | merging is |
+|---|---|---|
+| co-located receivers, one mark | one | correct |
+| auxiliary benchmark | two | **wrong** |
+| coincidental prefix (>1 km) | two | **wrong** |
+
+Separation narrows this and does not settle it. The sub-2 m pairs — `MAC2`/`MACZ`
+0.1 m, `TAW2`/`TAWI` 0.6 m — are within antenna-setup precision and look like
+co-location; `BLN2`/`BLNA` at 5.2 m and `CAC2`/`CACA` at 16.9 m are deliberate
+offsets. But eleven pairs is not enough to fit a threshold to, and the two
+causes are not separable by distance at the low end.
+
+**A test that looked decisive and is not.** Comparing the pairs' catalog epoch
+ranges for overlap — on the reasoning that co-located receivers run
+simultaneously — returns overlap for 8 of 11, including pairs at 14–45 m that
+are plainly separate marks. **The test is invalid**: `epoch_min`/`epoch_max` are
+*solution reference epochs, not operating periods*, which this file records
+elsewhere and which was documented four hours before the test was run. Overlap
+there means overlapping solution windows, not simultaneous occupation.
+
+Observation years read from RINEX headers would answer it. The catalog columns
+cannot, whatever their names suggest.
+
+**So this class needs institutional memory per case, not more measurement.** Do
+not merge a digit-4 code into its letter-sibling on the strength of the name or
+of the distance. The alias radius must stay below 50 m regardless, or the
+convention's pairs get collapsed into single monuments.
 
 ### `LHO2` / `LHOV` — OPEN, and previously recorded here as settled in error
 
