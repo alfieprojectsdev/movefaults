@@ -57,9 +57,11 @@ more than one monument, and the published row carries only the largest
 cluster. A file claiming such a code whose position matches a *different*
 site is the catalog being unable to say which monument the code meant.
 
-`feat/crd-catalog-clusters` — per-cluster catalog output — is the fix,
-and it is in progress on gps3. **These 644 resolve without anyone
-deciding anything**, and reviewing them before that lands is wasted work.
+Per-cluster catalog output is the fix. It is **claimed by gps3 and not
+yet started** as of 2026-09-09 — stated precisely because "in progress"
+would suggest a timeline that does not exist. **These 644 resolve without
+anyone deciding anything** once it lands, and reviewing them before then
+is wasted work.
 
 `SOLD` is the worked example: one code, two monuments 632 km apart, one
 published coordinate, and the Muntinlupa monument consequently absent
