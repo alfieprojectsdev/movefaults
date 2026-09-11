@@ -42,6 +42,17 @@ set -uo pipefail
 LAN=192.168.48.124
 TS=100.111.100.73
 INTERVAL=10
+# Below this, an outage is a link flap rather than the machine going away.
+# 2026-09-11: 164 outages in 17 h, median 10 s (one probe interval), mean
+# 11.6 s, while finch had 1d17h uptime and no reboots throughout -- PHIVOLCS
+# wifi, not finch. Unclassified, a real crash is one line among ~200 daily
+# false positives: the instrument working and unreadable.
+#
+# 30 s sits against finch's ~37 s boot cycle so the classes do not overlap --
+# but the longest flap observed was 37 s, exactly at that boundary. Duration
+# separates 163 of 164 and is ambiguous for the one case that matters, so it
+# errs toward DOWN. The boot-id probe removes that ambiguity; this manages it.
+FLAP_MAX=30
 LOG="${FINCH_WATCH_LOG:-$HOME/finch-watch.log}"
 
 now() { date '+%Y-%m-%dT%H:%M:%S%z'; }
@@ -86,34 +97,64 @@ state=init
 since=$(date +%s)
 last_ok=$(date +%s)
 last_beat=0
+flaps=0
+down_at=0
+down_reported=yes
 
 while :; do
+    probe_start=$(date +%s)
     l=$(probe "$LAN"); t=$(probe "$TS")
     if [ "$l" = ok ] || [ "$t" = ok ]; then new=UP; else new=DOWN; fi
     n=$(date +%s)
+    # The REAL sampling period, not the nominal one. Each probe waits up to
+    # -W2 per address, so when finch is unreachable a cycle costs ~4 s of
+    # timeouts plus the sleep -- the interval degrades during exactly the
+    # event it is measuring. Reporting INTERVAL would understate the window
+    # the death actually falls in, on the one line somebody correlates.
+    [ "${prev_probe:-0}" -gt 0 ] && actual_gap=$(( probe_start - prev_probe )) || actual_gap=$INTERVAL
+    prev_probe=$probe_start
 
     if [ "$new" != "$state" ]; then
         if [ "$new" = DOWN ]; then
-            # last_ok is the newest moment finch is KNOWN to have been alive.
-            # The true death is somewhere in (last_ok, now]; the interval is
-            # the resolution, and saying so keeps the number honest.
-            # clock= on the DOWN line specifically: this is the timestamp
-            # somebody will correlate against finch's journal, and an unsynced
-            # clock makes that correlation wrong by an unknown amount that is
-            # far larger than the stated resolution.
-            log "DOWN  lan=$l ts=$t  last_seen=$(date -d "@$last_ok" '+%H:%M:%S')  resolution=${INTERVAL}s  clock_$(clock_state)"
+            # The DOWN line is DEFERRED, not suppressed. An outage's duration
+            # is not knowable when the link drops, and writing one line per
+            # flap is what made this log unreadable. It is emitted below as
+            # soon as the outage outlives FLAP_MAX, so a real crash is still
+            # recorded within 30 s even if this watcher is killed next.
+            down_at=$n
+            down_reported=no
         else
             d=$(( n - since ))
             [ "$state" = init ] && d=0
-            log "UP    lan=$l ts=$t  down_for=${d}s"
+            if [ "$state" = DOWN ] && [ "$d" -le "$FLAP_MAX" ]; then
+                flaps=$(( flaps + 1 ))
+                log "FLAP  lan=$l ts=$t  down_for=${d}s  (link blip, not a reboot)"
+            else
+                log "UP    lan=$l ts=$t  down_for=${d}s"
+            fi
         fi
         state=$new
         since=$n
     fi
+
+    # Promote a sustained outage to DOWN once it is no longer a plausible flap.
+    # last_ok is the newest moment finch is KNOWN alive; the true death is in
+    # (last_ok, now] and the interval is the resolution. clock_ is on this line
+    # specifically -- it is the timestamp somebody correlates against finch's
+    # journal, and a wrong clock makes that correlation wrong by far more than
+    # the stated resolution.
+    if [ "$state" = DOWN ] && [ "${down_reported:-yes}" = no ] \
+       && [ $(( n - down_at )) -gt "$FLAP_MAX" ]; then
+        log "DOWN  lan=$l ts=$t  last_seen=$(date -d "@$last_ok" '+%H:%M:%S')  resolution=${actual_gap}s(nominal_${INTERVAL}s)  exceeded_flap_max=${FLAP_MAX}s  clock_$(clock_state)"
+        down_reported=yes
+    fi
     [ "$new" = UP ] && last_ok=$n
 
     if [ $(( n - last_beat )) -ge 3600 ]; then
-        log "beat  state=$state lan=$l ts=$t  since=$(date -d "@$since" '+%Y-%m-%dT%H:%M:%S')  clock_$(clock_state)"
+        # flaps/hour is the health of the LINK and a finding in its own right:
+        # ~200/day is plausibly why the user could not reach finch from home.
+        log "beat  state=$state lan=$l ts=$t  since=$(date -d "@$since" '+%Y-%m-%dT%H:%M:%S')  flaps_last_hour=${flaps}  clock_$(clock_state)"
+        flaps=0
         last_beat=$n
     fi
     sleep "$INTERVAL"
