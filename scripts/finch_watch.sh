@@ -60,6 +60,37 @@ log() { printf '%s  %s\n' "$(now)" "$*" >> "$LOG"; }
 
 probe() { ping -c1 -W2 -n "$1" >/dev/null 2>&1 && echo ok || echo fail; }
 
+# WHAT ACTUALLY SEPARATES A FLAP FROM A CRASH.
+#
+# Duration cannot. The longest flap observed was 37 s and finch's boot cycle is
+# ~37 s, so FLAP_MAX sits on the boundary of the thing it is meant to detect --
+# and because a cycle costs ~4 s of ping timeouts per unreachable address, a
+# nominal 30 s threshold is a real 35-45 s during an outage. The classes touch.
+#
+# `boot_id` does not change while a machine is up and always changes across a
+# reboot. Same id after an outage means finch never went away and the network
+# did; a different id means it really rebooted, however brief the gap looked.
+# It is evidence about the machine rather than about the path to it.
+#
+# Read over plain sshd on the LAN address with a `command=` restricted key that
+# can return only these two values -- no shell, no forwarding. NOT over
+# Tailscale SSH, which is in `check` mode here: it wants periodic browser
+# re-auth that an unattended watcher cannot do, and the failure would be silent
+# and indistinguishable from finch being down. That failure mode inside the
+# instrument built to detect it is the thing this whole exercise is about.
+#
+# Bounded and allowed to fail. It runs only on an UP transition, never in the
+# steady state, so it does not lengthen the sampling period the way the pings
+# do. On failure it returns `unknown` and the caller falls back to duration --
+# it must never guess, because "probe failed" and "same machine" are different
+# facts and conflating them is how a crash gets filed as a flap.
+FINCH_SSH=finch@192.168.48.124
+boot_id() {
+    timeout 8 ssh -n -o BatchMode=yes -o ConnectTimeout=4 \
+        -o StrictHostKeyChecking=accept-new "$FINCH_SSH" true 2>/dev/null \
+        | head -1 | tr -d '[:space:]'
+}
+
 # A gap in the watcher is NOT a gap in finch, and conflating the two would be
 # precisely the failure this exists to avoid. Say so on every start, so nobody
 # later reads a silent stretch as finch having been up.
@@ -92,6 +123,12 @@ clock_state() {
 log "WATCH-START pid=$$ interval=${INTERVAL}s lan=$LAN ts=$TS clock_$(clock_state)"
 log "WATCH-NOTE  any gap before this line is UNOBSERVED, not finch being up"
 trap 'log "WATCH-STOP  pid=$$ -- from here finch is UNOBSERVED"; exit 0' TERM INT
+
+# Baseline, so the first recovery has something to compare against. If finch
+# is unreachable at start this is empty and the first UP reports `unknown`,
+# which is correct: we genuinely do not know what it was before.
+last_boot=$(boot_id)
+log "WATCH-BASE  finch boot_id=${last_boot:-unknown}"
 
 state=init
 since=$(date +%s)
@@ -126,11 +163,30 @@ while :; do
         else
             d=$(( n - since ))
             [ "$state" = init ] && d=0
-            if [ "$state" = DOWN ] && [ "$d" -le "$FLAP_MAX" ]; then
+            # Ask the machine what it is before classifying. boot_id decides
+            # when it answers; duration is the fallback when it does not.
+            b=$(boot_id)
+            if [ -z "$b" ]; then
+                verdict="boot_id=unavailable -- classified by duration only"
+                if [ "$state" = DOWN ] && [ "$d" -le "$FLAP_MAX" ]; then
+                    flaps=$(( flaps + 1 ))
+                    log "FLAP? lan=$l ts=$t  down_for=${d}s  $verdict"
+                else
+                    log "UP    lan=$l ts=$t  down_for=${d}s  $verdict"
+                fi
+            elif [ -n "$last_boot" ] && [ "$b" = "$last_boot" ]; then
+                # Same boot. finch never went away, whatever the duration said.
                 flaps=$(( flaps + 1 ))
-                log "FLAP  lan=$l ts=$t  down_for=${d}s  (link blip, not a reboot)"
+                log "FLAP  lan=$l ts=$t  down_for=${d}s  boot_id=unchanged (the network dropped, finch did not)"
+            elif [ -n "$last_boot" ]; then
+                # Different boot. A REBOOT, even if the gap looked like a flap
+                # -- which is the case duration can never catch and the whole
+                # reason this probe exists.
+                log "CRASH lan=$l ts=$t  down_for=${d}s  boot_id=CHANGED  was=${last_boot:0:8} now=${b:0:8}  <- finch actually rebooted"
+                last_boot=$b
             else
-                log "UP    lan=$l ts=$t  down_for=${d}s"
+                log "UP    lan=$l ts=$t  down_for=${d}s  boot_id=${b:0:8} (no baseline to compare)"
+                last_boot=$b
             fi
         fi
         state=$new
