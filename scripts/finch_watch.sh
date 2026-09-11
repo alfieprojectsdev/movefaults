@@ -84,10 +84,20 @@ probe() { ping -c1 -W2 -n "$1" >/dev/null 2>&1 && echo ok || echo fail; }
 # do. On failure it returns `unknown` and the caller falls back to duration --
 # it must never guess, because "probe failed" and "same machine" are different
 # facts and conflating them is how a crash gets filed as a flap.
+#
+# It sends the real command even though `command=` overrides whatever is sent.
+# An earlier version sent `true`, which worked only BECAUSE of the restriction:
+# if that is ever relaxed -- key rotated, finch reinstalled -- `true` returns
+# empty, the probe reports `unknown`, and this silently drops to duration-only,
+# the one mode that cannot see a reboot inside a flap-length gap. It would read
+# as a transient network failure rather than a permanent loss of capability.
+# Naming the command costs nothing, survives the restriction being lifted, and
+# states the contract on the machine that depends on it.
 FINCH_SSH=finch@192.168.48.124
 boot_id() {
     timeout 8 ssh -n -o BatchMode=yes -o ConnectTimeout=4 \
-        -o StrictHostKeyChecking=accept-new "$FINCH_SSH" true 2>/dev/null \
+        -o StrictHostKeyChecking=accept-new "$FINCH_SSH" \
+        'cat /proc/sys/kernel/random/boot_id' 2>/dev/null \
         | head -1 | tr -d '[:space:]'
 }
 
