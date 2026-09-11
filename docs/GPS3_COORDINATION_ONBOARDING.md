@@ -294,6 +294,28 @@ the load-bearing half of a claim register.
 Revisit if that gate changes. Recorded rather than dropped, so the reasoning is
 not relitigated from scratch.
 
+### Address Alfie as `@Alfie`; everything else is peer traffic
+
+**When a message is actually for Alfie, mark it `@Alfie`.** Unmarked text is
+machine-to-machine and he can skip it.
+
+    @Alfie ...        needs his attention, decision, or action
+    everything else   peer traffic
+
+Established 2026-09-11, in his words: *"i'm starting to confuse who the
+intended audience is with these back and forth banter."*
+
+**The cost was ours and neither session noticed it.** Cross-session messages
+became long, frequent, and written in the same register as reports to him, so
+*"your 37 s finding is the sharpest thing here"* reads identically whether it
+is aimed at the other machine or at the person paying for the tokens. He was
+inferring audience from content on every message.
+
+**It applies to our own output, not to relayed content.** Quoting him back at
+each other does not become `@Alfie`, and a PR body written for a future reader
+is not addressed to him either. The marker means *you specifically, now* — put
+it on things he does not need to read and it stops working within a day.
+
 ### Post reviews with `gh pr review`, not `gh pr comment`
 
 **Both machines standardise on `gh pr review --comment`.** Verified available
