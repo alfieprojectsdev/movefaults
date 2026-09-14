@@ -64,11 +64,26 @@ done
 [ "${#got[@]}" -ge 2 ] || { echo "FATAL: need >=2 sources to agree; got ${#got[@]}." >&2; exit 3; }
 
 # Median, so one lying source cannot move the clock on its own.
+# Take the median, then DISCARD sources far from it -- do not let one bad
+# source veto the operation. 2026-09-14: wikipedia.org returned a Date 6h19m
+# out while five other sources agreed within 5s, and an earlier version
+# refused outright on the full spread. That used a robust estimator and then
+# gated it on a non-robust statistic, throwing away the median's whole point.
 IFS=$'\n' sorted=($(sort -n <<<"${got[*]}")); unset IFS
-target=${sorted[$(( ${#sorted[@]} / 2 ))]}
-spread=$(( sorted[-1] - sorted[0] ))
-echo "  median=$(date -d "@$target" '+%F %T')  spread_between_sources=${spread}s"
-[ "$spread" -le "$SPREAD_MAX" ] || { echo "FATAL: sources disagree by ${spread}s (>${SPREAD_MAX}); refusing." >&2; exit 4; }
+median=${sorted[$(( ${#sorted[@]} / 2 ))]}
+declare -a kept dropped
+for t in "${got[@]}"; do
+    dev=$(( t - median )); dev=${dev#-}
+    if [ "$dev" -le "$SPREAD_MAX" ]; then kept+=("$t"); else dropped+=("$t"); fi
+done
+for t in "${dropped[@]}"; do
+    echo "  DISCARDED a source $(( t - median ))s from the median"
+done
+[ "${#kept[@]}" -ge 3 ] || { echo "FATAL: only ${#kept[@]} source(s) agree; need 3. Refusing." >&2; exit 4; }
+IFS=$'\n' k=($(sort -n <<<"${kept[*]}")); unset IFS
+target=${k[$(( ${#k[@]} / 2 ))]}
+spread=$(( k[-1] - k[0] ))
+echo "  median=$(date -d "@$target" '+%F %T')  agreeing=${#kept[@]}/${#got[@]}  spread=${spread}s"
 
 before=$(date +%s)
 timedatectl set-ntp false >/dev/null 2>&1 || true
@@ -144,17 +159,25 @@ if [ "${#got[@]}" -lt 2 ]; then
 fi
 
 IFS=$'\n' s=($(sort -n <<<"${got[*]}")); unset IFS
-target=${s[$(( ${#s[@]} / 2 ))]}
-spread=$(( s[-1] - s[0] ))
+median=${s[$(( ${#s[@]} / 2 ))]}
+declare -a kept
+for t in "${got[@]}"; do
+    dev=$(( t - median )); dev=${dev#-}
+    [ "$dev" -le "$SPREAD_MAX" ] && kept+=("$t")
+done
+if [ "${#kept[@]}" -lt 3 ]; then
+    logger -t http-timesync "only ${#kept[@]}/${#got[@]} sources agree within ${SPREAD_MAX}s; NOT adjusting"
+    exit 0
+fi
+IFS=$'\n' k=($(sort -n <<<"${kept[*]}")); unset IFS
+target=${k[$(( ${#k[@]} / 2 ))]}
+spread=$(( k[-1] - k[0] ))
 off=$(( now - target ))
+[ "${#kept[@]}" -eq "${#got[@]}" ] || logger -t http-timesync "discarded $(( ${#got[@]} - ${#kept[@]} )) outlying source(s)"
 
 # 15s: an HTTP Date is second-resolution plus latency, so single-digit spread is
 # normal. A source that is genuinely wrong is wrong by minutes, as this host was
 # by 250s.
-if [ "$spread" -gt "$SPREAD_MAX" ]; then
-    logger -t http-timesync "sources spread ${spread}s (>${SPREAD_MAX}) from ${#got[@]} sources; NOT adjusting; offset would be ${off}s"
-    exit 0
-fi
 if [ "${off#-}" -lt 2 ]; then
     logger -t http-timesync "offset ${off}s from ${#got[@]} sources, spread ${spread}s; within tolerance"
     exit 0
