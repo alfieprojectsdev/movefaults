@@ -1,0 +1,57 @@
+# Line-ending policy: opt in, never repo-wide.
+#
+# WHY THIS EXISTS
+#
+# Five files under services/field-ops/frontend/src were stored with CRLF while
+# the thirty-odd beside them were LF — an accident of which editor touched each
+# one first, not a decision. The cost only appears later: any tool that
+# rewrites such a file converts it wholesale, and the 2,512-line diff that
+# results hides the twenty lines that actually changed. That happened while
+# adding the Today screen, and the diff had to be split into two commits to
+# stay reviewable.
+#
+# WHY IT IS NOT `* text=auto`
+#
+# That was the first attempt and it is wrong for this repository. 200+ tracked
+# files are legitimately CRLF and some of them care:
+#
+#   *.bat, *.cmd   legacy PHIVOLCS batch scripts — CRLF is the format
+#   *.rtl          VADASE NMEA capture fixtures the replay tests read
+#   *.PCF *.INP    Bernese BPE panels, fixed-column and read by Fortran
+#   *.STA *.CRD    Bernese station/coordinate files, same
+#   *.m            PHIVOLCS MATLAB, edited on Windows
+#
+# A blanket rule would rewrite any of those the next time someone edited and
+# re-added it, silently, in a commit about something else. That is the exact
+# failure this file is meant to prevent, pointed at the data instead of the
+# source. So: no default. Everything keeps whatever it already has, and
+# normalisation is listed explicitly per extension below.
+
+# Source we maintain. LF in the repository and in the working tree; these are
+# edited on Linux by both machines and by tooling that assumes LF.
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.js   text eol=lf
+*.jsx  text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+
+# Shell scripts must be LF everywhere: a CR after a shebang makes the
+# interpreter unfindable, and this repo hands scripts to the R740 and to gps3.
+*.sh text eol=lf
+
+# Deliberately absent: *.py. 82 tracked Python files are CRLF today and
+# converting them belongs in its own change, verified against the test suite,
+# not smuggled in beside a UI screen.
+
+# Binary — never examined for line endings, never diffed as text.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.pdf  binary
+*.docx binary
+*.xlsx binary
+*.zip  binary
+*.gz   binary
+*.crx  binary
