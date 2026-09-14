@@ -21,6 +21,21 @@ import type { LocationState } from "../hooks/useDeviceLocation";
  * The overdue case is the one that could not be written at all before the
  * detail fields landed: `maintenance_interval_days` is what turns "last
  * visited in March" into "this one needs visiting".
+ *
+ * WHY queryBy AND NEVER getBy
+ *
+ * Every assertion here is `expect(screen.queryBy...(x)).not.toBeNull()` or
+ * `.toBeNull()`. The obvious spelling of the positive case,
+ * `expect(screen.getByText(x)).toBeTruthy()`, is not an assertion at all:
+ * getBy throws when it finds nothing and otherwise returns an element, so
+ * toBeTruthy has no input that could fail it. The test still catches the
+ * regression -- via the throw, one call inward -- but the line that reads like
+ * the check is decoration, and a reader deciding whether this file is worth
+ * trusting reads the line.
+ *
+ * Found by gps3 in review of #221, after being asked for an assertion that
+ * could not fail. It is the same defect as an `echo "tests pass"` next to the
+ * command that would have proved it.
  */
 
 const stationsResult = vi.fn();
@@ -109,7 +124,7 @@ describe("near you", () => {
       .map((li) => li.querySelector("strong")?.textContent);
     expect(codes).toEqual(["NEAR", "FAR"]);
     // Distance is stated, not implied by position in the list.
-    expect(screen.getByText(/1\.0 km|1 km/)).toBeTruthy();
+    expect(screen.queryByText(/1\.0 km|1 km/)).not.toBeNull();
   });
 
   it("leaves out a station beyond the radius", () => {
@@ -119,13 +134,13 @@ describe("near you", () => {
     });
     render(<TodayView onStartSheet={vi.fn()} />);
     expect(screen.queryByText("AWAY")).toBeNull();
-    expect(screen.getByText("NEAR")).toBeTruthy();
+    expect(screen.queryByText("NEAR")).not.toBeNull();
   });
 
   it("says so rather than showing an empty list when nothing is close", () => {
     stationsResult.mockReturnValue({ data: [kmEast("AWAY", 40)], isLoading: false });
     render(<TodayView onStartSheet={vi.fn()} />);
-    expect(screen.getByText(/No station within/)).toBeTruthy();
+    expect(screen.queryByText(/No station within/)).not.toBeNull();
   });
 });
 
@@ -140,14 +155,14 @@ describe("a fix that is not good enough", () => {
       fix: { ...HERE, accuracy: 5_000, at: Date.now() },
     });
     render(<TodayView onStartSheet={vi.fn()} />);
-    expect(screen.getByText(/only accurate to/)).toBeTruthy();
+    expect(screen.queryByText(/only accurate to/)).not.toBeNull();
     expect(screen.queryByText("Near you")).toBeNull();
   });
 
   it("names a denied permission as the reason", () => {
     locationResult.mockReturnValue({ status: "denied" });
     render(<TodayView onStartSheet={vi.fn()} />);
-    expect(screen.getByText(/Location permission is off/)).toBeTruthy();
+    expect(screen.queryByText(/Location permission is off/)).not.toBeNull();
   });
 });
 
@@ -160,7 +175,7 @@ describe("what the station's own metadata buys", () => {
     });
     sheetsResult.mockReturnValue({ data: [sheet({ visit_date: old })] });
     render(<TodayView onStartSheet={vi.fn()} />);
-    expect(screen.getByText(/overdue/)).toBeTruthy();
+    expect(screen.queryByText(/overdue/)).not.toBeNull();
   });
 
   it("does not mark one visited inside its interval", () => {
@@ -190,7 +205,7 @@ describe("what the station's own metadata buys", () => {
 
   it("shows the municipality and province the endpoint now returns", () => {
     render(<TodayView onStartSheet={vi.fn()} />);
-    expect(screen.getByText("Quezon City, Metro Manila")).toBeTruthy();
+    expect(screen.queryByText("Quezon City, Metro Manila")).not.toBeNull();
   });
 
   it("falls back to the station name when it has no administrative location", () => {
@@ -199,12 +214,12 @@ describe("what the station's own metadata buys", () => {
       isLoading: false,
     });
     render(<TodayView onStartSheet={vi.fn()} />);
-    expect(screen.getByText("Old Monument")).toBeTruthy();
+    expect(screen.queryByText("Old Monument")).not.toBeNull();
   });
 
   it("says when a station has never been visited", () => {
     render(<TodayView onStartSheet={vi.fn()} />);
-    expect(screen.getByText(/no sheet on record/)).toBeTruthy();
+    expect(screen.queryByText(/no sheet on record/)).not.toBeNull();
   });
 });
 
@@ -221,7 +236,7 @@ describe("search", () => {
     render(<TodayView onStartSheet={vi.fn()} />);
 
     await userEvent.type(screen.getByLabelText("Search stations"), "tugue");
-    expect(screen.getByText("AAAA")).toBeTruthy();
+    expect(screen.queryByText("AAAA")).not.toBeNull();
     expect(screen.queryByText("BBBB")).toBeNull();
   });
 });
