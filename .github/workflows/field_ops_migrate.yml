@@ -47,9 +47,18 @@ concurrency:
 jobs:
   migrate:
     runs-on: ubuntu-latest
-    # Set a required reviewer on this environment in repo settings to gate DDL
-    # behind a human. Without that it is a plain namespace for the secret.
-    environment: production
+    # `Production`, capital P, because that environment already exists on this
+    # repo. GitHub AUTO-CREATES an environment a workflow references, so a
+    # lowercase `production` here would silently create a second, unprotected
+    # one beside the real one -- and any approval rule later added to
+    # `Production` would not apply to the job running DDL. The name is an
+    # exact-match contract with something that already exists, not a label.
+    #
+    # It carries no protection rules today (verified 2026-09-14), so it is
+    # currently a namespace for the secret rather than a gate. Adding a
+    # required reviewer in Settings -> Environments -> Production is what turns
+    # it into one, and is worth doing before this runs unattended.
+    environment: Production
     steps:
       - uses: actions/checkout@v4
 
