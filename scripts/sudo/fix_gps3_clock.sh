@@ -44,10 +44,25 @@ SPREAD_MAX=15
 SOURCES=(https://www.cloudflare.com https://github.com https://www.google.com
          https://www.bing.com https://www.wikipedia.org https://duckduckgo.com)
 
+# A CDN-cached response carries the Date of the CACHE ENTRY, not of now.
+# 2026-09-14: wikipedia.org returned a Date frozen at 18:10:28 GMT with
+# `age: 35710` and `x-cache: hit`, drifting further from true time by exactly
+# the elapsed interval on every probe. It is not a wrong clock, it is a cached
+# page, and it would never have become correct.
+#
+# `Age:` is the general tell rather than a wikipedia quirk, so this rejects any
+# aged response instead of blacklisting a host. Cache-Control: no-cache asks
+# the CDN not to serve one in the first place.
 read_remote() {
-    local d
-    d=$(curl -sS -I --max-time 10 "$1" 2>/dev/null | grep -i '^date:' | head -1 | cut -d' ' -f2-) || return 1
+    local h d a
+    h=$(curl -sS -I --max-time 10 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$1" 2>/dev/null) || return 1
+    d=$(grep -i '^date:' <<<"$h" | head -1 | cut -d' ' -f2-)
     [ -n "$d" ] || return 1
+    a=$(grep -i '^age:' <<<"$h" | head -1 | tr -dc '0-9')
+    if [ -n "$a" ] && [ "$a" -gt 5 ]; then
+        echo "CACHED:${a}" >&2
+        return 1
+    fi
     date -d "$d" +%s 2>/dev/null || return 1
 }
 
@@ -58,7 +73,7 @@ for u in "${SOURCES[@]}"; do
         printf '  %-28s %s  (gps3 %+ds)\n' "$u" "$(date -d "@$t" '+%H:%M:%S')" "$(( $(date +%s) - t ))"
         got+=("$t")
     else
-        printf '  %-28s unreachable\n' "$u"
+        printf '  %-28s unusable (unreachable or cached)\n' "$u"
     fi
 done
 [ "${#got[@]}" -ge 2 ] || { echo "FATAL: need >=2 sources to agree; got ${#got[@]}." >&2; exit 3; }
@@ -109,8 +124,12 @@ else
     echo "           Timestamps in that window are not correlatable."
 fi
 echo "=== set ==="
-printf '  was %s -> now %s   (moved %+ds)\n' \
-    "$(date -d "@$before" '+%F %T')" "$(date '+%F %T')" "$(( target - before ))"
+# Print the TARGET, not a live `date`. An earlier version read the clock at
+# print time, which is after the apt install and the RTC write, so it showed a
+# value several seconds later than what was set and disagreed with its own
+# "moved" figure.
+printf '  was %s -> set %s   (moved %+ds)\n' \
+    "$(date -d "@$before" '+%F %T')" "$(date -d "@$target" '+%F %T')" "$(( target - before ))"
 
 # Keep it set. A one-shot fix drifts back, and the drift is silent.
 {
@@ -137,7 +156,11 @@ set -uo pipefail
 declare -a got
 for u in "${SRC[@]}"; do
     for attempt in 1 2; do
-        d=$(curl -sS -I --max-time 8 "$u" 2>/dev/null | grep -i '^date:' | head -1 | cut -d' ' -f2-) || d=""
+        h=$(curl -sS -I --max-time 8 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$u" 2>/dev/null) || h=""
+        d=$(grep -i '^date:' <<<"$h" | head -1 | cut -d' ' -f2-)
+        a=$(grep -i '^age:' <<<"$h" | head -1 | tr -dc '0-9')
+        # A CDN-cached response carries the cache entry's Date, not now.
+        if [ -n "$a" ] && [ "$a" -gt 5 ]; then d=""; fi
         [ -n "$d" ] && break
     done
     [ -n "$d" ] || continue
