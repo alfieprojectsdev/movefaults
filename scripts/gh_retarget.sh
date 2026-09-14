@@ -8,43 +8,65 @@
 # `repository.pullRequest.projectCards` as part of its GraphQL query, and
 # Projects (classic) is deprecated:
 #
-#   GraphQL: Projects (classic) is being deprecated in favor of the new
-#   Projects experience ... (repository.pullRequest.projectCards)
+#   GraphQL: Projects (classic) is being deprecated ... (repository.pullRequest.projectCards)
 #
-# Nothing about that is related to the base branch, and the retarget does not
-# happen. Both machines hit it independently on 2026-09-15 — gps3 on #213,
-# the T420 on #221 — so this wrapper has been broken for every stacked PR
-# rather than for one.
+# Nothing about that concerns the base branch, and the retarget does not happen.
+# Both machines hit it independently on 2026-09-15 — gps3 on #213, the T420 on
+# #221 — so the wrapper was broken for every stacked PR, not one case.
 #
-# The REST endpoint touches no Projects field and works.
+# WHY THE REPO IS PINNED AND NOT DISCOVERED
+#
+# The first version used `gh repo view --json nameWithOwner`, which resolves
+# against the CURRENT DIRECTORY's remote. Measured, not reasoned about:
+#
+#   cwd = a checkout of savd-ai/ad-gen-simple  ->  savd-ai/ad-gen-simple
+#   cwd = movefaults_clean                     ->  alfieprojectsdev/movefaults
+#
+# So invoking this by absolute path from another repository's directory would
+# PATCH THAT REPOSITORY's PR of the same number — a write, returning 200,
+# against the wrong project. gps3 alone has three other checkouts that could be
+# the cwd, and one of the reachable repos is a private client one.
+#
+# That is CLAUDE.md's 2026-07-13 incident — acting on the wrong tree because
+# the tool resolved context from the environment — except automated, and
+# writing rather than reading.
 #
 # WHEN YOU NEED THIS
 #
 # Merging a base does NOT auto-retarget a stacked child. GitHub retargets only
 # when the merged head branch is DELETED, and `merge_pr.sh` without
-# `--delete-branch` does not delete it. A stacked PR then points at a merged
+# `--delete-branch` does not delete it. The child then points at a merged
 # branch while still reporting MERGEABLE and CLEAN — it looks fine and is not.
-# Verifying the base after every merge, per CLAUDE.md rule 5, is how that gets
-# caught.
+# CLAUDE.md rule 5, verify after every merge, is what catches it.
 set -euo pipefail
 
 pr="${1:?pr number}"
 base="${2:?new base}"
-repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+# Override deliberately and visibly, or do not override.
+repo="${GH_RETARGET_REPO:-alfieprojectsdev/movefaults}"
 
-# No 2>/dev/null anywhere here. The first attempt at diagnosing this was run
-# with stderr discarded, which hid the GraphQL error and made a failure look
-# like a no-op — the defect this script exists to work around, repeated in the
-# attempt to understand it.
-gh api -X PATCH "repos/${repo}/pulls/${pr}" -f base="${base}" -q '.base.ref' > /tmp/.retarget.$$
+# No stream is discarded anywhere in this script. An earlier version sent the
+# PATCH's stdout to a /tmp file it never read — discarding output with extra
+# steps, eleven lines below a comment claiming nothing was discarded, inside
+# the script written to fix that shape. It also leaked the file on failure,
+# since `set -e` exits before the cleanup, and a guessable /tmp path opened
+# with `>` follows symlinks.
+patched=$(gh api -X PATCH "repos/${repo}/pulls/${pr}" -f base="${base}" -q '.base.ref')
 
-# Assert the end state from the API rather than trusting the exit code: a PATCH
-# that returns 200 having changed nothing is indistinguishable from one that
-# worked, if you only read the status.
-got=$(gh api "repos/${repo}/pulls/${pr}" -q '.base.ref')
-rm -f /tmp/.retarget.$$
-if [ "$got" != "$base" ]; then
-    echo "FATAL: #${pr} base is '${got}', expected '${base}'" >&2
+# Two independent reads. A PATCH returning 200 having changed nothing is
+# indistinguishable from one that worked if you only check the status, and a
+# disagreement between the write's own answer and a fresh read is worth
+# shouting about rather than smoothing over.
+observed=$(gh api "repos/${repo}/pulls/${pr}" -q '.base.ref')
+
+if [ "$patched" != "$observed" ]; then
+    echo "FATAL: ${repo}#${pr} — PATCH reported '${patched}', read-back says '${observed}'" >&2
     exit 1
 fi
-echo "#${pr} base is now ${got}"
+if [ "$observed" != "$base" ]; then
+    echo "FATAL: ${repo}#${pr} base is '${observed}', expected '${base}'" >&2
+    exit 1
+fi
+# Name the repository. The old success line named neither, so output from a
+# correct run and from one against the wrong project read identically.
+echo "${repo}#${pr} base is now ${observed}"
