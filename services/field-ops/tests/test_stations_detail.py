@@ -48,7 +48,24 @@ def _selected_columns() -> list[str]:
     return cols
 
 
-def test_every_selected_column_exists_on_the_real_table():
+def test_every_selected_column_is_declared_on_the_station_model():
+    """Introspects the ORM MODEL, not a database.
+
+    Naming matters here. `src/db/models.py` is this repo's declaration of what
+    `public.stations` looks like; it is not evidence that any particular
+    database matches it. This test catches a column name that exists nowhere
+    in the project, which is the mistake this change could plausibly make.
+
+    It does NOT prove production has the columns. What does:
+
+      * `001_create_stations.py` CREATE TABLE -- agency, date_installed
+      * `004_expand_stations.py` ALTER TABLE  -- monitoring_method,
+        municipality, province, region, land_owner, maintenance_interval_days
+
+    Both use `op.execute` with raw SQL rather than `op.add_column`, so a grep
+    for the alembic idiom finds neither and concludes the columns are
+    unmanaged. A reviewer did exactly that on this PR.
+    """
     from src.db.models import Station
 
     actual = {c.name for c in Station.__table__.columns}
