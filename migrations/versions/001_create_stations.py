@@ -15,6 +15,11 @@ Design notes:
   - fault_segment is PHIVOLCS-specific context linking stations to named fault structures.
   - date_added tracks when the row was inserted (default NOW()); date_installed is the
     physical antenna installation date (may differ, entered manually).
+  - Searching for this table's DDL: it is `op.execute` with raw SQL, not
+    `op.create_table`, for the PostGIS reason above. A grep for the alembic
+    idiom finds nothing here and suggests the table is unmanaged. It is not.
+    `agency` and `date_installed` are declared below; migration 004 adds six
+    more columns the same way.
   - uq_stations_station_code constraint is named explicitly (not auto-named) so the seed
     script's ON CONFLICT clause can reference it by name.
 """
