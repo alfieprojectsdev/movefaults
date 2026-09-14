@@ -19,8 +19,20 @@
 # it runs once per deploy rather than once per replica -- but it requires a
 # paid plan and the service is on `free`.
 #
-# This runs exactly once, outside the service, before nothing else depends on
-# it. It does not race.
+# This runs exactly once, outside the service, and cannot race another copy of
+# itself.
+#
+# IT DOES STILL RACE THE DEPLOY, and that is not fixed here. render.yaml:63 is
+# `autoDeployTrigger: commit`, so a push touching migrations/** starts this
+# workflow AND a Render deploy of the code needing that migration, at the same
+# time. Whichever finishes first wins, and if the deploy does, the new code is
+# live against a schema that has not caught up -- the same failure as the
+# incident above, with a window of minutes instead of two days.
+#
+# Closing it properly needs Render's preDeployCommand, which gates the deploy
+# on the migration and requires a paid plan; the service is on `free`. Until
+# then this narrows the window rather than removing it, and that is the honest
+# description.
 #
 # WHY THE DIRECT ENDPOINT
 # DATABASE_URL for the running service is the POOLED endpoint. Migrations must
@@ -90,9 +102,20 @@ jobs:
           DATABASE_URL: ${{ secrets.FIELD_OPS_DATABASE_URL_DIRECT }}
         run: |
           set -euo pipefail
-          cur=$(uv run alembic -c services/field-ops/alembic.ini current 2>/dev/null \
+          # NO `2>/dev/null` on either command. CLAUDE.md forbids swallowing
+          # stderr on a gated operation, and this is the step that decides
+          # whether the gate passed: a connection refusal, a bad URL and a
+          # missing extension all exit non-zero identically, and with stderr
+          # discarded the workflow would fail with no diagnostic -- inside a
+          # job that exists because a failure was invisible.
+          cur=$(uv run alembic -c services/field-ops/alembic.ini current \
                 | grep -oE '^[a-z0-9]+' | head -1)
-          head=$(uv run alembic -c services/field-ops/alembic.ini heads 2>/dev/null \
+          # `head -1` assumes a single head. True today -- fo001..fo007 is
+          # linear with one `down_revision = None` -- but it is an assumption
+          # about the migration tree, not a property of alembic. A branched
+          # tree would make this compare against an arbitrary head and pass
+          # while the database is short of another.
+          head=$(uv run alembic -c services/field-ops/alembic.ini heads \
                 | grep -oE '^[a-z0-9]+' | head -1)
           echo "current=$cur head=$head"
           if [ "$cur" != "$head" ]; then
