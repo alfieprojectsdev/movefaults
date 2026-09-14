@@ -13,6 +13,22 @@ export interface Station {
   elevation: number | null;
   fault_segment: string | null;
   status: string | null;
+
+  // Detail the table always held and the endpoint did not return until
+  // 2026-09-15. All optional on both sources: a field-created site carries
+  // only what the observer typed at the monument, and the central inventory
+  // is itself incomplete for older stations.
+  municipality?: string | null;
+  province?: string | null;
+  region?: string | null;
+  monitoring_method?: string | null;
+  land_owner?: string | null;
+  date_installed?: string | null;
+  agency?: string | null;
+  maintenance_interval_days?: number | null;
+
+  //: `inventory` (central, reconciled) or `field` (proposed, unverified).
+  source?: string;
 }
 
 export interface Staff {
