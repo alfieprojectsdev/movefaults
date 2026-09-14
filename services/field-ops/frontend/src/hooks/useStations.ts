@@ -9,6 +9,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchStations, Station } from "../services/api";
 
+/**
+ * Why the caller needs `error` and not just `isError`.
+ *
+ * Every failure here used to render as "Stations unavailable (offline?)". On
+ * 2026-09-12 a field observer reported the picker as permanently offline while
+ * demonstrably on a network, on two operating systems -- and the message sent
+ * everyone looking for a browser-specific fault, because it describes the one
+ * cause it happened to name and hides the other four.
+ *
+ * A timeout, a 500, a dead session and an actual absence of network need
+ * different actions from the person holding the tablet. Telling them to
+ * "connect to a network" when they already are costs a field trip.
+ */
+
 export function useStations() {
   return useQuery<Station[]>({
     queryKey: ["stations"],

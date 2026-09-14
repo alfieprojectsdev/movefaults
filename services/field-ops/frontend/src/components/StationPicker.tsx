@@ -44,7 +44,8 @@ import { useMemo, useState } from "react";
 import { useStations } from "../hooks/useStations";
 import { useDeviceLocation } from "../hooks/useDeviceLocation";
 import { distanceMetres, formatDistance } from "../utils/distance";
-import type { Station } from "../services/api";
+import { ApiError, TimeoutError, type Station } from "../services/api";
+import { useOnline } from "../hooks/useOnline";
 
 interface Props {
   value: string;
@@ -100,8 +101,79 @@ function hasCoords(s: Station): boolean {
   return typeof s.latitude === "number" && typeof s.longitude === "number";
 }
 
+/**
+ * Turn a query failure into something the person at the monument can act on.
+ *
+ * Each branch exists because the right action differs. Offline: wait for
+ * signal. Timeout: the server is waking -- retry in a moment, and that IS the
+ * fix rather than a workaround. Session expired: log in. Server error: nobody
+ * in the field can fix it, so do not imply they can.
+ *
+ * `retryable` gates the button rather than always showing one: offering "try
+ * again" for a permanently rejected request teaches people to press it
+ * forever, and the queue already covers the case where the sheet matters more
+ * than the list.
+ */
+export function describeStationFailure(
+  err: unknown,
+  online: boolean
+): { label: string; hint: string; retryable: boolean } {
+  if (!online) {
+    return {
+      label: "Stations unavailable \u2014 no network",
+      hint:
+        "This device is offline. The list is cached after one online visit; " +
+        "you can still fill and queue the sheet.",
+      retryable: false,
+    };
+  }
+  if (err instanceof TimeoutError) {
+    return {
+      label: "Stations unavailable \u2014 server not answering",
+      hint:
+        "The network is fine but the server did not reply in time. It may be " +
+        "waking up; wait a few seconds and try again.",
+      retryable: true,
+    };
+  }
+  if (err instanceof ApiError) {
+    if (err.status === 401) {
+      return {
+        label: "Stations unavailable \u2014 session expired",
+        hint: "Log in again to reload the station list.",
+        retryable: false,
+      };
+    }
+    if (err.status >= 500) {
+      return {
+        label: `Stations unavailable \u2014 server error (${err.status})`,
+        hint:
+          "The server failed, not this device or the network. Report it; " +
+          "you can still fill and queue the sheet.",
+        retryable: true,
+      };
+    }
+    return {
+      label: `Stations unavailable \u2014 request rejected (${err.status})`,
+      hint: err.message,
+      retryable: false,
+    };
+  }
+  // A fetch that never produced a response: DNS, TLS, a captive portal, or a
+  // network that reports itself up. `navigator.onLine` says nothing about
+  // whether anything is REACHABLE, which is why this is not the offline case.
+  return {
+    label: "Stations unavailable \u2014 cannot reach the server",
+    hint:
+      "The device thinks it is online but the server could not be reached. " +
+      "Check for a sign-in page on this Wi-Fi, then try again.",
+    retryable: true,
+  };
+}
+
 export default function StationPicker({ value, onChange, disabled }: Props) {
-  const { data: stations, isLoading, isError } = useStations();
+  const { data: stations, isLoading, isError, error, refetch, isFetching } = useStations();
+  const online = useOnline();
   const [showAll, setShowAll] = useState(false);
   // Only ask for position while the filter could actually use it. Asking after
   // the operator has chosen "show all" would prompt for a permission whose
@@ -131,12 +203,23 @@ export default function StationPicker({ value, onChange, disabled }: Props) {
   }
 
   if (isError || !stations) {
+    // Name the actual failure. "Offline?" for all five is what sent a field
+    // report chasing a browser bug that did not exist -- see useStations.
+    const { label, hint, retryable } = describeStationFailure(error, online);
     return (
       <div>
-        <select disabled><option>Stations unavailable (offline?)</option></select>
-        <small className="station-hint is-error">
-          Connect to network at least once to cache the station list.
-        </small>
+        <select disabled><option>{label}</option></select>
+        <small className="station-hint is-error">{hint}</small>
+        {retryable && (
+          <button
+            type="button"
+            className="station-retry"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+          >
+            {isFetching ? "Trying…" : "Try again"}
+          </button>
+        )}
       </div>
     );
   }

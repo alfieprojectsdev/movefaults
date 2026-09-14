@@ -163,6 +163,20 @@ textarea {
 
 .station-hint.is-error { color: var(--field-error); }
 
+/* Retry under a failed station fetch. Only rendered for failures that can
+   actually resolve on retry -- a timeout while the server wakes, a 5xx, an
+   unreachable host. Full-width and 44px tall because it is pressed on a
+   tablet, outdoors, possibly in gloves, by someone who has just been told
+   the thing they need is unavailable. */
+.station-retry {
+  margin-top: 0.5rem;
+  width: 100%;
+  min-height: 44px;
+  font-size: 0.9375rem;
+}
+
+.station-retry[disabled] { opacity: 0.6; }
+
 /* An inline control, not a button-shaped block: it sits mid-sentence in the
    hint. Padded vertically so the tap target still clears 44px on a phone even
    though the text is small. */
