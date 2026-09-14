@@ -4544,6 +4544,7 @@ work" would lose the content. From the T420's framing, extended:
 | the banner grab | run a **control against a known-good target** |
 | the suppressed `git mv` | **do not mute stderr** |
 | the record-alignment inference (§30.13 / #199) | **ask what the number can decide.** A *different* failure from every row above, and the T420's framing: those are instruments returning a wrong answer, fixed by checking the instrument. This one the instrument was right and the reading went past it. Checking harder would not have caught it — only asking whether the evidence bears on the claim. |
+| an `echo` asserting success | **a confirmation message is not evidence.** A *new* category, and deliberately not filed with the rows above: those are statuses describing something other than the question asked. Here the status was **correct** — `tsc --noEmit && echo "typecheck clean"` printed the claim over three real errors because `tsc` exited 0 on that invocation and `&&` fired accurately. Checking the exit code harder does not help; the exit code was never wrong. The defect is that the echo **restates** the status in prose, and the prose then reads back as independent confirmation of the thing it was derived from. |
 
 **Those two categories must not collapse**, because the remedies are opposite in
 where they point. "Instrument lied" sends you back to the tool. "Instrument
@@ -4574,6 +4575,35 @@ does not touch the load-bearing assumption makes a wrong claim look stronger.**
 
 The nearest relative in this log is `spread_m`: a real number, correctly
 computed, asked to support a claim outside what it measures.
+
+**Why that row is separate, and why it is the least visible entry here.** Every
+other failure in this catalogue looks like a defect once you see it. This one
+looks like good practice. `echo "pushed"`, `echo "syntax OK"`, `echo
+"review posted"` — both sessions used all three on 2026-09-14 alone, and each
+restates a status rather than testing one. The habit is universal and the
+output is reassuring, which is exactly why it survives review.
+
+**Counted rather than asserted, at the T420's own initiative.** Of 50 Bash
+commands it ran on 2026-09-14, **twelve ended in an echo asserting success** —
+`pushed` ×5, `typecheck clean` ×3, `syntax ok` ×2, `review posted` ×2. **24% of
+everything it ran that day restated a status in prose.** The claim above was
+understated.
+
+**And the entry earned itself within the hour.** Asked whether the migration
+was live in production, the T420 had only `Running upgrade fo006 -> fo007` —
+the command reporting on itself. It said so rather than answering; Alfie
+pointed it at a browser, and the station list loaded with 138 sites. That is
+the far-side evidence this test describes, and the question would otherwise
+have been answered from the echo.
+
+It also ran `echo "review posted"` about ninety seconds after posting the
+review arguing that an echo is not evidence, with the real check —
+`gh api .../reviews -q length` — on the very next line.
+
+The test that distinguishes them: **does the line report something the command
+did not already say?** `git push -q && echo "pushed"` adds nothing — the push's
+own exit code carried it. `git ls-tree origin/<branch>` after a push reports a
+different fact, from the far side. The first is prose; the second is evidence.
 
 ### 30.10 The counter-instance, and it is the same one as §29.9
 
