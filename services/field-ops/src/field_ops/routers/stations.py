@@ -27,7 +27,7 @@ Design: docs/project_documentation/field_ops_station_creation_design.md
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
@@ -53,6 +53,39 @@ class StationOut(BaseModel):
     elevation: float | None
     fault_segment: str | None
     status: str | None
+
+    # ── Detail, added 2026-09-15 ────────────────────────────────────────────
+    #
+    # These columns already existed on `public.stations` and this endpoint was
+    # not returning them, so the app could show a station's code and name and
+    # nothing about the place. An observer deciding whether they are at the
+    # right monument, or reading up before travelling to one, had no source
+    # for it in the app.
+    #
+    # No migration: every field below is an existing column. `last_visit`,
+    # `project` and `collaborator` appear in the seed CSV but NOT in the
+    # table, so they are deliberately absent here. "When was this site last
+    # visited" is a logsheets question and belongs to `GET /sheets`.
+    #
+    # Optional on both sources, because a proposal carries only what the
+    # observer typed at the monument and the inventory is itself incomplete
+    # for older sites.
+    municipality: str | None = None
+    province: str | None = None
+    region: str | None = None
+
+    #: `continuous` | `campaign`. The sheet's first question, so knowing it
+    #: per-station lets the form preselect rather than ask.
+    monitoring_method: str | None = None
+
+    #: Inventory only — a proposal has no reconciled owner yet.
+    land_owner: str | None = None
+    date_installed: date | None = None
+    agency: str | None = None
+    #: Inventory only. With the date of the last sheet it answers "is this
+    #: site overdue", which nothing in the app can currently express.
+    maintenance_interval_days: int | None = None
+
     #: `inventory` (central, reconciled) or `field` (proposed here, unverified).
     #: The picker groups on this; it is not cosmetic. A row tagged `field` has
     #: not been checked by anyone and may be a typo'd duplicate.
@@ -179,7 +212,15 @@ async def list_stations(
                 ST_X(location::geometry) AS longitude,
                 elevation,
                 fault_segment,
-                status
+                status,
+                municipality,
+                province,
+                region,
+                monitoring_method,
+                land_owner,
+                date_installed,
+                agency,
+                maintenance_interval_days
             FROM stations
             ORDER BY
                 CASE status
@@ -219,6 +260,18 @@ async def list_stations(
                 elevation=p.elevation,
                 fault_segment=None,
                 status=p.status,
+                municipality=p.municipality,
+                province=p.province,
+                region=p.region,
+                monitoring_method=p.monitoring_method,
+                # Absent by construction rather than by omission: a proposal
+                # has no reconciled owner, no install date and no agency until
+                # somebody promotes it. Returning None says "not known yet",
+                # which is the true state.
+                land_owner=None,
+                date_installed=None,
+                agency=None,
+                maintenance_interval_days=None,
                 source="field",
             )
         )
