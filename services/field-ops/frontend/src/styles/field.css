@@ -608,3 +608,132 @@ input[readonly] {
   margin-bottom: 0.35rem;
   border-radius: 0.25rem;
 }
+
+/* --------------------------------------------------------------------------
+   Today — the landing screen
+   Design handoff `Field Ops Alternatives.dc.html`, option 1c.
+
+   The station is the object here, so a row has to answer four questions at a
+   glance without being tapped: which station, how far, when it was last
+   visited, and whether it is overdue. That is why a row is a small stack
+   rather than a table cell — a table of 138 rows on a 360 px screen is a
+   horizontal scroll, and horizontal scroll with gloves on is nothing.
+   -------------------------------------------------------------------------- */
+
+.today-counts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.today-counts > div {
+  padding: 0.75rem;
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-card-background-color);
+  border: 1px solid var(--pico-muted-border-color);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.today-counts strong {
+  display: block;
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+
+.today h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.today-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.today-station {
+  padding: 0.75rem;
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-card-background-color);
+}
+
+.today-station-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* The code is the thing an observer matches against the monument plate, so it
+   is the largest text in the row and monospaced — 0/O and 1/I have to be
+   distinguishable at arm's length. */
+.today-station-head strong {
+  font-family: var(--pico-font-family-monospace);
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+
+.today-distance {
+  font-size: 0.85rem;
+  color: var(--pico-muted-color);
+  margin-left: auto;
+}
+
+.today-tag {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.25rem;
+  background: var(--field-computed-bg);
+  color: var(--pico-color);
+}
+
+.today-place {
+  font-size: 0.9rem;
+  margin-top: 0.15rem;
+}
+
+.today-meta {
+  font-size: 0.8rem;
+  color: var(--pico-muted-color);
+  margin-top: 0.15rem;
+}
+
+/* Overdue is the one thing on this screen that changes what an observer does
+   today, so it is the one thing allowed to use colour. */
+.today-overdue {
+  color: var(--field-warn);
+  font-weight: 600;
+}
+
+.today-station button {
+  margin: 0.6rem 0 0;
+  width: 100%;
+  /* Comfortably above the 44 px touch target floor with a gloved thumb. */
+  min-height: 3rem;
+}
+
+.today-hint {
+  font-size: 0.9rem;
+  color: var(--pico-muted-color);
+  margin-bottom: 1rem;
+}
+
+.today-showall {
+  width: 100%;
+  margin-bottom: 0.75rem;
+  --pico-background-color: transparent;
+  --pico-color: var(--pico-primary);
+  --pico-border-color: var(--pico-primary);
+}
+
+.today-search {
+  margin-bottom: 0.75rem;
+}

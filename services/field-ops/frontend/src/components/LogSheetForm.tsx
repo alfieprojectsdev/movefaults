@@ -185,7 +185,19 @@ const readonlyStyle: React.CSSProperties = {};
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function LogSheetForm() {
+interface Props {
+  /**
+   * A station chosen on the Today screen, with a counter that increments on
+   * every choice.
+   *
+   * The counter is what makes it work: this component stays mounted while
+   * other tabs are shown, so it can only hear about a choice through a prop
+   * change, and re-choosing the same station would not change the code alone.
+   */
+  stationRequest?: { code: string; nonce: number } | null;
+}
+
+export default function LogSheetForm({ stationRequest = null }: Props = {}) {
   const {
     register,
     handleSubmit,
@@ -241,6 +253,27 @@ export default function LogSheetForm() {
     reset();
     clientUuidRef.current = generateUUID();
   };
+
+  /**
+   * Adopt a station chosen on Today.
+   *
+   * Only the station changes. Everything else the operator has typed stays,
+   * because tapping a station after starting a sheet is a correction, not a
+   * request to start over -- and this form's whole reason for staying mounted
+   * across tab switches is that discarding typed input at a monument is how a
+   * sheet ends up never filed.
+   *
+   * Keyed on the nonce, not the code: choosing the same station again is a
+   * real event (the operator went to look at it and came back), and a code-only
+   * dependency would swallow it.
+   */
+  const lastStationNonce = useRef<number | null>(null);
+  useEffect(() => {
+    if (!stationRequest) return;
+    if (lastStationNonce.current === stationRequest.nonce) return;
+    lastStationNonce.current = stationRequest.nonce;
+    setValue("station_code", stationRequest.code, { shouldDirty: true });
+  }, [stationRequest, setValue]);
 
   // ── Watched values ─────────────────────────────────────────────────────────
 
