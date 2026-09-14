@@ -4543,6 +4543,20 @@ work" would lose the content. From the T420's framing, extended:
 | the `--root` widening | know the **expected magnitude** before running |
 | the banner grab | run a **control against a known-good target** |
 | the suppressed `git mv` | **do not mute stderr** |
+| an `echo` asserting success | **a confirmation message is not evidence.** A *new* category, and deliberately not filed with the rows above: those are statuses describing something other than the question asked. Here the status was **correct** — `tsc --noEmit && echo "typecheck clean"` printed the claim over three real errors because `tsc` exited 0 on that invocation and `&&` fired accurately. Checking the exit code harder does not help; the exit code was never wrong. The defect is that the echo **restates** the status in prose, and the prose then reads back as independent confirmation of the thing it was derived from. |
+
+**Why that row is separate, and why it is the least visible entry here.** Every
+other failure in this catalogue looks like a defect once you see it. This one
+looks like good practice. `echo "pushed"`, `echo "syntax OK"`, `echo
+"review posted"` — both sessions used all three on 2026-09-14 alone, and each
+restates a status rather than testing one. The habit is universal and the
+output is reassuring, which is exactly why it survives review.
+
+The test that distinguishes them: **does the line report something the command
+did not already say?** `git push -q && echo "pushed"` adds nothing — the push's
+own exit code carried it. `git ls-tree origin/<branch>` after a push reports a
+different fact, from the far side. The first is prose; the second is evidence.
+
 | the record-alignment inference (§30.13 / #199) | **ask what the number can decide.** A *different* failure from every row above, and the T420's framing: those are instruments returning a wrong answer, fixed by checking the instrument. This one the instrument was right and the reading went past it. Checking harder would not have caught it — only asking whether the evidence bears on the claim. |
 
 **Those two categories must not collapse**, because the remedies are opposite in
