@@ -834,6 +834,8 @@ input[readonly] {
 }
 
 .observer-tile {
+  /* Positioning context for the checkbox, which fills it. See below. */
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -859,8 +861,14 @@ input[readonly] {
   word-break: break-all;
 }
 
-/* Selection is carried by fill and border weight, not by colour alone --
-   this is used outdoors, in sunlight, sometimes by someone colour-blind. */
+/* Selection is carried by a full fill inversion, not by colour alone -- the
+   background and the text swap, which is a large luminance change and survives
+   both sunlight and colour blindness.
+
+   An earlier version of this comment said "fill and border weight". The border
+   is 2px in both states and only its colour changes, so it named a channel
+   that is not there. The substance held; the description did not. Caught by
+   gps3 reading the comment against the rule. */
 .observer-tile.is-selected {
   background: var(--pico-primary);
   border-color: var(--pico-primary);
@@ -869,7 +877,39 @@ input[readonly] {
 
 /* The checkbox is the control; the tile is its label. Hidden visually and
    NOT with display:none, which would take it out of the tab order and out of
-   the accessibility tree along with it. */
+   the accessibility tree along with it.
+
+   NOT the usual 1x1-clip sr-only recipe either, and that is the point.
+
+   Clipped to 1x1, the control's bounding box is a single pixel while the only
+   thing covering the 68px tile is an aria-hidden <span>. Swipe navigation is
+   unaffected and keyboard focus is covered by :focus-within below, but
+   explore-by-touch on TalkBack and direct-touch on VoiceOver map a finger
+   POSITION to the element under it — so dragging across this grid, the finger
+   is over a span marked aria-hidden with the real control one pixel behind it.
+   The grid would read as empty to the interaction those users navigate with.
+
+   Filling the tile with a transparent input fixes it without changing
+   anything else: same accessible name, same tab order, same focus outline,
+   and a hit box that now matches the thing it controls.
+
+   Found by gps3 in review of #225. A screenshot would not have shown it. */
+.observer-tile input[type="checkbox"].sr-only {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  /* Above the span, so the finger lands on the control rather than on the
+     decoration. */
+  z-index: 1;
+}
+
+/* The generic recipe, for anything that is genuinely text-for-AT-only rather
+   than a control with a visible surrogate. */
 .sr-only {
   position: absolute;
   width: 1px;
