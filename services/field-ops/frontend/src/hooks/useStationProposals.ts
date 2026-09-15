@@ -3,12 +3,35 @@
  *
  * DELIBERATELY NOT OFFLINE-CAPABLE
  *
- * Everything else in this app queues. This does not, and the asymmetry is the
- * point. Creating a site is done by someone standing at a monument with no
- * signal; reconciling one is done at a desk by someone who can see the
- * inventory. Promote writes to `public.stations` — the one write field-ops
- * makes there — and a queued promotion would be a decision taken against a
- * view of the world that may have changed by the time it lands.
+ * Everything else in this app queues. This does not, and the reason is simpler
+ * than the one that first suggested itself.
+ *
+ * There is nothing to queue. The list cannot be read offline at all: the
+ * Workbox runtime cache in `vite.config.ts` matches `/\/api\/v1\/stations/`,
+ * and `/api/v1/station-proposals` does not contain that substring — "station-"
+ * has a hyphen where "stations" has an s. Checked, not assumed:
+ *
+ *   /api/v1/stations                     -> true
+ *   /api/v1/station-proposals            -> false
+ *   /api/v1/station-proposals/1/promote  -> false
+ *
+ * So offline there is no list, no row, and no decision to defer. Not a stale
+ * decision — an absent one.
+ *
+ * The argument this replaces was that a queued promotion would be "a decision
+ * taken against a view of the world that may have changed". That is mostly
+ * handled already: `_get_pending` answers 409 for an already-reconciled row,
+ * deliberately, and this file cites that 409 two paragraphs down. What it
+ * genuinely leaves is narrower — the COALESCE upsert cannot null a field, but
+ * a non-NULL stale value does win, so a queue would widen the window for
+ * overwriting a good office value with one typed at a monument.
+ *
+ * The cache fact is the better reason because it is checkable in thirty
+ * seconds, and because it correctly STOPS being true if someone gives this
+ * list an offline cache — at which point the question should reopen. The
+ * story about desks would still have sounded persuasive then.
+ *
+ * Both the finding and the replacement are gps3's, from review of #227.
  *
  * So these are plain mutations. Offline, they fail and say so.
  *
