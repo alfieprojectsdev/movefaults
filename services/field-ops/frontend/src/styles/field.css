@@ -214,41 +214,12 @@ textarea {
   color: var(--pico-muted-color);
 }
 
-.observer-list {
-  max-height: 15rem;
-  overflow-y: auto;
-  /* Momentum scrolling inside the box on iOS, so a thumb-flick does not drag
-     the whole page instead. */
-  -webkit-overflow-scrolling: touch;
-}
-
-.observer-row {
-  margin: 0;
-  padding: 0 0.25rem;
-  border-bottom: 1px solid var(--pico-form-element-border-color);
-  cursor: pointer;
-}
-
-.observer-row:last-child { border-bottom: none; }
-
-/* Sticky so the group a name belongs to stays visible while scrolling the
-   list on a short phone screen — otherwise the heading scrolls away and the
-   remaining names lose the only thing that identified their group. */
-.observer-group-label {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  margin: 0;
-  padding: 0.35rem 0.25rem;
-  background: var(--pico-background-color);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--pico-muted-color);
-  border-bottom: 1px solid var(--pico-form-element-border-color);
-}
-
-.observer-group + .observer-group { margin-top: 0.5rem; }
+/* The grouped, scrolling observer list is gone — see .observer-grid further
+   down for what replaced it and why. Its rules went with it rather than
+   staying as dead weight: .observer-list, .observer-row, .observer-group-label
+   and .observer-group. The sticky group heading in particular was solving a
+   problem that no longer exists, and a reader finding it later would have
+   assumed a scrolling list still existed somewhere. */
 
 /* Theme toggle — icon-sized, but still a full 48px tap target. */
 .theme-toggle {
@@ -828,3 +799,159 @@ input[readonly] {
 /* `.section-header` is still used: once inside the log sheet, for the
    "Equipment as left" heading that sits WITHIN the Equipment section rather
    than being one, and once in SheetsView. Not dead. */
+
+/* --------------------------------------------------------------------------
+   Observers — the initials grid
+   Design handoff `Field Ops Alternatives.dc.html`, option 1g.
+
+   Replaces a 15rem scroll region holding thirteen 48px rows. All thirteen now
+   fit with no scroll at any phone width, which is the entire point: a nested
+   scroll inside a page scroll is unusable with a thumb, and the seven names
+   below the fold may as well not exist.
+   -------------------------------------------------------------------------- */
+
+.observer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.observer-count {
+  color: var(--pico-muted-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.observer-grid {
+  display: grid;
+  /* auto-fill, not a fixed column count: 4 across at 360px, more on a tablet,
+     and nothing to re-tune when the fourteenth member of staff is hired. */
+  grid-template-columns: repeat(auto-fill, minmax(4.25rem, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.observer-tile {
+  /* Positioning context for the checkbox, which fills it. See below. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Square, and comfortably past the 44px touch-target floor at every width
+     the grid produces. A gloved thumb is the design constraint here. */
+  aspect-ratio: 1;
+  min-height: 3.25rem;
+  margin: 0;
+  padding: 0.25rem;
+  border: 2px solid var(--pico-form-element-border-color);
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-form-element-background-color);
+  font-family: var(--pico-font-family-monospace);
+  /* Initials are the thing being matched against a memory of who was there, so
+     they are sized to be read at arm's length rather than to fit neatly. */
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+  line-height: 1.1;
+  word-break: break-all;
+}
+
+/* Selection is carried by a full fill inversion, not by colour alone -- the
+   background and the text swap, which is a large luminance change and survives
+   both sunlight and colour blindness.
+
+   An earlier version of this comment said "fill and border weight". The border
+   is 2px in both states and only its colour changes, so it named a channel
+   that is not there. The substance held; the description did not. Caught by
+   gps3 reading the comment against the rule. */
+.observer-tile.is-selected {
+  background: var(--pico-primary);
+  border-color: var(--pico-primary);
+  color: var(--pico-primary-inverse);
+}
+
+/* The checkbox is the control; the tile is its label. Hidden visually and
+   NOT with display:none, which would take it out of the tab order and out of
+   the accessibility tree along with it.
+
+   NOT the usual 1x1-clip sr-only recipe either, and that is the point.
+
+   Clipped to 1x1, the control's bounding box is a single pixel while the only
+   thing covering the 68px tile is an aria-hidden <span>. Swipe navigation is
+   unaffected and keyboard focus is covered by :focus-within below, but
+   explore-by-touch on TalkBack and direct-touch on VoiceOver map a finger
+   POSITION to the element under it — so dragging across this grid, the finger
+   is over a span marked aria-hidden with the real control one pixel behind it.
+   The grid would read as empty to the interaction those users navigate with.
+
+   Filling the tile with a transparent input fixes it without changing
+   anything else: same accessible name, same tab order, same focus outline,
+   and a hit box that now matches the thing it controls.
+
+   Found by gps3 in review of #225. A screenshot would not have shown it. */
+.observer-tile input[type="checkbox"].sr-only {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  /* Above the span, so the finger lands on the control rather than on the
+     decoration. */
+  z-index: 1;
+  /* Both required, and both easy to leave out.
+     
+     The generic .sr-only rule below still matches this element -- the class is
+     still on it -- and the cascade resolves PER PROPERTY, not per rule. So
+     everything this selector does not declare still arrives from there. Drop
+     these two and the input is laid out filling the tile and then clipped to a
+     zero-area region.
+     
+     That is not merely cosmetic: clip-path affects hit-testing, not just
+     painting, so a pointer event outside the clip region is never delivered.
+     Without these the finger would land on the aria-hidden span and the tap
+     would still work -- but only because the <label> wraps the input and
+     forwards activation, which is a different mechanism from the one the
+     comment above claims, and z-index would be doing nothing at all because
+     nothing could be hit-tested to it. */
+  clip: auto;
+  clip-path: none;
+  /* Wanted, and declared rather than inherited: the hit layer is invisible and
+     must not draw a box of its own. Inheriting it from .sr-only would have
+     been the same accident as the clipping, just with a harmless outcome. */
+  border: 0;
+}
+
+/* The generic recipe, for anything that is genuinely text-for-AT-only rather
+   than a control with a visible surrogate. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Keyboard focus has to be visible on the tile, since the input it belongs to
+   is the invisible one. */
+.observer-tile:focus-within {
+  outline: 2px solid var(--pico-primary-focus);
+  outline-offset: 2px;
+}
+
+.observer-selected {
+  font-size: 0.85rem;
+  margin: 0;
+}
