@@ -42,9 +42,11 @@
 
 import { useMemo, useState } from "react";
 import { useStations } from "../hooks/useStations";
+import { useProposals, type ProposalRecord } from "../hooks/useOfflineQueue";
+import NewSiteForm from "./NewSiteForm";
 import { useDeviceLocation } from "../hooks/useDeviceLocation";
 import { distanceMetres, formatDistance } from "../utils/distance";
-import { ApiError, TimeoutError, type Station } from "../services/api";
+import { ApiError, TimeoutError, type Station, type StationProposalIn } from "../services/api";
 import { useOnline } from "../hooks/useOnline";
 
 interface Props {
@@ -171,10 +173,38 @@ export function describeStationFailure(
   };
 }
 
+/**
+ * A site created on this device, shaped like a station so the picker can offer
+ * it before the server has ever heard of it.
+ *
+ * Without this the observer creates a site at the monument and then cannot
+ * select it — the same dead end the feature exists to remove, moved along by
+ * one step. `source: "field"` is what the API itself uses for an unreconciled
+ * proposal merged into GET /stations, so a site looks the same whether it is
+ * still on the handset or has synced.
+ */
+function proposalAsStation(p: ProposalRecord): Station {
+  return {
+    station_code: p.station_code,
+    name: p.name ?? null,
+    latitude: p.latitude ?? null,
+    longitude: p.longitude ?? null,
+    elevation: p.elevation ?? null,
+    fault_segment: null,
+    status: "active",
+    municipality: p.municipality ?? null,
+    province: p.province ?? null,
+    monitoring_method: p.monitoring_method,
+    source: "field",
+  };
+}
+
 export default function StationPicker({ value, onChange, disabled }: Props) {
   const { data: stations, isLoading, isError, error, refetch, isFetching } = useStations();
   const online = useOnline();
+  const { proposals, addProposal } = useProposals();
   const [showAll, setShowAll] = useState(false);
+  const [adding, setAdding] = useState(false);
   // Only ask for position while the filter could actually use it. Asking after
   // the operator has chosen "show all" would prompt for a permission whose
   // answer changes nothing.
@@ -182,10 +212,31 @@ export default function StationPicker({ value, onChange, disabled }: Props) {
 
   const fix = location.status === "located" ? location.fix : null;
 
+  /**
+   * The inventory, plus sites created on this device that have not synced.
+   *
+   * Merged here rather than after the guards so that `nearby` sees them too. A
+   * site proposed at the monument is by definition where the observer is
+   * standing, so it belongs at the top of the nearby list — being pushed to
+   * "show all" to find the site you just created would be absurd.
+   *
+   * A local proposal whose code is already in the inventory is dropped rather
+   * than shown twice. That happens after a sync: the server returns the site
+   * in GET /stations while the local record is still marked synced here.
+   */
+  const allStations = useMemo(() => {
+    if (!stations) return undefined;
+    const known = new Set(stations.map((s) => s.station_code.toUpperCase()));
+    const local = proposals
+      .filter((p) => !known.has(p.station_code.toUpperCase()))
+      .map(proposalAsStation);
+    return [...local, ...stations];
+  }, [stations, proposals]);
+
   /** Stations within the radius, nearest first, with their distances. */
   const nearby = useMemo(() => {
-    if (!fix || !stations) return null;
-    return stations
+    if (!fix || !allStations) return null;
+    return allStations
       .filter(hasCoords)
       .map((s) => ({
         station: s,
@@ -196,13 +247,13 @@ export default function StationPicker({ value, onChange, disabled }: Props) {
       }))
       .filter((d) => d.metres <= NEARBY_RADIUS_M)
       .sort((a, b) => a.metres - b.metres);
-  }, [fix, stations]);
+  }, [fix, allStations]);
 
   if (isLoading) {
     return <select disabled><option>Loading stations…</option></select>;
   }
 
-  if (isError || !stations) {
+  if (isError || !stations || !allStations) {
     // Name the actual failure. "Offline?" for all five is what sent a field
     // report chasing a browser bug that did not exist -- see useStations.
     const { label, hint, retryable } = describeStationFailure(error, online);
@@ -234,7 +285,7 @@ export default function StationPicker({ value, onChange, disabled }: Props) {
 
   const visible: Station[] = filtering
     ? (nearby as NonNullable<typeof nearby>).map((d) => d.station)
-    : stations;
+    : allStations;
 
   const distanceByCode = new Map(
     (nearby ?? []).map((d) => [d.station.station_code, d.metres])
@@ -245,7 +296,7 @@ export default function StationPicker({ value, onChange, disabled }: Props) {
     items: visible.filter((s) => bucketOf(s).key === g.key),
   })).filter((g) => g.items.length > 0);
 
-  const selected = stations.find((s) => s.station_code === value);
+  const selected = allStations.find((s) => s.station_code === value);
   const selectedBucket = selected ? bucketOf(selected) : null;
   const selectedDistance = selected ? distanceByCode.get(selected.station_code) : undefined;
 
@@ -278,7 +329,7 @@ export default function StationPicker({ value, onChange, disabled }: Props) {
       <LocationNote
         filtering={filtering}
         nearbyCount={nearby?.length ?? 0}
-        total={stations.length}
+        total={allStations.length}
         location={location}
         showAll={showAll}
         selectionOutsideRadius={selectionOutsideRadius}
@@ -303,6 +354,47 @@ export default function StationPicker({ value, onChange, disabled }: Props) {
           Check the station is the one you meant.
         </p>
       )}
+
+      {/* The site is not in the list.
+          Deliberately last, small, and never in the way of the common case —
+          138 of 139 selections will be an existing station. But it is always
+          present, including offline, because an observer at an uncatalogued
+          monument with no signal is exactly who needs it, and the queue is
+          built for precisely that. */}
+      {adding ? (
+        <NewSiteForm
+          takenCodes={allStations.map((s) => s.station_code)}
+          onCancel={() => setAdding(false)}
+          onCreated={(proposal: StationProposalIn) => {
+            // Queued, then selected. The select() happens regardless of
+            // whether the network is up: the record exists locally, the picker
+            // merges it in above, and a sheet may name a code the server has
+            // not seen -- station_code on a logsheet is a loose TEXT reference
+            // with no foreign key, decided in 001_field_ops_schema.py.
+            void addProposal(proposal).then(() => {
+              onChange(proposal.station_code);
+              setAdding(false);
+            });
+          }}
+        />
+      ) : (
+        <button type="button" className="link-btn station-add" onClick={() => setAdding(true)}>
+          The site is not listed — add it
+        </button>
+      )}
+
+      {/* A proposal the server refused, almost always because the code was
+          taken while this device was offline. Shown here rather than only in
+          the queue view: this is where the observer chooses a code, and it is
+          where they can act on it. */}
+      {proposals
+        .filter((p) => p._status === "conflict")
+        .map((p) => (
+          <p key={p.client_uuid} className="station-status-note is-error">
+            {p.station_code} was not accepted: {p._error ?? "the code is already in use."}{" "}
+            The sheets you filed against it are still saved.
+          </p>
+        ))}
     </>
   );
 }

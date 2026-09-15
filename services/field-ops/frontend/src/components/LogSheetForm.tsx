@@ -34,6 +34,7 @@ import StationPicker from "./StationPicker";
 import ObserverPicker from "./ObserverPicker";
 import FormSection from "./FormSection";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
+import { generateUUID } from "../utils/uuid";
 import { checkPhotos, formatBytes } from "../utils/photos";
 import { summariseSlants, MIN_SLANTS } from "../utils/slants";
 import {
@@ -119,12 +120,6 @@ export function toDOY(dateStr: string): number {
   const start = new Date(d.getFullYear(), 0, 0);
   const diff = d.getTime() - start.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
-// ── UUID helper ──────────────────────────────────────────────────────────────
-
-function generateUUID(): string {
-  return crypto.randomUUID();
 }
 
 // ── Form values ──────────────────────────────────────────────────────────────

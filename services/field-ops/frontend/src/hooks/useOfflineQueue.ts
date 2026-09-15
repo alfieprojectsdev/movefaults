@@ -42,6 +42,8 @@ import {
   ApiError,
   LogSheetIn,
   LogSheetOut,
+  StationProposalIn,
+  proposeStation,
   submitLogSheets,
   uploadLogSheetPhoto,
 } from "../services/api";
@@ -101,7 +103,30 @@ interface PhotoProgress {
   uploaded: number;
 }
 
+/**
+ * A site created at the monument, waiting to reach the server.
+ *
+ * Kept in its own store rather than folded into logsheet_queue. The two are
+ * different objects with different failure modes: a rejected sheet is one
+ * visit's paperwork, a rejected proposal is a station code that two teams may
+ * both be claiming, and only a human can settle the second.
+ *
+ * `_status` mirrors the sheet queue's vocabulary so QueueView can grow a
+ * section without learning a second one. "conflict" is the addition, and it is
+ * the reason this store exists separately — see flushProposals.
+ */
+export interface ProposalRecord extends StationProposalIn {
+  _status: "pending" | "synced" | "conflict";
+  _queuedAt?: string;
+  _error?: string;
+}
+
 interface FieldOpsDB extends DBSchema {
+  station_proposal_queue: {
+    key: string; // client_uuid
+    value: ProposalRecord;
+    indexes: { by_status: string };
+  };
   logsheet_queue: {
     key: string; // client_uuid
     value: QueueRecord;
@@ -116,7 +141,8 @@ interface FieldOpsDB extends DBSchema {
 const DB_NAME = "field-ops";
 // v1 → v2 adds _photo / _photoUploaded
 // v2 → v3 adds the photo_progress store
-const DB_VERSION = 3;
+// v3 → v4 adds station_proposal_queue
+const DB_VERSION = 4;
 
 /**
  * Nothing in this module may hang forever.
@@ -172,6 +198,12 @@ async function getDb(): Promise<IDBPDatabase<FieldOpsDB>> {
         }
         if (oldVersion < 3) {
           db.createObjectStore("photo_progress", { keyPath: "client_uuid" });
+        }
+        if (oldVersion < 4) {
+          const proposals = db.createObjectStore("station_proposal_queue", {
+            keyPath: "client_uuid",
+          });
+          proposals.createIndex("by_status", "_status");
         }
       },
       blocked() {
@@ -330,6 +362,17 @@ export interface FlushResult {
 
 async function runFlush(): Promise<FlushResult> {
   const db = await getDb();
+
+  // Sites before sheets. See flushProposals: not required for the sheets to
+  // land, but it means a sheet's station exists by the time anyone reads it.
+  // Deliberately not allowed to abort the sheet flush -- a day's fieldwork must
+  // not be held hostage to a station code someone else also claimed.
+  try {
+    await flushProposals();
+  } catch {
+    // Already logged where it matters; the sheets are the priority.
+  }
+
   const pending = await db.getAllFromIndex("logsheet_queue", "by_status", "pending");
   if (pending.length === 0) return { attempted: 0, synced: 0, quarantined: 0 };
 
@@ -526,6 +569,117 @@ async function flushIndividually(
   return accepted;
 }
 
+// ── Station proposals ───────────────────────────────────────────────────────
+
+/**
+ * Queue a site created at the monument.
+ *
+ * Always queued, never posted directly, even with a signal. One path means one
+ * set of behaviours to reason about: the record exists locally the moment the
+ * observer taps save, the picker can offer the code immediately, and the
+ * difference between "online" and "offline" is only how soon the flush
+ * happens. The alternative — POST when online, queue when not — is two code
+ * paths where the offline one is exercised least and matters most.
+ */
+async function addProposal(proposal: StationProposalIn): Promise<void> {
+  const db = await getDb();
+  const record: ProposalRecord = {
+    ...proposal,
+    _status: "pending",
+    _queuedAt: new Date().toISOString(),
+  };
+  await withTimeout(
+    db.put("station_proposal_queue", record),
+    DB_WRITE_TIMEOUT_MS,
+    "Saving the new site",
+  );
+  await refreshProposals();
+}
+
+/**
+ * Proposals still on this device, newest first.
+ *
+ * The picker reads this so a site created offline is selectable straight away.
+ * Without it the observer would create a station and then be unable to choose
+ * it, which is the same dead end the feature exists to remove.
+ */
+async function getProposals(): Promise<ProposalRecord[]> {
+  const db = await getDb();
+  const all = await db.getAll("station_proposal_queue");
+  return all.sort((a, b) => (b._queuedAt ?? "").localeCompare(a._queuedAt ?? ""));
+}
+
+// Same shape as countSubscribers above: one source of truth, every mounted
+// consumer re-reads when it changes. A component holding its own copy would
+// keep showing a site as unsynced after the flush that sent it.
+const proposalSubscribers = new Set<(rows: ProposalRecord[]) => void>();
+
+async function refreshProposals(): Promise<ProposalRecord[]> {
+  const rows = await getProposals();
+  for (const fn of proposalSubscribers) fn(rows);
+  return rows;
+}
+
+/**
+ * Send queued proposals.
+ *
+ * Runs BEFORE the sheet flush. Not for correctness — `station_code` on a
+ * logsheet is a loose TEXT reference with no foreign key, stated as a decision
+ * in `001_field_ops_schema.py`, so a sheet naming an uncatalogued site syncs
+ * perfectly well either way. It runs first so that by the time anyone in the
+ * office opens that sheet, the station it names exists to be looked up.
+ *
+ * A 409 IS NOT AN ERROR TO RETRY
+ *
+ * It means the code is already taken — by the central inventory, or by a
+ * proposal someone else filed. The server's own docstring is explicit that two
+ * teams offline for two days can both propose the same code and both will
+ * sync; the duplicate guard cannot reach a handset. Retrying forever would
+ * never resolve it, and dropping it would destroy a record of a real site
+ * someone visited.
+ *
+ * So it is marked `conflict` and kept. The observer sees that their site was
+ * not accepted and why, and the sheet they filed against that code is still
+ * queued and still valid — it names a code, and a code is a string.
+ */
+async function flushProposals(): Promise<{ synced: number; conflicts: number }> {
+  const db = await getDb();
+  const pending = await db.getAllFromIndex("station_proposal_queue", "by_status", "pending");
+  if (pending.length === 0) return { synced: 0, conflicts: 0 };
+
+  let synced = 0;
+  let conflicts = 0;
+
+  for (const rec of pending) {
+    const { _status, _queuedAt, _error, ...payload } = rec;
+    void _status;
+    void _error;
+    try {
+      await proposeStation(payload);
+      await db.put("station_proposal_queue", { ...rec, _status: "synced", _error: undefined });
+      synced += 1;
+    } catch (err) {
+      if (err instanceof ApiError && err.isPermanent) {
+        await db.put("station_proposal_queue", {
+          ...rec,
+          _status: "conflict",
+          _error: err.message,
+          _queuedAt,
+        });
+        conflicts += 1;
+        continue;
+      }
+      // Transient: no signal, a 500, a timeout. Leave it pending and stop —
+      // the rest of the batch will fail the same way, and hammering a dead
+      // link costs battery at a site that has none to spare.
+      break;
+    }
+  }
+
+  await refreshProposals();
+  return { synced, conflicts };
+}
+
 /**
  * Single-flight flush. Concurrent callers join the run already in progress
  * rather than starting a second one — without this, the three mounted hook
@@ -578,7 +732,16 @@ function attachOnlineListener(): void {
   });
 }
 
-export { addToQueue, flushQueue, getQueue, refreshCount, retryRecord };
+export {
+  addToQueue,
+  addProposal,
+  flushQueue,
+  flushProposals,
+  getQueue,
+  getProposals,
+  refreshCount,
+  retryRecord,
+};
 
 // ── Hook ────────────────────────────────────────────────────────────────────
 
@@ -603,6 +766,28 @@ export function useOfflineQueue() {
   }, []);
 
   return { addToQueue, flushQueue, getQueue, pendingCount, refreshCount, retryRecord };
+}
+
+/**
+ * Sites created on this device, and their sync state.
+ *
+ * Separate from useOfflineQueue because the consumers are separate: the picker
+ * needs the codes so they can be selected, and nothing else in the app cares.
+ * Folding it into the sheet queue's hook would re-render the whole form every
+ * time a proposal changed.
+ */
+export function useProposals() {
+  const [proposals, setProposals] = useState<ProposalRecord[]>([]);
+
+  useEffect(() => {
+    proposalSubscribers.add(setProposals);
+    void refreshProposals();
+    return () => {
+      proposalSubscribers.delete(setProposals);
+    };
+  }, []);
+
+  return { proposals, addProposal, refreshProposals };
 }
 
 /** Remove the underscore-prefixed local bookkeeping fields before sending. */

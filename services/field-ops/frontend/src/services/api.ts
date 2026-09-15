@@ -326,6 +326,57 @@ export async function fetchStations(): Promise<Station[]> {
   return apiFetch<Station[]>("/stations");
 }
 
+// ── Station proposals ───────────────────────────────────────────────────────
+
+/**
+ * A site created from the field, before anyone in the office has seen it.
+ *
+ * It is a *proposal*, not a station. The endpoint takes it from any signed-in
+ * observer with no role gate, deliberately: the person blocked by requiring an
+ * approval is the one standing at the monument. Safety comes from the row
+ * staying unreconciled until someone promotes it, not from refusing it.
+ */
+export interface StationProposalIn {
+  /**
+   * Minted on the handset, before going offline, and never re-minted.
+   *
+   * This is the server's idempotency key: a retried sync returns the existing
+   * row instead of creating a second site. The offline queue retries whole
+   * batches, so a proposal that is re-sent must be recognisable as the same
+   * proposal or the inventory grows a duplicate every time the signal drops.
+   */
+  client_uuid: string;
+  station_code: string;
+  name?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  elevation?: number | null;
+  monitoring_method: string;
+  municipality?: string | null;
+  province?: string | null;
+  region?: string | null;
+  /** Handset clock at creation. The server may not see this for days. */
+  proposed_at?: string | null;
+  notes?: string | null;
+}
+
+export interface StationProposalOut extends StationProposalIn {
+  id: number;
+  status: string | null;
+  created_by: number | null;
+  created_at: string | null;
+  reconciled_at: string | null;
+}
+
+export async function proposeStation(
+  proposal: StationProposalIn,
+): Promise<StationProposalOut> {
+  return apiFetch<StationProposalOut>("/stations", {
+    method: "POST",
+    body: JSON.stringify(proposal),
+  });
+}
+
 // ── Staff ────────────────────────────────────────────────────────────────────
 
 export async function fetchStaff(): Promise<Staff[]> {
