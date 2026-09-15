@@ -955,3 +955,50 @@ input[readonly] {
   font-size: 0.85rem;
   margin: 0;
 }
+
+/* --------------------------------------------------------------------------
+   Add a site that is not listed  (#219)
+   -------------------------------------------------------------------------- */
+
+/* Quiet by default. 138 of 139 selections are an existing station, so this
+   must not compete with the picker — but it is always present, including
+   offline, because an observer at an uncatalogued monument with no signal is
+   exactly who needs it. */
+.station-add {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.new-site {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-card-background-color);
+}
+
+.new-site .section-header {
+  margin-top: 0;
+}
+
+/* Monospace and capitals: this is the string that ends up in RINEX filenames
+   and in every table keyed on station_code, and 0/O confusion here becomes a
+   station nobody can find. */
+.new-site input[type="text"]:first-of-type {
+  font-family: var(--pico-font-family-monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.new-site-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.new-site-actions button {
+  margin: 0;
+  min-height: 3rem;
+}
