@@ -605,8 +605,13 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
     .filter(Boolean)
     .join(" · ") || "not recorded";
 
+  // An instruction rather than a status, chosen by Alfie. It is deliberately
+  // close to the in-content "Add a photo to submit." that sits lower in the
+  // section: a screen-reader user hears the same phrasing whether the summary
+  // or the message is the one that reaches them, and on an untouched sheet
+  // only the summary does, because that message is gated on isDirty.
   const photoSummary = !hasPhoto
-    ? "required — none attached"
+    ? "add a photo before submitting"
     : !photoCheck.ok
       ? "attached, but too large to send"
       : `${photoCount} attached`;

@@ -61,7 +61,7 @@ describe("the photo section", () => {
 
   it("names its state in the summary rather than only itself", () => {
     renderForm();
-    expect(screen.queryByText("required — none attached")).not.toBeNull();
+    expect(screen.queryByText("add a photo before submitting")).not.toBeNull();
   });
 });
 
@@ -72,11 +72,14 @@ describe("a blocker that only the summary states", () => {
     // typed into yet the summary is the ONLY statement of why the button is
     // grey. It has to stay in the accessibility tree.
     renderForm();
-    const summary = screen.getByText("required — none attached");
+    const summary = screen.getByText("add a photo before submitting");
     expect(sectionNamed("Site photo")!.open).toBe(true);
     expect(summary.getAttribute("aria-hidden")).toBe("false");
     // And the message that would otherwise carry it is indeed absent here.
-    expect(screen.queryByText(/add a photo to submit/i)).toBeNull();
+    // Matched on the exact in-content wording, which is "to submit" rather
+    // than the summary's "before submitting" -- close enough to read as one
+    // voice, distinct enough for this assertion to mean something.
+    expect(screen.queryByText(/add a photo to submit\./i)).toBeNull();
   });
 });
 
