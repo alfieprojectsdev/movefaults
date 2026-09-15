@@ -498,6 +498,132 @@ async def test_promote_writes_to_public_stations(pg_session):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_promote_through_the_router_puts_the_monument_where_it_belongs(pg_session):
+    """Promote via the ENDPOINT, not via the extracted SQL.
+
+    The test above executes the router's query with its own params dict, which
+    covers the ordering inside the SQL — `ST_MakePoint(:lon, :lat)` is the
+    thing PostGIS gets wrong most often — and covers nothing about the CALLER.
+
+    Swap these two lines in `promote_proposal`:
+
+        "lat": proposal.latitude,
+        "lon": proposal.longitude,
+
+    and every other test still passes. Measured, not asserted: with them
+    swapped the suite reports 82 passed, 3 skipped. The regex still matches so
+    the extraction succeeds, the integration test builds its own correctly
+    ordered params so it still sees ST_Y == lat, and the 403 test never reaches
+    the query. A promoted monument would land on the other side of the world
+    with nothing red.
+
+    The two orderings look identical reading the file top to bottom, which is
+    probably why it read as covered. Found by gps3.
+
+    This one takes no regex, because the endpoint is the thing under test.
+    """
+    import uuid as _uuid
+
+    from field_ops.database import get_db
+    from field_ops.main import app
+    from httpx import ASGITransport, AsyncClient
+    from sqlalchemy import text as sa_text
+
+    # These tables live in the field_ops schema and this fixture creates
+    # nothing, so say plainly which migration is missing rather than failing
+    # with a driver error three frames down.
+    try:
+        await pg_session.execute(sa_text("SELECT 1 FROM field_ops.station_proposals LIMIT 1"))
+        await pg_session.execute(sa_text("SELECT 1 FROM field_ops.users LIMIT 1"))
+    except Exception as exc:  # noqa: BLE001
+        await pg_session.rollback()
+        pytest.skip(
+            f"field_ops schema not migrated in {type(exc).__name__}; "
+            "run `alembic -c services/field-ops/alembic.ini upgrade head` against this database"
+        )
+
+    code = "ZZTR"
+    pre = await pg_session.execute(
+        sa_text("SELECT 1 FROM stations WHERE station_code = :c"), {"c": code}
+    )
+    assert pre.first() is None, f"{code} already exists here; refusing to write over it"
+
+    reviewer = User(
+        username=f"zz-int-{_uuid.uuid4().hex[:8]}",
+        hashed_password=hash_password("testpass"),
+        role="admin",
+    )
+    pg_session.add(reviewer)
+    await pg_session.flush()
+
+    # Deliberately asymmetric: a latitude that is not a plausible longitude for
+    # the Philippines and vice versa, so a swap cannot coincidentally survive.
+    lat, lon = 14.6537, 121.0584
+    proposal = StationProposal(
+        client_uuid=_uuid.uuid4(),
+        station_code=code,
+        name="Router integration site",
+        latitude=lat,
+        longitude=lon,
+        monitoring_method="campaign",
+        status="active",
+        created_by=reviewer.id,
+    )
+    pg_session.add(proposal)
+    await pg_session.commit()
+    await pg_session.refresh(proposal)
+
+    app.dependency_overrides[get_db] = lambda: pg_session
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            token = await ac.post(
+                "/api/v1/token",
+                data={"username": reviewer.username, "password": "testpass"},
+            )
+            assert token.status_code == 200, token.text
+            headers = {"Authorization": f"Bearer {token.json()['access_token']}"}
+
+            resp = await ac.post(
+                f"/api/v1/station-proposals/{proposal.id}/promote", headers=headers
+            )
+            assert resp.status_code == 200, resp.text
+
+        row = (
+            await pg_session.execute(
+                sa_text(
+                    "SELECT ST_Y(location::geometry) AS lat, "
+                    "ST_X(location::geometry) AS lon "
+                    "FROM stations WHERE station_code = :c"
+                ),
+                {"c": code},
+            )
+        ).mappings().one()
+
+        # The assertion the swap breaks.
+        assert row["lat"] == pytest.approx(lat, abs=1e-9), (
+            "latitude did not survive promotion -- check the lat/lon mapping in "
+            "promote_proposal, not the SQL"
+        )
+        assert row["lon"] == pytest.approx(lon, abs=1e-9)
+    finally:
+        app.dependency_overrides.clear()
+        await pg_session.execute(
+            sa_text("DELETE FROM stations WHERE station_code = :c"), {"c": code}
+        )
+        await pg_session.execute(
+            sa_text("DELETE FROM field_ops.station_proposals WHERE station_code = :c"),
+            {"c": code},
+        )
+        await pg_session.execute(
+            sa_text("DELETE FROM field_ops.users WHERE id = :i"), {"i": reviewer.id}
+        )
+        await pg_session.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_list_stations_unions_inventory_and_proposals(pg_session):
     """The inventory half of GET /stations, executed against real PostGIS.
 
