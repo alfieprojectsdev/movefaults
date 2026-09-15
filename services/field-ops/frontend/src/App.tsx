@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import LogSheetForm from "./components/LogSheetForm";
 import TodayView from "./components/TodayView";
+import ReviewSitesView from "./components/ReviewSitesView";
 import LoginScreen from "./components/LoginScreen";
 import QueueView from "./components/QueueView";
 import SheetsView from "./components/SheetsView";
@@ -9,8 +10,9 @@ import { useOfflineQueue, flushQueue } from "./hooks/useOfflineQueue";
 import { getToken, clearToken, onAuthCleared } from "./services/api";
 import { useOnline } from "./hooks/useOnline";
 import { usePath, navigate } from "./utils/router";
+import { useCurrentUser } from "./hooks/useCurrentUser";
 
-type View = "today" | "logsheet" | "queue" | "sheets";
+type View = "today" | "logsheet" | "queue" | "sheets" | "reviewSites";
 
 // The nav is the source of truth for both directions: which path shows which
 // view, and which path a tab navigates to. Keeping them in one place is what
@@ -26,6 +28,7 @@ const PATHS: Record<View, string> = {
   logsheet: "/new",
   queue: "/queue",
   sheets: "/sheets",
+  reviewSites: "/review-sites",
 };
 
 function viewForPath(path: string): View {
@@ -56,6 +59,22 @@ export default function App() {
   const { choice, cycleTheme } = useTheme();
   const { pendingCount } = useOfflineQueue();
   const online = useOnline();
+  const { role } = useCurrentUser();
+
+  /**
+   * Whether to OFFER the review tab. Not whether the person may use it.
+   *
+   * The endpoints enforce admin and data_processor themselves, and nothing
+   * here re-implements that — a check in the browser is a courtesy, never a
+   * gate.
+   *
+   * A null role means /me has not answered, which offline is the normal case.
+   * Offered anyway, following the rule useCurrentUser states: the role decides
+   * a default view, never access. Hiding the tab on an unanswered /me would
+   * hide it from the reviewer with the worst connection, and the screen
+   * explains a 403 plainly if the guess was wrong.
+   */
+  const mayReview = role === null || role === "admin" || role === "data_processor";
 
   /**
    * The station Today asked the form to start a sheet for.
@@ -172,6 +191,16 @@ export default function App() {
           >
             Sheets
           </button>
+          {mayReview && (
+            <button
+              type="button"
+              onClick={() => navigate(PATHS.reviewSites)}
+              className={view === "reviewSites" ? "" : "is-inactive"}
+              aria-current={view === "reviewSites" ? "page" : undefined}
+            >
+              Review sites
+            </button>
+          )}
         </nav>
       </header>
 
@@ -207,6 +236,13 @@ export default function App() {
           behind the form until something re-rendered it. Mounting on entry is
           also what makes it refetch when someone comes back to check. */}
       {view === "sheets" && <SheetsView />}
+
+      {/* Mounted only while shown, like Sheets: a fetched list whose whole
+          value is being current. Rendered on the route regardless of
+          `mayReview` — that flag decides whether the tab is offered, and a
+          pasted link from a colleague must still reach the screen, which
+          explains a 403 better than a blank page does. */}
+      {view === "reviewSites" && <ReviewSitesView />}
 
       <footer className="app-footer">
         <button type="button" className="link-btn" onClick={signOut}>
