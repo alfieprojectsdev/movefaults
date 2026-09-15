@@ -906,6 +906,27 @@ input[readonly] {
   /* Above the span, so the finger lands on the control rather than on the
      decoration. */
   z-index: 1;
+  /* Both required, and both easy to leave out.
+     
+     The generic .sr-only rule below still matches this element -- the class is
+     still on it -- and the cascade resolves PER PROPERTY, not per rule. So
+     everything this selector does not declare still arrives from there. Drop
+     these two and the input is laid out filling the tile and then clipped to a
+     zero-area region.
+     
+     That is not merely cosmetic: clip-path affects hit-testing, not just
+     painting, so a pointer event outside the clip region is never delivered.
+     Without these the finger would land on the aria-hidden span and the tap
+     would still work -- but only because the <label> wraps the input and
+     forwards activation, which is a different mechanism from the one the
+     comment above claims, and z-index would be doing nothing at all because
+     nothing could be hit-tested to it. */
+  clip: auto;
+  clip-path: none;
+  /* Wanted, and declared rather than inherited: the hit layer is invisible and
+     must not draw a box of its own. Inheriting it from .sr-only would have
+     been the same accident as the clipping, just with a harmless outcome. */
+  border: 0;
 }
 
 /* The generic recipe, for anything that is genuinely text-for-AT-only rather
