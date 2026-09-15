@@ -21,8 +21,9 @@ const addProposal = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("../hooks/useStations", () => ({ useStations: () => stationsResult() }));
 vi.mock("../hooks/useOnline", () => ({ useOnline: () => false }));
+const retryProposal = vi.fn();
 vi.mock("../hooks/useOfflineQueue", () => ({
-  useProposals: () => ({ proposals: proposalsResult(), addProposal }),
+  useProposals: () => ({ proposals: proposalsResult(), addProposal, retryProposal }),
 }));
 vi.mock("../hooks/useDeviceLocation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/useDeviceLocation")>();
@@ -131,20 +132,60 @@ describe("a site created on this device is in the list", () => {
 });
 
 describe("a refused site is reported where the observer can act on it", () => {
-  it("says which code was rejected and that the sheets are safe", () => {
-    proposalsResult.mockReturnValue([
-      {
-        client_uuid: "u1",
-        station_code: "NEWA",
-        monitoring_method: "campaign",
-        _status: "conflict",
-        _error: "Station code NEWA has already been proposed.",
-      },
-    ]);
+  /**
+   * Two outcomes, two messages, and the difference is whether asking again
+   * could ever help. Found by gps3 in review: both used to be "conflict",
+   * which in this store means "someone else took this code" — so a 422 told
+   * the observer to re-propose under a different code, which cannot work.
+   */
+  const refused = (over: Record<string, unknown>) => [
+    {
+      client_uuid: "u1",
+      station_code: "NEWA",
+      monitoring_method: "campaign",
+      ...over,
+    },
+  ];
+
+  it("says the code is taken, and offers no retry", () => {
+    proposalsResult.mockReturnValue(
+      refused({ _status: "conflict", _error: "Station code NEWA has already been proposed." }),
+    );
     render(<StationPicker value="" onChange={vi.fn()} />);
     expect(screen.queryByText(/NEWA was not accepted/)).not.toBeNull();
-    // The sheets really are still queued -- station_code is a loose TEXT
-    // reference -- so saying so is honest, not reassurance.
-    expect(screen.queryByText(/sheets you filed against it are still saved/i)).not.toBeNull();
+    expect(screen.queryByText(/Choose a different code/)).not.toBeNull();
+    // A button guaranteed not to work is worse than no button: the code stays
+    // taken however many times the handset asks.
+    expect(screen.queryByRole("button", { name: /try sending it again/i })).toBeNull();
+  });
+
+  it("says a quarantined site is NOT taken, and offers a retry", () => {
+    proposalsResult.mockReturnValue(
+      refused({ _status: "error", _error: "field required" }),
+    );
+    render(<StationPicker value="" onChange={vi.fn()} />);
+    expect(screen.queryByText(/NEWA could not be sent/)).not.toBeNull();
+    // The distinction that was missing. Telling this observer to pick another
+    // code would put a wrong code in the record.
+    expect(screen.queryByText(/The code is not taken/)).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /try sending it again/i })).not.toBeNull();
+  });
+
+  it("requeues a quarantined site when the retry is tapped", async () => {
+    proposalsResult.mockReturnValue(refused({ _status: "error", _error: "field required" }));
+    render(<StationPicker value="" onChange={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /try sending it again/i }));
+    expect(retryProposal).toHaveBeenCalledWith("u1");
+  });
+
+  it("says the sheets are safe in both cases", () => {
+    // They really are still queued -- station_code is a loose TEXT reference
+    // with no foreign key -- so saying so is honest, not reassurance.
+    for (const status of ["conflict", "error"]) {
+      proposalsResult.mockReturnValue(refused({ _status: status, _error: "x" }));
+      const { unmount } = render(<StationPicker value="" onChange={vi.fn()} />);
+      expect(screen.queryByText(/sheets you filed against it are still saved/i)).not.toBeNull();
+      unmount();
+    }
   });
 });

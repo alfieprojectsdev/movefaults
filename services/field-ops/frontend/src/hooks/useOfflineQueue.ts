@@ -116,7 +116,7 @@ interface PhotoProgress {
  * the reason this store exists separately — see flushProposals.
  */
 export interface ProposalRecord extends StationProposalIn {
-  _status: "pending" | "synced" | "conflict";
+  _status: "pending" | "synced" | "conflict" | "error";
   _queuedAt?: string;
   _error?: string;
 }
@@ -641,14 +641,42 @@ async function refreshProposals(): Promise<ProposalRecord[]> {
  * So it is marked `conflict` and kept. The observer sees that their site was
  * not accepted and why, and the sheet they filed against that code is still
  * queued and still valid — it names a code, and a code is a string.
+ *
+ * CONFLICT IS 409 AND ONLY 409
+ *
+ * This keyed on `isPermanent` first, which is also true for 400, 403, 404 and
+ * 422. All of those became `conflict` — a word that in this store, in the
+ * docstring above and in the picker means "someone else took this code". So a
+ * 422 told the observer to re-propose under a different code, which cannot
+ * work, and put a wrong code in the record.
+ *
+ * The distinction is why, not whether. 409 is an answer about the world: the
+ * code stays taken however many times the handset asks. A 422 or a 404 is an
+ * answer about this client — a schema that moved under a handset days out of
+ * date, or an API base pointing somewhere that no longer exists. A deploy
+ * genuinely does change those, so they are quarantined as `error` and are
+ * retryable, exactly as a rejected logsheet is.
+ *
+ * That matters more than the arithmetic suggests: schema drift makes every
+ * queued proposal 422, and a misrouted base makes every one 404. Both would
+ * have converted a recoverable server-side condition into an unrecoverable
+ * client-side state, for the whole queue at once.
+ *
+ * Found by gps3 in review of #226, by mutating `isPermanent` to `status === 409`
+ * and watching all 216 tests still pass.
  */
-async function flushProposals(): Promise<{ synced: number; conflicts: number }> {
+async function flushProposals(): Promise<{
+  synced: number;
+  conflicts: number;
+  quarantined: number;
+}> {
   const db = await getDb();
   const pending = await db.getAllFromIndex("station_proposal_queue", "by_status", "pending");
-  if (pending.length === 0) return { synced: 0, conflicts: 0 };
+  if (pending.length === 0) return { synced: 0, conflicts: 0, quarantined: 0 };
 
   let synced = 0;
   let conflicts = 0;
+  let quarantined = 0;
 
   for (const rec of pending) {
     const { _status, _queuedAt, _error, ...payload } = rec;
@@ -659,7 +687,7 @@ async function flushProposals(): Promise<{ synced: number; conflicts: number }> 
       await db.put("station_proposal_queue", { ...rec, _status: "synced", _error: undefined });
       synced += 1;
     } catch (err) {
-      if (err instanceof ApiError && err.isPermanent) {
+      if (err instanceof ApiError && err.status === 409) {
         await db.put("station_proposal_queue", {
           ...rec,
           _status: "conflict",
@@ -667,6 +695,18 @@ async function flushProposals(): Promise<{ synced: number; conflicts: number }> 
           _queuedAt,
         });
         conflicts += 1;
+        continue;
+      }
+      if (err instanceof ApiError && err.isPermanent) {
+        // Refused for a reason that is about this client rather than about the
+        // code. Kept, marked, and retryable once whatever caused it is fixed.
+        await db.put("station_proposal_queue", {
+          ...rec,
+          _status: "error",
+          _error: err.message,
+          _queuedAt,
+        });
+        quarantined += 1;
         continue;
       }
       // Transient: no signal, a 500, a timeout. Leave it pending and stop —
@@ -677,7 +717,27 @@ async function flushProposals(): Promise<{ synced: number; conflicts: number }> 
   }
 
   await refreshProposals();
-  return { synced, conflicts };
+  return { synced, conflicts, quarantined };
+}
+
+/**
+ * Move a quarantined proposal back into the queue.
+ *
+ * Mirrors retryRecord for logsheets, and like it, fixes nothing itself — the
+ * cause is a reload onto a current bundle, or an API base corrected. This only
+ * clears the mark so the next flush tries again; if the cause is still there
+ * it quarantines again with a fresh message, which is the honest outcome.
+ *
+ * Deliberately refuses a `conflict`. That one is an answer about the world and
+ * asking again cannot change it; offering a retry would be offering a button
+ * that is guaranteed not to work.
+ */
+async function retryProposal(clientUuid: string): Promise<void> {
+  const db = await getDb();
+  const rec = await db.get("station_proposal_queue", clientUuid);
+  if (!rec || rec._status !== "error") return;
+  await db.put("station_proposal_queue", { ...rec, _status: "pending", _error: undefined });
+  await refreshProposals();
 }
 
 /**
@@ -741,6 +801,7 @@ export {
   getProposals,
   refreshCount,
   retryRecord,
+  retryProposal,
 };
 
 // ── Hook ────────────────────────────────────────────────────────────────────
@@ -787,7 +848,7 @@ export function useProposals() {
     };
   }, []);
 
-  return { proposals, addProposal, refreshProposals };
+  return { proposals, addProposal, refreshProposals, retryProposal };
 }
 
 /** Remove the underscore-prefixed local bookkeeping fields before sending. */

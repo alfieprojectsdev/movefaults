@@ -202,7 +202,7 @@ function proposalAsStation(p: ProposalRecord): Station {
 export default function StationPicker({ value, onChange, disabled }: Props) {
   const { data: stations, isLoading, isError, error, refetch, isFetching } = useStations();
   const online = useOnline();
-  const { proposals, addProposal } = useProposals();
+  const { proposals, addProposal, retryProposal } = useProposals();
   const [showAll, setShowAll] = useState(false);
   const [adding, setAdding] = useState(false);
   // Only ask for position while the filter could actually use it. Asking after
@@ -383,16 +383,39 @@ export default function StationPicker({ value, onChange, disabled }: Props) {
         </button>
       )}
 
-      {/* A proposal the server refused, almost always because the code was
-          taken while this device was offline. Shown here rather than only in
-          the queue view: this is where the observer chooses a code, and it is
-          where they can act on it. */}
+      {/* A site the server refused. Shown here rather than only in the queue
+          view: this is where the observer chooses a code, and it is where they
+          can act on it.
+
+          Two outcomes, two messages, and the difference is whether asking
+          again could ever help. A 409 is an answer about the world — the code
+          stays taken — so there is no retry, because a button guaranteed not
+          to work is worse than none. Anything else permanent is an answer
+          about this client, which a reload or a corrected API base does
+          change, so it offers one. */}
       {proposals
         .filter((p) => p._status === "conflict")
         .map((p) => (
           <p key={p.client_uuid} className="station-status-note is-error">
             {p.station_code} was not accepted: {p._error ?? "the code is already in use."}{" "}
-            The sheets you filed against it are still saved.
+            Choose a different code. The sheets you filed against it are still saved.
+          </p>
+        ))}
+
+      {proposals
+        .filter((p) => p._status === "error")
+        .map((p) => (
+          <p key={p.client_uuid} className="station-status-note is-error">
+            {p.station_code} could not be sent: {p._error ?? "the server refused it."}{" "}
+            The code is not taken — this is something on this device or with the
+            app version. The sheets you filed against it are still saved.{" "}
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => void retryProposal(p.client_uuid)}
+            >
+              Try sending it again
+            </button>
           </p>
         ))}
     </>

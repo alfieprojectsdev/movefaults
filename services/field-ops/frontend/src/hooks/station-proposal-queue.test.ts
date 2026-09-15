@@ -50,8 +50,8 @@ vi.mock("../services/api", () => ({
   ApiError: FakeApiError,
 }));
 
-const { addToQueue, addProposal, flushQueue, flushProposals, getProposals } =
-  await import("./useOfflineQueue");
+const mod = await import("./useOfflineQueue");
+const { addToQueue, addProposal, flushQueue, flushProposals, getProposals } = mod;
 
 async function wipe() {
   const db = await openDB("field-ops");
@@ -165,7 +165,7 @@ describe("a 409 is a conflict, not a retry", () => {
 
     const result = await flushProposals();
 
-    expect(result).toEqual({ synced: 0, conflicts: 1 });
+    expect(result).toEqual({ synced: 0, conflicts: 1, quarantined: 0 });
     const rows = await getProposals();
     // Kept, not dropped: it records that someone stood at a real site.
     expect(rows).toHaveLength(1);
@@ -186,6 +186,68 @@ describe("a 409 is a conflict, not a retry", () => {
   });
 });
 
+describe("a refusal that is about this client, not about the code", () => {
+  // Found by gps3 in review: flushProposals keyed on isPermanent, which is
+  // also true for 400, 403, 404 and 422, so all of them became "conflict" — a
+  // word that in this store means "someone else took this code". A 422 then
+  // told the observer to re-propose under a different code, which cannot work
+  // and puts a wrong code in the record.
+  //
+  // It matters more than the arithmetic suggests: schema drift against a
+  // handset days out of date makes EVERY queued proposal 422, and a misrouted
+  // API base makes every one 404. Both would convert a recoverable
+  // server-side condition into an unrecoverable client-side state, for the
+  // whole queue at once.
+
+  it("quarantines a 422 rather than calling the code taken", async () => {
+    const { addProposal, flushProposals, getProposals } = mod;
+    await addProposal(proposal());
+    proposeStation.mockRejectedValue(new FakeApiError(422, "field required"));
+
+    const result = await flushProposals();
+
+    expect(result).toEqual({ synced: 0, conflicts: 0, quarantined: 1 });
+    expect((await getProposals())[0]._status).toBe("error");
+  });
+
+  it("quarantines a 404, which a corrected API base would fix", async () => {
+    const { addProposal, flushProposals, getProposals } = mod;
+    await addProposal(proposal());
+    proposeStation.mockRejectedValue(new FakeApiError(404, "Not Found"));
+
+    await flushProposals();
+
+    expect((await getProposals())[0]._status).toBe("error");
+  });
+
+  it("lets a quarantined site be sent again", async () => {
+    const { addProposal, flushProposals, getProposals, retryProposal } = mod;
+    await addProposal(proposal());
+    proposeStation.mockRejectedValueOnce(new FakeApiError(422, "field required"));
+    await flushProposals();
+    expect((await getProposals())[0]._status).toBe("error");
+
+    await retryProposal("site-uuid-1");
+    expect((await getProposals())[0]._status).toBe("pending");
+
+    proposeStation.mockResolvedValue({ id: 1 });
+    expect(await flushProposals()).toEqual({ synced: 1, conflicts: 0, quarantined: 0 });
+  });
+
+  it("refuses to retry a conflict, because asking again cannot change it", async () => {
+    // The code stays taken however many times the handset asks. Offering a
+    // retry would be offering a button guaranteed not to work.
+    const { addProposal, flushProposals, getProposals, retryProposal } = mod;
+    await addProposal(proposal());
+    proposeStation.mockRejectedValue(new FakeApiError(409, "taken"));
+    await flushProposals();
+
+    await retryProposal("site-uuid-1");
+
+    expect((await getProposals())[0]._status).toBe("conflict");
+  });
+});
+
 describe("a transient failure leaves the site queued", () => {
   it("keeps it pending and stops the batch", async () => {
     await addProposal(proposal({ client_uuid: "a", station_code: "AAAA" }));
@@ -194,7 +256,7 @@ describe("a transient failure leaves the site queued", () => {
 
     const result = await flushProposals();
 
-    expect(result).toEqual({ synced: 0, conflicts: 0 });
+    expect(result).toEqual({ synced: 0, conflicts: 0, quarantined: 0 });
     const rows = await getProposals();
     expect(rows.every((r) => r._status === "pending")).toBe(true);
     // Stopped after the first: hammering a dead link costs battery at a site
@@ -210,7 +272,7 @@ describe("a transient failure leaves the site queued", () => {
     proposeStation.mockResolvedValue({ id: 1 });
     const result = await flushProposals();
 
-    expect(result).toEqual({ synced: 1, conflicts: 0 });
+    expect(result).toEqual({ synced: 1, conflicts: 0, quarantined: 0 });
     expect((await getProposals())[0]._status).toBe("synced");
   });
 });
