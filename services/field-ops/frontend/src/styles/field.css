@@ -737,3 +737,94 @@ input[readonly] {
 .today-search {
   margin-bottom: 0.75rem;
 }
+
+/* --------------------------------------------------------------------------
+   Collapsible log-sheet sections
+   Design handoff `Field Ops Alternatives.dc.html`, option 1b.
+
+   Native <details>/<summary>, not a div and a state flag. Three reasons, in
+   descending order of how much they cost to get wrong:
+
+     1. A closed <details> keeps its children in the DOM. A field inside it
+        stays registered with react-hook-form, so a required field in a
+        collapsed section still validates instead of silently failing the
+        submit from somewhere nobody can see.
+     2. Keyboard and screen-reader behaviour is the platform's, not ours.
+     3. It works before the JS does.
+   -------------------------------------------------------------------------- */
+
+.form-section {
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  margin-bottom: 0.75rem;
+  background: var(--pico-card-background-color);
+}
+
+.form-section > summary {
+  /* Pico gives summary a marker and its own padding; this is a row, not a
+     disclosure triangle with text after it. */
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.9rem 0.75rem;
+  cursor: pointer;
+  /* Whole row is the target, not the word. A thumb in the rain does not hit a
+     14 px triangle. */
+  min-height: 3rem;
+  list-style: none;
+}
+
+.form-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Own marker, on the right where a thumb reaches, and rotating so the open
+   state is readable without comparing against a neighbour. */
+.form-section > summary::after {
+  content: "⌄";
+  margin-left: auto;
+  font-size: 1.2rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.form-section[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.form-section-title {
+  font-weight: 600;
+}
+
+.form-section-summary {
+  font-size: 0.85rem;
+  color: var(--pico-muted-color);
+}
+
+.form-section[open] > summary .form-section-summary {
+  /* Redundant once the content is visible, and actively misleading while the
+     observer is editing the fields it describes. */
+  display: none;
+}
+
+.form-section-body {
+  padding: 0 0.75rem 0.75rem;
+  border-top: 1px solid var(--pico-muted-border-color);
+  padding-top: 0.75rem;
+}
+
+/* A section forced open because something inside it blocks submission. The
+   border carries it rather than the text, so it reads at arm's length and
+   does not depend on reading the summary that is now hidden. */
+.form-section-alert {
+  border-color: var(--field-error);
+}
+
+.form-section-alert > summary .form-section-title {
+  color: var(--field-error);
+}
+
+/* `.section-header` is still used: once inside the log sheet, for the
+   "Equipment as left" heading that sits WITHIN the Equipment section rather
+   than being one, and once in SheetsView. Not dead. */
