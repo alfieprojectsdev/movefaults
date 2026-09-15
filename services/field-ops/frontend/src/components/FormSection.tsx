@@ -86,9 +86,38 @@ export default function FormSection({
     >
       <summary>
         <span className="form-section-title">{title}</span>
-        {/* Hidden from the accessibility tree when open: it would otherwise be
-            read out immediately before the same information in full. */}
-        <span className="form-section-summary" aria-hidden={open || forceOpen}>
+        {/* Hidden from the accessibility tree once the OPERATOR has opened the
+            section: the précis would otherwise be read out immediately before
+            the same information in full.
+
+            Keyed on `open && !forceOpen`, NOT on `open || forceOpen`, and
+            NOT on `open` alone — that middle attempt does not work, for a
+            reason worth writing down: opening the element fires `toggle`
+            whatever caused it, so the onToggle handler below sets `open` to
+            true when forceOpen opens the section. State converges on the DOM
+            by design, so `open` cannot distinguish who opened it. Only the
+            explicit `!forceOpen` can.
+
+            A force-opened section was opened because something inside it
+            blocks submission, and for that case the summary is not a
+            duplicate — it is a statement of the blocker, sometimes the only
+            one. `required — none attached` fires on an untouched form, where
+            the in-content message that would otherwise carry it is suppressed
+            by `isDirty`. So the earlier version removed the reason from the
+            accessibility tree at the exact moment it existed: a sighted
+            observer got alert styling and text, a screen-reader user got an
+            open section and silence.
+
+            The other three triggers do have ungated in-content messages
+            today, so they would read the reason twice rather than not at all.
+            That is the right way round, and it is also why this is keyed on
+            `open` rather than audited trigger by trigger — the safety of the
+            old version depended on every forceOpen having an unconditional
+            announcement inside it, which nothing enforced and which the photo
+            case already broke.
+
+            Found by gps3 in review of #224. */}
+        <span className="form-section-summary" aria-hidden={open && !forceOpen}>
           {summary}
         </span>
       </summary>

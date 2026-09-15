@@ -100,6 +100,34 @@ describe("the summary", () => {
   });
 });
 
+describe("a force-opened summary stays announced", () => {
+  it("keeps the summary in the accessibility tree when the section opened itself", async () => {
+    // The distinction the earlier version got wrong. Suppressing the précis is
+    // right when the OPERATOR opened the section: they are about to hear the
+    // same information in full. A section that opened ITSELF did so because
+    // something inside blocks submission, and the summary is then a statement
+    // of the blocker rather than a duplicate of the content.
+    //
+    // In the real form `required — none attached` fires on an untouched sheet,
+    // where the in-content message that would otherwise carry it is suppressed
+    // by isDirty. So `aria-hidden={open || forceOpen}` removed the reason from
+    // the accessibility tree at precisely the moment it existed: alert styling
+    // and text for a sighted observer, an open section and silence for a
+    // screen-reader user.
+    //
+    // Found by gps3 in review of #224.
+    render(<Harness />);
+    const summary = screen.getByText("nothing recorded");
+    expect(summary.getAttribute("aria-hidden")).toBe("false");
+
+    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    const details = document.querySelector("details") as HTMLDetailsElement;
+    expect(details.open).toBe(true);
+    expect(summary.getAttribute("aria-hidden")).toBe("false");
+  });
+});
+
 describe("open state tracks the browser's own toggle", () => {
   it("keeps the component's own notion of open in step with the DOM", async () => {
     // What this is really about, having been checked by mutation rather than

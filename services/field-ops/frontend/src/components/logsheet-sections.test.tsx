@@ -65,6 +65,21 @@ describe("the photo section", () => {
   });
 });
 
+describe("a blocker that only the summary states", () => {
+  it("leaves the photo summary announced on an untouched sheet", () => {
+    // The photo is missing, Submit is disabled, and the section force-opens.
+    // "Add a photo to submit." is gated on isDirty, so on a sheet nobody has
+    // typed into yet the summary is the ONLY statement of why the button is
+    // grey. It has to stay in the accessibility tree.
+    renderForm();
+    const summary = screen.getByText("required — none attached");
+    expect(sectionNamed("Site photo")!.open).toBe(true);
+    expect(summary.getAttribute("aria-hidden")).toBe("false");
+    // And the message that would otherwise carry it is indeed absent here.
+    expect(screen.queryByText(/add a photo to submit/i)).toBeNull();
+  });
+});
+
 describe("continuous mode", () => {
   it("collapses the optional sections and keeps their fields in the DOM", async () => {
     renderForm();
