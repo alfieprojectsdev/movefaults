@@ -31,6 +31,7 @@ import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import StationPicker from "./StationPicker";
+import FormSection from "./FormSection";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { groupByRole } from "../utils/roles";
 import { checkPhotos, formatBytes } from "../utils/photos";
@@ -289,6 +290,16 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
   const photoFiles     = watch("photo");
   const equipmentChanged = watch("equipment_changed");
   const observerIds    = watch("observer_ids");
+  // Watched only to describe a collapsed section. A section that shows just
+  // its name when closed has hidden information rather than organised it --
+  // the observer has to open all of them to answer "what have I not filled
+  // in", which is worse than the long scroll it replaced.
+  const batteryV       = watch("battery_voltage_v");
+  const powerNotes     = watch("power_notes");
+  const receiverBefore = watch("receiver_model_before");
+  const antennaBefore  = watch("antenna_type_before");
+  const sessionId      = watch("session_id");
+  const utcEnd         = watch("utc_end");
 
   // ── Staff query ────────────────────────────────────────────────────────────
 
@@ -557,6 +568,49 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
     }
   };
 
+  // ── Collapsed-section summaries ───────────────────────────────────────────
+  //
+  // Each says the STATE of the section, not its field names. "12.6 V" answers
+  // "do I need to open this"; "voltage, notes" does not, and that question is
+  // the only reason a closed section exists.
+  //
+  // Every one of them has an explicit empty case, because "not filled in" is
+  // the single most useful thing a closed section can say and it is the case
+  // that is easiest to leave rendering as a blank gap.
+
+  const powerSummary =
+    batteryV || powerNotes
+      ? [batteryV ? `${batteryV} V` : null, powerNotes ? "notes" : null]
+          .filter(Boolean)
+          .join(" · ")
+      : "not recorded";
+
+  const equipmentSummary = equipmentChangeIncomplete
+    ? "change ticked, nothing recorded"
+    : equipmentChanged
+      ? "changed during visit"
+      : receiverBefore || antennaBefore
+        ? [receiverBefore, antennaBefore].filter(Boolean).join(" · ")
+        : "not recorded";
+
+  const antennaSummary = rhImpossible
+    ? "check the slant readings"
+    : rhValue !== undefined && antennaModel
+      ? `${antennaModel} · RINEX ${rhValue.toFixed(3)} m`
+      : antennaModel
+        ? `${antennaModel} · ${slants.count} of 4 slants`
+        : "antenna not selected";
+
+  const sessionSummary = [sessionId || null, utcStart ? `${utcStart} UTC` : null, utcEnd ? `to ${utcEnd}` : null]
+    .filter(Boolean)
+    .join(" · ") || "not recorded";
+
+  const photoSummary = !hasPhoto
+    ? "required — none attached"
+    : !photoCheck.ok
+      ? "attached, but too large to send"
+      : `${photoCount} attached`;
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const isSubmitting = submitState === "saving";
@@ -739,7 +793,7 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
       ════════════════════════════════════════════════════════════ */}
       {method === "continuous" && (
         <>
-          <h3 className="section-header">Power &amp; Battery</h3>
+          <FormSection title="Power & battery" summary={powerSummary}>
 
           <label>
             Power notes
@@ -764,6 +818,8 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
             />
           </label>
 
+          </FormSection>
+
           {/* ── Equipment: as found, and as left ──────────────────────────
               The Before/After table from the paper GPS Station Maintenance
               Record. "As found" is the half that matters most right now:
@@ -771,7 +827,19 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
               so the Palawan visit is the first time their hardware is written
               down anywhere. An unrecorded swap later shows up in the
               coordinate series as a step that looks like ground movement. */}
-          <h3 className="section-header">Equipment as found</h3>
+          {/* One section, not two. "As left" is only meaningful against "as
+              found" -- it records a difference -- so splitting them would let
+              an observer collapse the half that gives the other half meaning.
+
+              forceOpen on the incomplete case is the important part: ticking
+              the box without naming what changed already blocks Submit, and a
+              blocked Submit whose reason is inside a collapsed section is the
+              dead-button defect this whole component is built to avoid. */}
+          <FormSection
+            title="Equipment"
+            summary={equipmentSummary}
+            forceOpen={equipmentChangeIncomplete}
+          >
 
           <p className="hint">
             Copy from the labels on the receiver and antenna. If a field is not
@@ -939,6 +1007,7 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
               )}
             </>
           )}
+          </FormSection>
         </>
       )}
 
@@ -947,7 +1016,17 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
       ════════════════════════════════════════════════════════════ */}
       {method === "campaign" && (
         <>
-          <h3 className="section-header">Antenna Setup</h3>
+          {/* Open by default and forced open on either failure. It holds the
+              only required field in the campaign branch and the slant
+              arithmetic, which is the part of this sheet a mistake in is
+              expensive -- a mistyped decimal reaches the coordinate series as
+              a vertical step. */}
+          <FormSection
+            title="Antenna setup"
+            summary={antennaSummary}
+            defaultOpen
+            forceOpen={!!errors.antenna_model || rhImpossible}
+          >
 
           <label>
             Antenna model *
@@ -1082,7 +1161,13 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
             </p>
           )}
 
-          <h3 className="section-header">Session Details</h3>
+          </FormSection>
+
+          <FormSection
+            title="Session details"
+            summary={sessionSummary}
+            forceOpen={!!errors.utc_start}
+          >
 
           <label>
             Session ID
@@ -1129,12 +1214,22 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
             <input type="checkbox" {...register("bubble_centred")} />
             Bubble centred (level confirmed)
           </label>
+          </FormSection>
 
         </>
       )}
 
       {/* ── Photo ── */}
-      <h3 className="section-header">Site Photo</h3>
+      {/* Open by default and forced open whenever it is the thing stopping
+          submission. The photo is mandatory and disables the Submit button;
+          an operator who cannot see why the button is grey has no way to find
+          out. */}
+      <FormSection
+        title="Site photo"
+        summary={photoSummary}
+        defaultOpen
+        forceOpen={!hasPhoto || !photoCheck.ok}
+      >
 
       <label>
         Photo *
@@ -1254,6 +1349,8 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
           Add a photo to submit.
         </p>
       )}
+
+      </FormSection>
 
       {/* ── Submit ── */}
       <button
