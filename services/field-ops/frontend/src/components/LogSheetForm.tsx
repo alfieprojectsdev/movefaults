@@ -31,9 +31,9 @@ import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import StationPicker from "./StationPicker";
+import ObserverPicker from "./ObserverPicker";
 import FormSection from "./FormSection";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
-import { groupByRole } from "../utils/roles";
 import { checkPhotos, formatBytes } from "../utils/photos";
 import { summariseSlants, MIN_SLANTS } from "../utils/slants";
 import {
@@ -698,66 +698,17 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
       </div>
 
       {/* ── Observers ──
-          Checkboxes, not <select multiple>. There is no Ctrl key at a monument,
-          and that was the only instruction telling anyone more than one
-          observer could be recorded — so a team of four would file sheets
-          naming one person. A multi-select also hides its state behind a
-          native picker on a phone; here every name and every tick is visible
-          at a glance, on 48px rows a gloved thumb can hit. */}
-      <fieldset className="observer-field">
-        <legend>Observers</legend>
-        {staffLoading ? (
-          <p className="hint">Loading staff…</p>
-        ) : staffList && staffList.length > 0 ? (
-          <>
-            <div className="observer-list">
-              {/* Grouped under headings rather than filtered by a control.
-                  With 13 names a filter costs more taps than it saves, and a
-                  station visit routinely mixes groups — a filter would have to
-                  be switched mid-selection every time. Headings show the same
-                  information for free and keep every name one scroll away. */}
-              {groupByRole(staffList).map((group) => (
-                <div key={group.role} className="observer-group">
-                  <p className="observer-group-label">{group.label}</p>
-                  {group.members.map((s) => {
-                    const checked = observerIds.includes(s.id);
-                    return (
-                      <label key={s.id} className="checkbox-row observer-row">
-                        <input
-                          type="checkbox"
-                          value={s.id}
-                          checked={checked}
-                          onChange={(e) => {
-                            // Rebuilt from the current array rather than toggled
-                            // in place, so the stored order stays stable and a
-                            // double tap cannot leave a duplicate id behind.
-                            const next = e.target.checked
-                              ? [...observerIds, s.id]
-                              : observerIds.filter((id) => id !== s.id);
-                            setValue("observer_ids", next, { shouldDirty: true });
-                          }}
-                        />
-                        <span>
-                          {s.full_name === s.initials
-                            ? s.initials
-                            : `${s.full_name} (${s.initials})`}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-            <small>
-              {observerIds.length === 0
-                ? "Tick everyone who was present — more than one is normal."
-                : `${observerIds.length} selected`}
-            </small>
-          </>
-        ) : (
-          <p className="hint">Staff unavailable (offline?)</p>
-        )}
-      </fieldset>
+          The picker itself is ObserverPicker; see its header for why it is a
+          grid of initials rather than the scrolling list of names it replaced,
+          and what that trade costs. Kept in the always-visible part of the
+          sheet rather than inside a collapsible section: who was present is
+          part of saying which visit this is. */}
+      <ObserverPicker
+        staff={staffList}
+        loading={staffLoading}
+        selectedIds={observerIds}
+        onChange={(ids) => setValue("observer_ids", ids, { shouldDirty: true })}
+      />
 
       {/* ── Equipment status ── */}
       <label>

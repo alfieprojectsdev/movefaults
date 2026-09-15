@@ -214,41 +214,12 @@ textarea {
   color: var(--pico-muted-color);
 }
 
-.observer-list {
-  max-height: 15rem;
-  overflow-y: auto;
-  /* Momentum scrolling inside the box on iOS, so a thumb-flick does not drag
-     the whole page instead. */
-  -webkit-overflow-scrolling: touch;
-}
-
-.observer-row {
-  margin: 0;
-  padding: 0 0.25rem;
-  border-bottom: 1px solid var(--pico-form-element-border-color);
-  cursor: pointer;
-}
-
-.observer-row:last-child { border-bottom: none; }
-
-/* Sticky so the group a name belongs to stays visible while scrolling the
-   list on a short phone screen — otherwise the heading scrolls away and the
-   remaining names lose the only thing that identified their group. */
-.observer-group-label {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  margin: 0;
-  padding: 0.35rem 0.25rem;
-  background: var(--pico-background-color);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--pico-muted-color);
-  border-bottom: 1px solid var(--pico-form-element-border-color);
-}
-
-.observer-group + .observer-group { margin-top: 0.5rem; }
+/* The grouped, scrolling observer list is gone — see .observer-grid further
+   down for what replaced it and why. Its rules went with it rather than
+   staying as dead weight: .observer-list, .observer-row, .observer-group-label
+   and .observer-group. The sticky group heading in particular was solving a
+   problem that no longer exists, and a reader finding it later would have
+   assumed a scrolling list still existed somewhere. */
 
 /* Theme toggle — icon-sized, but still a full 48px tap target. */
 .theme-toggle {
@@ -828,3 +799,98 @@ input[readonly] {
 /* `.section-header` is still used: once inside the log sheet, for the
    "Equipment as left" heading that sits WITHIN the Equipment section rather
    than being one, and once in SheetsView. Not dead. */
+
+/* --------------------------------------------------------------------------
+   Observers — the initials grid
+   Design handoff `Field Ops Alternatives.dc.html`, option 1g.
+
+   Replaces a 15rem scroll region holding thirteen 48px rows. All thirteen now
+   fit with no scroll at any phone width, which is the entire point: a nested
+   scroll inside a page scroll is unusable with a thumb, and the seven names
+   below the fold may as well not exist.
+   -------------------------------------------------------------------------- */
+
+.observer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.observer-count {
+  color: var(--pico-muted-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.observer-grid {
+  display: grid;
+  /* auto-fill, not a fixed column count: 4 across at 360px, more on a tablet,
+     and nothing to re-tune when the fourteenth member of staff is hired. */
+  grid-template-columns: repeat(auto-fill, minmax(4.25rem, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.observer-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Square, and comfortably past the 44px touch-target floor at every width
+     the grid produces. A gloved thumb is the design constraint here. */
+  aspect-ratio: 1;
+  min-height: 3.25rem;
+  margin: 0;
+  padding: 0.25rem;
+  border: 2px solid var(--pico-form-element-border-color);
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-form-element-background-color);
+  font-family: var(--pico-font-family-monospace);
+  /* Initials are the thing being matched against a memory of who was there, so
+     they are sized to be read at arm's length rather than to fit neatly. */
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+  line-height: 1.1;
+  word-break: break-all;
+}
+
+/* Selection is carried by fill and border weight, not by colour alone --
+   this is used outdoors, in sunlight, sometimes by someone colour-blind. */
+.observer-tile.is-selected {
+  background: var(--pico-primary);
+  border-color: var(--pico-primary);
+  color: var(--pico-primary-inverse);
+}
+
+/* The checkbox is the control; the tile is its label. Hidden visually and
+   NOT with display:none, which would take it out of the tab order and out of
+   the accessibility tree along with it. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Keyboard focus has to be visible on the tile, since the input it belongs to
+   is the invisible one. */
+.observer-tile:focus-within {
+  outline: 2px solid var(--pico-primary-focus);
+  outline-offset: 2px;
+}
+
+.observer-selected {
+  font-size: 0.85rem;
+  margin: 0;
+}
