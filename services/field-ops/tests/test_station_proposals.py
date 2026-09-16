@@ -566,6 +566,26 @@ async def test_promote_through_the_router_puts_the_monument_where_it_belongs(pg_
     )
     pg_session.add(reviewer)
     await pg_session.flush()
+    # Captured NOW, as a plain int, while the instance is still live.
+    #
+    # The cleanup below rolls back before deleting, and ROLLBACK EXPIRES EVERY
+    # LOADED ATTRIBUTE unconditionally — `expire_on_commit=False` on the
+    # session factory suppresses expiry on commit and has no effect on
+    # rollback, and there is no setting that does. So `reviewer.id` read inside
+    # `finally` is not a field access, it is a lazy refresh: IO, attempted
+    # outside greenlet context, raising
+    #
+    #   MissingGreenlet: greenlet_spawn has not been called
+    #
+    # from `sqlalchemy/orm/attributes.py __get__`, with the instance's __dict__
+    # holding nothing but `_sa_instance_state`. The traceback reads like a sync
+    # ORM execute and is not one.
+    #
+    # `station_code` is fine in the same block because it is a plain string.
+    # This is the only ORM attribute the cleanup touches, and "just use the
+    # object" is the obvious spelling, so it will be reintroduced by anyone who
+    # does not know the rollback is above it. Diagnosed by gps3, 2026-09-16.
+    reviewer_id = reviewer.id
 
     # Deliberately asymmetric: a latitude that is not a plausible longitude for
     # the Philippines and vice versa, so a swap cannot coincidentally survive.
@@ -632,7 +652,7 @@ async def test_promote_through_the_router_puts_the_monument_where_it_belongs(pg_
             {"c": code},
         )
         await pg_session.execute(
-            sa_text("DELETE FROM field_ops.users WHERE id = :i"), {"i": reviewer.id}
+            sa_text("DELETE FROM field_ops.users WHERE id = :i"), {"i": reviewer_id}
         )
         await pg_session.commit()
 
