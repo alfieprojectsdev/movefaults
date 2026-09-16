@@ -366,6 +366,49 @@ export interface StationProposalOut extends StationProposalIn {
   created_by: number | null;
   created_at: string | null;
   reconciled_at: string | null;
+  reconciled_by: number | null;
+  reconciled_station_id: number | null;
+  rejected_reason: string | null;
+  /**
+   * Logsheets already filed against this code.
+   *
+   * The number the reconcile decision actually turns on. A proposal carrying
+   * sheets is a different question from an empty one: rejecting the first
+   * orphans real observations that were validly collected at *something*.
+   */
+  sheet_count: number;
+}
+
+/**
+ * The reconcile queue. Pending first, oldest first.
+ *
+ * Gated server-side to admin and data_processor. Nothing here re-implements
+ * that gate — the app decides which tab to offer, the server decides who may
+ * read.
+ */
+export async function fetchProposals(pendingOnly = true): Promise<StationProposalOut[]> {
+  return apiFetch<StationProposalOut[]>(
+    `/station-proposals?pending_only=${pendingOnly ? "true" : "false"}`,
+  );
+}
+
+/** Accept a proposal into `public.stations`. The one write field-ops makes there. */
+export async function promoteProposal(id: number): Promise<StationProposalOut> {
+  return apiFetch<StationProposalOut>(`/station-proposals/${id}/promote`, { method: "POST" });
+}
+
+/**
+ * Decline a proposal. The row is kept and the reason is recorded.
+ *
+ * A reason is required by the server (`min_length=1`). That is not bureaucracy:
+ * a rejected proposal with sheets against it is a data-quality finding, and the
+ * only record of why the code was refused is this string.
+ */
+export async function rejectProposal(id: number, reason: string): Promise<StationProposalOut> {
+  return apiFetch<StationProposalOut>(`/station-proposals/${id}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
 }
 
 export async function proposeStation(

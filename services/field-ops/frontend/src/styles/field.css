@@ -1002,3 +1002,107 @@ input[readonly] {
   margin: 0;
   min-height: 3rem;
 }
+
+/* --------------------------------------------------------------------------
+   Review sites proposed from the field  (#219, reconcile half)
+
+   A desk screen, unlike everything else here — the reviewer has a keyboard and
+   a connection. It still has to work at phone width, because the person who
+   can promote a site is sometimes the person in the vehicle.
+   -------------------------------------------------------------------------- */
+
+.review-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.review-row {
+  padding: 0.85rem;
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-card-background-color);
+}
+
+.review-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.review-head strong {
+  font-family: var(--pico-font-family-monospace);
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+
+.review-method {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pico-muted-color);
+  margin-left: auto;
+}
+
+.review-name {
+  font-size: 0.95rem;
+  margin-top: 0.15rem;
+}
+
+/* Two columns at desk width, stacked on a phone — a definition list rather
+   than a table so it reflows instead of scrolling sideways. */
+.review-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+}
+
+.review-facts dt {
+  color: var(--pico-muted-color);
+}
+
+.review-facts dd {
+  margin: 0;
+}
+
+/* The one figure the decision turns on. Weighted, not coloured alone: the
+   consequence is spelled out in words beside it. */
+.review-has-sheets {
+  color: var(--field-warn);
+  font-weight: 600;
+}
+
+/* Where the field form records the position accuracy, since no column holds
+   it. Never truncated — it is the difference between a coordinate that
+   identifies a monument and one that identifies a municipality. */
+.review-notes {
+  margin: 0.6rem 0 0;
+  padding: 0.5rem;
+  border-radius: var(--pico-border-radius);
+  background: var(--field-computed-bg);
+  font-size: 0.85rem;
+}
+
+.review-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.review-actions button {
+  margin: 0;
+  min-height: 3rem;
+}
+
+.review-reject {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--pico-muted-border-color);
+}

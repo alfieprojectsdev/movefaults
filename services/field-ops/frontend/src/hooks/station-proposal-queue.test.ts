@@ -137,22 +137,47 @@ describe("sites flush before sheets", () => {
     expect(callOrder).toEqual(["proposal", "sheets"]);
   });
 
-  it("still sends the sheets when the site is refused", async () => {
-    await addProposal(proposal());
+  it("a refused site does not hold back sheets for OTHER stations", async () => {
+    /**
+     * This test used to assert the opposite of what it asserts now, and it was
+     * wrong. It read:
+     *
+     *   it("still sends the sheets when the site is refused")
+     *     expect(submitLogSheets).toHaveBeenCalledTimes(1)
+     *     // A day's fieldwork must not be held hostage to a station code
+     *     // someone else also claimed.
+     *
+     * The principle is right and I applied it to the wrong sheets. A refused
+     * code means the code belongs to something else, so a sheet naming it is
+     * not held hostage by being kept — it is prevented from being filed
+     * against a station the observer never visited. Sending was the harmful
+     * direction, not the safe one.
+     *
+     * What the principle actually protects is the rest of the day: sheets for
+     * stations that have nothing to do with the refused code must still go.
+     * That is what this asserts now.
+     */
+    await addProposal(proposal({ station_code: "NEWA" }));
     await addToQueue({
-      client_uuid: "sheet-1",
+      client_uuid: "sheet-newa",
       station_code: "NEWA",
       visit_date: "2026-09-15",
       monitoring_method: "campaign",
     } as never);
+    await addToQueue({
+      client_uuid: "sheet-other",
+      station_code: "PPPC",
+      visit_date: "2026-09-15",
+      monitoring_method: "continuous",
+    } as never);
     proposeStation.mockRejectedValue(new FakeApiError(409, "already proposed"));
-    submitLogSheets.mockResolvedValue([{ client_uuid: "sheet-1", id: 9 }]);
+    submitLogSheets.mockResolvedValue([{ client_uuid: "sheet-other", id: 9 }]);
 
     await flushQueue();
 
-    // A day's fieldwork must not be held hostage to a station code someone
-    // else also claimed.
     expect(submitLogSheets).toHaveBeenCalledTimes(1);
+    const sent = submitLogSheets.mock.calls[0][0] as Array<{ station_code: string }>;
+    expect(sent.map((r) => r.station_code)).toEqual(["PPPC"]);
   });
 });
 
@@ -183,6 +208,133 @@ describe("a 409 is a conflict, not a retry", () => {
 
     // Retrying would fail identically forever. Only a human can resolve it.
     expect(proposeStation).not.toHaveBeenCalled();
+  });
+});
+
+describe("a sheet is never filed against a code the server refused", () => {
+  /**
+   * The defect: `station_code` has no foreign key and nothing in the queue
+   * looked at it, so a 409 on the site did not stop the sheets naming it. They
+   * were submitted in the same flush, seconds after the refusal.
+   *
+   * If the code was refused because it already exists in the central
+   * inventory, the code names a real station somewhere else — and the
+   * observer's day has just been filed against it. That is worse than losing
+   * the record: a lost record gets noticed, a wrong record attached to a real
+   * station is read as data.
+   */
+
+  it("does NOT send a sheet whose site was refused 409", async () => {
+    const { addProposal, addToQueue, flushQueue } = mod;
+    await addProposal(proposal({ station_code: "NEWA" }));
+    await addToQueue({
+      client_uuid: "sheet-1",
+      station_code: "NEWA",
+      visit_date: "2026-09-16",
+      monitoring_method: "campaign",
+    } as never);
+
+    proposeStation.mockRejectedValue(
+      new FakeApiError(409, "Station code NEWA already exists in the central inventory."),
+    );
+    submitLogSheets.mockResolvedValue([]);
+
+    await flushQueue();
+
+    // Before this guard: submitLogSheets was called with station_code NEWA.
+    expect(submitLogSheets).not.toHaveBeenCalled();
+  });
+
+  it("keeps the sheet and says the code is what is wrong", async () => {
+    const { addProposal, addToQueue, flushQueue, getQueue } = mod;
+    await addProposal(proposal({ station_code: "NEWA" }));
+    await addToQueue({
+      client_uuid: "sheet-1", station_code: "NEWA",
+      visit_date: "2026-09-16", monitoring_method: "campaign",
+    } as never);
+    proposeStation.mockRejectedValue(new FakeApiError(409, "already exists"));
+
+    await flushQueue();
+
+    const [sheet] = await getQueue();
+    // Kept, not dropped — the observation is real.
+    expect(sheet._status).toBe("error");
+    expect(sheet._error).toMatch(/already belongs to a different station/);
+    expect(sheet._error).toMatch(/NOT sent/);
+  });
+
+  it("still sends sheets for stations that were in the inventory all along", async () => {
+    // The common path: 138 existing stations, no local proposal at all.
+    const { addProposal, addToQueue, flushQueue } = mod;
+    await addProposal(proposal({ station_code: "NEWA" }));
+    await addToQueue({
+      client_uuid: "s-newa", station_code: "NEWA",
+      visit_date: "2026-09-16", monitoring_method: "campaign",
+    } as never);
+    await addToQueue({
+      client_uuid: "s-pbis", station_code: "PBIS",
+      visit_date: "2026-09-16", monitoring_method: "campaign",
+    } as never);
+    proposeStation.mockRejectedValue(new FakeApiError(409, "already exists"));
+    submitLogSheets.mockResolvedValue([{ client_uuid: "s-pbis", id: 4 }]);
+
+    await flushQueue();
+
+    const sent = submitLogSheets.mock.calls[0][0] as Array<{ station_code: string }>;
+    expect(sent.map((r) => r.station_code)).toEqual(["PBIS"]);
+  });
+
+  it("defers rather than errors when the site has not been adjudicated yet", async () => {
+    // Transient failure on the proposal: nobody has refused the code, it just
+    // has not landed. Delay of minutes on a queue built to survive days.
+    const { addProposal, addToQueue, flushQueue, getQueue } = mod;
+    await addProposal(proposal({ station_code: "NEWA" }));
+    await addToQueue({
+      client_uuid: "sheet-1", station_code: "NEWA",
+      visit_date: "2026-09-16", monitoring_method: "campaign",
+    } as never);
+    proposeStation.mockRejectedValue(new FakeApiError(503, "gateway"));
+
+    await flushQueue();
+
+    expect(submitLogSheets).not.toHaveBeenCalled();
+    const [sheet] = await getQueue();
+    expect(sheet._status).toBe("pending");   // NOT error — nothing is wrong yet
+    expect(sheet._error).toBeUndefined();
+  });
+
+  it("sends the deferred sheet once its site is accepted", async () => {
+    const { addProposal, addToQueue, flushQueue } = mod;
+    await addProposal(proposal({ station_code: "NEWA" }));
+    await addToQueue({
+      client_uuid: "sheet-1", station_code: "NEWA",
+      visit_date: "2026-09-16", monitoring_method: "campaign",
+    } as never);
+
+    proposeStation.mockRejectedValueOnce(new FakeApiError(503, "gateway"));
+    await flushQueue();
+    expect(submitLogSheets).not.toHaveBeenCalled();
+
+    proposeStation.mockResolvedValue({ id: 1 });
+    submitLogSheets.mockResolvedValue([{ client_uuid: "sheet-1", id: 9 }]);
+    await flushQueue();
+
+    const sent = submitLogSheets.mock.calls[0][0] as Array<{ station_code: string }>;
+    expect(sent[0].station_code).toBe("NEWA");
+  });
+
+  it("matches the code case-insensitively, as the server normalises it", async () => {
+    const { addProposal, addToQueue, flushQueue } = mod;
+    await addProposal(proposal({ station_code: "NEWA" }));
+    await addToQueue({
+      client_uuid: "sheet-1", station_code: "newa",
+      visit_date: "2026-09-16", monitoring_method: "campaign",
+    } as never);
+    proposeStation.mockRejectedValue(new FakeApiError(409, "already exists"));
+
+    await flushQueue();
+
+    expect(submitLogSheets).not.toHaveBeenCalled();
   });
 });
 

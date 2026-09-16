@@ -19,12 +19,20 @@ What is NOT covered, and is honest about it: the inventory half of
 """
 from __future__ import annotations
 
+import pathlib
 import uuid
 from datetime import date
 
+import field_ops
 import pytest
 from field_ops.models import LogSheet, StationProposal, User
 from field_ops.routers.auth import hash_password
+
+# The router's own source, so the integration tests below can execute the real
+# queries rather than copies of them.
+ROUTER_SRC = (
+    pathlib.Path(field_ops.__file__).parent / "routers" / "stations.py"
+)
 
 
 async def _login(client, username: str, password: str) -> dict[str, str]:
@@ -369,21 +377,309 @@ async def test_reject_requires_a_reason(client, auth_headers, proposal_payload, 
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_promote_writes_to_public_stations():
-    """Requires PostGIS: the upsert builds ST_SetSRID(ST_MakePoint(...)).
+# A code no real station uses, for the rows these tests create and delete.
+# The pg fixtures deliberately do not create or drop schemas -- pointing a
+# destructive fixture at a URL that might be someone's real database is how
+# test infrastructure eats production data -- so a test that writes is
+# responsible for its own rows.
+_TEST_CODE = "ZZTE"
 
-    Deliberately left as a marked integration test rather than mocked. Mocking
-    the one query that crosses into `public.stations` would test the mock, and
-    that query is where promotion can actually go wrong — it is the only place
-    field-ops writes to the central inventory.
+
+def _sql_from_router(pattern: str) -> str:
+    """Pull a raw query out of the router rather than restating it here.
+
+    A test that copies the SQL it is meant to guard drifts into passing while
+    the endpoint is broken. Reading the real text means a change to the query
+    is a change to what is executed here.
     """
-    pytest.skip("needs the docker-compose Postgres/PostGIS on 5433")
+    import re
+
+    src = ROUTER_SRC.read_text(encoding="utf-8")
+    m = re.search(pattern, src, re.S)
+    assert m, f"could not find the query matching {pattern!r} in stations.py"
+    return m.group(1)
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_list_stations_unions_inventory_and_proposals():
-    """Requires PostGIS: the inventory half uses ST_Y/ST_X."""
-    pytest.skip("needs the docker-compose Postgres/PostGIS on 5433")
+async def test_promote_writes_to_public_stations(pg_session):
+    """The promotion upsert, executed against real PostGIS.
+
+    Deliberately not mocked. Mocking the one query that crosses into
+    `public.stations` would test the mock, and that query is where promotion
+    can actually go wrong — it is the only place field-ops writes to the
+    central inventory.
+
+    Three claims, and the third is the one the endpoint's docstring says is not
+    hypothetical:
+
+      1. The statement executes at all. ST_SetSRID(ST_MakePoint(...)) exists in
+         no other test environment, and SQLite cannot parse it.
+      2. A proposal with coordinates lands with a geometry that reads back as
+         the coordinates it was given.
+      3. Re-promoting the same code with NULL fields does NOT null what is
+         already there. A proposal made at a monument carries whatever the
+         observer could see, which is usually less than the office has, and the
+         COALESCE in the ON CONFLICT clause is what stops the sparse one
+         overwriting the full one.
+    """
+    from sqlalchemy import text as sa_text
+
+    sql = _sql_from_router(r"text\(\"\"\"\s*(INSERT INTO stations.*?)\"\"\"\)")
+    assert "ON CONFLICT (station_code) DO UPDATE" in sql
+    assert "ST_SetSRID" in sql
+
+    params = {
+        "code": _TEST_CODE,
+        "name": "Integration fixture site",
+        "lat": 14.6537,
+        "lon": 121.0584,
+        "elevation": 55.0,
+        "method": "campaign",
+        "status": "active",
+        "municipality": "Quezon City",
+        "province": "Metro Manila",
+        "region": "NCR",
+    }
+
+    # Never touch a row this test did not create.
+    pre = await pg_session.execute(
+        sa_text("SELECT 1 FROM stations WHERE station_code = :code"), {"code": _TEST_CODE}
+    )
+    assert pre.first() is None, (
+        f"{_TEST_CODE} already exists in this database; refusing to write over it"
+    )
+
+    try:
+        # 1 — it executes, and PostGIS resolves.
+        first = await pg_session.execute(sa_text(sql), params)
+        station_id = first.scalar_one()
+        assert station_id is not None
+
+        # 2 — the geometry reads back as what went in.
+        row = (
+            await pg_session.execute(
+                sa_text(
+                    "SELECT name, elevation, municipality, "
+                    "ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lon "
+                    "FROM stations WHERE station_code = :code"
+                ),
+                {"code": _TEST_CODE},
+            )
+        ).mappings().one()
+        assert row["lat"] == pytest.approx(params["lat"], abs=1e-9)
+        assert row["lon"] == pytest.approx(params["lon"], abs=1e-9)
+        assert row["name"] == params["name"]
+
+        # 3 — a sparse re-promotion preserves what the office already had.
+        sparse = {**params, "name": None, "elevation": None, "municipality": None}
+        await pg_session.execute(sa_text(sql), sparse)
+        after = (
+            await pg_session.execute(
+                sa_text(
+                    "SELECT name, elevation, municipality FROM stations "
+                    "WHERE station_code = :code"
+                ),
+                {"code": _TEST_CODE},
+            )
+        ).mappings().one()
+        assert after["name"] == params["name"], "COALESCE did not protect name"
+        assert after["elevation"] == params["elevation"], "COALESCE did not protect elevation"
+        assert after["municipality"] == params["municipality"]
+    finally:
+        # ROLL BACK FIRST. This is not tidiness -- it is the difference between
+        # a test that tells you why it failed and one that cannot.
+        #
+        # When the statement under test raises, the transaction is aborted and
+        # every later statement on it raises InFailedSQLTransactionError. A
+        # cleanup DELETE issued on that aborted transaction therefore raises
+        # from inside `finally`, and Python REPLACES the original exception
+        # with it. The traceback then contains no trace of the real failure.
+        #
+        # That is exactly what happened on the first real run: the endpoint was
+        # raising AmbiguousParameterError and the pytest output showed only the
+        # cleanup error. gps3 found the real cause by reading the postgres
+        # container log, because the test had destroyed it.
+        await pg_session.rollback()
+        await pg_session.execute(
+            sa_text("DELETE FROM stations WHERE station_code = :code"), {"code": _TEST_CODE}
+        )
+        await pg_session.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_promote_through_the_router_puts_the_monument_where_it_belongs(pg_session):
+    """Promote via the ENDPOINT, not via the extracted SQL.
+
+    The test above executes the router's query with its own params dict, which
+    covers the ordering inside the SQL — `ST_MakePoint(:lon, :lat)` is the
+    thing PostGIS gets wrong most often — and covers nothing about the CALLER.
+
+    Swap these two lines in `promote_proposal`:
+
+        "lat": proposal.latitude,
+        "lon": proposal.longitude,
+
+    and every other test still passes. Measured, not asserted: with them
+    swapped the suite reports 82 passed, 3 skipped. The regex still matches so
+    the extraction succeeds, the integration test builds its own correctly
+    ordered params so it still sees ST_Y == lat, and the 403 test never reaches
+    the query. A promoted monument would land on the other side of the world
+    with nothing red.
+
+    The two orderings look identical reading the file top to bottom, which is
+    probably why it read as covered. Found by gps3.
+
+    This one takes no regex, because the endpoint is the thing under test.
+    """
+    import uuid as _uuid
+
+    from field_ops.database import get_db
+    from field_ops.main import app
+    from httpx import ASGITransport, AsyncClient
+    from sqlalchemy import text as sa_text
+
+    # These tables live in the field_ops schema and this fixture creates
+    # nothing, so say plainly which migration is missing rather than failing
+    # with a driver error three frames down.
+    try:
+        await pg_session.execute(sa_text("SELECT 1 FROM field_ops.station_proposals LIMIT 1"))
+        await pg_session.execute(sa_text("SELECT 1 FROM field_ops.users LIMIT 1"))
+    except Exception as exc:  # noqa: BLE001
+        await pg_session.rollback()
+        pytest.skip(
+            f"field_ops schema not migrated in {type(exc).__name__}; "
+            "run `alembic -c services/field-ops/alembic.ini upgrade head` against this database"
+        )
+
+    code = "ZZTR"
+    pre = await pg_session.execute(
+        sa_text("SELECT 1 FROM stations WHERE station_code = :c"), {"c": code}
+    )
+    assert pre.first() is None, f"{code} already exists here; refusing to write over it"
+
+    reviewer = User(
+        username=f"zz-int-{_uuid.uuid4().hex[:8]}",
+        hashed_password=hash_password("testpass"),
+        role="admin",
+    )
+    pg_session.add(reviewer)
+    await pg_session.flush()
+    # Captured NOW, as a plain int, while the instance is still live.
+    #
+    # The cleanup below rolls back before deleting, and ROLLBACK EXPIRES EVERY
+    # LOADED ATTRIBUTE unconditionally — `expire_on_commit=False` on the
+    # session factory suppresses expiry on commit and has no effect on
+    # rollback, and there is no setting that does. So `reviewer.id` read inside
+    # `finally` is not a field access, it is a lazy refresh: IO, attempted
+    # outside greenlet context, raising
+    #
+    #   MissingGreenlet: greenlet_spawn has not been called
+    #
+    # from `sqlalchemy/orm/attributes.py __get__`, with the instance's __dict__
+    # holding nothing but `_sa_instance_state`. The traceback reads like a sync
+    # ORM execute and is not one.
+    #
+    # `station_code` is fine in the same block because it is a plain string.
+    # This is the only ORM attribute the cleanup touches, and "just use the
+    # object" is the obvious spelling, so it will be reintroduced by anyone who
+    # does not know the rollback is above it. Diagnosed by gps3, 2026-09-16.
+    reviewer_id = reviewer.id
+
+    # Deliberately asymmetric: a latitude that is not a plausible longitude for
+    # the Philippines and vice versa, so a swap cannot coincidentally survive.
+    lat, lon = 14.6537, 121.0584
+    proposal = StationProposal(
+        client_uuid=_uuid.uuid4(),
+        station_code=code,
+        name="Router integration site",
+        latitude=lat,
+        longitude=lon,
+        monitoring_method="campaign",
+        status="active",
+        created_by=reviewer.id,
+    )
+    pg_session.add(proposal)
+    await pg_session.commit()
+    await pg_session.refresh(proposal)
+
+    app.dependency_overrides[get_db] = lambda: pg_session
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            token = await ac.post(
+                "/api/v1/token",
+                data={"username": reviewer.username, "password": "testpass"},
+            )
+            assert token.status_code == 200, token.text
+            headers = {"Authorization": f"Bearer {token.json()['access_token']}"}
+
+            resp = await ac.post(
+                f"/api/v1/station-proposals/{proposal.id}/promote", headers=headers
+            )
+            assert resp.status_code == 200, resp.text
+
+        row = (
+            await pg_session.execute(
+                sa_text(
+                    "SELECT ST_Y(location::geometry) AS lat, "
+                    "ST_X(location::geometry) AS lon "
+                    "FROM stations WHERE station_code = :c"
+                ),
+                {"c": code},
+            )
+        ).mappings().one()
+
+        # The assertion the swap breaks.
+        assert row["lat"] == pytest.approx(lat, abs=1e-9), (
+            "latitude did not survive promotion -- check the lat/lon mapping in "
+            "promote_proposal, not the SQL"
+        )
+        assert row["lon"] == pytest.approx(lon, abs=1e-9)
+    finally:
+        app.dependency_overrides.clear()
+        # See the note on the test above: without this, a failure inside the
+        # try block is replaced by InFailedSQLTransactionError from the first
+        # cleanup statement, and the real cause is lost.
+        await pg_session.rollback()
+        await pg_session.execute(
+            sa_text("DELETE FROM stations WHERE station_code = :c"), {"c": code}
+        )
+        await pg_session.execute(
+            sa_text("DELETE FROM field_ops.station_proposals WHERE station_code = :c"),
+            {"c": code},
+        )
+        await pg_session.execute(
+            sa_text("DELETE FROM field_ops.users WHERE id = :i"), {"i": reviewer_id}
+        )
+        await pg_session.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_list_stations_unions_inventory_and_proposals(pg_session):
+    """The inventory half of GET /stations, executed against real PostGIS.
+
+    ST_Y/ST_X on a geography column exist nowhere else, so this query has never
+    run under any other test. Asserts the SHAPE rather than the content: an
+    empty stations table is a legitimate state for a fresh database, and a
+    test that needs seeded rows is a test that will be disabled the first time
+    someone runs it somewhere clean.
+    """
+    from sqlalchemy import text as sa_text
+
+    sql = _sql_from_router(r"text\(\"\"\"\s*(SELECT.*?FROM stations.*?)\"\"\"\)")
+    assert "ST_Y" in sql and "ST_X" in sql
+
+    rows = (await pg_session.execute(sa_text(sql))).mappings().all()
+
+    expected = {"station_code", "name", "latitude", "longitude"}
+    if rows:
+        assert expected <= set(rows[0].keys())
+    else:
+        # Executing without raising is the claim when the table is empty, and
+        # it is the claim that matters: a broken ST_Y reference raises here and
+        # nowhere else in the suite.
+        assert rows == []
