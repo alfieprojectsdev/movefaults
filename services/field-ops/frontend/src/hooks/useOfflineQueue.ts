@@ -360,21 +360,118 @@ export interface FlushResult {
   error?: string;
 }
 
+/**
+ * Decide which queued sheets may be sent, given what we now know about the
+ * sites they name.
+ *
+ * THE DEFECT THIS EXISTS AGAINST
+ *
+ * `station_code` on a logsheet is a loose TEXT reference with no foreign key,
+ * and nothing in this module used to look at it. So when a proposal was
+ * refused 409 -- meaning the code already belongs to something else -- the
+ * sheets naming that code were submitted anyway, in this same function,
+ * seconds later.
+ *
+ * Demonstrated rather than reasoned about: proposal outcome `conflict`, sheets
+ * submitted 1, station_code sent NEWA. If NEWA was refused because it already
+ * exists in the central inventory, then NEWA is a real station somewhere else,
+ * and a day's observations have just been filed against it. Silently, and with
+ * no foreign key to stop it.
+ *
+ * That is worse than losing the record. A lost record is noticed; a wrong
+ * record attached to a real station is read as data.
+ *
+ * THREE OUTCOMES, AND WHY DEFERRING IS NOT THE SAME AS BLOCKING
+ *
+ *   misattributed -- the code was REFUSED. It means something other than what
+ *   the observer meant, so the sheet cannot be sent under it at all. Marked
+ *   `error` and kept; only a human can choose the right code.
+ *
+ *   deferred -- the site is proposed but not yet adjudicated, because its own
+ *   sync failed transiently. Left pending, untouched, no error. It sends on a
+ *   later flush once the site lands. This is a delay of minutes on a queue
+ *   built to survive days.
+ *
+ *   sendable -- everything else: sites already accepted, and the 138 stations
+ *   that were in the inventory all along. The common path is unchanged.
+ *
+ * The earlier comment here said a day's fieldwork must not be held hostage to
+ * a station code someone else also claimed. That reasoning assumed sending was
+ * the safe direction. It is not: for a refused code, sending is the harmful
+ * direction and holding is the safe one.
+ */
+async function holdSheetsForUnsettledSites(sheets: QueueRecord[]): Promise<{
+  sendable: QueueRecord[];
+  deferred: QueueRecord[];
+  misattributed: QueueRecord[];
+}> {
+  const proposals = await getProposals();
+  if (proposals.length === 0) {
+    return { sendable: sheets, deferred: [], misattributed: [] };
+  }
+
+  // Upper-cased both sides: the server normalises the code before storing it,
+  // and a phone keyboard capitalises inconsistently.
+  const byCode = new Map<string, ProposalRecord["_status"]>();
+  for (const p of proposals) byCode.set(p.station_code.toUpperCase(), p._status);
+
+  const sendable: QueueRecord[] = [];
+  const deferred: QueueRecord[] = [];
+  const misattributed: QueueRecord[] = [];
+
+  for (const sheet of sheets) {
+    const status = byCode.get(String(sheet.station_code ?? "").toUpperCase());
+    if (status === "conflict") misattributed.push(sheet);
+    else if (status === "pending" || status === "error") deferred.push(sheet);
+    else sendable.push(sheet);
+  }
+  return { sendable, deferred, misattributed };
+}
+
 async function runFlush(): Promise<FlushResult> {
   const db = await getDb();
 
-  // Sites before sheets. See flushProposals: not required for the sheets to
-  // land, but it means a sheet's station exists by the time anyone reads it.
-  // Deliberately not allowed to abort the sheet flush -- a day's fieldwork must
-  // not be held hostage to a station code someone else also claimed.
+  // Sites before sheets. Not required for the sheets to land -- station_code
+  // is a loose TEXT reference with no foreign key -- but it means a sheet's
+  // station exists by the time anyone reads it, AND it means the outcome of
+  // each proposal is known before the sheets naming it are sent. The second
+  // reason is the load-bearing one; see holdSheetsForUnsettledSites below.
   try {
     await flushProposals();
   } catch {
     // Already logged where it matters; the sheets are the priority.
   }
 
-  const pending = await db.getAllFromIndex("logsheet_queue", "by_status", "pending");
-  if (pending.length === 0) return { attempted: 0, synced: 0, quarantined: 0 };
+  const allPending = await db.getAllFromIndex("logsheet_queue", "by_status", "pending");
+  if (allPending.length === 0) return { attempted: 0, synced: 0, quarantined: 0 };
+
+  const { sendable, deferred, misattributed } = await holdSheetsForUnsettledSites(allPending);
+
+  // A sheet naming a code the server just refused must not be sent. Marked,
+  // not dropped: the observation is real and the code is what is wrong.
+  for (const rec of misattributed) {
+    await db.put("logsheet_queue", {
+      ...rec,
+      _status: "error",
+      _error:
+        `The site code ${rec.station_code} was refused: it already belongs to a ` +
+        `different station. This sheet was NOT sent, because sending it would ` +
+        `file your observations against that other station. Re-file it under the ` +
+        `correct code.`,
+    });
+  }
+  if (misattributed.length > 0) await refreshCount();
+
+  void deferred; // left pending on purpose; they go once their site syncs
+
+  const pending = sendable;
+  if (pending.length === 0) {
+    return {
+      attempted: allPending.length,
+      synced: 0,
+      quarantined: misattributed.length,
+    };
+  }
 
   let server;
   try {
