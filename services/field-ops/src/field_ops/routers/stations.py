@@ -456,8 +456,27 @@ async def promote_proposal(
             )
             VALUES (
                 :code, :name,
-                CASE WHEN :lat IS NULL OR :lon IS NULL THEN NULL
-                     ELSE ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)
+                -- The casts are load-bearing, not decoration.
+                --
+                -- :lat and :lon appear nowhere else in this statement, and
+                -- neither position gives Postgres a type to infer: IS NULL
+                -- says nothing about its operand, and ST_MakePoint is
+                -- overloaded. asyncpg uses the EXTENDED query protocol, so it
+                -- must ask the server to describe the parameters before
+                -- binding, and the server answers AmbiguousParameterError --
+                -- "could not determine data type of parameter $3".
+                --
+                -- This statement succeeds in psql, which substitutes literals
+                -- over the SIMPLE protocol where no parameter is ever typed.
+                -- So running it by hand proves nothing about the endpoint.
+                -- Found on gps3, 2026-09-16, the first time these tests met a
+                -- real database.
+                CASE WHEN CAST(:lat AS double precision) IS NULL
+                       OR CAST(:lon AS double precision) IS NULL THEN NULL
+                     ELSE ST_SetSRID(
+                            ST_MakePoint(CAST(:lon AS double precision),
+                                         CAST(:lat AS double precision)),
+                            4326)
                 END,
                 :elevation, :method, :status, :municipality, :province, :region
             )

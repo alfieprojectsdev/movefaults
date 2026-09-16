@@ -487,9 +487,20 @@ async def test_promote_writes_to_public_stations(pg_session):
         assert after["elevation"] == params["elevation"], "COALESCE did not protect elevation"
         assert after["municipality"] == params["municipality"]
     finally:
-        # The fixture rolls back, but this statement may have been committed by
-        # an autocommit path; deleting explicitly costs nothing and makes the
-        # test re-runnable against a database it does not own.
+        # ROLL BACK FIRST. This is not tidiness -- it is the difference between
+        # a test that tells you why it failed and one that cannot.
+        #
+        # When the statement under test raises, the transaction is aborted and
+        # every later statement on it raises InFailedSQLTransactionError. A
+        # cleanup DELETE issued on that aborted transaction therefore raises
+        # from inside `finally`, and Python REPLACES the original exception
+        # with it. The traceback then contains no trace of the real failure.
+        #
+        # That is exactly what happened on the first real run: the endpoint was
+        # raising AmbiguousParameterError and the pytest output showed only the
+        # cleanup error. gps3 found the real cause by reading the postgres
+        # container log, because the test had destroyed it.
+        await pg_session.rollback()
         await pg_session.execute(
             sa_text("DELETE FROM stations WHERE station_code = :code"), {"code": _TEST_CODE}
         )
@@ -609,6 +620,10 @@ async def test_promote_through_the_router_puts_the_monument_where_it_belongs(pg_
         assert row["lon"] == pytest.approx(lon, abs=1e-9)
     finally:
         app.dependency_overrides.clear()
+        # See the note on the test above: without this, a failure inside the
+        # try block is replaced by InFailedSQLTransactionError from the first
+        # cleanup statement, and the real cause is lost.
+        await pg_session.rollback()
         await pg_session.execute(
             sa_text("DELETE FROM stations WHERE station_code = :c"), {"c": code}
         )
