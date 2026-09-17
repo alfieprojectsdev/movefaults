@@ -1,5 +1,23 @@
 version: '3.8'
 
+# PUBLISHED PORTS ARE BOUND TO 127.0.0.1, DELIBERATELY
+#
+# Docker does not publish a port through the host firewall -- it writes its own
+# iptables chain AHEAD of ufw's, so `- "5433:5432"` is reachable on every
+# interface regardless of what ufw says. On gps3 ufw is active, and the host is
+# on a tailnet, so an unqualified binding puts this database in front of every
+# device on the tailnet, guarded only by the defaults a few lines below, which
+# are in a public repository.
+#
+# Every consumer of these three is local: the services run on the same host and
+# FIELD_OPS_TEST_DATABASE_URL points at localhost:5433. Binding to the loopback
+# costs nothing and is the difference between "a port ufw is protecting" and
+# "a port ufw cannot see".
+#
+# To reach Grafana from another machine, do NOT widen this binding. Use
+# `tailscale serve 3000`, which terminates TLS and admits only the tailnet,
+# rather than publishing on 0.0.0.0 and relying on a password.
+
 services:
   db:
     image: timescale/timescaledb-ha:pg15-latest # Includes PostGIS and other extensions
@@ -18,17 +36,52 @@ services:
       # throughout. A named volume in the file is not the same as a named
       # volume holding the data; check PGDATA before trusting it.
       #
-      # Fixing this also fixes the older symptom recorded against this stack:
-      # POSTGRES_DB/POSTGRES_USER appeared to be ignored, because the image
-      # ships a pre-initialised PGDATA and the entrypoint only runs initdb when
-      # PGDATA is empty. With the volume mounted at the real path, a fresh
-      # volume initialises properly and pogf_db is created as configured.
+      # POSTGRES_USER is honoured. POSTGRES_DB IS NOT, and the sentence that
+      # used to sit here said otherwise.
+      #
+      # It claimed that with the volume at the real path "a fresh volume
+      # initialises properly and pogf_db is created as configured". Tested on
+      # gps3 2026-09-16 against timescale/timescaledb-ha:pg15-latest, on a
+      # volume created seconds earlier, that is false. The container log:
+      #
+      #     creating subdirectories ... ok
+      #     performing post-bootstrap initialization ... ok
+      #     PostgreSQL Database directory appears to contain a database;
+      #       Skipping initialization
+      #
+      # initdb runs and creates the cluster with POSTGRES_USER as its
+      # superuser -- pogf_user exists and `postgres` does not, so that half
+      # worked. But by the time the entrypoint reaches the phase that would
+      # run CREATE DATABASE, the directory it checks is no longer empty,
+      # because initdb has just filled it. So POSTGRES_DB is never created.
+      #
+      # Until that is fixed upstream or worked around here, a fresh volume
+      # needs one manual statement before anything can connect:
+      #
+      #     CREATE DATABASE pogf_db OWNER pogf_user;
       - db_data:/home/postgres/pgdata/data
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     command: postgres -c unix_socket_directories=''
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h localhost -U pogf_user -d pogf_db"]
+      # `psql -c "select 1"`, NOT `pg_isready`.
+      #
+      # pg_isready reports whether the SERVER accepts connections. It does not
+      # connect to -d, so it returns 0 against a cluster where that database
+      # does not exist -- which is exactly the state a fresh volume leaves
+      # behind (see the note on the volume above). On gps3 2026-09-16 this
+      # container reported `healthy` for twenty minutes while every client got
+      #
+      #     FATAL:  database "pogf_db" does not exist
+      #
+      # once every five seconds, and `docker compose ps` said healthy the whole
+      # time. A healthcheck that is green for a database that is not there is
+      # worse than no healthcheck: `depends_on: service_healthy` gates on it,
+      # so everything downstream starts against a database it cannot open.
+      #
+      # Actually opening the database is the check. It costs one connection per
+      # interval and it cannot be green for a database that does not exist.
+      test: ["CMD-SHELL", "psql -h localhost -U pogf_user -d pogf_db -c 'select 1' || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -37,7 +90,7 @@ services:
     image: redis:latest
     restart: always
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     command: redis-server --requirepass ${REDIS_PASSWORD:-redis_password}
     environment:
       - REDISCLI_AUTH=${REDIS_PASSWORD:-redis_password}
@@ -51,7 +104,7 @@ services:
     image: grafana/grafana:11.5.0
     restart: always
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
