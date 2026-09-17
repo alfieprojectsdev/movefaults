@@ -58,7 +58,6 @@ import argparse
 import csv
 import datetime
 import gzip
-import io
 import math
 import re
 import subprocess
@@ -133,30 +132,68 @@ def _zip_observation_header(path: Path, limit: int) -> bytes:
     would make the observation count depend on archive depth.
     """
     try:
-        with zipfile.ZipFile(path) as zf:
-            obs = [n for n in zf.namelist()
-                   if _RINEX_NAME.search(n) and not n.lower().endswith(".zip")]
-            if not obs:
-                ZIP_OUTCOMES["skipped: no observation member"] += 1
-                return b""
-            if len(obs) > 1:
-                ZIP_OUTCOMES["skipped: several observation members"] += 1
-                return b""
-            with zf.open(obs[0]) as fh:
-                head = fh.read(limit)
+        zf = zipfile.ZipFile(path)
     except (OSError, zipfile.BadZipFile, EOFError):
         ZIP_OUTCOMES["skipped: unreadable zip"] += 1
         return b""
 
-    # A member can be compressed in its own right (`x.17o.gz` inside the zip).
-    # Dispatch on its magic exactly as a bare file would be.
-    if head[:2] == b"\x1f\x8b":
+    with zf:
+        obs = [n for n in zf.namelist()
+               if _RINEX_NAME.search(n) and not n.lower().endswith(".zip")]
+        if not obs:
+            ZIP_OUTCOMES["skipped: no observation member"] += 1
+            return b""
+        if len(obs) > 1:
+            ZIP_OUTCOMES["skipped: several observation members"] += 1
+            return b""
+        member = obs[0]
+
         try:
-            head = gzip.decompress(head) if len(head) < limit else gzip.GzipFile(
-                fileobj=io.BytesIO(head)).read(limit)
-        except (OSError, EOFError, gzip.BadGzipFile):
+            with zf.open(member) as fh:
+                magic = fh.read(2)
+        except (OSError, zipfile.BadZipFile, EOFError):
+            ZIP_OUTCOMES["skipped: unreadable zip"] += 1
+            return b""
+
+        # A member can be compressed in its own right. Dispatch on its magic
+        # exactly as a bare file is dispatched, and decompress while the zip is
+        # still open -- never by reading `limit` COMPRESSED bytes first.
+        #
+        # Both branches below were found by gps3 reviewing #233, and neither
+        # occurs in the archive (all nine real members are plain .17o):
+        #
+        #   * `.Z` (LZW) used to fall through untouched. Still-compressed bytes
+        #     were returned and counted "read", so "read" did not guarantee a
+        #     header anyone could parse -- the defect this counter exists to
+        #     prevent. stdlib has no LZW reader, so zcat, as for bare `.Z`.
+        #
+        #   * gzip used to decompress a truncated compressed prefix. Measured,
+        #     that fails only at limit <= 32 (gzip's header overhead dominates)
+        #     and never at the 65536 used here. Streaming removes the
+        #     dependency on the compression ratio rather than relying on it.
+        try:
+            if magic == b"\x1f\x8b":
+                with zf.open(member) as raw, gzip.GzipFile(fileobj=raw) as g:
+                    head = g.read(limit)
+            elif magic == b"\x1f\x9d":
+                r = subprocess.run(["zcat", "-f"], input=zf.read(member),
+                                   capture_output=True, timeout=60)
+                # The EXIT STATUS decides, not the length of stdout. On corrupt
+                # input zcat exits 1 yet still writes a byte or two, so a
+                # `not r.stdout` check let corruption through as a successful
+                # read of garbage. Found because deleting that check changed
+                # no test result.
+                if r.returncode != 0 or not r.stdout:
+                    raise OSError(f"zcat exit {r.returncode}, {len(r.stdout)} bytes")
+                head = r.stdout[:limit]
+            else:
+                with zf.open(member) as fh:
+                    head = fh.read(limit)
+        except (OSError, EOFError, gzip.BadGzipFile, subprocess.SubprocessError,
+                zipfile.BadZipFile):
             ZIP_OUTCOMES["skipped: unreadable compressed member"] += 1
             return b""
+
     ZIP_OUTCOMES["read"] += 1
     return head[:limit]
 

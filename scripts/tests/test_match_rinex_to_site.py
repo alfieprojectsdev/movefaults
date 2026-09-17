@@ -86,6 +86,50 @@ def _obs_header(marker: str) -> bytes:
     ).encode()
 
 
+def _lzw_compress(data: bytes) -> bytes:
+    """Unix `compress` (.Z) format, because no compressor is installed.
+
+    Only `zcat` exists on finch and gps3, which decompresses. Skipping this test
+    when `compress` is absent would make it pass without checking anything, so
+    the encoder lives here instead -- validated against the real zcat, which
+    round-trips its output byte for byte.
+
+    Block mode, 16-bit maximum, but held to 9-bit codes. Original compress has a
+    well-known quirk when the code width grows; staying below 512 dictionary
+    entries means the width never grows and the quirk cannot arise. The
+    assertion enforces that rather than trusting callers to keep inputs small.
+    """
+    table = {bytes([i]): i for i in range(256)}
+    next_code, bits, acc, nbits = 257, 9, 0, 0
+    out = bytearray(b"\x1f\x9d\x90")
+
+    def emit(code):
+        nonlocal acc, nbits
+        acc |= code << nbits
+        nbits += bits
+        while nbits >= 8:
+            out.append(acc & 0xFF)
+            acc >>= 8
+            nbits -= 8
+
+    w = b""
+    for b in data:
+        wc = w + bytes([b])
+        if wc in table:
+            w = wc
+        else:
+            emit(table[w])
+            table[wc] = next_code
+            next_code += 1
+            assert next_code <= 512, "input too large for 9-bit codes"
+            w = bytes([b])
+    if w:
+        emit(table[w])
+    if nbits:
+        out.append(acc & 0xFF)
+    return bytes(out)
+
+
 def _nav_header() -> bytes:
     """Something that is NOT an observation header, so reading it is detectable."""
     return b"     2.11           GLONASS NAV DATA                        RINEX VERSION / TYPE\n"
@@ -196,3 +240,97 @@ def test_a_nested_zip_is_not_opened(m, tmp_path):
     z = _zip(tmp_path / "outer.rnx.zip", [("inner.rnx.zip", inner.getvalue())])
     assert m.header_bytes(z) == b""
     assert m.ZIP_OUTCOMES["skipped: no observation member"] == 1
+
+
+# ---------------------------------------------------------------- member compression
+# Both found by gps3 reviewing #233 against the real archive. Neither occurs in
+# it -- all nine members are plain .17o -- but both let the "read" counter claim
+# more than it should, which is the defect the counter exists to prevent.
+
+def _small_obs_header(marker: str) -> bytes:
+    """Small enough to stay inside 9-bit LZW codes."""
+    return (f"{marker:<60}MARKER NAME\n" + f"{'':<60}END OF HEADER\n").encode()
+
+
+def test_the_lzw_encoder_is_valid_against_real_zcat():
+    # The encoder is test infrastructure. If it were wrong the LZW test below
+    # would be checking against garbage, so it is checked against the oracle.
+    import shutil
+    import subprocess
+
+    if not shutil.which("zcat"):
+        pytest.skip("zcat not installed -- the production .Z path needs it too")
+    data = _small_obs_header("ORCL")
+    r = subprocess.run(["zcat", "-f"], input=_lzw_compress(data), capture_output=True)
+    assert r.returncode == 0
+    assert r.stdout == data
+
+
+def test_a_unix_compressed_member_is_decompressed(m, tmp_path):
+    # It used to fall through, return still-compressed bytes, and count as
+    # "read" -- so "read" did not guarantee a header anyone could parse.
+    import shutil
+
+    if not shutil.which("zcat"):
+        pytest.skip("zcat not installed -- the production .Z path needs it too")
+    z = _zip(tmp_path / "lzw.rnx.zip", [
+        ("x.17g", _nav_header()),
+        ("x.17o.Z", _lzw_compress(_small_obs_header("LZWZ"))),
+    ])
+    blob = m.header_bytes(z)
+    assert b"MARKER NAME" in blob and b"LZWZ" in blob
+    assert m.ZIP_OUTCOMES["read"] == 1
+
+
+def test_a_truncated_gzip_read_is_not_misreported(m, tmp_path):
+    # The first version read `limit` COMPRESSED bytes and decompressed those,
+    # so the gzip stream was cut at `limit`. Reported by gps3 as failing for
+    # poorly compressible members. Measured instead of assumed, on 200 KB of
+    # incompressible data through that truncated path:
+    #
+    #     limit    16   32   64   128 ... 4096  65536
+    #     result   ERR  ERR  OK   OK  ... OK    OK
+    #
+    # So the EOFError is real but appears only at limit <= 32, where gzip's own
+    # ~15-byte header overhead dominates -- not from compressibility. Production
+    # reads 65536 and a RINEX header line is 80 bytes, so it cannot occur in
+    # practice. The fix streams the member instead, which removes the
+    # dependency on the ratio outright.
+    #
+    # The FIRST version of this test used limit=4096 and passed on the unfixed
+    # code: it could not fail. limit=32 is the smallest size that does fail
+    # before the fix, which is what makes this a test rather than a description.
+    import os
+
+    payload = os.urandom(200_000)
+    z = _zip(tmp_path / "rand.rnx.zip", [("x.17g", _nav_header()),
+                                         ("x.17o.gz", gzip.compress(payload))])
+    blob = m.header_bytes(z, limit=32)
+    assert blob == payload[:32]
+    assert m.ZIP_OUTCOMES["read"] == 1
+    assert "skipped: unreadable compressed member" not in m.ZIP_OUTCOMES
+
+
+@pytest.mark.parametrize("label,body", [
+    # zcat: exit 1, but writes 2 bytes of garbage to stdout
+    ("corrupt body", b"\x1f\x9d\x90" + b"\xff\xfe\xfd\xfc" * 10),
+    # zcat: exit 1, 1 byte of garbage
+    ("bad flags byte", b"\x1f\x9d\x00" + b"\x41\x42\x43"),
+    # zcat: exit 0, empty output
+    ("magic only", b"\x1f\x9d\x90"),
+])
+def test_a_corrupt_lzw_member_is_not_counted_as_read(m, tmp_path, label, body):
+    # Found by mutation, not by review. The guard was `if not r.stdout`, and
+    # deleting it changed no test result -- so it was untested. Checking what
+    # zcat really does showed it was also WRONG: on corrupt input zcat exits 1
+    # yet still writes a byte or two to stdout, so the guard let the corruption
+    # through as a successful "read" of garbage. Only the empty-output case was
+    # ever caught. The exit status is the signal; stdout length is not.
+    import shutil
+
+    if not shutil.which("zcat"):
+        pytest.skip("zcat not installed -- the production .Z path needs it too")
+    z = _zip(tmp_path / "bad.rnx.zip", [("x.17g", _nav_header()), ("x.17o.Z", body)])
+    assert m.header_bytes(z) == b"", label
+    assert m.ZIP_OUTCOMES["skipped: unreadable compressed member"] == 1, label
+    assert "read" not in m.ZIP_OUTCOMES, label
