@@ -58,10 +58,12 @@ import argparse
 import csv
 import datetime
 import gzip
+import io
 import math
 import re
 import subprocess
 import sys
+import zipfile
 from collections import Counter
 from pathlib import Path
 
@@ -83,7 +85,20 @@ _CODE_RUN = re.compile(r"[A-Za-z0-9]{4}")
 # RINEX 2 observation (.YYo / .YYd, Hatanaka) or RINEX 3 (.rnx / .crx),
 # optionally compressed. Case-insensitive throughout: the archive holds .Z and
 # .z, .YYo and .YYO, and treating those as different cost 28,679 files once.
-_RINEX_NAME = re.compile(r"\.(\d{2}[od]|rnx|crx)(\.(gz|z))?$", re.I)
+# `zip` joined the compression suffixes on 2026-09-17. Before that, the nine
+# RINEX bundles in the archive (`ptgy223e.rnx.zip` and siblings -- three real
+# observation sessions, stored in triplicate) were never ENUMERATED. The `PK`
+# branch in header_bytes() claimed to skip zips, but a `.rnx.zip` could not
+# reach it: the pattern rejected the name first, so the sessions vanished
+# before anything existed to count them. A `.zip` is only selected when a
+# RINEX extension precedes it, which is what keeps the six Bernese software
+# distributions (`exe_aiub_64_2021.zip`, ...) out.
+_RINEX_NAME = re.compile(r"\.(\d{2}[od]|rnx|crx)(\.(gz|z|zip))?$", re.I)
+
+# What happened to every zip a run met, keyed by outcome. Printed in the run
+# summary. A zip that cannot be read is COUNTED WITH ITS REASON, never returned
+# as nothing in silence: a silent skip is how three sessions went missing.
+ZIP_OUTCOMES: Counter[str] = Counter()
 
 
 def best_code(text: str, known: set[str]) -> str:
@@ -95,6 +110,55 @@ def best_code(text: str, known: set[str]) -> str:
         if r in known:
             return r
     return runs[0] if runs else ""
+
+
+def _zip_observation_header(path: Path, limit: int) -> bytes:
+    """Header of the ONE observation member of a RINEX zip bundle.
+
+    Never the first member. Every RINEX bundle in this archive holds
+
+        .17g  GLONASS nav   <- first
+        .17m  met
+        .17n  GPS nav
+        .17o  observation   <- last
+
+    so "read the first member" -- the design an abandoned branch used --
+    misattributes all nine of them. The observation member is selected by the
+    same pattern that selects bare files, which admits `.YYo`/`.YYd`/`.rnx`/
+    `.crx` and not navigation or met files.
+
+    Exactly one observation member is required. Zero means there is nothing to
+    attribute; several means any choice would be the first-member bug with a
+    different tiebreak. A member that is itself a zip is not opened: recursing
+    would make the observation count depend on archive depth.
+    """
+    try:
+        with zipfile.ZipFile(path) as zf:
+            obs = [n for n in zf.namelist()
+                   if _RINEX_NAME.search(n) and not n.lower().endswith(".zip")]
+            if not obs:
+                ZIP_OUTCOMES["skipped: no observation member"] += 1
+                return b""
+            if len(obs) > 1:
+                ZIP_OUTCOMES["skipped: several observation members"] += 1
+                return b""
+            with zf.open(obs[0]) as fh:
+                head = fh.read(limit)
+    except (OSError, zipfile.BadZipFile, EOFError):
+        ZIP_OUTCOMES["skipped: unreadable zip"] += 1
+        return b""
+
+    # A member can be compressed in its own right (`x.17o.gz` inside the zip).
+    # Dispatch on its magic exactly as a bare file would be.
+    if head[:2] == b"\x1f\x8b":
+        try:
+            head = gzip.decompress(head) if len(head) < limit else gzip.GzipFile(
+                fileobj=io.BytesIO(head)).read(limit)
+        except (OSError, EOFError, gzip.BadGzipFile):
+            ZIP_OUTCOMES["skipped: unreadable compressed member"] += 1
+            return b""
+    ZIP_OUTCOMES["read"] += 1
+    return head[:limit]
 
 
 def header_bytes(path: Path, limit: int = 65536) -> bytes:
@@ -123,7 +187,7 @@ def header_bytes(path: Path, limit: int = 65536) -> bytes:
                                timeout=60)
             return r.stdout[:limit]
         if magic == b"PK":
-            return b""      # zip container; not a bare RINEX, skip
+            return _zip_observation_header(path, limit)
         with path.open("rb") as fh:
             return fh.read(limit)
     except (OSError, EOFError, subprocess.SubprocessError, gzip.BadGzipFile):
@@ -554,6 +618,12 @@ def main() -> int:
 
     for v, n in verdicts.most_common():
         print(f"    {n:>7}  {v}")
+    if ZIP_OUTCOMES:
+        # Stated even when every zip was read, so a run that met none is
+        # distinguishable from one whose zips all vanished.
+        print(f"\n  zip bundles: {sum(ZIP_OUTCOMES.values())}")
+        for why, n in ZIP_OUTCOMES.most_common():
+            print(f"    {n:>7}  {why}")
     tot = sum(verdicts.values()) or 1
     attributed = verdicts["unique"] + verdicts["aliases"]
     print(f"\n  attributed to one monument: {attributed} "
