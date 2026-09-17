@@ -53,10 +53,29 @@ INTERVAL=10
 # separates 163 of 164 and is ambiguous for the one case that matters, so it
 # errs toward DOWN. The boot-id probe removes that ambiguity; this manages it.
 FLAP_MAX=30
+# A real sampling period is 10 s, degrading to ~14 s while finch is
+# unreachable because each unanswered probe costs -W2. 60 s is comfortably
+# above any honest cycle and far below the shortest blindness worth recording.
+GAP_MAX=60
 LOG="${FINCH_WATCH_LOG:-$HOME/finch-watch.log}"
 
 now() { date '+%Y-%m-%dT%H:%M:%S%z'; }
-log() { printf '%s  %s\n' "$(now)" "$*" >> "$LOG"; }
+
+# Flushed to disk on every line, not left in the page cache.
+#
+# On 2026-09-15 gps3 was force-power-cycled while this was running. The append
+# had extended the file without the data reaching the platter, so the log ended
+# in a 128-byte run of NULs -- and the damage is not that a line was lost. A
+# file containing NULs is `data` to file(1), and plain grep(1) then prints
+# NOTHING for a pattern that is present, with no error and no "binary file
+# matches" notice. `grep -c CRASH` on the corrupted log returned empty, and the
+# three CRASH records in it were one step from being reported as zero.
+#
+# That is the failure this whole exercise exists to avoid, inside the
+# instrument: the evidence went silently unreadable, and the silence looked
+# like an answer. `sync -d` costs one flush per event -- events are rare, and
+# the beat is hourly -- and is cheap against an unreadable crash record.
+log() { printf '%s  %s\n' "$(now)" "$*" >> "$LOG"; sync -d "$LOG" 2>/dev/null || true; }
 
 probe() { ping -c1 -W2 -n "$1" >/dev/null 2>&1 && echo ok || echo fail; }
 
@@ -93,12 +112,91 @@ probe() { ping -c1 -W2 -n "$1" >/dev/null 2>&1 && echo ok || echo fail; }
 # as a transient network failure rather than a permanent loss of capability.
 # Naming the command costs nothing, survives the restriction being lifted, and
 # states the contract on the machine that depends on it.
+#
+# WHAT THE PROBE RETURNS, AND THE SECOND FIELD
+#
+# `boot_id=CHANGED` establishes that finch REBOOTED. It does not establish
+# why, and a deliberate reboot changes boot_id in exactly the same way. This
+# watcher printed the word CRASH for both, and on 2026-09-16 that nearly cost
+# a live hypothesis: it logged CRASH for what turned out to be
+# `sudo /usr/sbin/halt` typed by a person on pts/1, four seconds before an
+# orderly halt.target. Read as written, that line falsified the battery
+# experiment and sent the search below the OS for a fault that was not there.
+#
+# The discriminator is on finch and is the same one that classified gps3's own
+# 14:09 poweroff: journald writes "Journal stopped" on its way out of an
+# orderly shutdown and cannot write anything when power is removed. So the
+# restricted command may also return a line of the form
+#
+#     SHUTDOWN=orderly | SHUTDOWN=abrupt
+#
+# produced remotely by
+#
+#     journalctl -b -1 -n 5 -o cat 2>/dev/null | grep -qF 'Journal stopped' \
+#         && echo SHUTDOWN=orderly || echo SHUTDOWN=abrupt
+#
+# Read-only, and no new privilege: finch is in `adm`, so `journalctl -b -1`
+# needs no sudo.
+#
+# `-n 5`, not `-n 1`. The closing line is genuinely last on this system today,
+# but anything that logs after it would turn a real orderly shutdown into
+# `abrupt` -- and abrupt is the direction that reinstates the overclaim this
+# exists to remove. An abrupt cut has no closing line anywhere in the last five
+# either, so the wider window costs nothing and only tolerates a trailing line.
+# (finch's, after checking both forms against four boots where they agree.)
+#
+# VALIDATED AGAINST REAL EVENTS, not only against crafted strings: four boots
+# whose causes were established independently, 4 for 4, with no false positive
+# in either direction --
+#
+#     ended by `sudo halt`        -> orderly   (halt.target)
+#     ended by the battery removal -> orderly   (poweroff.target)
+#     spontaneous                  -> abrupt
+#     spontaneous                  -> abrupt
+#
+# A SECOND WITNESS, FOR WHOEVER IS READING A JOURNAL BY HAND
+#
+# `Journal stopped` is journald reporting on itself, and a sufficiently strange
+# failure could in principle produce it without a real clean shutdown. The
+# kernel's own `EXT4-fs (...): unmounting filesystem` is an independent
+# subsystem reporting on the filesystem, and power removal cannot produce a
+# clean unmount at all. Two witnesses from different parts of the stack beat
+# either alone.
+#
+# Deliberately NOT a second automated field: that line names a filesystem type
+# and a device, so it would need re-tuning per host, while `Journal stopped` is
+# portable. It is the check to run by hand when a single classification is
+# carrying real weight.
+#
+# ABSENCE OF THE FIELD IS NOT A VERDICT. An older `command=` restriction
+# returns only the boot id, and that must report `unknown` rather than
+# defaulting to either shape -- defaulting to abrupt reinstates the overclaim
+# this exists to remove, and defaulting to orderly hides a real crash. Same
+# rule as WATCH-GAP: say UNKNOWN rather than assert the wrong thing.
 FINCH_SSH=finch@192.168.48.124
-boot_id() {
+
+# Raw probe output, cached for one classification so boot_id and shutdown
+# shape come from the SAME ssh round trip. Two calls could straddle a reboot
+# and pair one boot's id with the other's shutdown shape.
+probe_finch() {
     timeout 8 ssh -n -o BatchMode=yes -o ConnectTimeout=4 \
         -o StrictHostKeyChecking=accept-new "$FINCH_SSH" \
-        'cat /proc/sys/kernel/random/boot_id' 2>/dev/null \
+        'cat /proc/sys/kernel/random/boot_id' 2>/dev/null
+}
+
+boot_id() {
+    printf '%s\n' "${1-}" \
+        | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' \
         | head -1 | tr -d '[:space:]'
+}
+
+# orderly | abrupt | unknown
+shutdown_shape() {
+    case "$(printf '%s\n' "${1-}" | grep -m1 -oE 'SHUTDOWN=[a-z]+')" in
+        SHUTDOWN=orderly) echo orderly ;;
+        SHUTDOWN=abrupt)  echo abrupt ;;
+        *)                echo unknown ;;
+    esac
 }
 
 # A gap in the watcher is NOT a gap in finch, and conflating the two would be
@@ -137,7 +235,7 @@ trap 'log "WATCH-STOP  pid=$$ -- from here finch is UNOBSERVED"; exit 0' TERM IN
 # Baseline, so the first recovery has something to compare against. If finch
 # is unreachable at start this is empty and the first UP reports `unknown`,
 # which is correct: we genuinely do not know what it was before.
-last_boot=$(boot_id)
+last_boot=$(boot_id "$(probe_finch)")
 log "WATCH-BASE  finch boot_id=${last_boot:-unknown}"
 
 state=init
@@ -161,6 +259,29 @@ while :; do
     [ "${prev_probe:-0}" -gt 0 ] && actual_gap=$(( probe_start - prev_probe )) || actual_gap=$INTERVAL
     prev_probe=$probe_start
 
+    # A gap far longer than a sampling period means THIS HOST stopped looking.
+    #
+    # The trap below writes WATCH-STOP when the service is stopped, and the
+    # WATCH-NOTE at startup covers a gap across a restart. Neither fires when
+    # the machine SUSPENDS: systemd does not stop the unit, this loop is simply
+    # not scheduled, and on resume it continues as though no time passed.
+    #
+    # That happened on 2026-09-15. gps3 suspended at 15:52 and resumed at 17:41
+    # -- one hour forty-nine minutes -- and this log jumped from `15:44:31 UP`
+    # straight to the next restart with nothing in between. The last thing it
+    # asserted about finch was UP, and two hours of blindness read exactly like
+    # two hours of finch being fine. That is the defect the log exists to
+    # prevent, committed by the log.
+    #
+    # Deliberately does NOT claim suspend. A large step in the wall clock looks
+    # identical from in here, and gps3's clock is corrected by an HTTP-date
+    # timer because NTP is blocked -- a correction is a step. Either way the
+    # honest statement is the same: finch was not observed, and this says so
+    # instead of leaving a silence that reads as UP.
+    if [ "$actual_gap" -gt "$GAP_MAX" ]; then
+        log "WATCH-GAP   unobserved_for=${actual_gap}s (sampling period is ${INTERVAL}s) -- this host suspended or its clock stepped; finch's state across this window is UNKNOWN, not UP"
+    fi
+
     if [ "$new" != "$state" ]; then
         if [ "$new" = DOWN ]; then
             # The DOWN line is DEFERRED, not suppressed. An outage's duration
@@ -175,7 +296,9 @@ while :; do
             [ "$state" = init ] && d=0
             # Ask the machine what it is before classifying. boot_id decides
             # when it answers; duration is the fallback when it does not.
-            b=$(boot_id)
+            raw=$(probe_finch)
+            b=$(boot_id "$raw")
+            shape=$(shutdown_shape "$raw")
             if [ -z "$b" ]; then
                 verdict="boot_id=unavailable -- classified by duration only"
                 if [ "$state" = DOWN ] && [ "$d" -le "$FLAP_MAX" ]; then
@@ -192,7 +315,18 @@ while :; do
                 # Different boot. A REBOOT, even if the gap looked like a flap
                 # -- which is the case duration can never catch and the whole
                 # reason this probe exists.
-                log "CRASH lan=$l ts=$t  down_for=${d}s  boot_id=CHANGED  was=${last_boot:0:8} now=${b:0:8}  <- finch actually rebooted"
+                # REBOOT, not CRASH. The evidence is that the machine came
+                # back with a different boot id; the shape says whether
+                # anything asked it to.
+                case "$shape" in
+                    abrupt)
+                        why="prev boot ended ABRUPTLY (journald never wrote its closing line) <- power removed or the kernel died" ;;
+                    orderly)
+                        why="prev boot ended ORDERLY (journald wrote its closing line) <- something ASKED; read finch's journal for who" ;;
+                    *)
+                        why="prev boot's shutdown shape UNKNOWN (the restricted key returned no SHUTDOWN field) <- rebooted; deliberate and spontaneous are indistinguishable from here" ;;
+                esac
+                log "REBOOT lan=$l ts=$t  down_for=${d}s  boot_id=CHANGED  was=${last_boot:0:8} now=${b:0:8}  shutdown=${shape}  ${why}"
                 last_boot=$b
             else
                 log "UP    lan=$l ts=$t  down_for=${d}s  boot_id=${b:0:8} (no baseline to compare)"
