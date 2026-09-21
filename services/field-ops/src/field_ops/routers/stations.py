@@ -412,31 +412,27 @@ async def promote_proposal(
     reject with a reason, after which the observer can re-propose under a free
     code and the rejected row keeps the trail.
 
-    The check reads `public.stations` rather than the proposal's
-    `collides_with`, deliberately. That marker records what was true when the
-    server heard, possibly days ago: an unmarked proposal's code may have been
-    promoted by somebody else since, and a marked one's rival may have been
-    rejected. Only the inventory answers "is this code occupied right now".
+    The guard does NOT read the proposal's `collides_with`. That marker records
+    what was true when the server heard, possibly days ago: an unmarked
+    proposal's code may have been promoted by somebody else since, and a marked
+    one's rival may have been rejected. Only the inventory answers "is this code
+    occupied right now".
+
+    **The guard is the `WHERE` on `DO UPDATE`, not a preceding SELECT.** It was
+    a SELECT first, and gps3 found the hole in review: two statements with
+    nothing held between them, so a station appearing in that window was still
+    overwritten by the upsert that followed. Two reviewers working the queue at
+    once is the realistic case, and a guard that reads stronger than it is, is
+    worse than none.
+
+    Expressing it as `DO UPDATE ... WHERE CAST(:merge AS boolean)` closes the
+    window: the conflict and the decision are evaluated inside one statement,
+    so there is no interval for a row to appear in. When the code is occupied
+    and merge was not asked for, the UPDATE matches nothing, `RETURNING` yields
+    no row, and that empty result IS the refusal — which is why the code below
+    treats it as one rather than as a surprise.
     """
     proposal = await _get_pending(db, proposal_id)
-
-    if not merge_into_existing:
-        occupied = await db.execute(
-            text("SELECT 1 FROM stations WHERE upper(station_code) = :code LIMIT 1"),
-            {"code": proposal.station_code},
-        )
-        if occupied.first() is not None:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    f"Station code {proposal.station_code} is already in the central "
-                    "inventory. Promoting would overwrite that station with this "
-                    "proposal's details. If both describe the same monument, retry "
-                    "with merge_into_existing=true; if they are different sites, "
-                    "reject this one with a reason so the observer can re-propose "
-                    "under a free code."
-                ),
-            )
 
     row = await db.execute(
         text("""
@@ -479,9 +475,14 @@ async def promote_proposal(
                 municipality      = COALESCE(EXCLUDED.municipality, stations.municipality),
                 province          = COALESCE(EXCLUDED.province, stations.province),
                 region            = COALESCE(EXCLUDED.region, stations.region)
+            -- The guard, evaluated with the conflict rather than before it.
+            -- False here means the row stands untouched and RETURNING yields
+            -- nothing; see the note in the docstring and the handling below.
+            WHERE CAST(:merge AS boolean)
             RETURNING id
         """),
         {
+            "merge": merge_into_existing,
             "code": proposal.station_code,
             "name": proposal.name,
             "lat": proposal.latitude,
@@ -494,7 +495,23 @@ async def promote_proposal(
             "region": proposal.region,
         },
     )
-    station_id = row.scalar_one()
+    station_id = row.scalar_one_or_none()
+    if station_id is None:
+        # No row came back, which happens for exactly one reason: the code was
+        # already in the inventory and `merge_into_existing` was not passed, so
+        # DO UPDATE's WHERE was false. The station is untouched — that is the
+        # whole point — and the proposal stays pending for a human.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Station code {proposal.station_code} is already in the central "
+                "inventory. Promoting would overwrite that station with this "
+                "proposal's details. If both describe the same monument, retry "
+                "with merge_into_existing=true; if they are different sites, "
+                "reject this one with a reason so the observer can re-propose "
+                "under a free code."
+            ),
+        )
 
     proposal.reconciled_at = datetime.now().astimezone()
     proposal.reconciled_by = user.id

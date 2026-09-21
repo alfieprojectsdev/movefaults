@@ -569,7 +569,13 @@ async def test_promote_writes_to_public_stations(pg_session):
     assert "ON CONFLICT (station_code) DO UPDATE" in sql
     assert "ST_SetSRID" in sql
 
+    # The guard lives inside the statement (#228, gps3's review): DO UPDATE
+    # only fires when this is true, so a caller that does not pass it gets a
+    # missing-parameter error rather than an overwrite.
+    assert "WHERE CAST(:merge AS boolean)" in sql
+
     params = {
+        "merge": True,
         "code": _TEST_CODE,
         "name": "Integration fixture site",
         "lat": 14.6537,
@@ -626,6 +632,26 @@ async def test_promote_writes_to_public_stations(pg_session):
         assert after["name"] == params["name"], "COALESCE did not protect name"
         assert after["elevation"] == params["elevation"], "COALESCE did not protect elevation"
         assert after["municipality"] == params["municipality"]
+
+        # 4 — the guard, at the level it is enforced.
+        #
+        # With merge false the conflict resolves to nothing: no row updated, no
+        # id returned. The endpoint turns that empty result into the 409, but
+        # the protection is here, in one statement, with no window between
+        # checking and writing for another reviewer's promote to slip through.
+        refused = await pg_session.execute(
+            sa_text(sql), {**params, "merge": False, "name": "Should not be written"}
+        )
+        assert refused.scalar_one_or_none() is None, (
+            "DO UPDATE fired with merge=false -- the guard is not in the statement"
+        )
+        unchanged = (
+            await pg_session.execute(
+                sa_text("SELECT name FROM stations WHERE station_code = :code"),
+                {"code": _TEST_CODE},
+            )
+        ).mappings().one()
+        assert unchanged["name"] == params["name"], "the station was overwritten anyway"
     finally:
         # ROLL BACK FIRST. This is not tidiness -- it is the difference between
         # a test that tells you why it failed and one that cannot.

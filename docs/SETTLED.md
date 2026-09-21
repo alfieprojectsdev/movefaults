@@ -288,6 +288,19 @@ Do not open these as findings.
   is what matters and is clean.
 - **`--cov=src` measures almost nothing.** Known; name `packages/ services/
   tools/` instead.
+- **A `.trees/` worktree cannot test a change to an installed Python package.**
+  The venv's editable install resolves `field_ops` (and every other `services/`
+  or `packages/` module) to the **main checkout**, so `uv run pytest` inside a
+  worktree reads the branch's *tests* while importing `main`'s *source*. The
+  failure is convincing and points the wrong way: on 2026-09-21 a new column
+  produced `TypeError: 'collides_with' is an invalid keyword argument for
+  StationProposal`, which reads exactly like the column being missing from
+  `models.py`, where it was in fact present. Confirm with
+  `python -c "import field_ops.models as m; print(m.__file__)"` — if it names
+  the main tree, that is what ran. Worktrees remain fine for scripts invoked by
+  path, such as `scripts/match_rinex_to_site.py`. To test a package change,
+  check the branch out in the main checkout, or `uv sync` inside the worktree.
+  Found by gps3 reviewing #234, at the cost of one run.
 - **`vadase-rt-monitor` and `field-ops` fail collection** without `structlog`
   and `uvicorn`. Environmental, pre-existing, fixed by `uv sync --all-extras`.
 - **`RESUME_NEXT.md` discloses the R740 sudo password in prose** and the repo is
