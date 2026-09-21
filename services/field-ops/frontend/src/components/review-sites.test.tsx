@@ -62,6 +62,7 @@ const proposal = (over: Partial<StationProposalOut> = {}): StationProposalOut =>
   reconciled_by: null,
   reconciled_station_id: null,
   rejected_reason: null,
+  collides_with: null,
   notes: "Beside the flagpole. Fix accuracy ±12 m.",
   sheet_count: 0,
   ...over,

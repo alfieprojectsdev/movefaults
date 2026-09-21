@@ -402,6 +402,24 @@ export default function StationPicker({ value, onChange, disabled }: Props) {
           </p>
         ))}
 
+      {/* A code two teams claimed. Since #228 the server keeps this rather
+          than refusing it, so there is nothing for the observer to fix and no
+          retry to offer — the office has both claims in front of it. What
+          this line has to convey is the one consequence the observer can see:
+          their sheets are saved and waiting, not lost and not sent. */}
+      {proposals
+        .filter((p) => p._status === "synced" && p._collidesWith)
+        .map((p) => (
+          <p key={p.client_uuid} className="station-status-note">
+            {p.station_code} was sent, but{" "}
+            {p._collidesWith === "inventory"
+              ? "that code already belongs to a station in the central list"
+              : "another team has claimed that code too"}
+            . The office can see both and will settle it. The sheets you filed
+            against it are saved and will be sent once they do.
+          </p>
+        ))}
+
       {proposals
         .filter((p) => p._status === "error")
         .map((p) => (
