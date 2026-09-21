@@ -1,11 +1,14 @@
 # Applying the 2024-11-11 bug fixes to the R740 BSW install
 
-*Written 2026-08-29 while the PHREF year was finishing. **Not yet executed.***
+*Written 2026-08-29 while the PHREF year was finishing. **Executed and verified
+2026-09-02** — see "Applied and verified" below. Everything from here to that
+section describes the state BEFORE patching and is kept as the record of how
+the decision was made, not as a description of the install today.*
 
-## Current state
+## Current state **as of 2026-08-29**, superseded
 
-Our install is release `2024-11-11` with **none of its 7 published fixes
-applied**. Verified rather than assumed:
+At the time of writing, the install was release `2024-11-11` with **none of its
+7 published fixes applied**. Verified rather than assumed:
 
 - `$LG/IONOSP2.f90` carries `IGRF10`–`IGRF13`, not `IGRF14` → B_33 absent
 - `$LG/O_RXOWRAP.f90` is dated **Oct 2023**, predating the release → B_34 absent
