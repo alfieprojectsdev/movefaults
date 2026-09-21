@@ -134,28 +134,168 @@ async def test_rejects_unknown_monitoring_method(client, auth_headers, proposal_
 
 
 @pytest.mark.asyncio
-async def test_duplicate_pending_code_is_refused(client, auth_headers, proposal_payload):
+async def test_a_second_claim_on_a_code_is_kept_and_marked(
+    client, auth_headers, proposal_payload, db_session
+):
+    """#228. This test used to assert the opposite:
+
+        assert second.status_code == 409
+        assert "already been proposed" in second.json()["detail"]
+
+    That 409 was the bug. The proposal never became a row, so the reconcile
+    screen — which reads `field_ops.station_proposals` — could not see it, and
+    a site an observer travelled to sat on one handset until the phone was
+    wiped. The guard cannot reach a handset that has been offline for two
+    days, so both teams were working correctly.
+    """
     first = await client.post("/api/v1/stations", json=proposal_payload, headers=auth_headers)
     assert first.status_code == 201
+    assert first.json()["collides_with"] is None
 
     second = await client.post(
         "/api/v1/stations",
         json={**proposal_payload, "client_uuid": str(uuid.uuid4())},
         headers=auth_headers,
     )
-    assert second.status_code == 409
-    assert "already been proposed" in second.json()["detail"]
+    assert second.status_code == 201
+    assert second.json()["collides_with"] == "proposal"
+    assert second.json()["id"] != first.json()["id"]
+
+    from sqlalchemy import func, select
+
+    total = await db_session.execute(select(func.count()).select_from(StationProposal))
+    assert total.scalar_one() == 2, "both claims must survive; the office settles them"
 
 
 @pytest.mark.asyncio
-async def test_duplicate_check_is_case_insensitive(client, auth_headers, proposal_payload):
+async def test_both_claims_reach_the_reconcile_queue(
+    client, auth_headers, proposal_payload, db_session
+):
+    """The row existing is not the point — the office *seeing* it is.
+
+    `test_a_second_claim_on_a_code_is_kept_and_marked` would still pass if the
+    reconcile listing filtered collisions out, which is the same dead end one
+    layer down.
+    """
+    await client.post("/api/v1/stations", json=proposal_payload, headers=auth_headers)
+    await client.post(
+        "/api/v1/stations",
+        json={**proposal_payload, "client_uuid": str(uuid.uuid4()), "name": "Other team"},
+        headers=auth_headers,
+    )
+
+    admin_headers = await _make_admin(client, db_session)
+    queue = await client.get("/api/v1/station-proposals", headers=admin_headers)
+    assert queue.status_code == 200
+
+    claims = [r for r in queue.json() if r["station_code"] == "TSTA"]
+    assert len(claims) == 2, "the reviewer cannot settle a disagreement they cannot see"
+    assert sorted(c["collides_with"] or "" for c in claims) == ["", "proposal"]
+
+
+def test_the_picker_offers_a_contested_code_once():
+    """Two claims, one code, one entry.
+
+    Showing both would read to the observer as two different sites sharing a
+    code — the collision handed back to the handset instead of to the office.
+
+    Tested against `_append_proposals` rather than over HTTP because
+    `GET /stations` reads the inventory with ST_Y/ST_X, so the endpoint cannot
+    run on the SQLite conftest at all.
+    """
+    from field_ops.routers.stations import StationOut, _append_proposals
+
+    def claim(name: str, collides_with: str | None, pid: int) -> StationProposal:
+        return StationProposal(
+            id=pid,
+            station_code="TSTA",
+            name=name,
+            monitoring_method="campaign",
+            status="active",
+            collides_with=collides_with,
+            created_by=1,
+        )
+
+    # Caller order: uncontested first within a code (see `list_stations`).
+    merged = _append_proposals([], [claim("First team", None, 1), claim("Other team", "proposal", 2)])
+
+    assert [s.station_code for s in merged] == ["TSTA"]
+    assert merged[0].name == "First team"
+    assert merged[0].source == "field"
+
+    # And the inventory still wins over any field claim on the same code.
+    inventory = StationOut(
+        station_code="TSTA",
+        name="Catalogued",
+        latitude=14.5,
+        longitude=121.0,
+        elevation=None,
+        fault_segment=None,
+        status="active",
+        source="inventory",
+    )
+    merged = _append_proposals(
+        [inventory], [claim("First team", None, 1), claim("Other team", "proposal", 2)]
+    )
+    assert [s.name for s in merged] == ["Catalogued"]
+
+
+@pytest.mark.asyncio
+async def test_collision_check_is_case_insensitive(client, auth_headers, proposal_payload):
+    """`tsta` and `TSTA` are the same code, so the second is a collision.
+
+    Previously this asserted 409. The normalisation it is really testing —
+    codes upper-cased before comparison — is unchanged; only the answer to a
+    collision moved.
+    """
     await client.post("/api/v1/stations", json=proposal_payload, headers=auth_headers)
     resp = await client.post(
         "/api/v1/stations",
         json={**proposal_payload, "station_code": "tsta", "client_uuid": str(uuid.uuid4())},
         headers=auth_headers,
     )
-    assert resp.status_code == 409
+    assert resp.status_code == 201
+    assert resp.json()["collides_with"] == "proposal"
+
+
+@pytest.mark.asyncio
+async def test_a_free_code_is_not_marked(client, auth_headers, proposal_payload):
+    """The marker has to mean something.
+
+    Every assertion above would hold if `collides_with` were set on every row,
+    which would tell the reviewer nothing.
+    """
+    resp = await client.post("/api/v1/stations", json=proposal_payload, headers=auth_headers)
+    assert resp.status_code == 201
+    assert resp.json()["collides_with"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_resolved_claim_frees_the_code_again(
+    client, auth_headers, proposal_payload, db_session
+):
+    """A collision is against *pending* claims only.
+
+    Once the first claim is rejected, the next proposal is uncontested — the
+    marker must not stick to the code itself.
+    """
+    first = await client.post(
+        "/api/v1/stations", json=proposal_payload, headers=auth_headers
+    )
+    admin_headers = await _make_admin(client, db_session)
+    await client.post(
+        f"/api/v1/station-proposals/{first.json()['id']}/reject",
+        json={"reason": "wrong monument"},
+        headers=admin_headers,
+    )
+
+    again = await client.post(
+        "/api/v1/stations",
+        json={**proposal_payload, "client_uuid": str(uuid.uuid4())},
+        headers=auth_headers,
+    )
+    assert again.status_code == 201
+    assert again.json()["collides_with"] is None
 
 
 @pytest.mark.asyncio
@@ -643,6 +783,154 @@ async def test_promote_through_the_router_puts_the_monument_where_it_belongs(pg_
         # See the note on the test above: without this, a failure inside the
         # try block is replaced by InFailedSQLTransactionError from the first
         # cleanup statement, and the real cause is lost.
+        await pg_session.rollback()
+        await pg_session.execute(
+            sa_text("DELETE FROM stations WHERE station_code = :c"), {"c": code}
+        )
+        await pg_session.execute(
+            sa_text("DELETE FROM field_ops.station_proposals WHERE station_code = :c"),
+            {"c": code},
+        )
+        await pg_session.execute(
+            sa_text("DELETE FROM field_ops.users WHERE id = :i"), {"i": reviewer_id}
+        )
+        await pg_session.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_promoting_onto_an_occupied_code_leaves_the_station_alone(pg_session):
+    """#228's sharp edge, and the reason the accept half is not enough.
+
+    `promote_proposal` upserts with `ON CONFLICT (station_code) DO UPDATE ...
+    COALESCE(EXCLUDED.col, stations.col)`. That is right for the case it was
+    written for — a sparse proposal filling gaps in the row it is the origin
+    of — and destructive for the case accepting collisions creates: the
+    losing team's coordinates would silently replace a catalogued station's,
+    with nothing recording that it had ever been anywhere else.
+
+    Postgres, because the whole mechanism is the upsert and the geometry.
+    The assertion that matters is not the 409 — it is that the station is
+    still where it was afterwards.
+    """
+    import uuid as _uuid
+
+    from field_ops.database import get_db
+    from field_ops.main import app
+    from httpx import ASGITransport, AsyncClient
+    from sqlalchemy import text as sa_text
+
+    try:
+        await pg_session.execute(sa_text("SELECT 1 FROM field_ops.station_proposals LIMIT 1"))
+        await pg_session.execute(sa_text("SELECT 1 FROM field_ops.users LIMIT 1"))
+    except Exception as exc:  # noqa: BLE001
+        await pg_session.rollback()
+        pytest.skip(
+            f"field_ops schema not migrated in {type(exc).__name__}; "
+            "run `alembic -c services/field-ops/alembic.ini upgrade head` against this database"
+        )
+
+    code = "ZZTC"
+    pre = await pg_session.execute(
+        sa_text("SELECT 1 FROM stations WHERE station_code = :c"), {"c": code}
+    )
+    assert pre.first() is None, f"{code} already exists here; refusing to write over it"
+
+    reviewer = User(
+        username=f"zz-col-{_uuid.uuid4().hex[:8]}",
+        hashed_password=hash_password("testpass"),
+        role="admin",
+    )
+    pg_session.add(reviewer)
+    await pg_session.flush()
+    reviewer_id = reviewer.id  # before any rollback expires it — see the test above
+
+    # The catalogued station, and a second team's claim on the same code from
+    # 300 km away. Far enough apart that an overwrite cannot hide in rounding.
+    kept_lat, kept_lon = 14.6537, 121.0584
+    other_lat, other_lon = 10.3157, 123.8854
+
+    await pg_session.execute(
+        sa_text("""
+            INSERT INTO stations (station_code, name, location, monitoring_method, status)
+            VALUES (:c, :n,
+                    ST_SetSRID(ST_MakePoint(CAST(:lon AS double precision),
+                                            CAST(:lat AS double precision)), 4326),
+                    'continuous', 'active')
+        """),
+        {"c": code, "n": "Catalogued monument", "lat": kept_lat, "lon": kept_lon},
+    )
+
+    proposal = StationProposal(
+        client_uuid=_uuid.uuid4(),
+        station_code=code,
+        name="Second team's site",
+        latitude=other_lat,
+        longitude=other_lon,
+        monitoring_method="campaign",
+        status="active",
+        created_by=reviewer_id,
+        collides_with="inventory",
+    )
+    pg_session.add(proposal)
+    await pg_session.commit()
+    await pg_session.refresh(proposal)
+    proposal_id = proposal.id
+
+    async def where_is_it() -> tuple[float, float, str]:
+        row = (
+            await pg_session.execute(
+                sa_text(
+                    "SELECT ST_Y(location::geometry) AS lat, "
+                    "ST_X(location::geometry) AS lon, name "
+                    "FROM stations WHERE station_code = :c"
+                ),
+                {"c": code},
+            )
+        ).mappings().one()
+        return row["lat"], row["lon"], row["name"]
+
+    app.dependency_overrides[get_db] = lambda: pg_session
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            token = await ac.post(
+                "/api/v1/token",
+                data={"username": reviewer.username, "password": "testpass"},
+            )
+            assert token.status_code == 200, token.text
+            headers = {"Authorization": f"Bearer {token.json()['access_token']}"}
+
+            refused = await ac.post(
+                f"/api/v1/station-proposals/{proposal_id}/promote", headers=headers
+            )
+            assert refused.status_code == 409, refused.text
+            assert "already in the central inventory" in refused.json()["detail"]
+
+            lat, lon, name = await where_is_it()
+            assert (lat, lon) == pytest.approx((kept_lat, kept_lon), abs=1e-9), (
+                "the catalogued station MOVED on a refused promote -- the upsert ran "
+                "anyway"
+            )
+            assert name == "Catalogued monument"
+
+            # The reviewer who has compared both claims can still say so, and
+            # then the merge is the documented COALESCE behaviour.
+            merged = await ac.post(
+                f"/api/v1/station-proposals/{proposal_id}/promote",
+                params={"merge_into_existing": "true"},
+                headers=headers,
+            )
+            assert merged.status_code == 200, merged.text
+
+        lat, lon, _ = await where_is_it()
+        assert (lat, lon) == pytest.approx((other_lat, other_lon), abs=1e-9), (
+            "merge_into_existing=true did nothing, so the refusal above proves "
+            "nothing about the guard"
+        )
+    finally:
+        app.dependency_overrides.clear()
         await pg_session.rollback()
         await pg_session.execute(
             sa_text("DELETE FROM stations WHERE station_code = :c"), {"c": code}

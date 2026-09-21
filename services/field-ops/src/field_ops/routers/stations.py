@@ -27,6 +27,7 @@ Design: docs/project_documentation/field_ops_station_creation_design.md
 """
 
 import uuid
+from collections.abc import Sequence
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -158,6 +159,10 @@ class StationProposalOut(BaseModel):
     reconciled_station_id: int | None
     rejected_reason: str | None
     notes: str | None
+    #: `inventory`, `proposal`, or None when the code was free. A marked row is
+    #: a claim the office has to settle against another claim, not a row it can
+    #: promote on its own — see `promote_proposal`.
+    collides_with: str | None = None
     #: Sheets already filed against this code. A proposal carrying data is a
     #: different decision from an empty one — reject the first and you have
     #: orphaned real observations.
@@ -240,42 +245,21 @@ async def list_stations(
     # needs PostGIS; this one does not, and keeping them separate means the
     # proposal half stays exercisable without a PostGIS fixture. It also costs
     # nothing: both are small, unpaginated reads on the same connection.
-    known = {s.station_code for s in stations}
     proposals = await db.execute(
         select(StationProposal)
         .where(StationProposal.reconciled_at.is_(None))
-        .order_by(StationProposal.station_code)
-    )
-    for p in proposals.scalars().all():
-        # A proposal whose code has since appeared in the inventory is not
-        # shown twice. The inventory row wins: it is the reconciled one.
-        if p.station_code in known:
-            continue
-        stations.append(
-            StationOut(
-                station_code=p.station_code,
-                name=p.name,
-                latitude=p.latitude,
-                longitude=p.longitude,
-                elevation=p.elevation,
-                fault_segment=None,
-                status=p.status,
-                municipality=p.municipality,
-                province=p.province,
-                region=p.region,
-                monitoring_method=p.monitoring_method,
-                # Absent by construction rather than by omission: a proposal
-                # has no reconciled owner, no install date and no agency until
-                # somebody promotes it. Returning None says "not known yet",
-                # which is the true state.
-                land_owner=None,
-                date_installed=None,
-                agency=None,
-                maintenance_interval_days=None,
-                source="field",
-            )
+        # Uncontested claims first within a code, so that when two teams claim
+        # the same code the picker offers the one that got there first rather
+        # than whichever row sorts first by accident. Settling which is right
+        # is the reconcile screen's job; the picker only has to stop showing
+        # one code twice, which would read as two sites.
+        .order_by(
+            StationProposal.station_code,
+            StationProposal.collides_with.is_not(None),
+            StationProposal.id,
         )
-    return stations
+    )
+    return _append_proposals(stations, proposals.scalars().all())
 
 
 # ---------------------------------------------------------------------------
@@ -301,15 +285,23 @@ async def propose_station(
     200-equivalent semantics rather than creating a second. That matters more
     than usual here, because the offline queue retries whole batches.
 
-    Duplicate guard, layer 2 of 3 (409):
-      * the code already exists in `public.stations`, or
-      * an unreconciled proposal already claims it.
+    **A taken code is accepted and marked, not refused** (#228). If the code
+    already exists in `public.stations`, or an unreconciled proposal already
+    claims it, the row is still created with `collides_with` set to
+    `inventory` or `proposal`, and the office settles it on the reconcile
+    screen.
 
-    Layer 1 is on the handset before submit; layer 3 is the partial unique
-    index in fo007. **Neither 2 nor 3 is reachable from a handset that has been
-    offline for two days**, so two teams can independently propose the same
-    code and both will sync. That is unavoidable if people are to work offline,
-    and it is why promotion is a human decision — see the reconcile endpoints.
+    This used to be a 409, and the proposal never became a row at all — so a
+    site somebody travelled to could sit unseen on one handset until the phone
+    was wiped. The guard cannot reach a handset that has been offline for two
+    days, so two teams proposing the same code is the expected outcome of
+    working offline correctly, not observer error. The office can see both
+    claims; the observer at the monument cannot.
+
+    What still refuses: nothing here. The partial unique index (fo008) keeps
+    at most one *uncontested* pending claim per code, so an unmarked duplicate
+    that races past the checks below is caught and retried as a collision
+    rather than lost.
     """
     # Idempotency first: a retry must not 409 against its own earlier write.
     existing = await db.execute(
@@ -320,70 +312,22 @@ async def propose_station(
         return await _to_out(db, already)
 
     code = payload.station_code
+    collides_with = await _what_the_code_collides_with(db, code)
 
-    # Layer 2a — the central inventory. Raw SQL for the boundary reason above.
-    # Guarded: on SQLite (unit tests) `stations` does not exist, and a missing
-    # inventory must not be reported to the observer as "code is free" nor as
-    # a 500. Treat it as "cannot check here" and fall through to the layers
-    # that do work — the partial unique index still backstops.
-    try:
-        clash = await db.execute(
-            text("SELECT 1 FROM stations WHERE upper(station_code) = :code LIMIT 1"),
-            {"code": code},
-        )
-        if clash.first() is not None:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Station code {code} already exists in the central inventory.",
-            )
-    except HTTPException:
-        raise
-    except Exception:  # noqa: BLE001 - see the comment above
-        pass
-
-    # Layer 2b — an unreconciled proposal.
-    pending = await db.execute(
-        select(StationProposal).where(
-            StationProposal.station_code == code,
-            StationProposal.reconciled_at.is_(None),
-        )
-    )
-    if pending.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"Station code {code} has already been proposed and is awaiting "
-                "review. If this is a different site, use a different code and "
-                "note the conflict."
-            ),
-        )
-
-    proposal = StationProposal(
-        client_uuid=payload.client_uuid,
-        station_code=code,
-        name=payload.name,
-        latitude=payload.latitude,
-        longitude=payload.longitude,
-        elevation=payload.elevation,
-        monitoring_method=payload.monitoring_method,
-        status="active",
-        municipality=payload.municipality,
-        province=payload.province,
-        region=payload.region,
-        created_by=current_user.id,
-        proposed_at=payload.proposed_at,
-        notes=payload.notes,
-    )
+    proposal = _build_proposal(payload, current_user, collides_with)
     db.add(proposal)
     try:
         await db.commit()
     except IntegrityError:
-        # Layer 3 fired — two requests raced past layer 2. Same answer as 2b.
+        # The unique index fired: another uncontested claim on this code
+        # committed between the check above and this insert. The collision is
+        # real, it simply happened a few milliseconds later than the read saw.
+        # Record it as one and keep the row, which is the whole point of #228 —
+        # losing a race is not a reason to strand a site on a handset.
         await db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail=f"Station code {code} has already been proposed and is awaiting review.",
-        ) from None
+        proposal = _build_proposal(payload, current_user, "proposal")
+        db.add(proposal)
+        await db.commit()
     await db.refresh(proposal)
     return await _to_out(db, proposal)
 
@@ -427,6 +371,14 @@ async def promote_proposal(
     proposal_id: int,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_role("admin", "data_processor")),
+    merge_into_existing: bool = Query(
+        False,
+        description=(
+            "Required to promote onto a code the inventory already holds. "
+            "Says: I have compared both claims and this proposal describes "
+            "the same monument."
+        ),
+    ),
 ) -> StationProposalOut:
     """
     Accept a proposal into `public.stations`.
@@ -445,8 +397,46 @@ async def promote_proposal(
     `ST_SetSRID(ST_MakePoint(lon, lat), 4326)` the seeder uses — see the
     deviation note on the model. Coordinates may be NULL; the proposal is still
     promotable, and `PLWN` is already in the inventory without them.
+
+    **`merge_into_existing` guards the upsert half** (#228). That `ON CONFLICT
+    DO UPDATE ... COALESCE` is safe for the case it was written for — filling
+    gaps in a row this proposal is the origin of — and quietly destructive for
+    the case #228 introduced. Promoting a *colliding* claim would move the
+    existing station's name and location to wherever the second team stood,
+    with no record that it had ever been anywhere else. Two teams disagreeing
+    about what a code names is precisely when that must not happen silently.
+
+    So promotion onto an occupied code refuses unless the reviewer passes the
+    flag, which asserts they compared both claims and these are one monument.
+    The alternative — the second team's site is genuinely different — is a
+    reject with a reason, after which the observer can re-propose under a free
+    code and the rejected row keeps the trail.
+
+    The check reads `public.stations` rather than the proposal's
+    `collides_with`, deliberately. That marker records what was true when the
+    server heard, possibly days ago: an unmarked proposal's code may have been
+    promoted by somebody else since, and a marked one's rival may have been
+    rejected. Only the inventory answers "is this code occupied right now".
     """
     proposal = await _get_pending(db, proposal_id)
+
+    if not merge_into_existing:
+        occupied = await db.execute(
+            text("SELECT 1 FROM stations WHERE upper(station_code) = :code LIMIT 1"),
+            {"code": proposal.station_code},
+        )
+        if occupied.first() is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Station code {proposal.station_code} is already in the central "
+                    "inventory. Promoting would overwrite that station with this "
+                    "proposal's details. If both describe the same monument, retry "
+                    "with merge_into_existing=true; if they are different sites, "
+                    "reject this one with a reason so the observer can re-propose "
+                    "under a free code."
+                ),
+            )
 
     row = await db.execute(
         text("""
@@ -545,6 +535,120 @@ async def reject_proposal(
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------
+
+
+def _append_proposals(
+    stations: list[StationOut], proposals: Sequence[StationProposal]
+) -> list[StationOut]:
+    """Add field-proposed sites to the inventory list, one entry per code.
+
+    A separate function because nothing else in `list_stations` is testable
+    without PostGIS — the inventory read uses ST_Y/ST_X, so an HTTP-level test
+    of this merge cannot run on the SQLite conftest. The dedupe is the part
+    that has a bug in it if anyone gets it wrong, so it lives where a test can
+    reach it.
+
+    Two codes are dropped:
+      * one the inventory already lists — the reconciled row wins;
+      * a second pending claim on a code already added here (#228). Both
+        claims are real and both are kept in the database; showing both in the
+        picker would read as two different sites with one code, which is the
+        collision handed back to the observer instead of to the office.
+
+    Caller ordering decides which claim survives — see `list_stations`.
+    """
+    known = {s.station_code for s in stations}
+    for p in proposals:
+        if p.station_code in known:
+            continue
+        known.add(p.station_code)
+        stations.append(
+            StationOut(
+                station_code=p.station_code,
+                name=p.name,
+                latitude=p.latitude,
+                longitude=p.longitude,
+                elevation=p.elevation,
+                fault_segment=None,
+                status=p.status,
+                municipality=p.municipality,
+                province=p.province,
+                region=p.region,
+                monitoring_method=p.monitoring_method,
+                # Absent by construction rather than by omission: a proposal
+                # has no reconciled owner, no install date and no agency until
+                # somebody promotes it. Returning None says "not known yet",
+                # which is the true state.
+                land_owner=None,
+                date_installed=None,
+                agency=None,
+                maintenance_interval_days=None,
+                source="field",
+            )
+        )
+    return stations
+
+
+def _build_proposal(
+    payload: StationProposalIn, user: User, collides_with: str | None
+) -> StationProposal:
+    """One place that maps the handset's payload onto a row.
+
+    Called twice — once optimistically, once after losing a race to the unique
+    index — so the two paths cannot drift into storing different things.
+    """
+    return StationProposal(
+        client_uuid=payload.client_uuid,
+        station_code=payload.station_code,
+        name=payload.name,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        elevation=payload.elevation,
+        monitoring_method=payload.monitoring_method,
+        status="active",
+        municipality=payload.municipality,
+        province=payload.province,
+        region=payload.region,
+        created_by=user.id,
+        proposed_at=payload.proposed_at,
+        notes=payload.notes,
+        collides_with=collides_with,
+    )
+
+
+async def _what_the_code_collides_with(db: AsyncSession, code: str) -> str | None:
+    """`inventory`, `proposal`, or None if the code is free.
+
+    The inventory read is raw SQL for the boundary reason the read path
+    explains, and is guarded: on SQLite (unit tests) `public.stations` does not
+    exist. A missing inventory must not be reported as a collision — that would
+    mark every proposal in the test suite — nor as a 500. Treat it as "cannot
+    check here" and fall through to the proposal check, which works everywhere.
+
+    The inventory is checked first because it is the more specific answer: a
+    code held by a reconciled station is a different conversation from two
+    field teams disagreeing, and the reviewer reads this field to tell them
+    apart.
+    """
+    try:
+        clash = await db.execute(
+            text("SELECT 1 FROM stations WHERE upper(station_code) = :code LIMIT 1"),
+            {"code": code},
+        )
+        if clash.first() is not None:
+            return "inventory"
+    except Exception:  # noqa: BLE001 - see the docstring
+        pass
+
+    pending = await db.execute(
+        select(StationProposal).where(
+            StationProposal.station_code == code,
+            StationProposal.reconciled_at.is_(None),
+        )
+    )
+    if pending.first() is not None:
+        return "proposal"
+    return None
 
 
 async def _get_pending(db: AsyncSession, proposal_id: int) -> StationProposal:
