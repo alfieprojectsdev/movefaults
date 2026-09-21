@@ -340,6 +340,7 @@ Old documents and older memory still assert these. They are wrong.
 | `automation_stages.md` Stage 3 | the file has **two `## Stage 3` sections** (lines 206 and 393), overlapping and non-identical. One is stale |
 | research brief: Nakagawa et al. (2009) is "in Japanese and **not reachable**" | **reachable** — it needed `pdftotext`, not a fetch. "Not reachable" meant "not tried hard enough" |
 | `CLAUDE.md`: repo-root `src/` is "`src/db/` alone, **four files**" (twice) | **two** tracked source files — `__init__.py` and `models.py`. The four counts `__pycache__/*.pyc`, which is not in the repository. Verified 2026-08-25 |
+| this file's own §6, until 2026-09-21: our BSW install has "none of its 7 published patches applied" | **applied and verified inert on 2026-09-02** — see §2. The §6 bullet was written 2026-08-29, three days before the patching, and outlived it. Re-verified on disk 2026-09-21: `IONOSP2.f90` carries IGRF14, `IGRF14SYN.f` is present, 12 `.pre-patch` copies remain in `SOURCE`, and all 88 executables in `SOURCE/PGM/EXE_GNU` are dated 2026-09-02 |
 
 ---
 
@@ -377,11 +378,6 @@ genuinely unresolved as of 2026-08-25 and *should* be worked on:
 - **LGYE shows intermittent East excursions up to 76 mm in 11 of 53 weeks of
   2025**, alternating in sign, ceasing after mid-July. Not deformation (sign
   alternates) and not metadata (records are complete). Cause unestablished.
-- **Our BSW install is release `2024-11-11` with none of its 7 published patches
-  applied.** Verified 2026-08-29: `IONOSP2.f90` carries IGRF10–13 not IGRF14
-  (B_33); `O_RXOWRAP.f90` is dated Oct 2023 (B_34, which cuts RNXGRA runtime
-  5–6× — we run RNXGRA once per session). Patches at
-  <https://www.bernese.unibe.ch/UPDATE54>; all require recompilation.
 - **Seed the diagnostic knowledge base from the AIUB FAQ's 11 error entries** —
   re-derived and re-worded, not copied: AIUB state no licence, so default
   all-rights-reserved applies. See `external-sources/README.md`.
