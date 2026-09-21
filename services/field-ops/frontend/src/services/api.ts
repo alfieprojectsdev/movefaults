@@ -370,6 +370,17 @@ export interface StationProposalOut extends StationProposalIn {
   reconciled_station_id: number | null;
   rejected_reason: string | null;
   /**
+   * What this code collided with when the server heard: `inventory`,
+   * `proposal`, or null when it was free.
+   *
+   * A collision used to be a 409 and the proposal never became a row (#228),
+   * which stranded a real site on one handset. It is now accepted and marked,
+   * so the office can see both claims. A marked proposal is NOT settled: the
+   * code may still turn out to mean the other team's monument, so sheets
+   * filed against it are held until a human decides.
+   */
+  collides_with: string | null;
+  /**
    * Logsheets already filed against this code.
    *
    * The number the reconcile decision actually turns on. A proposal carrying

@@ -341,6 +341,10 @@ class StationProposal(FieldOpsBase):
     earlier proposal is resolved — a plain unique index would permanently
     burn every code ever typed, typos included.
 
+    fo008 narrows that index further, to `collides_with IS NULL`: exactly one
+    *uncontested* pending claim per code, with later claims kept as marked
+    collisions rather than refused. See `collides_with` below.
+
     A rejected row is KEPT. A rejected proposal with sheets already filed
     against it is a data-quality finding, not garbage.
 
@@ -400,6 +404,25 @@ class StationProposal(FieldOpsBase):
     rejected_reason = Column(Text)
 
     notes = Column(Text)
+
+    # NULL when the code was free at sync time; otherwise what it collided
+    # with — 'inventory' (a reconciled station already held the code) or
+    # 'proposal' (another team's unreconciled claim arrived first).
+    #
+    # A collision used to be a 409 and the proposal never became a row at all,
+    # so a real site an observer travelled to could sit unseen on one handset
+    # until the phone was wiped (#228). Two teams proposing the same code is
+    # the expected outcome of working offline — the duplicate guard cannot
+    # reach a handset that has been offline for two days — so the row is kept
+    # and the office settles it on the reconcile screen.
+    #
+    # This records what was true WHEN THE SERVER HEARD, which is the evidence
+    # a reviewer wants. It is NOT a live flag: by the time anyone reads it the
+    # other claim may have been rejected, or an unmarked row's code may since
+    # have been promoted by someone else. Code that must not overwrite an
+    # existing station re-checks the inventory instead of trusting this — see
+    # `promote_proposal`.
+    collides_with = Column(String(20))
 
     creator = relationship("User", foreign_keys=[created_by])
     reconciler = relationship("User", foreign_keys=[reconciled_by])

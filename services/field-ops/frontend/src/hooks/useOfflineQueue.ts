@@ -119,6 +119,18 @@ export interface ProposalRecord extends StationProposalIn {
   _status: "pending" | "synced" | "conflict" | "error";
   _queuedAt?: string;
   _error?: string;
+  /**
+   * What the server said this code collided with: `inventory`, `proposal`, or
+   * absent when it was free.
+   *
+   * Set on a SYNCED record, which is the part that is easy to miss. Since #228
+   * the server accepts a contested code instead of refusing it, so the
+   * proposal reaches the server and is stored — but the code is still
+   * contested, and a sheet filed against it may belong to somebody else's
+   * monument. `synced` therefore no longer means "safe to send sheets"; this
+   * field is what distinguishes the two. See holdSheetsForUnsettledSites.
+   */
+  _collidesWith?: string | null;
 }
 
 interface FieldOpsDB extends DBSchema {
@@ -412,17 +424,31 @@ async function holdSheetsForUnsettledSites(sheets: QueueRecord[]): Promise<{
 
   // Upper-cased both sides: the server normalises the code before storing it,
   // and a phone keyboard capitalises inconsistently.
-  const byCode = new Map<string, ProposalRecord["_status"]>();
-  for (const p of proposals) byCode.set(p.station_code.toUpperCase(), p._status);
+  const byCode = new Map<string, ProposalRecord>();
+  for (const p of proposals) byCode.set(p.station_code.toUpperCase(), p);
 
   const sendable: QueueRecord[] = [];
   const deferred: QueueRecord[] = [];
   const misattributed: QueueRecord[] = [];
 
   for (const sheet of sheets) {
-    const status = byCode.get(String(sheet.station_code ?? "").toUpperCase());
+    const proposal = byCode.get(String(sheet.station_code ?? "").toUpperCase());
+    const status = proposal?._status;
     if (status === "conflict") misattributed.push(sheet);
     else if (status === "pending" || status === "error") deferred.push(sheet);
+    // SYNCED IS NOT THE SAME AS SETTLED (#228).
+    //
+    // Since the server accepts a contested code instead of refusing it, a
+    // proposal can be `synced` — stored, no error, nothing to retry — while
+    // its code is still claimed by a catalogued station or by another team.
+    // Sending now would file this visit against whatever that code already
+    // means, which is the misattribution the `conflict` branch above exists
+    // to prevent, arriving through a status that reads like success.
+    //
+    // Held rather than marked `error`: nothing is wrong with the sheet and
+    // nothing the observer can do would fix it. The office is looking at both
+    // claims; the sheets wait for that answer.
+    else if (status === "synced" && proposal?._collidesWith) deferred.push(sheet);
     else sendable.push(sheet);
   }
   return { sendable, deferred, misattributed };
@@ -776,12 +802,21 @@ async function flushProposals(): Promise<{
   let quarantined = 0;
 
   for (const rec of pending) {
-    const { _status, _queuedAt, _error, ...payload } = rec;
+    const { _status, _queuedAt, _error, _collidesWith, ...payload } = rec;
     void _status;
     void _error;
+    void _collidesWith;
     try {
-      await proposeStation(payload);
-      await db.put("station_proposal_queue", { ...rec, _status: "synced", _error: undefined });
+      const stored = await proposeStation(payload);
+      // `collides_with` rides along on a 201. The site is on the server either
+      // way; whether its code is contested decides what happens to the sheets
+      // naming it, which is decided in holdSheetsForUnsettledSites.
+      await db.put("station_proposal_queue", {
+        ...rec,
+        _status: "synced",
+        _error: undefined,
+        _collidesWith: stored.collides_with ?? null,
+      });
       synced += 1;
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {

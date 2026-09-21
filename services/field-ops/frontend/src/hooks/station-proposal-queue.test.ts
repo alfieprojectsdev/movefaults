@@ -323,6 +323,62 @@ describe("a sheet is never filed against a code the server refused", () => {
     expect(sent[0].station_code).toBe("NEWA");
   });
 
+  it("holds the sheets when the site was ACCEPTED but its code is contested", async () => {
+    /**
+     * #228. The dangerous case, because it arrives dressed as success.
+     *
+     * The server no longer refuses a taken code — it stores the proposal and
+     * marks `collides_with`, so the office sees both claims. The proposal is
+     * therefore `synced`: no error, nothing to retry. But the code may still
+     * mean a catalogued station or the other team's monument, so a sheet sent
+     * under it now lands on somebody else's station — the same misfiling the
+     * 409 branch exists to prevent, reached through a status that reads fine.
+     */
+    const { addProposal, addToQueue, flushQueue, getProposals, getQueue } = mod;
+    await addProposal(proposal({ station_code: "NEWA" }));
+    await addToQueue({
+      client_uuid: "sheet-1", station_code: "NEWA",
+      visit_date: "2026-09-16", monitoring_method: "campaign",
+    } as never);
+
+    proposeStation.mockResolvedValue({ id: 1, collides_with: "inventory" });
+
+    await flushQueue();
+
+    expect(proposeStation).toHaveBeenCalled();
+    expect(submitLogSheets).not.toHaveBeenCalled();
+
+    const [site] = await getProposals();
+    expect(site._status).toBe("synced");        // it DID reach the server
+    expect(site._collidesWith).toBe("inventory");
+
+    const [sheet] = await getQueue();
+    expect(sheet._status).toBe("pending");      // held, not failed
+    expect(sheet._error).toBeUndefined();
+  });
+
+  it("sends the sheets when the accepted site's code was free", async () => {
+    /**
+     * The anchor for the test above: without this, marking every synced
+     * proposal as contested would pass it, and the common path — a new site
+     * at an uncatalogued monument — would silently stop sending.
+     */
+    const { addProposal, addToQueue, flushQueue } = mod;
+    await addProposal(proposal({ station_code: "NEWB" }));
+    await addToQueue({
+      client_uuid: "sheet-1", station_code: "NEWB",
+      visit_date: "2026-09-16", monitoring_method: "campaign",
+    } as never);
+
+    proposeStation.mockResolvedValue({ id: 1, collides_with: null });
+    submitLogSheets.mockResolvedValue([{ client_uuid: "sheet-1", id: 9 }]);
+
+    await flushQueue();
+
+    const sent = submitLogSheets.mock.calls[0][0] as Array<{ station_code: string }>;
+    expect(sent[0].station_code).toBe("NEWB");
+  });
+
   it("matches the code case-insensitively, as the server normalises it", async () => {
     const { addProposal, addToQueue, flushQueue } = mod;
     await addProposal(proposal({ station_code: "NEWA" }));
