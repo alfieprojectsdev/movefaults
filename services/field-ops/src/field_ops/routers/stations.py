@@ -366,6 +366,63 @@ async def list_proposals(
     return [await _to_out(db, r) for r in rows]
 
 
+#: A handset holds a handful of pending sites. Far past any real queue, and
+#: still one indexed query — the cap is there so this cannot be used to walk
+#: the table, not because 200 is a meaningful number.
+MAX_STATUS_UUIDS = 200
+
+
+@router.get("/station-proposals/status", response_model=list[StationProposalOut])
+async def proposal_status(
+    client_uuid: list[uuid.UUID] = Query(
+        ...,
+        description="The proposals to report on, by the uuid the handset minted.",
+    ),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+) -> list[StationProposalOut]:
+    """
+    What the office decided about proposals this handset already holds.
+
+    **Why this exists.** Since #228 a contested code is accepted rather than
+    refused, and the sheets naming it are HELD on the handset — sending them
+    would file the visit against whatever the code already means. But nothing
+    released them. The office promotes or rejects on the reconcile screen, and
+    the phone never heard, so the sheets waited in IndexedDB with the phone as
+    the only copy. That is #228's stranding moved from the proposal to the
+    sheets.
+
+    **Why by uuid, and why no role gate.** The observer holding the sheets is
+    the person who needs the verdict; gating this to the reconcile roles would
+    rebuild the dead end one layer down. What keeps it safe is the question it
+    answers: only rows matching uuids the caller supplies. Those are minted on
+    the handset and never shown to anyone else, so knowing one IS the
+    capability, and a caller learns nothing about proposals it did not already
+    hold. Returning more — everything for a code, say — would hand one team's
+    unreviewed sites and notes to another.
+
+    **An unknown uuid is an empty answer, not a 404.** A site still waiting on
+    a signal has never reached the server; that is the normal state, and a 404
+    would read to the offline queue as a permanent failure.
+
+    The verdict is decided by each row alone: `reconciled_station_id` set means
+    this claim was promoted, `rejected_reason` set means it was declined,
+    neither means still pending. Nothing is inferred from a rival claim on the
+    same code.
+    """
+    if len(client_uuid) > MAX_STATUS_UUIDS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"At most {MAX_STATUS_UUIDS} proposals per request.",
+        )
+    rows = (
+        await db.execute(
+            select(StationProposal).where(StationProposal.client_uuid.in_(client_uuid))
+        )
+    ).scalars().all()
+    return [await _to_out(db, r) for r in rows]
+
+
 @router.post("/station-proposals/{proposal_id}/promote", response_model=StationProposalOut)
 async def promote_proposal(
     proposal_id: int,

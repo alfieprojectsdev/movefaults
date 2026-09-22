@@ -513,6 +513,134 @@ async def test_reject_requires_a_reason(client, auth_headers, proposal_payload, 
 
 
 # ---------------------------------------------------------------------------
+# reading back the verdict — how a handset learns what the office decided
+# ---------------------------------------------------------------------------
+#
+# Since #228 a contested code is accepted and its sheets are HELD on the
+# handset, because the code may still mean somebody else's monument. Nothing
+# released them: the office decided on the reconcile screen and the phone never
+# heard. These tests cover the read that lets it hear.
+
+
+async def _status(client, headers, *uuids: str):
+    return await client.get(
+        "/api/v1/station-proposals/status",
+        params=[("client_uuid", u) for u in uuids],
+        headers=headers,
+    )
+
+
+@pytest.mark.asyncio
+async def test_an_observer_reads_back_the_office_rejection(
+    client, auth_headers, proposal_payload, db_session
+):
+    """The field role, not an admin, and the reason travels with it.
+
+    The observer is the one holding sheets. Gating this to the reconcile roles
+    would rebuild the dead end one layer down: the office decides and the
+    person who needs the answer is not allowed to read it.
+    """
+    cid = str(uuid.uuid4())
+    created = await client.post(
+        "/api/v1/stations", json={**proposal_payload, "client_uuid": cid}, headers=auth_headers
+    )
+    admin_headers = await _make_admin(client, db_session)
+    await client.post(
+        f"/api/v1/station-proposals/{created.json()['id']}/reject",
+        json={"reason": "Same monument as PBIS; use that code"},
+        headers=admin_headers,
+    )
+
+    resp = await _status(client, auth_headers, cid)
+    assert resp.status_code == 200, resp.text
+    [row] = resp.json()
+    assert row["client_uuid"] == cid
+    assert row["reconciled_at"] is not None
+    assert row["rejected_reason"] == "Same monument as PBIS; use that code"
+    assert row["reconciled_station_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_promoted_proposal_reads_back_as_promoted(
+    client, auth_headers, proposal_payload, db_session
+):
+    """Promotion itself needs PostGIS, so the row is stamped directly.
+
+    That is legitimate here rather than a shortcut: this endpoint is a reader,
+    and what it must get right is reporting the stamp, whoever wrote it. The
+    promote path is covered against real Postgres further down.
+    """
+    from datetime import datetime
+
+    cid = str(uuid.uuid4())
+    created = await client.post(
+        "/api/v1/stations", json={**proposal_payload, "client_uuid": cid}, headers=auth_headers
+    )
+    row = await db_session.get(StationProposal, created.json()["id"])
+    row.reconciled_at = datetime.now().astimezone()
+    row.reconciled_station_id = 4242
+    await db_session.commit()
+
+    [out] = (await _status(client, auth_headers, cid)).json()
+    assert out["reconciled_station_id"] == 4242
+    assert out["rejected_reason"] is None
+
+
+@pytest.mark.asyncio
+async def test_status_returns_only_the_proposals_asked_for(
+    client, auth_headers, proposal_payload
+):
+    """Knowing the uuid is the capability.
+
+    The uuid is minted on the handset and never shown to anyone else, so
+    returning exactly the rows asked for exposes nothing a caller did not
+    already hold. Returning more — the whole table, or everything for a code —
+    would hand one team's unreviewed sites and notes to another.
+    """
+    mine, theirs = str(uuid.uuid4()), str(uuid.uuid4())
+    await client.post(
+        "/api/v1/stations", json={**proposal_payload, "client_uuid": mine}, headers=auth_headers
+    )
+    await client.post(
+        "/api/v1/stations",
+        json={**proposal_payload, "client_uuid": theirs, "name": "Other team"},
+        headers=auth_headers,
+    )
+
+    rows = (await _status(client, auth_headers, mine)).json()
+    assert [r["client_uuid"] for r in rows] == [mine]
+
+
+@pytest.mark.asyncio
+async def test_an_unknown_uuid_is_an_empty_answer_not_a_404(client, auth_headers):
+    """A handset may ask about a proposal the server never received.
+
+    That is the normal state for a site still waiting on a signal, not an
+    error, and a 404 here would read to the queue as a permanent failure.
+    """
+    resp = await _status(client, auth_headers, str(uuid.uuid4()))
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_status_requires_sign_in(client):
+    resp = await _status(client, {}, str(uuid.uuid4()))
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_status_refuses_an_unbounded_question(client, auth_headers):
+    """Capped, so the endpoint cannot be used to hammer the table.
+
+    A handset holds a handful of pending sites at most; two hundred is far past
+    any real queue and still one indexed query.
+    """
+    resp = await _status(client, auth_headers, *[str(uuid.uuid4()) for _ in range(201)])
+    assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
 # needs Postgres — see the module docstring
 # ---------------------------------------------------------------------------
 
