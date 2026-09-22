@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit is disabled on this repository.
+#
+# WHY: it has never produced a review here. Every comment it posts is the same
+# notice -- "This repository does not receive automatic reviews because it has
+# fewer than 10 stars" -- so its only output is an announcement that it will
+# not review, once per PR, indistinguishable at a glance from a real review in
+# the PR timeline.
+#
+# That is worse than silence. Both machines working this repo post as the same
+# GitHub account, so a reviewer checking whether a PR has been looked at reads
+# a comment count that CodeRabbit inflates. On 2026-09-09 that contributed to a
+# PR being reported as reviewed when it had not been.
+#
+# THIS FILE IS BEST-EFFORT, NOT A GUARANTEE. CodeRabbit reads it from the repo,
+# so it governs behaviour only while the GitHub App remains installed. The
+# definitive fix is to remove the repository from the app installation:
+#
+#   https://github.com/settings/installations
+#     -> CodeRabbit -> Configure -> Repository access
+#     -> deselect alfieprojectsdev/movefaults  (or Uninstall)
+#
+# Removing the app makes this file unnecessary but harmless. Keep it, so that a
+# future re-install does not silently resume commenting.
+#
+# Every key below is verified against schema.v2.json and changes a default.
+# Lines that restate a default are deliberately absent: in a file whose whole
+# argument is that CodeRabbit's output looks like work it is not doing, a
+# setting that looks like it acts and does not would be the same failure one
+# level down.
+reviews:
+  # Do not review pull requests automatically.
+  auto_review:
+    enabled: false
+  # Do not post the status/skip notice -- this is the key that suppresses the
+  # "fewer than 10 stars" comment specifically.
+  review_status: false
+  # Do not post progress as a GitHub check.
+  review_progress: false
+  # Do not write a summary into the PR description or walkthrough. This is
+  # what removes the walkthrough's substance -- there is no key that suppresses
+  # the walkthrough outright, and `collapse_walkthrough` only controls whether
+  # it is folded into a <details> block. Setting that to false UN-collapses it,
+  # making the comment more prominent, which an earlier version of this file
+  # did while claiming to suppress it.
+  high_level_summary: false
+chat:
+  auto_reply: false

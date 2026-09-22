@@ -4543,6 +4543,67 @@ work" would lose the content. From the T420's framing, extended:
 | the `--root` widening | know the **expected magnitude** before running |
 | the banner grab | run a **control against a known-good target** |
 | the suppressed `git mv` | **do not mute stderr** |
+| the record-alignment inference (§30.13 / #199) | **ask what the number can decide.** A *different* failure from every row above, and the T420's framing: those are instruments returning a wrong answer, fixed by checking the instrument. This one the instrument was right and the reading went past it. Checking harder would not have caught it — only asking whether the evidence bears on the claim. |
+| an `echo` asserting success | **a confirmation message is not evidence.** A *new* category, and deliberately not filed with the rows above: those are statuses describing something other than the question asked. Here the status was **correct** — `tsc --noEmit && echo "typecheck clean"` printed the claim over three real errors because `tsc` exited 0 on that invocation and `&&` fired accurately. Checking the exit code harder does not help; the exit code was never wrong. The defect is that the echo **restates** the status in prose, and the prose then reads back as independent confirmation of the thing it was derived from. |
+
+**Those two categories must not collapse**, because the remedies are opposite in
+where they point. "Instrument lied" sends you back to the tool. "Instrument
+over-read" sends you back to the proposition, with the tool exonerated.
+
+**The worked example, and it contains both halves.** On 2026-09-09 a basename
+comparison found 105 of the 113 truncated files had larger same-named copies on
+a docked drive, and that was used to conclude the truncated files were
+recoverable. `os.path.getsize` measured the sizes correctly — 105 files really
+were larger. It was asked to decide they were **the same observations**, which
+a size cannot establish and a shared basename cannot either: Leica `.mNN` names
+carry no year, so the larger files were 2014 and 2017 observations sharing a
+name with a 2012 one. Header epochs settled it.
+
+The other half of the same incident is the counter-instance. The residue
+analysis — 8 classes mod 135 across the failures against 119 across the
+controls — was **correctly read**, its conclusion was right, and it was
+overturned for several hours by the over-read above before header evidence
+restored it. A measurement that survives a wrong challenge is in a stronger
+position than one never challenged, and the catalogue should record that
+alongside the failure.
+
+**What made the wrong conclusion persuasive is the part to remember.** The
+basename comparison came with corroboration: 224 files stat'd, zero unreadable,
+Leica MDB magic bytes verified on every larger copy. All of it real, none of it
+bearing on whether the files were the same observation. **Corroboration that
+does not touch the load-bearing assumption makes a wrong claim look stronger.**
+
+The nearest relative in this log is `spread_m`: a real number, correctly
+computed, asked to support a claim outside what it measures.
+
+**Why that row is separate, and why it is the least visible entry here.** Every
+other failure in this catalogue looks like a defect once you see it. This one
+looks like good practice. `echo "pushed"`, `echo "syntax OK"`, `echo
+"review posted"` — both sessions used all three on 2026-09-14 alone, and each
+restates a status rather than testing one. The habit is universal and the
+output is reassuring, which is exactly why it survives review.
+
+**Counted rather than asserted, at the T420's own initiative.** Of 50 Bash
+commands it ran on 2026-09-14, **twelve ended in an echo asserting success** —
+`pushed` ×5, `typecheck clean` ×3, `syntax ok` ×2, `review posted` ×2. **24% of
+everything it ran that day restated a status in prose.** The claim above was
+understated.
+
+**And the entry earned itself within the hour.** Asked whether the migration
+was live in production, the T420 had only `Running upgrade fo006 -> fo007` —
+the command reporting on itself. It said so rather than answering; Alfie
+pointed it at a browser, and the station list loaded with 138 sites. That is
+the far-side evidence this test describes, and the question would otherwise
+have been answered from the echo.
+
+It also ran `echo "review posted"` about ninety seconds after posting the
+review arguing that an echo is not evidence, with the real check —
+`gh api .../reviews -q length` — on the very next line.
+
+The test that distinguishes them: **does the line report something the command
+did not already say?** `git push -q && echo "pushed"` adds nothing — the push's
+own exit code carried it. `git ls-tree origin/<branch>` after a push reports a
+different fact, from the far side. The first is prose; the second is evidence.
 
 ### 30.10 The counter-instance, and it is the same one as §29.9
 
@@ -4552,3 +4613,303 @@ time — exists because the instruction carried its reason, so the peer could te
 the evidence was void before anyone reasoned from it.
 
 Two machines are not redundancy on this project. They are the review.
+
+### 30.11 Later the same day — a reproduction, an elimination, and a correction to §30.5
+
+**§30.5 IS WRONG AND THIS CORRECTS IT.** That section lists
+`/dev/watchdog + iTCO_wdt   RuntimeWatchdogUSec = 1min` among the instruments
+finch now carries, and says the watchdog is what discriminates "wedged" from
+"power". **The watchdog is not armed.** `/dev/watchdog` has been absent since
+the reboot: `iTCO_wdt` is deny-listed by the distribution, and
+`systemd-modules-load` honours the deny-list **while exiting 0**. The module was
+requested, the request was refused, nothing said so, and `RuntimeWatchdogUSec`
+was set on a device that does not exist.
+
+So the discriminator described in §30.5 does not yet exist, and any crash
+before it does is as ambiguous as the previous three. A fix is written and
+waiting on the user.
+
+That is the fourth instrument this week found to be unarmed *after* being
+relied upon — sysrq, the banner grab, the vacuous `rsync --dry-run` below, and
+now this. The pattern is not "instruments fail". It is that **an instrument's
+own report of its state is not evidence that it is working**, and every one of
+these was reported working by the thing that was not working.
+
+### 30.12 261/271 reproduced independently
+
+`all_HD-LBU2.txt` turned out to have been on gps3 all along, in
+`/srv/gnss-archive/manifests/t420-drive-arch-runs/` — md5
+`42423290bd0a2354900efdabf468f619`, identical to the T420's copy. The doc's
+statement that the T420's was the only measurement was true when written and
+had already stopped being true.
+
+Set intersection of `gnss_want_list.csv` against `crd_catalog.csv`, computed on
+gps3:
+
+```
+want-list sites : 271
+COVERED         : 261 / 271
+uncovered (10)  : CALC CEBM CTE1 JONA KBNK LEY5 LOP2 MATA QZN1 QZNA
+```
+
+Exactly the T420's twelve, minus `LEY1` and `PWSU`, which §30.8 closed. Two
+machines, two implementations, same answer.
+
+**The first attempt reproduced the wrong number**, and it is worth recording
+because the guard caught its own author. Running `want_list_diff.py` against
+HD-LBU2 returned **311 site-years across 150 sites** — a real figure answering a
+different question. 259/271 is *site* coverage in the coordinate catalog;
+`want_list_diff.py` measures *site-years* observed on a drive. That is precisely
+the distinction the two sessions agreed to write down four hours earlier, and
+the first thing it caught was the person who proposed it.
+
+### 30.13 `.crx` means three different things
+
+The T420 found `.crx` matching **Chrome extensions**, inflating a RINEX count on
+one partition by ten files.
+
+On gps3 the 494 `.crx` files are neither Chrome nor Hatanaka. They are
+**Bernese**: `SAT_1992.CRX`, `EXAMPLE.CRX`, magic bytes `SATE` and `POSS` — the
+satellite problem files from `GEN/`. One extension, three meanings, two of them
+discovered on the same day on two machines.
+
+**Blast radius — and the first version of this paragraph made the mistake the
+paragraph is about.** It reported 494 inflated files, arrived at by counting
+what matches stage 3's `_RINEX_NAME` pattern and never opening any of them. The
+T420 challenged the figure; checking properly gives a better answer than either
+session had:
+
+```
+match stage 3's pattern in /srv/gnss-archive : 494
+  bare .crx      213   Bernese      SATE 205, POSS 6, KNOW 2
+  .crx.gz/.crx.z 281   GENUINE Hatanaka RINEX 3
+```
+
+The 281 are files like `AIRA00JPN_R_20251500000_01D_30S_MO.crx.gz`, which
+decompress to a `3.0` header. **They are real RINEX 3 and the pattern is
+matching them correctly.** So `crx` in that regex is not a mistake to remove —
+it is doing its job for 281 files and misfiring for 213.
+
+The inflation is therefore **213 of 471,874**, about 0.05pp, and it lands on
+stage 3's attribution headline of **89.3%** — not on the 94.4% counterpart
+figure, which §30.7 computes from `\.(\d{2})[od]$` alone and which `.CRX`
+cannot reach. Naming the wrong percentage in a section about one extension
+meaning three things was its own small instance of the same carelessness.
+
+Consistent with the "would have failed header parsing anyway" reading: stage 3
+records 249 `no-header`, more than 213, so the Bernese files plausibly land
+there already. Not proof — some may be in `none` — but 213 cannot move 89.3% by
+more than 0.05pp either way.
+
+**The fix is not to drop `crx`.** Gate it: require the RINEX 3 long-name shape,
+or sniff for a Hatanaka `CRINEX` header, rather than trusting the extension.
+Which is what this section says to do, and what its own first draft did not.
+
+The general form is the one already in this log twice: an extension is a
+convention, not a type. `.gz` on a file that is LZW, `.crx` on a Bernese table
+*and* on real RINEX 3 in the same directory tree, `.Z` in either case. The magic
+bytes are the fact — and reading them was the one step the first draft skipped
+while recommending it.
+
+### 30.14 Hibernation eliminated — with a control, which is the point
+
+A third hypothesis was raised from gps3 after the user mentioned hibernating
+finch: a failed resume produces exactly the documented signature — log stops
+mid-activity, no shutdown sequence, no panic, nothing in pstore — because the
+kernel that would have written any of it never came back.
+
+**It was raised on an over-generalisation.** One mentioned hibernation became
+"they hibernate this machine as a matter of routine" in the instruction sent to
+the T420, which then had to be corrected: the hibernation was deliberate,
+one-off, and had nothing to do with any crash. A pattern inferred from a single
+event, committed while proposing a hypothesis about pattern.
+
+The test was worth running anyway, and the T420 ran it properly:
+
+```
+file                   lines   boot-time nosave   actual sleep/hibernate
+finch_lastboot        12,099          7                    0
+finch_boot_minus2     17,324          7                    0
+finch_crash_20260908   6,133          7                    0
+```
+
+The seven `PM: hibernation: Registered nosave` lines per file **are the
+control**. They are printed at boot on every boot, so their presence proves the
+PM subsystem was logging in all three. Zero entry events against a
+demonstrably live logger is a real negative — the pstore standard, applied
+without being asked.
+
+**Eliminated as history, not as mechanism.** `upower`'s critical action is
+`HybridSleep`, which fires with nobody asking, and at 16.9% of design capacity
+finch reaches critical fast and unpredictably. That is configuration to change,
+not something to instrument.
+
+### 30.15 The mistake, extended — instruments that report their own health
+
+§30.9 reached 31 and tabulated five remedies. This half-day adds three, and two
+of them are the same failure as §30.9's, which is the point of recording them.
+
+32. **`rsync --dry-run` without `-v` prints nothing at all.** The T420 used that
+    pattern to verify four transfers; every one was counting an empty stream.
+    What saves it is that each was *also* verified by per-extension count
+    comparison, drive against gps3, and those matched. **DATA0 is the proof:**
+    the count check caught 5 `.rar` (442 MB, VCAC Valenzuela 2016) that the
+    vacuous rsync reported as fine.
+33. **`systemd-modules-load` exits 0 on a deny-listed module.** §30.11. The
+    watchdog was configured, believed, and written into this log as armed.
+34. **A pattern inferred from one event.** §30.14. Corrected within minutes
+    because the user said so, not because anything checked.
+
+And one wrong verdict, which is the `.CZO/.PSO` shape again:
+
+35. **"DC9A88 holds only Bernese stock files, zero project value."** True of the
+    64 files examined, false of the partition. `Users/Decollement/Desktop/
+    ToLizeth/` held eight RINEX closing **four want-list site-years** — BACO,
+    BULA, NAUJ, PUER, all 2013, none covered by any other drive. Generalised
+    from the directories that were recognised. Checking where you expect the
+    data to be, rather than everywhere.
+
+**The new remedy, distinct from the five in §30.9:**
+
+| failure | remedy |
+|---|---|
+| `rsync --dry-run`, `systemd-modules-load`, the banner grab | **a tool silent by default reports success by producing no output** — and piping it to `wc -l` turns that silence into something that looks like a measurement. Confirm the instrument is armed *before* trusting what it does not say. |
+
+That is now the dominant category in this catalogue. Of the thirty-five
+entries, the largest single group is checks that returned nothing, or returned
+"fine", for a reason unrelated to the question asked.
+
+### 30.16 Crash 4, and two corrections to this section — 2026-09-09
+
+**§30.3's elimination is half-verified and this says which half.** It reads
+"pstore: armed and empty. Kernel panic is eliminated." The T420 has since
+retracted the *empty* half: `ls /sys/fs/pstore` needs root, its first check
+returned without output, and it read that silence as an empty directory. **No
+root read has actually been made.**
+
+Worth noting the trap is not universal, which makes it more dangerous rather
+than less. On gps3 the same command is loud:
+
+```
+$ ls /sys/fs/pstore
+ls: cannot open directory '/sys/fs/pstore': Permission denied     exit 2
+drwxr-x--- root root /sys/fs/pstore
+```
+
+An explicit error and a non-zero status. Whatever produced silence on finch —
+a wrapper, a redirect, a different mode — it did not reproduce here, so a
+reader cannot infer the failure mode from their own machine.
+
+**What survives, verified from the committed journals on gps3:**
+
+```
+finch_lastboot.log.gz        Registered efi_pstore as persistent store backend
+finch_boot_minus2.log.gz     Registered efi_pstore as persistent store backend
+finch_crash_20260908.log.gz  Registered efi_pstore as persistent store backend
+                             pstore: Using crash dump compression: deflate
+```
+
+All three, plus the compression line. **The instrument was demonstrably armed on
+every crash boot** — that half was never in doubt and is checkable by anyone
+from files on `main`.
+
+So the correct statement is narrower than §30.3's: *pstore was armed on all
+three crashes, and no dump record appears in any journal.* Whether the pstore
+filesystem holds anything is unread. It is strong evidence and not the clean
+elimination the section claims, and the difference matters because §30.3 was
+called the strongest result of the week.
+
+#### Resolved, and the elimination is narrower than either version said
+
+pstore has since been read under root and is genuinely empty:
+
+```
+# sudo ls -la /sys/fs/pstore/
+drwxr-x---  2 root root 0 Sep  9 07:55 .
+drwxr-xr-x 10 root root 0 Sep  9 07:55 ..
+```
+
+Directory mtime is this boot, and records persist across reboots when written,
+so nothing was retained. The retraction above is resolved: the read has now
+actually been made.
+
+**But the scope of what it eliminates is smaller than §30.3 claimed, and smaller
+than the correction above claimed.** What an empty pstore rules out is a panic
+*that reached the panic handler* — that path writes pstore, and nothing is
+there.
+
+**A hang never reaches the panic path and leaves pstore empty by construction.**
+
+So the elimination does not bear against the leading hypothesis at all. §30.16
+narrows the hang to a CPU spinning in kernel mode; that failure produces an
+empty pstore whether or not it occurs. The strongest result of the week turns
+out to be orthogonal to the thing being investigated — it excluded something
+nobody was arguing for.
+
+For crash 4 specifically the empty read carries no information either way: a
+manual SysRq-B is an immediate reset rather than a panic and writes nothing.
+
+**The consequence is the part worth keeping.** With `softlockup_panic` armed, a
+hang of the kind observed converts into a panic — which *does* reach the handler
+and *does* write pstore. It moves the failure from a channel that cannot record
+it onto one that can.
+
+That is the first time in four events that the instrumentation and the failure
+mode have matched. Everything before it was measuring a path the fault never
+took.
+
+### The watchdog is now armed for real
+
+The post-reboot check §30.11 asked for has passed:
+
+```
+07:55:31  Starting finch-watchdog-module.service
+07:55:31  iTCO_wdt.1.auto: Found a Cougar Point TCO device (Version=2)
+07:55:31  Using hardware watchdog 'iTCO_wdt', version 2, device /dev/watchdog0
+07:55:31  Watchdog running with a timeout of 1min
+```
+
+A boot it survived, not a claim from the session that installed it — which is
+the distinction §30.11 existed to draw.
+
+### The signature is necessary but not sufficient
+
+`bootstatus = 0`, so the watchdog did **not** cause this reset. The user pressed
+Alt+SysRq at around 60 seconds of unresponsiveness and beat the 60s timeout.
+
+Boot −1 then ends mid-activity at 07:53:54 with no shutdown sequence — **identical
+to the previous three.** Because a manual SysRq-B resets immediately and the
+journal entry never reaches disk.
+
+**So the signature this log has used throughout to identify a crash cannot
+distinguish a spontaneous wedge from a human forcing a reset.** If any of
+crashes 1–3 involved a manual SysRq, they are not evidence of a spontaneous
+fault. Nothing in §30.4 or §30.11 says so, and it should: the signature is
+necessary, not sufficient.
+
+### What the hang actually was — narrowed by observation, not by logs
+
+Four facts from the user watching it happen:
+
+| observation | what it rules out |
+|---|---|
+| screen and cursor frozen | userspace dead |
+| **CapsLock LED did not toggle** | kernel not servicing input |
+| ssh from another machine failed | network stack dead |
+| **Alt+SysRq did work** | interrupt path alive |
+
+CapsLock is load-bearing. That LED is driven by the kernel input layer, so a
+frozen LED puts the hang **in the kernel, not the desktop**. SysRq still working
+narrows it again: SysRq runs in interrupt context, so interrupts were being
+serviced while normal kernel work was not.
+
+**That is a CPU spinning in kernel mode — precisely what `softlockup_panic`
+detects.** It was not armed: the conf carrying it was written at 08:13, and the
+hang was 07:53:54. **Its silence during the event is therefore worth nothing**,
+which is the §30.3 lesson arriving again within the same day.
+
+Four events have produced no stack. The fifth should self-capture — panic at
+~20s stuck in kernel, pstore write, auto-reboot 20s later, no human required.
+The user has been asked to **wait ~30 s before touching SysRq**, which makes
+even a non-event informative: nothing by 30 s means the CPU is not stuck in
+kernel mode and softlockup is not the mechanism.

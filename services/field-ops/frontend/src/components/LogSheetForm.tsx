@@ -31,8 +31,10 @@ import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import StationPicker from "./StationPicker";
+import ObserverPicker from "./ObserverPicker";
+import FormSection from "./FormSection";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
-import { groupByRole } from "../utils/roles";
+import { generateUUID } from "../utils/uuid";
 import { checkPhotos, formatBytes } from "../utils/photos";
 import { summariseSlants, MIN_SLANTS } from "../utils/slants";
 import {
@@ -120,12 +122,6 @@ export function toDOY(dateStr: string): number {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
-// ── UUID helper ──────────────────────────────────────────────────────────────
-
-function generateUUID(): string {
-  return crypto.randomUUID();
-}
-
 // ── Form values ──────────────────────────────────────────────────────────────
 
 interface FormValues {
@@ -185,7 +181,19 @@ const readonlyStyle: React.CSSProperties = {};
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function LogSheetForm() {
+interface Props {
+  /**
+   * A station chosen on the Today screen, with a counter that increments on
+   * every choice.
+   *
+   * The counter is what makes it work: this component stays mounted while
+   * other tabs are shown, so it can only hear about a choice through a prop
+   * change, and re-choosing the same station would not change the code alone.
+   */
+  stationRequest?: { code: string; nonce: number } | null;
+}
+
+export default function LogSheetForm({ stationRequest = null }: Props = {}) {
   const {
     register,
     handleSubmit,
@@ -242,6 +250,27 @@ export default function LogSheetForm() {
     clientUuidRef.current = generateUUID();
   };
 
+  /**
+   * Adopt a station chosen on Today.
+   *
+   * Only the station changes. Everything else the operator has typed stays,
+   * because tapping a station after starting a sheet is a correction, not a
+   * request to start over -- and this form's whole reason for staying mounted
+   * across tab switches is that discarding typed input at a monument is how a
+   * sheet ends up never filed.
+   *
+   * Keyed on the nonce, not the code: choosing the same station again is a
+   * real event (the operator went to look at it and came back), and a code-only
+   * dependency would swallow it.
+   */
+  const lastStationNonce = useRef<number | null>(null);
+  useEffect(() => {
+    if (!stationRequest) return;
+    if (lastStationNonce.current === stationRequest.nonce) return;
+    lastStationNonce.current = stationRequest.nonce;
+    setValue("station_code", stationRequest.code, { shouldDirty: true });
+  }, [stationRequest, setValue]);
+
   // ── Watched values ─────────────────────────────────────────────────────────
 
   const stationCode    = watch("station_code");
@@ -256,6 +285,16 @@ export default function LogSheetForm() {
   const photoFiles     = watch("photo");
   const equipmentChanged = watch("equipment_changed");
   const observerIds    = watch("observer_ids");
+  // Watched only to describe a collapsed section. A section that shows just
+  // its name when closed has hidden information rather than organised it --
+  // the observer has to open all of them to answer "what have I not filled
+  // in", which is worse than the long scroll it replaced.
+  const batteryV       = watch("battery_voltage_v");
+  const powerNotes     = watch("power_notes");
+  const receiverBefore = watch("receiver_model_before");
+  const antennaBefore  = watch("antenna_type_before");
+  const sessionId      = watch("session_id");
+  const utcEnd         = watch("utc_end");
 
   // ── Staff query ────────────────────────────────────────────────────────────
 
@@ -524,6 +563,54 @@ export default function LogSheetForm() {
     }
   };
 
+  // ── Collapsed-section summaries ───────────────────────────────────────────
+  //
+  // Each says the STATE of the section, not its field names. "12.6 V" answers
+  // "do I need to open this"; "voltage, notes" does not, and that question is
+  // the only reason a closed section exists.
+  //
+  // Every one of them has an explicit empty case, because "not filled in" is
+  // the single most useful thing a closed section can say and it is the case
+  // that is easiest to leave rendering as a blank gap.
+
+  const powerSummary =
+    batteryV || powerNotes
+      ? [batteryV ? `${batteryV} V` : null, powerNotes ? "notes" : null]
+          .filter(Boolean)
+          .join(" · ")
+      : "not recorded";
+
+  const equipmentSummary = equipmentChangeIncomplete
+    ? "change ticked, nothing recorded"
+    : equipmentChanged
+      ? "changed during visit"
+      : receiverBefore || antennaBefore
+        ? [receiverBefore, antennaBefore].filter(Boolean).join(" · ")
+        : "not recorded";
+
+  const antennaSummary = rhImpossible
+    ? "check the slant readings"
+    : rhValue !== undefined && antennaModel
+      ? `${antennaModel} · RINEX ${rhValue.toFixed(3)} m`
+      : antennaModel
+        ? `${antennaModel} · ${slants.count} of 4 slants`
+        : "antenna not selected";
+
+  const sessionSummary = [sessionId || null, utcStart ? `${utcStart} UTC` : null, utcEnd ? `to ${utcEnd}` : null]
+    .filter(Boolean)
+    .join(" · ") || "not recorded";
+
+  // An instruction rather than a status, chosen by Alfie. It is deliberately
+  // close to the in-content "Add a photo to submit." that sits lower in the
+  // section: a screen-reader user hears the same phrasing whether the summary
+  // or the message is the one that reaches them, and on an untouched sheet
+  // only the summary does, because that message is gated on isDirty.
+  const photoSummary = !hasPhoto
+    ? "add a photo before submitting"
+    : !photoCheck.ok
+      ? "attached, but too large to send"
+      : `${photoCount} attached`;
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const isSubmitting = submitState === "saving";
@@ -606,66 +693,17 @@ export default function LogSheetForm() {
       </div>
 
       {/* ── Observers ──
-          Checkboxes, not <select multiple>. There is no Ctrl key at a monument,
-          and that was the only instruction telling anyone more than one
-          observer could be recorded — so a team of four would file sheets
-          naming one person. A multi-select also hides its state behind a
-          native picker on a phone; here every name and every tick is visible
-          at a glance, on 48px rows a gloved thumb can hit. */}
-      <fieldset className="observer-field">
-        <legend>Observers</legend>
-        {staffLoading ? (
-          <p className="hint">Loading staff…</p>
-        ) : staffList && staffList.length > 0 ? (
-          <>
-            <div className="observer-list">
-              {/* Grouped under headings rather than filtered by a control.
-                  With 13 names a filter costs more taps than it saves, and a
-                  station visit routinely mixes groups — a filter would have to
-                  be switched mid-selection every time. Headings show the same
-                  information for free and keep every name one scroll away. */}
-              {groupByRole(staffList).map((group) => (
-                <div key={group.role} className="observer-group">
-                  <p className="observer-group-label">{group.label}</p>
-                  {group.members.map((s) => {
-                    const checked = observerIds.includes(s.id);
-                    return (
-                      <label key={s.id} className="checkbox-row observer-row">
-                        <input
-                          type="checkbox"
-                          value={s.id}
-                          checked={checked}
-                          onChange={(e) => {
-                            // Rebuilt from the current array rather than toggled
-                            // in place, so the stored order stays stable and a
-                            // double tap cannot leave a duplicate id behind.
-                            const next = e.target.checked
-                              ? [...observerIds, s.id]
-                              : observerIds.filter((id) => id !== s.id);
-                            setValue("observer_ids", next, { shouldDirty: true });
-                          }}
-                        />
-                        <span>
-                          {s.full_name === s.initials
-                            ? s.initials
-                            : `${s.full_name} (${s.initials})`}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-            <small>
-              {observerIds.length === 0
-                ? "Tick everyone who was present — more than one is normal."
-                : `${observerIds.length} selected`}
-            </small>
-          </>
-        ) : (
-          <p className="hint">Staff unavailable (offline?)</p>
-        )}
-      </fieldset>
+          The picker itself is ObserverPicker; see its header for why it is a
+          grid of initials rather than the scrolling list of names it replaced,
+          and what that trade costs. Kept in the always-visible part of the
+          sheet rather than inside a collapsible section: who was present is
+          part of saying which visit this is. */}
+      <ObserverPicker
+        staff={staffList}
+        loading={staffLoading}
+        selectedIds={observerIds}
+        onChange={(ids) => setValue("observer_ids", ids, { shouldDirty: true })}
+      />
 
       {/* ── Equipment status ── */}
       <label>
@@ -706,7 +744,7 @@ export default function LogSheetForm() {
       ════════════════════════════════════════════════════════════ */}
       {method === "continuous" && (
         <>
-          <h3 className="section-header">Power &amp; Battery</h3>
+          <FormSection title="Power & battery" summary={powerSummary}>
 
           <label>
             Power notes
@@ -731,6 +769,8 @@ export default function LogSheetForm() {
             />
           </label>
 
+          </FormSection>
+
           {/* ── Equipment: as found, and as left ──────────────────────────
               The Before/After table from the paper GPS Station Maintenance
               Record. "As found" is the half that matters most right now:
@@ -738,7 +778,19 @@ export default function LogSheetForm() {
               so the Palawan visit is the first time their hardware is written
               down anywhere. An unrecorded swap later shows up in the
               coordinate series as a step that looks like ground movement. */}
-          <h3 className="section-header">Equipment as found</h3>
+          {/* One section, not two. "As left" is only meaningful against "as
+              found" -- it records a difference -- so splitting them would let
+              an observer collapse the half that gives the other half meaning.
+
+              forceOpen on the incomplete case is the important part: ticking
+              the box without naming what changed already blocks Submit, and a
+              blocked Submit whose reason is inside a collapsed section is the
+              dead-button defect this whole component is built to avoid. */}
+          <FormSection
+            title="Equipment"
+            summary={equipmentSummary}
+            forceOpen={equipmentChangeIncomplete}
+          >
 
           <p className="hint">
             Copy from the labels on the receiver and antenna. If a field is not
@@ -906,6 +958,7 @@ export default function LogSheetForm() {
               )}
             </>
           )}
+          </FormSection>
         </>
       )}
 
@@ -914,7 +967,17 @@ export default function LogSheetForm() {
       ════════════════════════════════════════════════════════════ */}
       {method === "campaign" && (
         <>
-          <h3 className="section-header">Antenna Setup</h3>
+          {/* Open by default and forced open on either failure. It holds the
+              only required field in the campaign branch and the slant
+              arithmetic, which is the part of this sheet a mistake in is
+              expensive -- a mistyped decimal reaches the coordinate series as
+              a vertical step. */}
+          <FormSection
+            title="Antenna setup"
+            summary={antennaSummary}
+            defaultOpen
+            forceOpen={!!errors.antenna_model || rhImpossible}
+          >
 
           <label>
             Antenna model *
@@ -1049,7 +1112,13 @@ export default function LogSheetForm() {
             </p>
           )}
 
-          <h3 className="section-header">Session Details</h3>
+          </FormSection>
+
+          <FormSection
+            title="Session details"
+            summary={sessionSummary}
+            forceOpen={!!errors.utc_start}
+          >
 
           <label>
             Session ID
@@ -1096,12 +1165,22 @@ export default function LogSheetForm() {
             <input type="checkbox" {...register("bubble_centred")} />
             Bubble centred (level confirmed)
           </label>
+          </FormSection>
 
         </>
       )}
 
       {/* ── Photo ── */}
-      <h3 className="section-header">Site Photo</h3>
+      {/* Open by default and forced open whenever it is the thing stopping
+          submission. The photo is mandatory and disables the Submit button;
+          an operator who cannot see why the button is grey has no way to find
+          out. */}
+      <FormSection
+        title="Site photo"
+        summary={photoSummary}
+        defaultOpen
+        forceOpen={!hasPhoto || !photoCheck.ok}
+      >
 
       <label>
         Photo *
@@ -1221,6 +1300,8 @@ export default function LogSheetForm() {
           Add a photo to submit.
         </p>
       )}
+
+      </FormSection>
 
       {/* ── Submit ── */}
       <button

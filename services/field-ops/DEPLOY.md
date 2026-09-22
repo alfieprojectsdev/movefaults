@@ -55,15 +55,47 @@ endpoint runs out.
 `?sslmode=require` and `channel_binding` are stripped automatically — asyncpg
 rejects libpq's parameters and the resulting error is not obvious.
 
-### Run the migrations **[you]**
+### Run the migrations
+
+**Since 2026-09-14 this is normally automatic.**
+`.github/workflows/field_ops_migrate.yml` runs `upgrade head` against the
+DIRECT endpoint whenever anything under `services/field-ops/migrations/`
+reaches `main`, and fails the run if the database does not end at head. The
+manual path below remains correct for a first deploy, a new database, or
+recovery.
+
+**Why it was automated.** On 2026-09-12 a field observer reported the station
+picker permanently unavailable. `fo007` created
+`field_ops.station_proposals`, the code querying it shipped, and the migration
+was never run. `/stations` was the only endpoint touching that table, so login,
+`/staff` and the observer list all worked and exactly one dropdown went blank —
+which read as a connectivity fault for two days. Prod was two revisions behind
+and nothing said so.
 
 From this repo, with `DATABASE_URL` exported in your shell:
 
 ```bash
-export DATABASE_URL='postgresql://...'          # from Neon, DIRECT (no -pooler)
-uv run alembic -c services/field-ops/alembic.ini upgrade head  # field_ops schema, 3 revisions
-uv run alembic upgrade 011                                     # core schema, see below
+# The real Neon string. `postgresql://...` below is a placeholder -- running it
+# verbatim fails with `could not translate host name "..."`, which has happened.
+export DATABASE_URL='postgresql://USER:PASS@HOST.neon.tech/DB'   # DIRECT, no -pooler
+
+# READ FIRST. This is the step whose absence caused the incident above: it
+# costs nothing, writes nothing, and tells you whether anything needs doing.
+uv run alembic -c services/field-ops/alembic.ini current --verbose
+
+uv run alembic -c services/field-ops/alembic.ini upgrade head   # field_ops schema
+uv run alembic upgrade 011                                      # core schema, SEPARATE tree
 ```
+
+**These are two different alembic trees against two different schemas.** The
+`-c services/field-ops/alembic.ini` one manages `field_ops`; the bare one
+manages the core schema from the repo root. Run them as separate steps and read
+each result — pasting both at once hides which failed.
+
+**Do not hardcode a revision count here.** An earlier version of this section
+said *"3 revisions"*; there were seven by the time it mattered, and the
+document telling you to run migrations was itself stale about which existed.
+`alembic heads` is the answer that cannot rot.
 
 **Migrations use the DIRECT endpoint — the opposite of the running service.**
 `CREATE EXTENSION` must be the first statement in a session, and the pooler

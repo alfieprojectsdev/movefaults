@@ -54,8 +54,17 @@ fi
 say "Is anything actually listening on 22?"
 # The real test. Not `systemctl is-active`, which reads `inactive` for a
 # perfectly healthy socket-activated sshd.
-if ss -lntp 2>/dev/null | grep -q ':22 '; then
-    ss -lntp 2>/dev/null | grep ':22 ' | sed 's/^/  /'
+# Captured once and matched with a here-string rather than `ss | grep -q`.
+# Under `set -o pipefail` that idiom reports a FALSE NEGATIVE whenever the
+# producer is still writing when grep exits on its match: grep -q returns 0,
+# the producer takes SIGPIPE and exits 141, and pipefail promotes 141 to the
+# pipeline's status. It happens to be safe here today because `ss` emits nine
+# lines and finishes first -- but that is a property of this host's listener
+# count, not of the code. `lsmod | grep -qi` in finch_watchdog_fix.sh had the
+# same shape over 164 lines and could never return "yes".
+LISTENERS=$(ss -lntp 2>/dev/null || true)
+if grep -q ':22 ' <<<"$LISTENERS"; then
+    grep ':22 ' <<<"$LISTENERS" | sed 's/^/  /'
 else
     echo "  NOTHING LISTENING ON 22 — this is the failure, investigate before"
     echo "  trusting this path. Check: systemctl status ssh.socket ssh.service"
@@ -80,11 +89,34 @@ else
     # `tailscale status` back to needing root. `set` changes one setting.
     tailscale set --ssh
     echo "  --ssh set"
-    if tailscale status --json 2>/dev/null | grep -qi '"RunSSH": *true'; then
-        echo "  RunSSH: true"
-    else
-        echo "  RunSSH not reported true — check 'tailscale status --json'"
-    fi
+    # `RunSSH` appears 0 times in `tailscale status --json` and once in
+    # `tailscale debug prefs`, so the obvious check reads a document that has
+    # never carried the field and returns false on a correctly configured host.
+    # A check that CANNOT SUCCEED is a different defect from one that fails
+    # noisily, and the two are indistinguishable in a diff.
+    echo "  prefs: $(tailscale debug prefs 2>/dev/null | grep -i RunSSH | tr -d ' \t,' || echo 'RunSSH not found')"
+
+    # The banner test belongs to a PEER, not to this host, and that is not a
+    # style preference -- it is measurable:
+    #
+    #     from gps3   100.111.100.73:22  ->  SSH-2.0-Tailscale
+    #     from finch  100.111.100.73:22  ->  SSH-2.0-OpenSSH_10.2p1 Debian-2
+    #
+    # Tailscale SSH intercepts INBOUND traffic from tailnet peers. A connection
+    # from this host to its own tailnet address is not inbound peer traffic, so
+    # it lands on the system sshd. Running the banner check here would report
+    # "Tailscale SSH is not shadowing it" on a host where it demonstrably is --
+    # the same shape as the two bugs above, in the check written to catch them.
+    #
+    # `head -n 1`, never `head -c N`: sshd sends its banner then waits for a
+    # client that never speaks, so a byte count larger than the banner blocks
+    # until `timeout` kills it, taking the buffered output with it. That is how
+    # an earlier probe reported "nothing listening" against a healthy sshd.
+    TS_IP=$(tailscale ip -4 2>/dev/null | head -n 1 || true)
+    echo "  Tailscale SSH shadows port 22 on ${TS_IP:-the tailnet address} for"
+    echo "  PEERS only; from here that port is the system sshd. Confirm from"
+    echo "  another tailnet node -- it must answer SSH-2.0-Tailscale:"
+    echo "      timeout 5 bash -c 'exec 3<>/dev/tcp/${TS_IP:-<tailnet-ip>}/22 && head -n 1 <&3'"
 fi
 
 cat <<'CLOSING'

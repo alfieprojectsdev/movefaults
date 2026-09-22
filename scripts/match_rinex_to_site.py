@@ -29,6 +29,15 @@ distance attached, not a determination:
                 header position bad enough to be useless. Distance to the
                 nearest site is reported so the two can be told apart.
   * `no-header` no APPROX POSITION at all.
+  * `stale-header` the position matched a monument, but the file's own name
+                names a DIFFERENT site AND it was observed outside any period
+                that monument has a solution for. Known cause: receivers tested
+                at PHIVOLCS HQ before deployment keep the HQ position in the
+                header and carry it into the field. `matched_site` is preserved
+                -- the position match is real; it is the TRUST that is
+                withdrawn. A verdict rather than an extra column, because a
+                consumer filtering on `unique` would otherwise keep receiving
+                these silently.
 
 DISAGREEMENT WITH THE FILENAME IS THE POINT
 Where a file already carries a site code (RINEX marker name, or the first four
@@ -47,11 +56,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import datetime
 import gzip
 import math
 import re
 import subprocess
 import sys
+import zipfile
 from collections import Counter
 from pathlib import Path
 
@@ -73,7 +84,20 @@ _CODE_RUN = re.compile(r"[A-Za-z0-9]{4}")
 # RINEX 2 observation (.YYo / .YYd, Hatanaka) or RINEX 3 (.rnx / .crx),
 # optionally compressed. Case-insensitive throughout: the archive holds .Z and
 # .z, .YYo and .YYO, and treating those as different cost 28,679 files once.
-_RINEX_NAME = re.compile(r"\.(\d{2}[od]|rnx|crx)(\.(gz|z))?$", re.I)
+# `zip` joined the compression suffixes on 2026-09-17. Before that, the nine
+# RINEX bundles in the archive (`ptgy223e.rnx.zip` and siblings -- three real
+# observation sessions, stored in triplicate) were never ENUMERATED. The `PK`
+# branch in header_bytes() claimed to skip zips, but a `.rnx.zip` could not
+# reach it: the pattern rejected the name first, so the sessions vanished
+# before anything existed to count them. A `.zip` is only selected when a
+# RINEX extension precedes it, which is what keeps the six Bernese software
+# distributions (`exe_aiub_64_2021.zip`, ...) out.
+_RINEX_NAME = re.compile(r"\.(\d{2}[od]|rnx|crx)(\.(gz|z|zip))?$", re.I)
+
+# What happened to every zip a run met, keyed by outcome. Printed in the run
+# summary. A zip that cannot be read is COUNTED WITH ITS REASON, never returned
+# as nothing in silence: a silent skip is how three sessions went missing.
+ZIP_OUTCOMES: Counter[str] = Counter()
 
 
 def best_code(text: str, known: set[str]) -> str:
@@ -85,6 +109,93 @@ def best_code(text: str, known: set[str]) -> str:
         if r in known:
             return r
     return runs[0] if runs else ""
+
+
+def _zip_observation_header(path: Path, limit: int) -> bytes:
+    """Header of the ONE observation member of a RINEX zip bundle.
+
+    Never the first member. Every RINEX bundle in this archive holds
+
+        .17g  GLONASS nav   <- first
+        .17m  met
+        .17n  GPS nav
+        .17o  observation   <- last
+
+    so "read the first member" -- the design an abandoned branch used --
+    misattributes all nine of them. The observation member is selected by the
+    same pattern that selects bare files, which admits `.YYo`/`.YYd`/`.rnx`/
+    `.crx` and not navigation or met files.
+
+    Exactly one observation member is required. Zero means there is nothing to
+    attribute; several means any choice would be the first-member bug with a
+    different tiebreak. A member that is itself a zip is not opened: recursing
+    would make the observation count depend on archive depth.
+    """
+    try:
+        zf = zipfile.ZipFile(path)
+    except (OSError, zipfile.BadZipFile, EOFError):
+        ZIP_OUTCOMES["skipped: unreadable zip"] += 1
+        return b""
+
+    with zf:
+        obs = [n for n in zf.namelist()
+               if _RINEX_NAME.search(n) and not n.lower().endswith(".zip")]
+        if not obs:
+            ZIP_OUTCOMES["skipped: no observation member"] += 1
+            return b""
+        if len(obs) > 1:
+            ZIP_OUTCOMES["skipped: several observation members"] += 1
+            return b""
+        member = obs[0]
+
+        try:
+            with zf.open(member) as fh:
+                magic = fh.read(2)
+        except (OSError, zipfile.BadZipFile, EOFError):
+            ZIP_OUTCOMES["skipped: unreadable zip"] += 1
+            return b""
+
+        # A member can be compressed in its own right. Dispatch on its magic
+        # exactly as a bare file is dispatched, and decompress while the zip is
+        # still open -- never by reading `limit` COMPRESSED bytes first.
+        #
+        # Both branches below were found by gps3 reviewing #233, and neither
+        # occurs in the archive (all nine real members are plain .17o):
+        #
+        #   * `.Z` (LZW) used to fall through untouched. Still-compressed bytes
+        #     were returned and counted "read", so "read" did not guarantee a
+        #     header anyone could parse -- the defect this counter exists to
+        #     prevent. stdlib has no LZW reader, so zcat, as for bare `.Z`.
+        #
+        #   * gzip used to decompress a truncated compressed prefix. Measured,
+        #     that fails only at limit <= 32 (gzip's header overhead dominates)
+        #     and never at the 65536 used here. Streaming removes the
+        #     dependency on the compression ratio rather than relying on it.
+        try:
+            if magic == b"\x1f\x8b":
+                with zf.open(member) as raw, gzip.GzipFile(fileobj=raw) as g:
+                    head = g.read(limit)
+            elif magic == b"\x1f\x9d":
+                r = subprocess.run(["zcat", "-f"], input=zf.read(member),
+                                   capture_output=True, timeout=60)
+                # The EXIT STATUS decides, not the length of stdout. On corrupt
+                # input zcat exits 1 yet still writes a byte or two, so a
+                # `not r.stdout` check let corruption through as a successful
+                # read of garbage. Found because deleting that check changed
+                # no test result.
+                if r.returncode != 0 or not r.stdout:
+                    raise OSError(f"zcat exit {r.returncode}, {len(r.stdout)} bytes")
+                head = r.stdout[:limit]
+            else:
+                with zf.open(member) as fh:
+                    head = fh.read(limit)
+        except (OSError, EOFError, gzip.BadGzipFile, subprocess.SubprocessError,
+                zipfile.BadZipFile):
+            ZIP_OUTCOMES["skipped: unreadable compressed member"] += 1
+            return b""
+
+    ZIP_OUTCOMES["read"] += 1
+    return head[:limit]
 
 
 def header_bytes(path: Path, limit: int = 65536) -> bytes:
@@ -113,19 +224,50 @@ def header_bytes(path: Path, limit: int = 65536) -> bytes:
                                timeout=60)
             return r.stdout[:limit]
         if magic == b"PK":
-            return b""      # zip container; not a bare RINEX, skip
+            return _zip_observation_header(path, limit)
         with path.open("rb") as fh:
             return fh.read(limit)
     except (OSError, EOFError, subprocess.SubprocessError, gzip.BadGzipFile):
         return b""
 
 
-def read_header(path: Path) -> tuple[tuple[float, float, float] | None, str]:
-    """Return (xyz or None, marker name). Reads only the header."""
-    xyz, marker = None, ""
+_FIRSTOBS = re.compile(r"^\s*(\d{4})\s+\d+\s+\d+\s+\d+.*TIME OF FIRST OBS")
+_FN_R2 = re.compile(r"^[A-Za-z0-9]{4}\d{3}[a-z0-9]?\.(\d{2})[odOD]", re.I)
+_FN_R3 = re.compile(r"^[A-Za-z0-9]{9}_[RSU]_(\d{4})\d{3}", re.I)
+
+
+def year_from_name(name: str) -> int | None:
+    """Observation year from the filename, when the header did not give one.
+
+    RINEX 2 short names carry two digits, so the century is a convention:
+    GPS observations start in 1980, and this archive's oldest is 1993, so
+    >= 80 is 19xx and anything else 20xx. That breaks in 2080 and is
+    correct until then.
+    """
+    m = _FN_R3.match(name)
+    if m:
+        return int(m.group(1))
+    m = _FN_R2.match(name)
+    if m:
+        yy = int(m.group(1))
+        return 1900 + yy if yy >= 80 else 2000 + yy
+    return None
+
+
+def read_header(path: Path) -> tuple[tuple[float, float, float] | None, str, int | None]:
+    """Return (xyz or None, marker name, observation year or None).
+
+    The year comes from TIME OF FIRST OBS, which is the file saying when it
+    was observed. It is checked against the matched site's catalog epoch
+    range: a 2020 file cannot be an observation of a monument whose coverage
+    ended in 2008, and 95 files in this archive are exactly that -- receivers
+    tested at PHIVOLCS HQ before deployment, carrying the HQ position into the
+    field. See docs/bern52/stage4_decisions.md.
+    """
+    xyz, marker, year = None, "", None
     blob = header_bytes(path)
     if not blob:
-        return None, ""
+        return None, "", None
     try:
         for line in blob.decode("ascii", "replace").splitlines():
             if True:
@@ -141,22 +283,133 @@ def read_header(path: Path) -> tuple[tuple[float, float, float] | None, str]:
                     m = _MARKER.match(line)
                     if m:
                         marker = m.group(1).strip().upper()
+                if year is None:
+                    m = _FIRSTOBS.match(line)
+                    if m:
+                        year = int(m.group(1))
                 if "END OF HEADER" in line:
                     break
     except (OSError, EOFError):
-        return None, ""
-    return xyz, marker
+        return None, "", None
+    return xyz, marker, year
 
 
-def load_catalog(path: Path) -> list[tuple[str, float, float, float]]:
-    rows = []
+def load_catalog(path: Path) -> tuple[list[tuple[str, float, float, float]],
+                                      dict[str, tuple[int, int]]]:
+    """Return the position rows, and each site's SOLUTION epoch range.
+
+    NOT an operating period, and the column names invite that misreading.
+    `epoch_min`/`epoch_max` are the range of `EPOCH:` values in the CRD files
+    mentioning a site -- when somebody computed a position, not when the
+    monument was observing. `PTAG` carries 2008 observations against an
+    `epoch_min` of 2009-07-12. See `docs/bern52/crd_catalog.md`.
+
+    Read that way it is still the only column that separates codes sharing a
+    location. The PHIVOLCS roof was re-occupied several times under different
+    codes:
+
+        PHIC <-> PIVS    0.49 m    PHIC 1998-02-21 .. 2006-12-05
+        PHIV <-> PIVS   23.84 m    PIVS 2012-01-01 .. 2014-03-12
+        PHIC <-> PHIV   23.95 m    PHIV 1998-02-15 .. 2008-08-28
+
+    `PHIC` and `PIVS` are **half a metre apart** with non-overlapping ranges.
+    No position fix separates those at any plausible precision, and no
+    improvement to the fix ever will.
+    """
+    rows, epochs = [], {}
     with path.open(encoding="utf-8") as fh:
         for r in csv.DictReader(ln for ln in fh if not ln.startswith("#")):
             try:
                 rows.append((r["site"], float(r["x"]), float(r["y"]), float(r["z"])))
             except (KeyError, ValueError):
                 continue
-    return rows
+            try:
+                lo = int((r.get("epoch_min") or "")[:4])
+                hi = int((r.get("epoch_max") or "")[:4])
+                if lo and hi:
+                    epochs[r["site"]] = (lo, hi)
+            except (KeyError, ValueError):
+                pass
+    return rows, epochs
+
+
+
+def _commit() -> str:
+    """Short commit of the working tree, marked `-dirty` if it is.
+
+    Returns `unknown` rather than raising: a provenance stamp must never be
+    the reason a two-hour run fails to start.
+    """
+    here = Path(__file__).resolve().parent
+    try:
+        h = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                           capture_output=True, text=True, timeout=10,
+                           cwd=here)
+        if h.returncode != 0:
+            return "unknown"
+        rev = h.stdout.strip()
+        # Confirm the repository that answered actually TRACKS this file.
+        #
+        # `cwd` only decides which repo git talks to, so a copy of this script
+        # dropped inside any git tree gets that tree's commit -- plausible,
+        # confident and wrong. Both machines ran copies out of /tmp today;
+        # /tmp is not a repo so it degrades to "unknown" correctly, but a
+        # scratch copy inside any checkout would not.
+        #
+        # Checking the path SHAPE is not enough -- a copy at `<other>/scripts/`
+        # satisfies it. `ls-files --error-unmatch` asks the only question that
+        # matters: does this repository know this file? An untracked copy
+        # answers no. A copy that has been committed into another repo answers
+        # yes, and stamping that repo is then correct -- it is a fork, and its
+        # commit is the honest provenance.
+        #
+        # A wrong provenance stamp is worse than none, which is this feature's
+        # own argument: the run it exists to prevent was dangerous precisely
+        # because it was internally consistent and carried no way to tell.
+        t = subprocess.run(["git", "ls-files", "--error-unmatch",
+                            str(Path(__file__).resolve())],
+                           capture_output=True, text=True, timeout=10, cwd=here)
+        if t.returncode != 0:
+            return "unknown"
+        d = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
+                           capture_output=True, text=True, timeout=10,
+                           cwd=here)
+        return rev + ("-dirty" if d.stdout.strip() else "")
+    except Exception:
+        return "unknown"
+
+
+def _now() -> str:
+    return datetime.datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def epoch_verdict(year: int | None, span: tuple[int, int] | None) -> str:
+    """`in`, `outside`, or "" when either side is unknown.
+
+    ON ITS OWN THIS IS NOT A DEFECT SIGNAL, and the first version of this
+    check treated it as one. Measured over the 2016 PHIVOLCS datapool:
+
+        outside the matched site's range        4,732 of 24,769   (19%)
+          of those, filename AGREES with match  4,704             (99.4%)
+          filename disagrees                       28
+
+    The 4,704 are ordinary 2016 observations at CORS whose catalog epochs read
+    2021-09-01..2026-02-12, because `epoch_min`/`epoch_max` record *when a
+    coordinate solution was catalogued*, not when the site operated. Twenty-five
+    sites account for all of them. Flagging those would report a fifth of the
+    archive as suspect and bury the real cases.
+
+    So epoch is a MODIFIER on a disagreement, not a flag by itself: it narrows
+    the 122 files whose filename already contradicts the position down to 28.
+    Reported that way in the summary, and the column is still emitted for every
+    row because it is a fact about the file and costs nothing.
+
+    Never reattributes. The catalog range is derived from files that may
+    themselves be misattributed, so overruling attribution with it is circular.
+    """
+    if year is None or not span:
+        return ""
+    return "in" if span[0] <= year <= span[1] else "outside"
 
 
 def main() -> int:
@@ -174,7 +427,7 @@ def main() -> int:
     ap.add_argument("-o", "--output", type=Path, default=Path("rinex_matches.csv"))
     args = ap.parse_args()
 
-    cat = load_catalog(args.catalog)
+    cat, epochs = load_catalog(args.catalog)
     known = {c[0] for c in cat}
     bysite = {c[0]: (c[1], c[2], c[3]) for c in cat}
     if not cat:
@@ -198,20 +451,35 @@ def main() -> int:
     print(f"  RINEX files: {len(files)}")
 
     verdicts: Counter[str] = Counter()
+    epoch_out = epoch_in = epoch_unknown = epoch_out_disagree = 0
     agree = disagree = no_name = new_attr = 0
     path_agree = path_disagree = 0
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", newline="", encoding="utf-8") as fh:
+        # Stamp the commit that produced this file. A run over the whole
+        # archive takes ~2 hours, so a fix landing mid-run yields output
+        # matching NEITHER version -- and on 2026-09-09 an 18,148-row partial
+        # was discarded for exactly that: it carried the `stale-header`
+        # verdict from one commit and the blank-`agrees` bug from the commit
+        # before the fix. Nothing in the file contradicted anything else in
+        # it, so it was internally consistent and silently wrong, and it was
+        # bound for the archive README.
+        #
+        # "Which code wrote this?" should be answerable from the artefact, not
+        # from remembering when the job was launched relative to a commit.
         fh.write("# RINEX -> site attribution by header position. CANDIDATES, not\n"
                  "# determinations: APPROX POSITION is a single-point fix good to\n"
-                 "# ~100 m and sometimes far worse. See match_rinex_to_site.py.\n")
+                 "# ~100 m and sometimes far worse. See match_rinex_to_site.py.\n"
+                 f"# generated {_now()} by match_rinex_to_site.py @ {_commit()}\n")
         w = csv.writer(fh)
         w.writerow(["path", "verdict", "matched_site", "distance_m",
                     "n_within_radius", "alternatives", "name_site",
                     "marker_site", "agrees", "claimed_site", "claimed_m",
-                    "path_site", "path_agrees"])
+                    "path_site", "path_agrees", "obs_year", "epoch_ok"])
         for p in files:
-            xyz, marker_raw = read_header(p)
+            xyz, marker_raw, obs_year = read_header(p)
+            if obs_year is None:
+                obs_year = year_from_name(p.name)
             marker = best_code(marker_raw, known)
             name_site = best_code(p.name, known)
             # The site the DIRECTORY implies. Path-derived attribution is
@@ -231,12 +499,12 @@ def main() -> int:
             if xyz is None:
                 verdicts["no-header"] += 1
                 w.writerow([p, "no-header", "", "", 0, "", name_site, marker, "",
-                        "", "", path_site, ""])
+                        "", "", path_site, "", obs_year or "", ""])
                 continue
             if not (R_MIN <= math.dist((0, 0, 0), xyz) <= R_MAX):
                 verdicts["bad-position"] += 1
                 w.writerow([p, "bad-position", "", "", 0, "", name_site, marker,
-                            "", "", "", path_site, ""])
+                            "", "", "", path_site, "", obs_year or "", ""])
                 continue
 
             near = sorted(((math.dist(xyz, (x, y, z)), s) for s, x, y, z in cat))
@@ -320,20 +588,79 @@ def main() -> int:
                 else:
                     path_disagree += 1
 
+            # Epoch check -- reports, never reattributes. See epoch_verdict().
+            ep = epoch_verdict(obs_year, epochs.get(site)) if site else ""
+            if ep == "outside":
+                epoch_out += 1
+                if name_site and name_site != site:
+                    epoch_out_disagree += 1
+                    # STALE HEADER. Two independent things are wrong at once:
+                    # the file's own name says a different site, AND it was
+                    # observed outside any period this monument has a solution
+                    # for. A 2020 file cannot be an observation of a monument
+                    # whose coverage ended in 2008.
+                    #
+                    # The known cause is receivers tested at PHIVOLCS HQ before
+                    # field deployment, which keep the HQ position in the
+                    # header and carry it into the field.
+                    #
+                    # The verdict changes; `matched_site` does NOT. The
+                    # position match is real and is preserved -- what is being
+                    # said is that it should not be trusted as an attribution.
+                    # This is deliberately a verdict rather than a quiet extra
+                    # column: a consumer filtering on `unique` would otherwise
+                    # keep receiving these silently, which is exactly the
+                    # failure the flag exists to prevent.
+                    if verdict in ("unique", "aliases"):
+                        verdicts[verdict] -= 1
+                        verdict = "stale-header"
+                        verdicts[verdict] += 1
+            elif ep == "in":
+                epoch_in += 1
+            elif site:
+                epoch_unknown += 1
+
             w.writerow([p, verdict, site, f"{dist:.1f}" if dist else "",
                         len(within), "|".join(s for _, s in within[1:4]),
                         name_site, marker,
-                        "" if verdict not in ("unique", "aliases")
+                        # stale-header belongs here. The verdict fires
+                        # BECAUSE the filename disagrees, so excluding it
+                        # blanks the column that records the disagreement --
+                        # anyone auditing on `agrees == "NO"` would lose
+                        # exactly the rows this flag exists to surface.
+                        "" if verdict not in ("unique", "aliases",
+                                              "stale-header")
                         else ("" if not informative
                               else ("yes" if site in informative else "NO")),
                         claimed, f"{claimed_d:.1f}" if claimed_d is not None else "",
                         path_site,
-                        "" if not path_site or verdict not in ("unique", "aliases")
-                        else ("yes" if path_site == site else "NO")])
+                        "" if not path_site or verdict not in ("unique", "aliases",
+                                                               "stale-header")
+                        else ("yes" if path_site == site else "NO"),
+                        obs_year or "", ep])
 
     print(f"  wrote {args.output}\n")
+    if epoch_out or epoch_in:
+        tot_ep = epoch_out + epoch_in + epoch_unknown
+        print("\n  epoch check (reported, never applied):")
+        print(f"    inside the matched site's range  : {epoch_in}")
+        print(f"    outside it                       : {epoch_out}")
+        print(f"    no year or no range              : {epoch_unknown}"
+              f"   of {tot_ep}")
+        print(f"    OUTSIDE *and* filename disagrees : {epoch_out_disagree}"
+              "   <- the ones worth reading")
+        print("    'outside' alone is dominated by catalog coverage gaps --"
+              " epoch_min/epoch_max record when a solution was catalogued,"
+              " not when the site operated. See epoch_verdict().")
+
     for v, n in verdicts.most_common():
         print(f"    {n:>7}  {v}")
+    if ZIP_OUTCOMES:
+        # Stated even when every zip was read, so a run that met none is
+        # distinguishable from one whose zips all vanished.
+        print(f"\n  zip bundles: {sum(ZIP_OUTCOMES.values())}")
+        for why, n in ZIP_OUTCOMES.most_common():
+            print(f"    {n:>7}  {why}")
     tot = sum(verdicts.values()) or 1
     attributed = verdicts["unique"] + verdicts["aliases"]
     print(f"\n  attributed to one monument: {attributed} "

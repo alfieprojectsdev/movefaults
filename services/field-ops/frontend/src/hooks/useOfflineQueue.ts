@@ -42,6 +42,9 @@ import {
   ApiError,
   LogSheetIn,
   LogSheetOut,
+  StationProposalIn,
+  fetchProposalStatus,
+  proposeStation,
   submitLogSheets,
   uploadLogSheetPhoto,
 } from "../services/api";
@@ -101,7 +104,49 @@ interface PhotoProgress {
   uploaded: number;
 }
 
+/**
+ * A site created at the monument, waiting to reach the server.
+ *
+ * Kept in its own store rather than folded into logsheet_queue. The two are
+ * different objects with different failure modes: a rejected sheet is one
+ * visit's paperwork, a rejected proposal is a station code that two teams may
+ * both be claiming, and only a human can settle the second.
+ *
+ * `_status` mirrors the sheet queue's vocabulary so QueueView can grow a
+ * section without learning a second one. "conflict" is the addition, and it is
+ * the reason this store exists separately — see flushProposals.
+ */
+export interface ProposalRecord extends StationProposalIn {
+  _status: "pending" | "synced" | "conflict" | "error";
+  _queuedAt?: string;
+  _error?: string;
+  /**
+   * What the server said this code collided with: `inventory`, `proposal`, or
+   * absent when it was free.
+   *
+   * Set on a SYNCED record, which is the part that is easy to miss. Since #228
+   * the server accepts a contested code instead of refusing it, so the
+   * proposal reaches the server and is stored — but the code is still
+   * contested, and a sheet filed against it may belong to somebody else's
+   * monument. `synced` therefore no longer means "safe to send sheets"; this
+   * field is what distinguishes the two. See holdSheetsForUnsettledSites.
+   */
+  _collidesWith?: string | null;
+  /**
+   * The office's reason, when it declined this proposal on the reconcile
+   * screen. Present only after resolveContestedProposals has heard back; its
+   * presence is what turns a held sheet into one that says why it cannot be
+   * sent.
+   */
+  _rejectedReason?: string;
+}
+
 interface FieldOpsDB extends DBSchema {
+  station_proposal_queue: {
+    key: string; // client_uuid
+    value: ProposalRecord;
+    indexes: { by_status: string };
+  };
   logsheet_queue: {
     key: string; // client_uuid
     value: QueueRecord;
@@ -116,7 +161,8 @@ interface FieldOpsDB extends DBSchema {
 const DB_NAME = "field-ops";
 // v1 → v2 adds _photo / _photoUploaded
 // v2 → v3 adds the photo_progress store
-const DB_VERSION = 3;
+// v3 → v4 adds station_proposal_queue
+const DB_VERSION = 4;
 
 /**
  * Nothing in this module may hang forever.
@@ -172,6 +218,12 @@ async function getDb(): Promise<IDBPDatabase<FieldOpsDB>> {
         }
         if (oldVersion < 3) {
           db.createObjectStore("photo_progress", { keyPath: "client_uuid" });
+        }
+        if (oldVersion < 4) {
+          const proposals = db.createObjectStore("station_proposal_queue", {
+            keyPath: "client_uuid",
+          });
+          proposals.createIndex("by_status", "_status");
         }
       },
       blocked() {
@@ -328,10 +380,151 @@ export interface FlushResult {
   error?: string;
 }
 
+/**
+ * Decide which queued sheets may be sent, given what we now know about the
+ * sites they name.
+ *
+ * THE DEFECT THIS EXISTS AGAINST
+ *
+ * `station_code` on a logsheet is a loose TEXT reference with no foreign key,
+ * and nothing in this module used to look at it. So when a proposal was
+ * refused 409 -- meaning the code already belongs to something else -- the
+ * sheets naming that code were submitted anyway, in this same function,
+ * seconds later.
+ *
+ * Demonstrated rather than reasoned about: proposal outcome `conflict`, sheets
+ * submitted 1, station_code sent NEWA. If NEWA was refused because it already
+ * exists in the central inventory, then NEWA is a real station somewhere else,
+ * and a day's observations have just been filed against it. Silently, and with
+ * no foreign key to stop it.
+ *
+ * That is worse than losing the record. A lost record is noticed; a wrong
+ * record attached to a real station is read as data.
+ *
+ * THREE OUTCOMES, AND WHY DEFERRING IS NOT THE SAME AS BLOCKING
+ *
+ *   misattributed -- the code was REFUSED. It means something other than what
+ *   the observer meant, so the sheet cannot be sent under it at all. Marked
+ *   `error` and kept; only a human can choose the right code.
+ *
+ *   deferred -- the site is proposed but not yet adjudicated, because its own
+ *   sync failed transiently. Left pending, untouched, no error. It sends on a
+ *   later flush once the site lands. This is a delay of minutes on a queue
+ *   built to survive days.
+ *
+ *   sendable -- everything else: sites already accepted, and the 138 stations
+ *   that were in the inventory all along. The common path is unchanged.
+ *
+ * The earlier comment here said a day's fieldwork must not be held hostage to
+ * a station code someone else also claimed. That reasoning assumed sending was
+ * the safe direction. It is not: for a refused code, sending is the harmful
+ * direction and holding is the safe one.
+ */
+async function holdSheetsForUnsettledSites(sheets: QueueRecord[]): Promise<{
+  sendable: QueueRecord[];
+  deferred: QueueRecord[];
+  misattributed: QueueRecord[];
+}> {
+  const proposals = await getProposals();
+  if (proposals.length === 0) {
+    return { sendable: sheets, deferred: [], misattributed: [] };
+  }
+
+  // Upper-cased both sides: the server normalises the code before storing it,
+  // and a phone keyboard capitalises inconsistently.
+  const byCode = new Map<string, ProposalRecord>();
+  for (const p of proposals) byCode.set(p.station_code.toUpperCase(), p);
+
+  const sendable: QueueRecord[] = [];
+  const deferred: QueueRecord[] = [];
+  const misattributed: QueueRecord[] = [];
+
+  for (const sheet of sheets) {
+    const proposal = byCode.get(String(sheet.station_code ?? "").toUpperCase());
+    const status = proposal?._status;
+    if (status === "conflict") misattributed.push(sheet);
+    else if (status === "pending" || status === "error") deferred.push(sheet);
+    // SYNCED IS NOT THE SAME AS SETTLED (#228).
+    //
+    // Since the server accepts a contested code instead of refusing it, a
+    // proposal can be `synced` — stored, no error, nothing to retry — while
+    // its code is still claimed by a catalogued station or by another team.
+    // Sending now would file this visit against whatever that code already
+    // means, which is the misattribution the `conflict` branch above exists
+    // to prevent, arriving through a status that reads like success.
+    //
+    // Held rather than marked `error`: nothing is wrong with the sheet and
+    // nothing the observer can do would fix it. The office is looking at both
+    // claims; the sheets wait for that answer.
+    else if (status === "synced" && proposal?._collidesWith) deferred.push(sheet);
+    else sendable.push(sheet);
+  }
+  return { sendable, deferred, misattributed };
+}
+
 async function runFlush(): Promise<FlushResult> {
   const db = await getDb();
-  const pending = await db.getAllFromIndex("logsheet_queue", "by_status", "pending");
-  if (pending.length === 0) return { attempted: 0, synced: 0, quarantined: 0 };
+
+  // Sites before sheets. Not required for the sheets to land -- station_code
+  // is a loose TEXT reference with no foreign key -- but it means a sheet's
+  // station exists by the time anyone reads it, AND it means the outcome of
+  // each proposal is known before the sheets naming it are sent. The second
+  // reason is the load-bearing one; see holdSheetsForUnsettledSites below.
+  try {
+    await flushProposals();
+  } catch {
+    // Already logged where it matters; the sheets are the priority.
+  }
+  try {
+    await resolveContestedProposals();
+  } catch {
+    // Same reasoning: a failed read-back leaves the sheets held, which is the
+    // safe direction. They are asked about again on the next flush.
+  }
+
+  const allPending = await db.getAllFromIndex("logsheet_queue", "by_status", "pending");
+  if (allPending.length === 0) return { attempted: 0, synced: 0, quarantined: 0 };
+
+  const { sendable, deferred, misattributed } = await holdSheetsForUnsettledSites(allPending);
+
+  // A sheet naming a code the server just refused must not be sent. Marked,
+  // not dropped: the observation is real and the code is what is wrong.
+  const proposalsByCode = new Map(
+    (await getProposals()).map((p) => [p.station_code.toUpperCase(), p]),
+  );
+  for (const rec of misattributed) {
+    const code = String(rec.station_code ?? "");
+    const reason = proposalsByCode.get(code.toUpperCase())?._rejectedReason;
+    await db.put("logsheet_queue", {
+      ...rec,
+      _status: "error",
+      // Two causes, two messages, because they call for different things
+      // from the observer. A refusal at sync time means the code already
+      // belongs to something else. An office rejection carries a reason a
+      // person wrote — often the right code — and hiding it behind the generic
+      // sentence would throw away the one piece of guidance they have.
+      _error: reason
+        ? `The office declined the site code ${code}: ${reason}. This sheet was ` +
+          `NOT sent, because the code does not name the site you visited. ` +
+          `Re-file it under the correct code.`
+        : `The site code ${code} was refused: it already belongs to a ` +
+          `different station. This sheet was NOT sent, because sending it would ` +
+          `file your observations against that other station. Re-file it under the ` +
+          `correct code.`,
+    });
+  }
+  if (misattributed.length > 0) await refreshCount();
+
+  void deferred; // left pending on purpose; they go once their site syncs
+
+  const pending = sendable;
+  if (pending.length === 0) {
+    return {
+      attempted: allPending.length,
+      synced: 0,
+      quarantined: misattributed.length,
+    };
+  }
 
   let server;
   try {
@@ -526,6 +719,258 @@ async function flushIndividually(
   return accepted;
 }
 
+// ── Station proposals ───────────────────────────────────────────────────────
+
+/**
+ * Queue a site created at the monument.
+ *
+ * Always queued, never posted directly, even with a signal. One path means one
+ * set of behaviours to reason about: the record exists locally the moment the
+ * observer taps save, the picker can offer the code immediately, and the
+ * difference between "online" and "offline" is only how soon the flush
+ * happens. The alternative — POST when online, queue when not — is two code
+ * paths where the offline one is exercised least and matters most.
+ */
+async function addProposal(proposal: StationProposalIn): Promise<void> {
+  const db = await getDb();
+  const record: ProposalRecord = {
+    ...proposal,
+    _status: "pending",
+    _queuedAt: new Date().toISOString(),
+  };
+  await withTimeout(
+    db.put("station_proposal_queue", record),
+    DB_WRITE_TIMEOUT_MS,
+    "Saving the new site",
+  );
+  await refreshProposals();
+}
+
+/**
+ * Proposals still on this device, newest first.
+ *
+ * The picker reads this so a site created offline is selectable straight away.
+ * Without it the observer would create a station and then be unable to choose
+ * it, which is the same dead end the feature exists to remove.
+ */
+async function getProposals(): Promise<ProposalRecord[]> {
+  const db = await getDb();
+  const all = await db.getAll("station_proposal_queue");
+  return all.sort((a, b) => (b._queuedAt ?? "").localeCompare(a._queuedAt ?? ""));
+}
+
+// Same shape as countSubscribers above: one source of truth, every mounted
+// consumer re-reads when it changes. A component holding its own copy would
+// keep showing a site as unsynced after the flush that sent it.
+const proposalSubscribers = new Set<(rows: ProposalRecord[]) => void>();
+
+/**
+ * Ask the server what the office decided about contested proposals, and
+ * settle the ones it has decided.
+ *
+ * WHY THIS EXISTS
+ *
+ * Since #228 a contested code is accepted and its sheets are held here, because
+ * sending them would file the visit against whatever the code already names.
+ * Nothing released them: the office decided on the reconcile screen and the
+ * phone never heard, so the sheets sat in IndexedDB with this handset as the
+ * only copy.
+ *
+ * ONE ROW DECIDES, AND ONLY THIS HANDSET'S ROW
+ *
+ *   promoted (`reconciled_station_id` set) -- this claim is now the station.
+ *   The code names the monument the observer stood at, so the marker is
+ *   cleared and holdSheetsForUnsettledSites sends the sheets. That includes a
+ *   promotion made with merge_into_existing onto a code the inventory already
+ *   held; releasing then is correct ONLY because a reviewer compared both
+ *   claims and decided they are one monument. The release rests on that human
+ *   judgement, not on anything this function can check.
+ *
+ *   rejected (`rejected_reason` set) -- the code does not name this site.
+ *   Moved to `conflict`, which the sheet path already treats as "never send
+ *   under this code", carrying the office's reason so the observer is told
+ *   what to do instead of only that something failed.
+ *
+ *   neither -- still pending. Left alone, still held. Nothing tells the
+ *   observer how long; that is an honest gap, not an oversight, because only
+ *   the office knows.
+ *
+ * Nothing is inferred from a rival claim on the same code. Whether the OTHER
+ * team was promoted says nothing about this one: the office can merge both.
+ *
+ * Only contested proposals are asked about. A free code needed no decision,
+ * and asking about it would be traffic with no possible effect.
+ */
+async function resolveContestedProposals(): Promise<void> {
+  const db = await getDb();
+  const held = (await db.getAll("station_proposal_queue")).filter(
+    (p) => p._status === "synced" && p._collidesWith,
+  );
+  if (held.length === 0) return;
+
+  let verdicts;
+  try {
+    verdicts = await fetchProposalStatus(held.map((p) => p.client_uuid));
+  } catch {
+    // Offline, or the server is struggling. Keep holding: an unanswered
+    // question is not a verdict, and either default would be a guess.
+    return;
+  }
+
+  const byUuid = new Map(verdicts.map((v) => [v.client_uuid, v]));
+  for (const p of held) {
+    const v = byUuid.get(p.client_uuid);
+    if (!v) continue;
+    if (v.reconciled_station_id != null) {
+      await db.put("station_proposal_queue", { ...p, _collidesWith: null });
+    } else if (v.rejected_reason) {
+      await db.put("station_proposal_queue", {
+        ...p,
+        _status: "conflict",
+        _error: `the office declined it: ${v.rejected_reason}`,
+        _rejectedReason: v.rejected_reason,
+      });
+    }
+  }
+  await refreshProposals();
+}
+
+async function refreshProposals(): Promise<ProposalRecord[]> {
+  const rows = await getProposals();
+  for (const fn of proposalSubscribers) fn(rows);
+  return rows;
+}
+
+/**
+ * Send queued proposals.
+ *
+ * Runs BEFORE the sheet flush. Not for correctness — `station_code` on a
+ * logsheet is a loose TEXT reference with no foreign key, stated as a decision
+ * in `001_field_ops_schema.py`, so a sheet naming an uncatalogued site syncs
+ * perfectly well either way. It runs first so that by the time anyone in the
+ * office opens that sheet, the station it names exists to be looked up.
+ *
+ * A 409 IS NOT AN ERROR TO RETRY
+ *
+ * It means the code is already taken — by the central inventory, or by a
+ * proposal someone else filed. The server's own docstring is explicit that two
+ * teams offline for two days can both propose the same code and both will
+ * sync; the duplicate guard cannot reach a handset. Retrying forever would
+ * never resolve it, and dropping it would destroy a record of a real site
+ * someone visited.
+ *
+ * So it is marked `conflict` and kept. The observer sees that their site was
+ * not accepted and why, and the sheet they filed against that code is still
+ * queued and still valid — it names a code, and a code is a string.
+ *
+ * CONFLICT IS 409 AND ONLY 409
+ *
+ * This keyed on `isPermanent` first, which is also true for 400, 403, 404 and
+ * 422. All of those became `conflict` — a word that in this store, in the
+ * docstring above and in the picker means "someone else took this code". So a
+ * 422 told the observer to re-propose under a different code, which cannot
+ * work, and put a wrong code in the record.
+ *
+ * The distinction is why, not whether. 409 is an answer about the world: the
+ * code stays taken however many times the handset asks. A 422 or a 404 is an
+ * answer about this client — a schema that moved under a handset days out of
+ * date, or an API base pointing somewhere that no longer exists. A deploy
+ * genuinely does change those, so they are quarantined as `error` and are
+ * retryable, exactly as a rejected logsheet is.
+ *
+ * That matters more than the arithmetic suggests: schema drift makes every
+ * queued proposal 422, and a misrouted base makes every one 404. Both would
+ * have converted a recoverable server-side condition into an unrecoverable
+ * client-side state, for the whole queue at once.
+ *
+ * Found by gps3 in review of #226, by mutating `isPermanent` to `status === 409`
+ * and watching all 216 tests still pass.
+ */
+async function flushProposals(): Promise<{
+  synced: number;
+  conflicts: number;
+  quarantined: number;
+}> {
+  const db = await getDb();
+  const pending = await db.getAllFromIndex("station_proposal_queue", "by_status", "pending");
+  if (pending.length === 0) return { synced: 0, conflicts: 0, quarantined: 0 };
+
+  let synced = 0;
+  let conflicts = 0;
+  let quarantined = 0;
+
+  for (const rec of pending) {
+    const { _status, _queuedAt, _error, _collidesWith, _rejectedReason, ...payload } = rec;
+    void _status;
+    void _error;
+    void _collidesWith;
+    void _rejectedReason;
+    try {
+      const stored = await proposeStation(payload);
+      // `collides_with` rides along on a 201. The site is on the server either
+      // way; whether its code is contested decides what happens to the sheets
+      // naming it, which is decided in holdSheetsForUnsettledSites.
+      await db.put("station_proposal_queue", {
+        ...rec,
+        _status: "synced",
+        _error: undefined,
+        _collidesWith: stored.collides_with ?? null,
+      });
+      synced += 1;
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        await db.put("station_proposal_queue", {
+          ...rec,
+          _status: "conflict",
+          _error: err.message,
+          _queuedAt,
+        });
+        conflicts += 1;
+        continue;
+      }
+      if (err instanceof ApiError && err.isPermanent) {
+        // Refused for a reason that is about this client rather than about the
+        // code. Kept, marked, and retryable once whatever caused it is fixed.
+        await db.put("station_proposal_queue", {
+          ...rec,
+          _status: "error",
+          _error: err.message,
+          _queuedAt,
+        });
+        quarantined += 1;
+        continue;
+      }
+      // Transient: no signal, a 500, a timeout. Leave it pending and stop —
+      // the rest of the batch will fail the same way, and hammering a dead
+      // link costs battery at a site that has none to spare.
+      break;
+    }
+  }
+
+  await refreshProposals();
+  return { synced, conflicts, quarantined };
+}
+
+/**
+ * Move a quarantined proposal back into the queue.
+ *
+ * Mirrors retryRecord for logsheets, and like it, fixes nothing itself — the
+ * cause is a reload onto a current bundle, or an API base corrected. This only
+ * clears the mark so the next flush tries again; if the cause is still there
+ * it quarantines again with a fresh message, which is the honest outcome.
+ *
+ * Deliberately refuses a `conflict`. That one is an answer about the world and
+ * asking again cannot change it; offering a retry would be offering a button
+ * that is guaranteed not to work.
+ */
+async function retryProposal(clientUuid: string): Promise<void> {
+  const db = await getDb();
+  const rec = await db.get("station_proposal_queue", clientUuid);
+  if (!rec || rec._status !== "error") return;
+  await db.put("station_proposal_queue", { ...rec, _status: "pending", _error: undefined });
+  await refreshProposals();
+}
+
 /**
  * Single-flight flush. Concurrent callers join the run already in progress
  * rather than starting a second one — without this, the three mounted hook
@@ -578,7 +1023,17 @@ function attachOnlineListener(): void {
   });
 }
 
-export { addToQueue, flushQueue, getQueue, refreshCount, retryRecord };
+export {
+  addToQueue,
+  addProposal,
+  flushQueue,
+  flushProposals,
+  getQueue,
+  getProposals,
+  refreshCount,
+  retryRecord,
+  retryProposal,
+};
 
 // ── Hook ────────────────────────────────────────────────────────────────────
 
@@ -603,6 +1058,28 @@ export function useOfflineQueue() {
   }, []);
 
   return { addToQueue, flushQueue, getQueue, pendingCount, refreshCount, retryRecord };
+}
+
+/**
+ * Sites created on this device, and their sync state.
+ *
+ * Separate from useOfflineQueue because the consumers are separate: the picker
+ * needs the codes so they can be selected, and nothing else in the app cares.
+ * Folding it into the sheet queue's hook would re-render the whole form every
+ * time a proposal changed.
+ */
+export function useProposals() {
+  const [proposals, setProposals] = useState<ProposalRecord[]>([]);
+
+  useEffect(() => {
+    proposalSubscribers.add(setProposals);
+    void refreshProposals();
+    return () => {
+      proposalSubscribers.delete(setProposals);
+    };
+  }, []);
+
+  return { proposals, addProposal, refreshProposals, retryProposal };
 }
 
 /** Remove the underscore-prefixed local bookkeeping fields before sending. */

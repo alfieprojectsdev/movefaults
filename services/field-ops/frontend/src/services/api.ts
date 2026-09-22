@@ -13,6 +13,22 @@ export interface Station {
   elevation: number | null;
   fault_segment: string | null;
   status: string | null;
+
+  // Detail the table always held and the endpoint did not return until
+  // 2026-09-15. All optional on both sources: a field-created site carries
+  // only what the observer typed at the monument, and the central inventory
+  // is itself incomplete for older stations.
+  municipality?: string | null;
+  province?: string | null;
+  region?: string | null;
+  monitoring_method?: string | null;
+  land_owner?: string | null;
+  date_installed?: string | null;
+  agency?: string | null;
+  maintenance_interval_days?: number | null;
+
+  //: `inventory` (central, reconciled) or `field` (proposed, unverified).
+  source?: string;
 }
 
 export interface Staff {
@@ -308,6 +324,124 @@ export async function fetchMe(): Promise<Me> {
 
 export async function fetchStations(): Promise<Station[]> {
   return apiFetch<Station[]>("/stations");
+}
+
+// ── Station proposals ───────────────────────────────────────────────────────
+
+/**
+ * A site created from the field, before anyone in the office has seen it.
+ *
+ * It is a *proposal*, not a station. The endpoint takes it from any signed-in
+ * observer with no role gate, deliberately: the person blocked by requiring an
+ * approval is the one standing at the monument. Safety comes from the row
+ * staying unreconciled until someone promotes it, not from refusing it.
+ */
+export interface StationProposalIn {
+  /**
+   * Minted on the handset, before going offline, and never re-minted.
+   *
+   * This is the server's idempotency key: a retried sync returns the existing
+   * row instead of creating a second site. The offline queue retries whole
+   * batches, so a proposal that is re-sent must be recognisable as the same
+   * proposal or the inventory grows a duplicate every time the signal drops.
+   */
+  client_uuid: string;
+  station_code: string;
+  name?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  elevation?: number | null;
+  monitoring_method: string;
+  municipality?: string | null;
+  province?: string | null;
+  region?: string | null;
+  /** Handset clock at creation. The server may not see this for days. */
+  proposed_at?: string | null;
+  notes?: string | null;
+}
+
+export interface StationProposalOut extends StationProposalIn {
+  id: number;
+  status: string | null;
+  created_by: number | null;
+  created_at: string | null;
+  reconciled_at: string | null;
+  reconciled_by: number | null;
+  reconciled_station_id: number | null;
+  rejected_reason: string | null;
+  /**
+   * What this code collided with when the server heard: `inventory`,
+   * `proposal`, or null when it was free.
+   *
+   * A collision used to be a 409 and the proposal never became a row (#228),
+   * which stranded a real site on one handset. It is now accepted and marked,
+   * so the office can see both claims. A marked proposal is NOT settled: the
+   * code may still turn out to mean the other team's monument, so sheets
+   * filed against it are held until a human decides.
+   */
+  collides_with: string | null;
+  /**
+   * Logsheets already filed against this code.
+   *
+   * The number the reconcile decision actually turns on. A proposal carrying
+   * sheets is a different question from an empty one: rejecting the first
+   * orphans real observations that were validly collected at *something*.
+   */
+  sheet_count: number;
+}
+
+/**
+ * The reconcile queue. Pending first, oldest first.
+ *
+ * Gated server-side to admin and data_processor. Nothing here re-implements
+ * that gate — the app decides which tab to offer, the server decides who may
+ * read.
+ */
+export async function fetchProposals(pendingOnly = true): Promise<StationProposalOut[]> {
+  return apiFetch<StationProposalOut[]>(
+    `/station-proposals?pending_only=${pendingOnly ? "true" : "false"}`,
+  );
+}
+
+/** Accept a proposal into `public.stations`. The one write field-ops makes there. */
+export async function promoteProposal(id: number): Promise<StationProposalOut> {
+  return apiFetch<StationProposalOut>(`/station-proposals/${id}/promote`, { method: "POST" });
+}
+
+/**
+ * Decline a proposal. The row is kept and the reason is recorded.
+ *
+ * A reason is required by the server (`min_length=1`). That is not bureaucracy:
+ * a rejected proposal with sheets against it is a data-quality finding, and the
+ * only record of why the code was refused is this string.
+ */
+export async function rejectProposal(id: number, reason: string): Promise<StationProposalOut> {
+  return apiFetch<StationProposalOut>(`/station-proposals/${id}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+/**
+ * What the office decided about proposals this handset already holds.
+ *
+ * Asks by the uuids the handset minted, and the server answers with exactly
+ * those rows — knowing the uuid is the capability, so no role gate is needed
+ * and nothing about another team's proposals comes back. A uuid the server has
+ * never seen is simply absent from the answer, not an error.
+ */
+export async function fetchProposalStatus(uuids: string[]): Promise<StationProposalOut[]> {
+  const qs = uuids.map((u) => `client_uuid=${encodeURIComponent(u)}`).join("&");
+  return apiFetch<StationProposalOut[]>(`/station-proposals/status?${qs}`);
+}
+
+export async function proposeStation(
+  proposal: StationProposalIn,
+): Promise<StationProposalOut> {
+  return apiFetch<StationProposalOut>("/stations", {
+    method: "POST",
+    body: JSON.stringify(proposal),
+  });
 }
 
 // ── Staff ────────────────────────────────────────────────────────────────────

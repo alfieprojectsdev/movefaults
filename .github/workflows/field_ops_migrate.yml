@@ -1,0 +1,124 @@
+# Apply field_ops migrations when they change.
+#
+# WHY THIS EXISTS
+# On 2026-09-12 a field observer reported the station picker as permanently
+# unavailable. The cause: `fo007` created `field_ops.station_proposals`, the
+# code that queries it shipped, and the migration was never run against prod.
+# `/stations` was the only endpoint touching that table, so login, `/staff` and
+# the observer list all worked and exactly one dropdown went blank. It read as
+# a connectivity fault for two days.
+#
+# Migrations being manual is what made that possible, and DEPLOY.md's
+# instruction to run them is easy to skip because nothing fails visibly when
+# you do.
+#
+# WHY NOT ON THE SERVICE
+# render.yaml rejects migrate-on-boot, and that reasoning is correct and kept:
+# a web process racing itself across replicas to run DDL is a worse failure
+# than a manual step. Render's preDeployCommand would be the natural home --
+# it runs once per deploy rather than once per replica -- but it requires a
+# paid plan and the service is on `free`.
+#
+# This runs exactly once, outside the service, and cannot race another copy of
+# itself.
+#
+# IT DOES STILL RACE THE DEPLOY, and that is not fixed here. render.yaml:63 is
+# `autoDeployTrigger: commit`, so a push touching migrations/** starts this
+# workflow AND a Render deploy of the code needing that migration, at the same
+# time. Whichever finishes first wins, and if the deploy does, the new code is
+# live against a schema that has not caught up -- the same failure as the
+# incident above, with a window of minutes instead of two days.
+#
+# Closing it properly needs Render's preDeployCommand, which gates the deploy
+# on the migration and requires a paid plan; the service is on `free`. Until
+# then this narrows the window rather than removing it, and that is the honest
+# description.
+#
+# WHY THE DIRECT ENDPOINT
+# DATABASE_URL for the running service is the POOLED endpoint. Migrations must
+# use the DIRECT one (same string without `-pooler`): `CREATE EXTENSION` must
+# be the first statement in a session and PgBouncer reuses sessions. Hence a
+# separate secret rather than reusing the service's.
+name: field-ops migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/field-ops/migrations/**"
+      - "services/field-ops/alembic.ini"
+  workflow_dispatch:
+
+# Two deploys migrating the same database concurrently is the race this exists
+# to avoid. Queue them instead, and never cancel one midway: an interrupted
+# alembic run leaves the version table describing a state that was not reached.
+concurrency:
+  group: field-ops-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    # `Production`, capital P, because that environment already exists on this
+    # repo. GitHub AUTO-CREATES an environment a workflow references, so a
+    # lowercase `production` here would silently create a second, unprotected
+    # one beside the real one -- and any approval rule later added to
+    # `Production` would not apply to the job running DDL. The name is an
+    # exact-match contract with something that already exists, not a label.
+    #
+    # It carries no protection rules today (verified 2026-09-14), so it is
+    # currently a namespace for the secret rather than a gate. Adding a
+    # required reviewer in Settings -> Environments -> Production is what turns
+    # it into one, and is worth doing before this runs unattended.
+    environment: Production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sync dependencies
+        run: uv sync --extra dev
+
+      # Read before write. The failure this workflow exists to prevent was
+      # invisible precisely because nobody looked at the current revision, and
+      # printing it makes every run say what it found rather than only what it
+      # did.
+      - name: Current revision, before any change
+        env:
+          DATABASE_URL: ${{ secrets.FIELD_OPS_DATABASE_URL_DIRECT }}
+        run: uv run alembic -c services/field-ops/alembic.ini current --verbose
+
+      - name: Upgrade to head
+        env:
+          DATABASE_URL: ${{ secrets.FIELD_OPS_DATABASE_URL_DIRECT }}
+        run: uv run alembic -c services/field-ops/alembic.ini upgrade head
+
+      # A migration that "succeeded" while leaving the database short of head
+      # is the shape of the original incident. Assert the end state rather than
+      # trusting the previous step's exit code.
+      - name: Verify the database actually reached head
+        env:
+          DATABASE_URL: ${{ secrets.FIELD_OPS_DATABASE_URL_DIRECT }}
+        run: |
+          set -euo pipefail
+          # NO `2>/dev/null` on either command. CLAUDE.md forbids swallowing
+          # stderr on a gated operation, and this is the step that decides
+          # whether the gate passed: a connection refusal, a bad URL and a
+          # missing extension all exit non-zero identically, and with stderr
+          # discarded the workflow would fail with no diagnostic -- inside a
+          # job that exists because a failure was invisible.
+          cur=$(uv run alembic -c services/field-ops/alembic.ini current \
+                | grep -oE '^[a-z0-9]+' | head -1)
+          # `head -1` assumes a single head. True today -- fo001..fo007 is
+          # linear with one `down_revision = None` -- but it is an assumption
+          # about the migration tree, not a property of alembic. A branched
+          # tree would make this compare against an arbitrary head and pass
+          # while the database is short of another.
+          head=$(uv run alembic -c services/field-ops/alembic.ini heads \
+                | grep -oE '^[a-z0-9]+' | head -1)
+          echo "current=$cur head=$head"
+          if [ "$cur" != "$head" ]; then
+            echo "::error::database is at '$cur' but head is '$head' -- migrations did not complete"
+            exit 1
+          fi

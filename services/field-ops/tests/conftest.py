@@ -116,9 +116,22 @@ def pytest_configure(config):
 # stays green on a laptop with nothing running — a fixture that turns the whole
 # suite red when Docker is down would just get deleted.
 
+# These must match docker-compose.yml's `db` service, and until 2026-09-15 they
+# did not: the default was `pogf:pogf@localhost:5433/pogf` while the compose
+# file ships POSTGRES_USER=pogf_user, POSTGRES_PASSWORD=pogf_password,
+# POSTGRES_DB=pogf_db.
+#
+# The fixture below skips on ANY connection failure, and an authentication
+# failure is one. So every test behind it skipped for everyone, on a correctly
+# running stack, from the day it was written -- reported as "no PostgreSQL",
+# which reads as "Docker is down" rather than "these credentials are wrong".
+#
+# A skip is the safe direction and that is exactly why nobody looked. Green
+# output either way, and the tests it guards are the ones that cannot run
+# anywhere else.
 FIELD_OPS_TEST_PG_URL = os.environ.get(
     "FIELD_OPS_TEST_DATABASE_URL",
-    "postgresql+asyncpg://pogf:pogf@localhost:5433/pogf",
+    "postgresql+asyncpg://pogf_user:pogf_password@localhost:5433/pogf_db",
 )
 
 

@@ -98,6 +98,7 @@ from `CLAUDE.md` because both duplicates were removed.
 | **Detect compression by MAGIC BYTES, never by extension.** 165 of 200 sampled plain `.YYd` are `.Z` data with the suffix stripped (`\x1f\x9d`) | trusting the suffix reads them as text and finds no header |
 | **`teqc`, `gfzrnx` AND `runpkr00` are all on gps3 at `~/bin`** (runpkr00 arrived 2026-09-03), not on `PATH` | supersedes the earlier note that runpkr00 was absent |
 | **A `PATH` check is not an existence check** — `command -v` reported teqc and gfzrnx missing while both were installed, and nearly had stage 3 declared blocked | 2026-09-03 |
+| **`CRX2RNX` is at `~/BERN54/SCRIPT/EXE/CRX2RNX` on gps3, and is on `PATH` only in INTERACTIVE shells.** `~/.bashrc:124` sources `~/BERN54/LOADGPS.setvar`, below the interactive guard at lines 6–8 (`case $- in *i*) ;; *) return;;`), so a non-interactive shell returns before reaching it — login or not. An interactive terminal finds it; `cron`, systemd units, scripts and **`ssh host 'cmd'`** do not. Source the setvar explicitly, or call the absolute path | verified 2026-09-17 by `test -x` and by all four interactive × login combinations under `env -i HOME=/home/gps3`: interactive non-login ON path, interactive `--norc` off, non-interactive off, non-interactive LOGIN off. `bash -c` and `bash -lc` run from a configured session both inherit its `PATH` and reported the tool present — the first nearly "disproved" a true claim, and the second produced a false one ("login shells have it") that reached this row and survived its first review. Same lesson as the row above, applied twice |
 
 | **9.5% of archive RINEX files share a filename with another** (44,957 of 471,874), and **26% of those same-name groups are NOT byte-identical**. File count is not observation count | measured 2026-09-05 over 300 sampled groups. No two duplicates share a directory, so this is cross-drive repetition |
 | **Byte comparison is too strict an identity for this archive.** 222/300 sampled duplicate groups are byte-identical but 258/300 share a decompressed header — ~12% are the same observations in a different container (gz / .Z / plain) | content identity is station + epoch span after decompression, not the bytes |
@@ -115,6 +116,130 @@ the recorded values are not stale-ish, they are wrong. What is settled is the *s
 not ~10%**, and that misreport stood for months.
 
 ---
+
+### Codes ending in a digit are often AUXILIARY BENCHMARKS, not aliases
+
+**From the domain owner, 2026-09-09.** An older PHIVOLCS convention named an
+auxiliary benchmark by putting a digit in the 4th character and retaining as
+much of the main benchmark's code as possible — `BUGS` → `BUG2`, `CACA` →
+`CAC2`.
+
+**An auxiliary benchmark is a physically separate mark, not another name for
+the same one.** Treating such a pair as aliases would merge two distinct
+monuments.
+
+Measured across the 545 catalog sites inside the Philippines box, for the 48
+digit-4 codes having a letter-sibling that shares the first three characters:
+
+```
+MAC2 <-> MACZ      0.1 m        BUG2 <-> BUGS     14.7 m
+TAW2 <-> TAWI      0.6 m        CAC2 <-> CACA     16.9 m
+TUA2 <-> TUAO      1.4 m        CDO2 <-> CDOC     18.0 m
+BTU2 <-> BTUN      1.7 m        AUR1 <-> AURO     21.1 m
+BRG1 <-> BRGC      1.8 m        NAV1 <-> NAVA     45.0 m
+BLN2 <-> BLNA      5.2 m
+                                MAR2 <-> MARL   1394.3 m
+                                CEB2 <-> CEBB   2456.2 m
+```
+
+**The distribution is bimodal with an empty middle:** 11 pairs under 50 m, 37
+pairs over 1 km, **nothing between 50 m and 1 km.**
+
+That gap is the useful part. Under ~50 m, a shared three-character prefix means
+the convention; over 1 km it is coincidence — `CEB2` and `CEBB` are simply two
+different Cebu sites. **The separation classifies the pair; the name alone does
+not.**
+
+**There is a third cause, and it produces the same signature.** PHIVOLCS field
+staff also, rarely, ran **multiple receivers at one site** — a field decision
+made on experience. That is the same practice IGS uses for `WTZ2`/`WTZS` and
+`UNB3`/`UNBN`, which sit at 0.0 m in this catalog.
+
+So a digit-4 pair under 50 m has at least three possible causes:
+
+| cause | marks | merging is |
+|---|---|---|
+| co-located receivers, one mark | one | correct |
+| auxiliary benchmark | two | **wrong** |
+| coincidental prefix (>1 km) | two | **wrong** |
+
+Separation narrows this and does not settle it. The sub-2 m pairs — `MAC2`/`MACZ`
+0.1 m, `TAW2`/`TAWI` 0.6 m — are within antenna-setup precision and look like
+co-location; `BLN2`/`BLNA` at 5.2 m and `CAC2`/`CACA` at 16.9 m are deliberate
+offsets. But eleven pairs is not enough to fit a threshold to, and the two
+causes are not separable by distance at the low end.
+
+**A test that looked decisive and is not.** Comparing the pairs' catalog epoch
+ranges for overlap — on the reasoning that co-located receivers run
+simultaneously — returns overlap for 8 of 11, including pairs at 14–45 m that
+are plainly separate marks. **The test is invalid**: `epoch_min`/`epoch_max` are
+*solution reference epochs, not operating periods*, which this file records
+elsewhere and which was documented four hours before the test was run. Overlap
+there means overlapping solution windows, not simultaneous occupation.
+
+Observation years read from RINEX headers would answer it. The catalog columns
+cannot, whatever their names suggest.
+
+**A fourth cause, and it separates two questions that had been treated as
+one.** From the domain owner, from experience: an **instrument change on the
+same antenna mount** produced a time series that did not join smoothly to the
+previous configuration, so the site was **renamed and processed as a new
+monument.**
+
+The mark is physically identical. The rename was deliberate and correct — the
+coordinate series genuinely has an offset at that epoch, and merging the two
+codes would reintroduce a discontinuity that somebody removed on purpose.
+
+> **"Are these the same monument?" and "should these be merged?" are different
+> questions, and this cause makes them come apart.** Three of the four causes
+> answer both together. This one answers *yes* to the first and *no* to the
+> second.
+
+That is the case a distance test cannot see at all, because the separation is
+zero by construction. It is an **offset event encoded in a site code** — the
+same class of fact as `docs/bern52/phivolcs-scripts/event-catalog/offsets`,
+recorded in the naming instead of in the catalog.
+
+The suggestive signature is **same position, disjoint occupation** — and three
+pairs show it:
+
+```
+MAC2/MACZ    0.1 m    2009-09-15..2010-09-25  |  2014-02-12..2014-02-14
+BRG1/BRGC    1.8 m    1996-03-13..2010-04-16  |  2012-02-17..2026-02-12
+NAV1/NAVA   45.0 m    1997-06-09..1999-11-17  |  2001-11-20..2014-06-23
+```
+
+**Do not read those dates as occupation.** They are solution epochs, for the
+reason given above, and the disjointness is a hint rather than a finding. The
+real test is observation years from RINEX headers, which stage 3 reads and the
+catalog does not carry.
+
+**So this class needs institutional memory per case, not more measurement.** Do
+not merge a digit-4 code into its letter-sibling on the strength of the name or
+of the distance. The alias radius must stay below 50 m regardless, or the
+convention's pairs get collapsed into single monuments.
+
+### `LHO2` / `LHOV` — OPEN, and previously recorded here as settled in error
+
+Lignon Hill, Mayon Volcano GPS observation network. **Both accounts came from
+the domain owner and they are in tension:**
+
+1. `LHO2` was a personal disambiguation made around 2009, before the practice of
+   not treating RINEX headers as authoritative for provenance — **same mark,
+   two names.**
+2. The older auxiliary-benchmark convention above — **two marks, ~22 m apart.**
+
+**The position evidence cannot separate them, and an earlier version of this
+entry wrongly said it could.** Stage 3 puts 510 `LHO2`-named files on `LHOV` at
+a median 22 m. That was recorded as independent confirmation of reading 1. It is
+not: **22 m sits squarely inside the auxiliary-benchmark band (0.1–45 m)**, and
+a header position good to ~100 m cannot distinguish a mark from another mark
+22 m away.
+
+`LHO2` has no catalog entry, so it has no published coordinate to compare.
+
+**This needs the domain owner, not more measurement.** Until then, do not merge
+`LHO2` into `LHOV`.
 
 ## 3. Settled decisions — do not re-propose the alternatives
 
@@ -163,6 +288,19 @@ Do not open these as findings.
   is what matters and is clean.
 - **`--cov=src` measures almost nothing.** Known; name `packages/ services/
   tools/` instead.
+- **A `.trees/` worktree cannot test a change to an installed Python package.**
+  The venv's editable install resolves `field_ops` (and every other `services/`
+  or `packages/` module) to the **main checkout**, so `uv run pytest` inside a
+  worktree reads the branch's *tests* while importing `main`'s *source*. The
+  failure is convincing and points the wrong way: on 2026-09-21 a new column
+  produced `TypeError: 'collides_with' is an invalid keyword argument for
+  StationProposal`, which reads exactly like the column being missing from
+  `models.py`, where it was in fact present. Confirm with
+  `python -c "import field_ops.models as m; print(m.__file__)"` — if it names
+  the main tree, that is what ran. Worktrees remain fine for scripts invoked by
+  path, such as `scripts/match_rinex_to_site.py`. To test a package change,
+  check the branch out in the main checkout, or `uv sync` inside the worktree.
+  Found by gps3 reviewing #234, at the cost of one run.
 - **`vadase-rt-monitor` and `field-ops` fail collection** without `structlog`
   and `uvicorn`. Environmental, pre-existing, fixed by `uv sync --all-extras`.
 - **`RESUME_NEXT.md` discloses the R740 sudo password in prose** and the repo is
@@ -202,6 +340,7 @@ Old documents and older memory still assert these. They are wrong.
 | `automation_stages.md` Stage 3 | the file has **two `## Stage 3` sections** (lines 206 and 393), overlapping and non-identical. One is stale |
 | research brief: Nakagawa et al. (2009) is "in Japanese and **not reachable**" | **reachable** — it needed `pdftotext`, not a fetch. "Not reachable" meant "not tried hard enough" |
 | `CLAUDE.md`: repo-root `src/` is "`src/db/` alone, **four files**" (twice) | **two** tracked source files — `__init__.py` and `models.py`. The four counts `__pycache__/*.pyc`, which is not in the repository. Verified 2026-08-25 |
+| this file's own §6, until 2026-09-21: our BSW install has "none of its 7 published patches applied" | **applied and verified inert on 2026-09-02** — see §2. The §6 bullet was written 2026-08-29, three days before the patching, and outlived it. Re-verified on disk 2026-09-21: `IONOSP2.f90` carries IGRF14, `IGRF14SYN.f` is present, 12 `.pre-patch` copies remain in `SOURCE`, and all 88 executables in `SOURCE/PGM/EXE_GNU` are dated 2026-09-02 |
 
 ---
 
@@ -239,11 +378,6 @@ genuinely unresolved as of 2026-08-25 and *should* be worked on:
 - **LGYE shows intermittent East excursions up to 76 mm in 11 of 53 weeks of
   2025**, alternating in sign, ceasing after mid-July. Not deformation (sign
   alternates) and not metadata (records are complete). Cause unestablished.
-- **Our BSW install is release `2024-11-11` with none of its 7 published patches
-  applied.** Verified 2026-08-29: `IONOSP2.f90` carries IGRF10–13 not IGRF14
-  (B_33); `O_RXOWRAP.f90` is dated Oct 2023 (B_34, which cuts RNXGRA runtime
-  5–6× — we run RNXGRA once per session). Patches at
-  <https://www.bernese.unibe.ch/UPDATE54>; all require recompilation.
 - **Seed the diagnostic knowledge base from the AIUB FAQ's 11 error entries** —
   re-derived and re-worded, not copied: AIUB state no licence, so default
   all-rights-reserved applies. See `external-sources/README.md`.

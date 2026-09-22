@@ -207,4 +207,5 @@ testpaths = [
     "services/ingestion-pipeline/tests",
     "services/vadase-rt-monitor/tests",
     "tools/drive-archaeologist/tests",
+    "scripts/tests",
 ]

@@ -19,12 +19,20 @@ What is NOT covered, and is honest about it: the inventory half of
 """
 from __future__ import annotations
 
+import pathlib
 import uuid
 from datetime import date
 
+import field_ops
 import pytest
 from field_ops.models import LogSheet, StationProposal, User
 from field_ops.routers.auth import hash_password
+
+# The router's own source, so the integration tests below can execute the real
+# queries rather than copies of them.
+ROUTER_SRC = (
+    pathlib.Path(field_ops.__file__).parent / "routers" / "stations.py"
+)
 
 
 async def _login(client, username: str, password: str) -> dict[str, str]:
@@ -126,28 +134,168 @@ async def test_rejects_unknown_monitoring_method(client, auth_headers, proposal_
 
 
 @pytest.mark.asyncio
-async def test_duplicate_pending_code_is_refused(client, auth_headers, proposal_payload):
+async def test_a_second_claim_on_a_code_is_kept_and_marked(
+    client, auth_headers, proposal_payload, db_session
+):
+    """#228. This test used to assert the opposite:
+
+        assert second.status_code == 409
+        assert "already been proposed" in second.json()["detail"]
+
+    That 409 was the bug. The proposal never became a row, so the reconcile
+    screen — which reads `field_ops.station_proposals` — could not see it, and
+    a site an observer travelled to sat on one handset until the phone was
+    wiped. The guard cannot reach a handset that has been offline for two
+    days, so both teams were working correctly.
+    """
     first = await client.post("/api/v1/stations", json=proposal_payload, headers=auth_headers)
     assert first.status_code == 201
+    assert first.json()["collides_with"] is None
 
     second = await client.post(
         "/api/v1/stations",
         json={**proposal_payload, "client_uuid": str(uuid.uuid4())},
         headers=auth_headers,
     )
-    assert second.status_code == 409
-    assert "already been proposed" in second.json()["detail"]
+    assert second.status_code == 201
+    assert second.json()["collides_with"] == "proposal"
+    assert second.json()["id"] != first.json()["id"]
+
+    from sqlalchemy import func, select
+
+    total = await db_session.execute(select(func.count()).select_from(StationProposal))
+    assert total.scalar_one() == 2, "both claims must survive; the office settles them"
 
 
 @pytest.mark.asyncio
-async def test_duplicate_check_is_case_insensitive(client, auth_headers, proposal_payload):
+async def test_both_claims_reach_the_reconcile_queue(
+    client, auth_headers, proposal_payload, db_session
+):
+    """The row existing is not the point — the office *seeing* it is.
+
+    `test_a_second_claim_on_a_code_is_kept_and_marked` would still pass if the
+    reconcile listing filtered collisions out, which is the same dead end one
+    layer down.
+    """
+    await client.post("/api/v1/stations", json=proposal_payload, headers=auth_headers)
+    await client.post(
+        "/api/v1/stations",
+        json={**proposal_payload, "client_uuid": str(uuid.uuid4()), "name": "Other team"},
+        headers=auth_headers,
+    )
+
+    admin_headers = await _make_admin(client, db_session)
+    queue = await client.get("/api/v1/station-proposals", headers=admin_headers)
+    assert queue.status_code == 200
+
+    claims = [r for r in queue.json() if r["station_code"] == "TSTA"]
+    assert len(claims) == 2, "the reviewer cannot settle a disagreement they cannot see"
+    assert sorted(c["collides_with"] or "" for c in claims) == ["", "proposal"]
+
+
+def test_the_picker_offers_a_contested_code_once():
+    """Two claims, one code, one entry.
+
+    Showing both would read to the observer as two different sites sharing a
+    code — the collision handed back to the handset instead of to the office.
+
+    Tested against `_append_proposals` rather than over HTTP because
+    `GET /stations` reads the inventory with ST_Y/ST_X, so the endpoint cannot
+    run on the SQLite conftest at all.
+    """
+    from field_ops.routers.stations import StationOut, _append_proposals
+
+    def claim(name: str, collides_with: str | None, pid: int) -> StationProposal:
+        return StationProposal(
+            id=pid,
+            station_code="TSTA",
+            name=name,
+            monitoring_method="campaign",
+            status="active",
+            collides_with=collides_with,
+            created_by=1,
+        )
+
+    # Caller order: uncontested first within a code (see `list_stations`).
+    merged = _append_proposals([], [claim("First team", None, 1), claim("Other team", "proposal", 2)])
+
+    assert [s.station_code for s in merged] == ["TSTA"]
+    assert merged[0].name == "First team"
+    assert merged[0].source == "field"
+
+    # And the inventory still wins over any field claim on the same code.
+    inventory = StationOut(
+        station_code="TSTA",
+        name="Catalogued",
+        latitude=14.5,
+        longitude=121.0,
+        elevation=None,
+        fault_segment=None,
+        status="active",
+        source="inventory",
+    )
+    merged = _append_proposals(
+        [inventory], [claim("First team", None, 1), claim("Other team", "proposal", 2)]
+    )
+    assert [s.name for s in merged] == ["Catalogued"]
+
+
+@pytest.mark.asyncio
+async def test_collision_check_is_case_insensitive(client, auth_headers, proposal_payload):
+    """`tsta` and `TSTA` are the same code, so the second is a collision.
+
+    Previously this asserted 409. The normalisation it is really testing —
+    codes upper-cased before comparison — is unchanged; only the answer to a
+    collision moved.
+    """
     await client.post("/api/v1/stations", json=proposal_payload, headers=auth_headers)
     resp = await client.post(
         "/api/v1/stations",
         json={**proposal_payload, "station_code": "tsta", "client_uuid": str(uuid.uuid4())},
         headers=auth_headers,
     )
-    assert resp.status_code == 409
+    assert resp.status_code == 201
+    assert resp.json()["collides_with"] == "proposal"
+
+
+@pytest.mark.asyncio
+async def test_a_free_code_is_not_marked(client, auth_headers, proposal_payload):
+    """The marker has to mean something.
+
+    Every assertion above would hold if `collides_with` were set on every row,
+    which would tell the reviewer nothing.
+    """
+    resp = await client.post("/api/v1/stations", json=proposal_payload, headers=auth_headers)
+    assert resp.status_code == 201
+    assert resp.json()["collides_with"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_resolved_claim_frees_the_code_again(
+    client, auth_headers, proposal_payload, db_session
+):
+    """A collision is against *pending* claims only.
+
+    Once the first claim is rejected, the next proposal is uncontested — the
+    marker must not stick to the code itself.
+    """
+    first = await client.post(
+        "/api/v1/stations", json=proposal_payload, headers=auth_headers
+    )
+    admin_headers = await _make_admin(client, db_session)
+    await client.post(
+        f"/api/v1/station-proposals/{first.json()['id']}/reject",
+        json={"reason": "wrong monument"},
+        headers=admin_headers,
+    )
+
+    again = await client.post(
+        "/api/v1/stations",
+        json={**proposal_payload, "client_uuid": str(uuid.uuid4())},
+        headers=auth_headers,
+    )
+    assert again.status_code == 201
+    assert again.json()["collides_with"] is None
 
 
 @pytest.mark.asyncio
@@ -365,25 +513,615 @@ async def test_reject_requires_a_reason(client, auth_headers, proposal_payload, 
 
 
 # ---------------------------------------------------------------------------
+# reading back the verdict — how a handset learns what the office decided
+# ---------------------------------------------------------------------------
+#
+# Since #228 a contested code is accepted and its sheets are HELD on the
+# handset, because the code may still mean somebody else's monument. Nothing
+# released them: the office decided on the reconcile screen and the phone never
+# heard. These tests cover the read that lets it hear.
+
+
+async def _status(client, headers, *uuids: str):
+    return await client.get(
+        "/api/v1/station-proposals/status",
+        params=[("client_uuid", u) for u in uuids],
+        headers=headers,
+    )
+
+
+@pytest.mark.asyncio
+async def test_an_observer_reads_back_the_office_rejection(
+    client, auth_headers, proposal_payload, db_session
+):
+    """The field role, not an admin, and the reason travels with it.
+
+    The observer is the one holding sheets. Gating this to the reconcile roles
+    would rebuild the dead end one layer down: the office decides and the
+    person who needs the answer is not allowed to read it.
+    """
+    cid = str(uuid.uuid4())
+    created = await client.post(
+        "/api/v1/stations", json={**proposal_payload, "client_uuid": cid}, headers=auth_headers
+    )
+    admin_headers = await _make_admin(client, db_session)
+    await client.post(
+        f"/api/v1/station-proposals/{created.json()['id']}/reject",
+        json={"reason": "Same monument as PBIS; use that code"},
+        headers=admin_headers,
+    )
+
+    resp = await _status(client, auth_headers, cid)
+    assert resp.status_code == 200, resp.text
+    [row] = resp.json()
+    assert row["client_uuid"] == cid
+    assert row["reconciled_at"] is not None
+    assert row["rejected_reason"] == "Same monument as PBIS; use that code"
+    assert row["reconciled_station_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_promoted_proposal_reads_back_as_promoted(
+    client, auth_headers, proposal_payload, db_session
+):
+    """Promotion itself needs PostGIS, so the row is stamped directly.
+
+    That is legitimate here rather than a shortcut: this endpoint is a reader,
+    and what it must get right is reporting the stamp, whoever wrote it. The
+    promote path is covered against real Postgres further down.
+    """
+    from datetime import datetime
+
+    cid = str(uuid.uuid4())
+    created = await client.post(
+        "/api/v1/stations", json={**proposal_payload, "client_uuid": cid}, headers=auth_headers
+    )
+    row = await db_session.get(StationProposal, created.json()["id"])
+    row.reconciled_at = datetime.now().astimezone()
+    row.reconciled_station_id = 4242
+    await db_session.commit()
+
+    [out] = (await _status(client, auth_headers, cid)).json()
+    assert out["reconciled_station_id"] == 4242
+    assert out["rejected_reason"] is None
+
+
+@pytest.mark.asyncio
+async def test_status_returns_only_the_proposals_asked_for(
+    client, auth_headers, proposal_payload
+):
+    """Knowing the uuid is the capability.
+
+    The uuid is minted on the handset and never shown to anyone else, so
+    returning exactly the rows asked for exposes nothing a caller did not
+    already hold. Returning more — the whole table, or everything for a code —
+    would hand one team's unreviewed sites and notes to another.
+    """
+    mine, theirs = str(uuid.uuid4()), str(uuid.uuid4())
+    await client.post(
+        "/api/v1/stations", json={**proposal_payload, "client_uuid": mine}, headers=auth_headers
+    )
+    await client.post(
+        "/api/v1/stations",
+        json={**proposal_payload, "client_uuid": theirs, "name": "Other team"},
+        headers=auth_headers,
+    )
+
+    rows = (await _status(client, auth_headers, mine)).json()
+    assert [r["client_uuid"] for r in rows] == [mine]
+
+
+@pytest.mark.asyncio
+async def test_an_unknown_uuid_is_an_empty_answer_not_a_404(client, auth_headers):
+    """A handset may ask about a proposal the server never received.
+
+    That is the normal state for a site still waiting on a signal, not an
+    error, and a 404 here would read to the queue as a permanent failure.
+    """
+    resp = await _status(client, auth_headers, str(uuid.uuid4()))
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_status_requires_sign_in(client):
+    resp = await _status(client, {}, str(uuid.uuid4()))
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_status_refuses_an_unbounded_question(client, auth_headers):
+    """Capped, so the endpoint cannot be used to hammer the table.
+
+    A handset holds a handful of pending sites at most; two hundred is far past
+    any real queue and still one indexed query.
+    """
+    resp = await _status(client, auth_headers, *[str(uuid.uuid4()) for _ in range(201)])
+    assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
 # needs Postgres — see the module docstring
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_promote_writes_to_public_stations():
-    """Requires PostGIS: the upsert builds ST_SetSRID(ST_MakePoint(...)).
+# A code no real station uses, for the rows these tests create and delete.
+# The pg fixtures deliberately do not create or drop schemas -- pointing a
+# destructive fixture at a URL that might be someone's real database is how
+# test infrastructure eats production data -- so a test that writes is
+# responsible for its own rows.
+_TEST_CODE = "ZZTE"
 
-    Deliberately left as a marked integration test rather than mocked. Mocking
-    the one query that crosses into `public.stations` would test the mock, and
-    that query is where promotion can actually go wrong — it is the only place
-    field-ops writes to the central inventory.
+
+def _sql_from_router(pattern: str) -> str:
+    """Pull a raw query out of the router rather than restating it here.
+
+    A test that copies the SQL it is meant to guard drifts into passing while
+    the endpoint is broken. Reading the real text means a change to the query
+    is a change to what is executed here.
     """
-    pytest.skip("needs the docker-compose Postgres/PostGIS on 5433")
+    import re
+
+    src = ROUTER_SRC.read_text(encoding="utf-8")
+    m = re.search(pattern, src, re.S)
+    assert m, f"could not find the query matching {pattern!r} in stations.py"
+    return m.group(1)
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_list_stations_unions_inventory_and_proposals():
-    """Requires PostGIS: the inventory half uses ST_Y/ST_X."""
-    pytest.skip("needs the docker-compose Postgres/PostGIS on 5433")
+async def test_promote_writes_to_public_stations(pg_session):
+    """The promotion upsert, executed against real PostGIS.
+
+    Deliberately not mocked. Mocking the one query that crosses into
+    `public.stations` would test the mock, and that query is where promotion
+    can actually go wrong — it is the only place field-ops writes to the
+    central inventory.
+
+    Three claims, and the third is the one the endpoint's docstring says is not
+    hypothetical:
+
+      1. The statement executes at all. ST_SetSRID(ST_MakePoint(...)) exists in
+         no other test environment, and SQLite cannot parse it.
+      2. A proposal with coordinates lands with a geometry that reads back as
+         the coordinates it was given.
+      3. Re-promoting the same code with NULL fields does NOT null what is
+         already there. A proposal made at a monument carries whatever the
+         observer could see, which is usually less than the office has, and the
+         COALESCE in the ON CONFLICT clause is what stops the sparse one
+         overwriting the full one.
+    """
+    from sqlalchemy import text as sa_text
+
+    sql = _sql_from_router(r"text\(\"\"\"\s*(INSERT INTO stations.*?)\"\"\"\)")
+    assert "ON CONFLICT (station_code) DO UPDATE" in sql
+    assert "ST_SetSRID" in sql
+
+    # The guard lives inside the statement (#228, gps3's review): DO UPDATE
+    # only fires when this is true, so a caller that does not pass it gets a
+    # missing-parameter error rather than an overwrite.
+    assert "WHERE CAST(:merge AS boolean)" in sql
+
+    params = {
+        "merge": True,
+        "code": _TEST_CODE,
+        "name": "Integration fixture site",
+        "lat": 14.6537,
+        "lon": 121.0584,
+        "elevation": 55.0,
+        "method": "campaign",
+        "status": "active",
+        "municipality": "Quezon City",
+        "province": "Metro Manila",
+        "region": "NCR",
+    }
+
+    # Never touch a row this test did not create.
+    pre = await pg_session.execute(
+        sa_text("SELECT 1 FROM stations WHERE station_code = :code"), {"code": _TEST_CODE}
+    )
+    assert pre.first() is None, (
+        f"{_TEST_CODE} already exists in this database; refusing to write over it"
+    )
+
+    try:
+        # 1 — it executes, and PostGIS resolves.
+        first = await pg_session.execute(sa_text(sql), params)
+        station_id = first.scalar_one()
+        assert station_id is not None
+
+        # 2 — the geometry reads back as what went in.
+        row = (
+            await pg_session.execute(
+                sa_text(
+                    "SELECT name, elevation, municipality, "
+                    "ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lon "
+                    "FROM stations WHERE station_code = :code"
+                ),
+                {"code": _TEST_CODE},
+            )
+        ).mappings().one()
+        assert row["lat"] == pytest.approx(params["lat"], abs=1e-9)
+        assert row["lon"] == pytest.approx(params["lon"], abs=1e-9)
+        assert row["name"] == params["name"]
+
+        # 3 — a sparse re-promotion preserves what the office already had.
+        sparse = {**params, "name": None, "elevation": None, "municipality": None}
+        await pg_session.execute(sa_text(sql), sparse)
+        after = (
+            await pg_session.execute(
+                sa_text(
+                    "SELECT name, elevation, municipality FROM stations "
+                    "WHERE station_code = :code"
+                ),
+                {"code": _TEST_CODE},
+            )
+        ).mappings().one()
+        assert after["name"] == params["name"], "COALESCE did not protect name"
+        assert after["elevation"] == params["elevation"], "COALESCE did not protect elevation"
+        assert after["municipality"] == params["municipality"]
+
+        # 4 — the guard, at the level it is enforced.
+        #
+        # With merge false the conflict resolves to nothing: no row updated, no
+        # id returned. The endpoint turns that empty result into the 409, but
+        # the protection is here, in one statement, with no window between
+        # checking and writing for another reviewer's promote to slip through.
+        refused = await pg_session.execute(
+            sa_text(sql), {**params, "merge": False, "name": "Should not be written"}
+        )
+        assert refused.scalar_one_or_none() is None, (
+            "DO UPDATE fired with merge=false -- the guard is not in the statement"
+        )
+        unchanged = (
+            await pg_session.execute(
+                sa_text("SELECT name FROM stations WHERE station_code = :code"),
+                {"code": _TEST_CODE},
+            )
+        ).mappings().one()
+        assert unchanged["name"] == params["name"], "the station was overwritten anyway"
+    finally:
+        # ROLL BACK FIRST. This is not tidiness -- it is the difference between
+        # a test that tells you why it failed and one that cannot.
+        #
+        # When the statement under test raises, the transaction is aborted and
+        # every later statement on it raises InFailedSQLTransactionError. A
+        # cleanup DELETE issued on that aborted transaction therefore raises
+        # from inside `finally`, and Python REPLACES the original exception
+        # with it. The traceback then contains no trace of the real failure.
+        #
+        # That is exactly what happened on the first real run: the endpoint was
+        # raising AmbiguousParameterError and the pytest output showed only the
+        # cleanup error. gps3 found the real cause by reading the postgres
+        # container log, because the test had destroyed it.
+        await pg_session.rollback()
+        await pg_session.execute(
+            sa_text("DELETE FROM stations WHERE station_code = :code"), {"code": _TEST_CODE}
+        )
+        await pg_session.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_promote_through_the_router_puts_the_monument_where_it_belongs(pg_session):
+    """Promote via the ENDPOINT, not via the extracted SQL.
+
+    The test above executes the router's query with its own params dict, which
+    covers the ordering inside the SQL — `ST_MakePoint(:lon, :lat)` is the
+    thing PostGIS gets wrong most often — and covers nothing about the CALLER.
+
+    Swap these two lines in `promote_proposal`:
+
+        "lat": proposal.latitude,
+        "lon": proposal.longitude,
+
+    and every other test still passes. Measured, not asserted: with them
+    swapped the suite reports 82 passed, 3 skipped. The regex still matches so
+    the extraction succeeds, the integration test builds its own correctly
+    ordered params so it still sees ST_Y == lat, and the 403 test never reaches
+    the query. A promoted monument would land on the other side of the world
+    with nothing red.
+
+    The two orderings look identical reading the file top to bottom, which is
+    probably why it read as covered. Found by gps3.
+
+    This one takes no regex, because the endpoint is the thing under test.
+    """
+    import uuid as _uuid
+
+    from field_ops.database import get_db
+    from field_ops.main import app
+    from httpx import ASGITransport, AsyncClient
+    from sqlalchemy import text as sa_text
+
+    # These tables live in the field_ops schema and this fixture creates
+    # nothing, so say plainly which migration is missing rather than failing
+    # with a driver error three frames down.
+    try:
+        await pg_session.execute(sa_text("SELECT 1 FROM field_ops.station_proposals LIMIT 1"))
+        await pg_session.execute(sa_text("SELECT 1 FROM field_ops.users LIMIT 1"))
+    except Exception as exc:  # noqa: BLE001
+        await pg_session.rollback()
+        pytest.skip(
+            f"field_ops schema not migrated in {type(exc).__name__}; "
+            "run `alembic -c services/field-ops/alembic.ini upgrade head` against this database"
+        )
+
+    code = "ZZTR"
+    pre = await pg_session.execute(
+        sa_text("SELECT 1 FROM stations WHERE station_code = :c"), {"c": code}
+    )
+    assert pre.first() is None, f"{code} already exists here; refusing to write over it"
+
+    reviewer = User(
+        username=f"zz-int-{_uuid.uuid4().hex[:8]}",
+        hashed_password=hash_password("testpass"),
+        role="admin",
+    )
+    pg_session.add(reviewer)
+    await pg_session.flush()
+    # Captured NOW, as a plain int, while the instance is still live.
+    #
+    # The cleanup below rolls back before deleting, and ROLLBACK EXPIRES EVERY
+    # LOADED ATTRIBUTE unconditionally — `expire_on_commit=False` on the
+    # session factory suppresses expiry on commit and has no effect on
+    # rollback, and there is no setting that does. So `reviewer.id` read inside
+    # `finally` is not a field access, it is a lazy refresh: IO, attempted
+    # outside greenlet context, raising
+    #
+    #   MissingGreenlet: greenlet_spawn has not been called
+    #
+    # from `sqlalchemy/orm/attributes.py __get__`, with the instance's __dict__
+    # holding nothing but `_sa_instance_state`. The traceback reads like a sync
+    # ORM execute and is not one.
+    #
+    # `station_code` is fine in the same block because it is a plain string.
+    # This is the only ORM attribute the cleanup touches, and "just use the
+    # object" is the obvious spelling, so it will be reintroduced by anyone who
+    # does not know the rollback is above it. Diagnosed by gps3, 2026-09-16.
+    reviewer_id = reviewer.id
+
+    # Deliberately asymmetric: a latitude that is not a plausible longitude for
+    # the Philippines and vice versa, so a swap cannot coincidentally survive.
+    lat, lon = 14.6537, 121.0584
+    proposal = StationProposal(
+        client_uuid=_uuid.uuid4(),
+        station_code=code,
+        name="Router integration site",
+        latitude=lat,
+        longitude=lon,
+        monitoring_method="campaign",
+        status="active",
+        created_by=reviewer.id,
+    )
+    pg_session.add(proposal)
+    await pg_session.commit()
+    await pg_session.refresh(proposal)
+
+    app.dependency_overrides[get_db] = lambda: pg_session
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            token = await ac.post(
+                "/api/v1/token",
+                data={"username": reviewer.username, "password": "testpass"},
+            )
+            assert token.status_code == 200, token.text
+            headers = {"Authorization": f"Bearer {token.json()['access_token']}"}
+
+            resp = await ac.post(
+                f"/api/v1/station-proposals/{proposal.id}/promote", headers=headers
+            )
+            assert resp.status_code == 200, resp.text
+
+        row = (
+            await pg_session.execute(
+                sa_text(
+                    "SELECT ST_Y(location::geometry) AS lat, "
+                    "ST_X(location::geometry) AS lon "
+                    "FROM stations WHERE station_code = :c"
+                ),
+                {"c": code},
+            )
+        ).mappings().one()
+
+        # The assertion the swap breaks.
+        assert row["lat"] == pytest.approx(lat, abs=1e-9), (
+            "latitude did not survive promotion -- check the lat/lon mapping in "
+            "promote_proposal, not the SQL"
+        )
+        assert row["lon"] == pytest.approx(lon, abs=1e-9)
+    finally:
+        app.dependency_overrides.clear()
+        # See the note on the test above: without this, a failure inside the
+        # try block is replaced by InFailedSQLTransactionError from the first
+        # cleanup statement, and the real cause is lost.
+        await pg_session.rollback()
+        await pg_session.execute(
+            sa_text("DELETE FROM stations WHERE station_code = :c"), {"c": code}
+        )
+        await pg_session.execute(
+            sa_text("DELETE FROM field_ops.station_proposals WHERE station_code = :c"),
+            {"c": code},
+        )
+        await pg_session.execute(
+            sa_text("DELETE FROM field_ops.users WHERE id = :i"), {"i": reviewer_id}
+        )
+        await pg_session.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_promoting_onto_an_occupied_code_leaves_the_station_alone(pg_session):
+    """#228's sharp edge, and the reason the accept half is not enough.
+
+    `promote_proposal` upserts with `ON CONFLICT (station_code) DO UPDATE ...
+    COALESCE(EXCLUDED.col, stations.col)`. That is right for the case it was
+    written for — a sparse proposal filling gaps in the row it is the origin
+    of — and destructive for the case accepting collisions creates: the
+    losing team's coordinates would silently replace a catalogued station's,
+    with nothing recording that it had ever been anywhere else.
+
+    Postgres, because the whole mechanism is the upsert and the geometry.
+    The assertion that matters is not the 409 — it is that the station is
+    still where it was afterwards.
+    """
+    import uuid as _uuid
+
+    from field_ops.database import get_db
+    from field_ops.main import app
+    from httpx import ASGITransport, AsyncClient
+    from sqlalchemy import text as sa_text
+
+    try:
+        await pg_session.execute(sa_text("SELECT 1 FROM field_ops.station_proposals LIMIT 1"))
+        await pg_session.execute(sa_text("SELECT 1 FROM field_ops.users LIMIT 1"))
+    except Exception as exc:  # noqa: BLE001
+        await pg_session.rollback()
+        pytest.skip(
+            f"field_ops schema not migrated in {type(exc).__name__}; "
+            "run `alembic -c services/field-ops/alembic.ini upgrade head` against this database"
+        )
+
+    code = "ZZTC"
+    pre = await pg_session.execute(
+        sa_text("SELECT 1 FROM stations WHERE station_code = :c"), {"c": code}
+    )
+    assert pre.first() is None, f"{code} already exists here; refusing to write over it"
+
+    reviewer = User(
+        username=f"zz-col-{_uuid.uuid4().hex[:8]}",
+        hashed_password=hash_password("testpass"),
+        role="admin",
+    )
+    pg_session.add(reviewer)
+    await pg_session.flush()
+    reviewer_id = reviewer.id  # before any rollback expires it — see the test above
+
+    # The catalogued station, and a second team's claim on the same code from
+    # 300 km away. Far enough apart that an overwrite cannot hide in rounding.
+    kept_lat, kept_lon = 14.6537, 121.0584
+    other_lat, other_lon = 10.3157, 123.8854
+
+    await pg_session.execute(
+        sa_text("""
+            INSERT INTO stations (station_code, name, location, monitoring_method, status)
+            VALUES (:c, :n,
+                    ST_SetSRID(ST_MakePoint(CAST(:lon AS double precision),
+                                            CAST(:lat AS double precision)), 4326),
+                    'continuous', 'active')
+        """),
+        {"c": code, "n": "Catalogued monument", "lat": kept_lat, "lon": kept_lon},
+    )
+
+    proposal = StationProposal(
+        client_uuid=_uuid.uuid4(),
+        station_code=code,
+        name="Second team's site",
+        latitude=other_lat,
+        longitude=other_lon,
+        monitoring_method="campaign",
+        status="active",
+        created_by=reviewer_id,
+        collides_with="inventory",
+    )
+    pg_session.add(proposal)
+    await pg_session.commit()
+    await pg_session.refresh(proposal)
+    proposal_id = proposal.id
+
+    async def where_is_it() -> tuple[float, float, str]:
+        row = (
+            await pg_session.execute(
+                sa_text(
+                    "SELECT ST_Y(location::geometry) AS lat, "
+                    "ST_X(location::geometry) AS lon, name "
+                    "FROM stations WHERE station_code = :c"
+                ),
+                {"c": code},
+            )
+        ).mappings().one()
+        return row["lat"], row["lon"], row["name"]
+
+    app.dependency_overrides[get_db] = lambda: pg_session
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            token = await ac.post(
+                "/api/v1/token",
+                data={"username": reviewer.username, "password": "testpass"},
+            )
+            assert token.status_code == 200, token.text
+            headers = {"Authorization": f"Bearer {token.json()['access_token']}"}
+
+            refused = await ac.post(
+                f"/api/v1/station-proposals/{proposal_id}/promote", headers=headers
+            )
+            assert refused.status_code == 409, refused.text
+            assert "already in the central inventory" in refused.json()["detail"]
+
+            lat, lon, name = await where_is_it()
+            assert (lat, lon) == pytest.approx((kept_lat, kept_lon), abs=1e-9), (
+                "the catalogued station MOVED on a refused promote -- the upsert ran "
+                "anyway"
+            )
+            assert name == "Catalogued monument"
+
+            # The reviewer who has compared both claims can still say so, and
+            # then the merge is the documented COALESCE behaviour.
+            merged = await ac.post(
+                f"/api/v1/station-proposals/{proposal_id}/promote",
+                params={"merge_into_existing": "true"},
+                headers=headers,
+            )
+            assert merged.status_code == 200, merged.text
+
+        lat, lon, _ = await where_is_it()
+        assert (lat, lon) == pytest.approx((other_lat, other_lon), abs=1e-9), (
+            "merge_into_existing=true did nothing, so the refusal above proves "
+            "nothing about the guard"
+        )
+    finally:
+        app.dependency_overrides.clear()
+        await pg_session.rollback()
+        await pg_session.execute(
+            sa_text("DELETE FROM stations WHERE station_code = :c"), {"c": code}
+        )
+        await pg_session.execute(
+            sa_text("DELETE FROM field_ops.station_proposals WHERE station_code = :c"),
+            {"c": code},
+        )
+        await pg_session.execute(
+            sa_text("DELETE FROM field_ops.users WHERE id = :i"), {"i": reviewer_id}
+        )
+        await pg_session.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_list_stations_unions_inventory_and_proposals(pg_session):
+    """The inventory half of GET /stations, executed against real PostGIS.
+
+    ST_Y/ST_X on a geography column exist nowhere else, so this query has never
+    run under any other test. Asserts the SHAPE rather than the content: an
+    empty stations table is a legitimate state for a fresh database, and a
+    test that needs seeded rows is a test that will be disabled the first time
+    someone runs it somewhere clean.
+    """
+    from sqlalchemy import text as sa_text
+
+    sql = _sql_from_router(r"text\(\"\"\"\s*(SELECT.*?FROM stations.*?)\"\"\"\)")
+    assert "ST_Y" in sql and "ST_X" in sql
+
+    rows = (await pg_session.execute(sa_text(sql))).mappings().all()
+
+    expected = {"station_code", "name", "latitude", "longitude"}
+    if rows:
+        assert expected <= set(rows[0].keys())
+    else:
+        # Executing without raising is the claim when the table is empty, and
+        # it is the claim that matters: a broken ST_Y reference raises here and
+        # nowhere else in the suite.
+        assert rows == []

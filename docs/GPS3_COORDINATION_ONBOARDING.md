@@ -173,6 +173,234 @@ cd ~/repos/movefaults_clean && git pull --rebase && git add docs/gps3-sessions &
 It is a good log — the `fuser`/`lsof` root-cause writeup and the "gotchas
 discovered" section are exactly the kind of thing that gets lost otherwise.
 
+### 5a. Cross-review: the author merges
+
+**Whoever opened a PR merges or closes it.** The other session reviews and
+comments; it does not merge, and does not push fixes to a branch it does not
+own. Review findings go on the PR, where the author can act on them or argue
+with them.
+
+The reason is not etiquette. A reviewer who can merge is tempted to fix rather
+than report, and a fix pushed to someone else's branch is invisible to them
+until it has already landed — or, as on 2026-09-07 with #178, fails silently
+and lands nothing while reporting success. The author is also the session that
+holds the context for why the branch is shaped the way it is.
+
+**A review that finds nothing still says so on the PR.** "Reviewed, no
+findings" and "nobody looked" are different states, and the PR should show
+which one it is in. Green checks are not a review: CodeRabbit does not review
+this repo's PRs at all — *"This repository does not receive automatic reviews
+because it has fewer than 10 stars"* — so a clean check list here means the
+automation never ran, not that it approved. It posts that notice **as a
+comment**, which makes the PR look reviewed at a glance.
+
+This rule is new as of 2026-09-08 and the practice before it was the opposite:
+#178, #181, #183 and #184 were opened by the T420 and merged by gps3. Those
+stand; the rule starts from here.
+
+**What a cross-review is for, on this project specifically.** Both sessions
+write confident prose about measurements the other cannot see, and the failures
+that survive to a PR are almost never syntax. They are a number carried forward
+by hand, a corpus that is not the one named, or a claim whose evidence is real
+but narrower than the sentence around it. Reviewing means re-running the
+measurement where that is possible, not reading for plausibility — the first
+three cross-reviews under this rule found a count that was wrong at every
+revision, an inflation figure that counted every regex match as an error when
+more than half the matches were the pattern working correctly, and a property
+attributed to a tool that was really a property of 781 particular files.
+
+**Two of those three were corrected again by the review of the review**, which
+is the part worth keeping. The `.crx` figure was challenged here as counting
+files outside the walk root; it was not — every file was inside it, and the
+real error was subtler: 494 regex matches, of which **281 were genuine Hatanaka
+RINEX 3** (`AIRA00JPN_R_20251500000_01D_30S_MO.crx.gz`, decompressing to a
+`3.0` header) and only 213 were Bernese. The challenge landed on the right
+number for the wrong reason, because excluding compressed files happened to
+exclude exactly the legitimate ones.
+
+So a cross-review is not a gate that a claim passes once. **Both readings were
+wrong, and the second was wrong in a way that would have looked like
+confirmation** — the reviewer's number matched the truth by coincidence. What
+resolved it was decompressing five files and reading the header, which neither
+session had done before asserting.
+
+### Correcting a merged claim
+
+**The session that introduced a claim corrects it.** No announcement, no
+negotiation, no race — the tiebreak is a fact both sessions already know before
+either speaks, so it cannot cross in flight the way a message can.
+
+*Fallback, when the introducer is unavailable or disagrees the claim is wrong:*
+say who is correcting it before correcting it. One line naming the claim and
+the file. Second choice rather than first, because two announcements can cross
+exactly as two PRs can.
+
+On 2026-09-09 both sessions wrote the same retraction of the same paragraph in
+`docs/bern52/decode_113_failures.md` within forty minutes, as #199 and #200.
+Under introducer-corrects there is nothing to resolve: the T420 contributed the
+claim, so the T420 retracts it.
+
+**When the losing PR has something the winner lacks**, hand the paragraphs over
+rather than open a competing PR into a file you do not own. #200 carried three
+things #199 did not; naming them cost less than a rebase and a second review.
+
+### A correction is the most suspect thing in the repo, not the least
+
+**A correction gets at least the review the claim it replaces got.** A wrong
+statement sitting on `main` creates real pressure to fix it fast, and that
+pressure is exactly what stops anyone interrogating the fix.
+
+Not hypothetical. #199 retracted a *correct* conclusion on a measurement nobody
+examined, and merged quickly **because** `main` was wrong. It had to be
+retracted the same day by #204. A correction arrives with more authority than
+the claim it replaces — newer, citing a measurement, framed as settling
+something — which is precisely why it needs the harder look.
+
+**So a correction states what it rests on, in one line, so a reviewer knows
+what to attack.**
+
+#199 would have had to say *"rests on same-named files being the same
+observation"*. Written down, that sentence is self-refuting in a repo whose own
+`decode_raw_gap.py` docstring records that Leica `.mNN` names carry no year.
+Nobody needed to be clever — they needed the load-bearing assumption placed
+next to a fact already established. Without it a reviewer must reconstruct the
+assumption from the evidence, which is harder, and is what neither session did.
+
+### One session edits a document at a time
+
+Every collision on 2026-09-09 was in the shared-document lane, not in the work
+itself. Claim the document, not the machine.
+
+**Turn-taking between sessions was considered and rejected.** The parallelism is
+where the day's value came from — a decode re-run on gps3 while the T420 stat'd
+drives only it could reach — and serialising costs hours to prevent a closed PR.
+It also would not have prevented the case that actually hurt: with a turn
+boundary elsewhere, both sessions still write the same retraction, only further
+apart, and the second lands on a document that has already changed. Worse than
+a clean conflict.
+
+### Claiming work by draft PR: rejected for now, and why
+
+Proposed as a durable alternative to claiming by message — a message is
+point-in-time and crosses, while a draft PR is timestamped, authored, and
+queryable by the `gh pr list` both sessions already poll.
+
+**Rejected because `gh pr close` is gated on the T420.** The problem is not
+creating a claim but withdrawing one: a register that can be written and not
+erased accumulates stale claims on abandoned work, and the damage is the peer
+declining to start something because a dead claim still stands. Withdrawal is
+the load-bearing half of a claim register.
+
+Revisit if that gate changes. Recorded rather than dropped, so the reasoning is
+not relitigated from scratch.
+
+### Address Alfie as `@Alfie`; everything else is peer traffic
+
+**When a message is actually for Alfie, mark it `@Alfie`.** Unmarked text is
+machine-to-machine and he can skip it.
+
+    @Alfie ...        needs his attention, decision, or action
+    everything else   peer traffic
+
+Established 2026-09-11, in his words: *"i'm starting to confuse who the
+intended audience is with these back and forth banter."*
+
+**The cost was ours and neither session noticed it.** Cross-session messages
+became long, frequent, and written in the same register as reports to him, so
+*"your 37 s finding is the sharpest thing here"* reads identically whether it
+is aimed at the other machine or at the person paying for the tokens. He was
+inferring audience from content on every message.
+
+**It applies to our own output, not to relayed content.** Quoting him back at
+each other does not become `@Alfie`, and a PR body written for a future reader
+is not addressed to him either. The marker means *you specifically, now* — put
+it on things he does not need to read and it stops working within a day.
+
+### Post reviews with `gh pr review`, not `gh pr comment`
+
+**Both machines standardise on `gh pr review --comment`.** Verified available
+on finch and already in use on gps3, so this costs nothing and removes a split.
+
+```bash
+gh pr review <n> --comment --body "**Reviewed from <machine>.** …"
+```
+
+**The rule that named `reviews` was broken when it was written.** `gh pr
+comment` creates an issue comment; `gh pr review` creates a review object. The
+T420 used the first and gps3 the second:
+
+```
+#201   reviews=0   signed-comments=1     <- a real review, invisible to the check
+#207   reviews=0   signed-comments=1
+#205   reviews=2                          <- gps3's, visible
+```
+
+So "check `--json reviews`" **would have reported every review the T420 has
+posted as absent.** A definite absence is worse than no signal, and this is the
+same failure catalogued all week — a check returning a wrong answer for a
+reason unrelated to the question — written into the protocol *as the fix for an
+earlier instance of it*.
+
+**The signature attributes a review; the channel makes it findable.** Both are
+needed. A signature in a field nobody queries is as invisible as an unsigned
+review.
+
+**Reviews posted before 2026-09-09 are issue comments**, so checking a PR from
+that period needs both.
+
+### Say when you have reviewed, and sign it
+
+**Tell the peer when you have reviewed their PRs.** One line naming the PRs and
+the verdicts — approve, changes, hold. The detail belongs on the PR; the
+notification exists so the author knows to go and read it.
+
+**Sign every cross-session review** with the machine it came from —
+`Reviewed from gps3.` / `Reviewed from finch.` — as the opening line.
+
+Three failure modes stack on this one signal, which is why it needs both halves:
+
+1. **A review is invisible until the author polls**, and there is no event that
+   prompts them to.
+2. **Polling is badly timed by default.** On 2026-09-09 a query for reviews on
+   #205 returned empty and the review landed four minutes later. Querying fixes
+   a stale assertion; it does not fix a question asked too early.
+3. **`reviews` cannot be attributed.** Both sessions post under one account, so
+   `--json reviews` yields a count and a state and no author. A peer's review
+   and the author's own comment are indistinguishable in the field the protocol
+   says to check — and on #205 exactly that happened: a self-comment and a bot
+   notice together made an unreviewed PR look reviewed.
+
+Reviews posted before this rule are unattributable after the fact. Nothing to
+be done about those; the signing starts from 2026-09-09.
+
+**"Reviewed, no findings" is worth sending too.** It is the case where the
+author is most likely to assume silence means nobody looked.
+
+### Never assert the peer's state. Query it.
+
+**Anything you are about to say about the peer's side is observable, and you
+are guessing.** Three of five crossed messages on 2026-09-09 were the T420
+asserting gps3's state from a stale snapshot — *"blocked on your review"* when
+all four reviews were posted, *"#195 is yours to merge"* when it was already
+merged, *"green light on the re-run"* after it had started. Each was one
+command away:
+
+```bash
+gh pr view <n> --json reviews,state,mergeStateStatus
+```
+
+Cheaper than a message, and authoritative — GitHub already knows, and both
+sessions can read it. This rule was agreed after the first crossing and then
+broken twice more the same day, which is why it is written here rather than
+left as a habit.
+
+The same asymmetry runs the other way and is worth living with: **a sender
+cannot confirm receipt, but can confirm effect.** `gh pr view` shows the peer's
+reviews and `git log origin/main` shows its merges. Observable state beats an
+acknowledgement.
+
+---
+
 ---
 
 ## 6. Why the git history matters more than usual

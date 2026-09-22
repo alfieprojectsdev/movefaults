@@ -188,18 +188,36 @@ is the standing direction, not a completed migration.
 
 ### Implementation maturity
 
-*Measured 2026-08-18 (modules / LOC excluding tests / test files → tests
-collected), not estimated. Re-measure when you update this; the previous
-figures were carried forward by hand and three of five had drifted.*
+*Measured 2026-09-22 on `dfa1012`, not estimated. Re-measure when you update
+this: on 2026-08-18 three of five rows had drifted from being carried forward
+by hand, and by 2026-09-22 three had drifted again — `pogf-geodetic-suite`'s
+tests had more than doubled and field-ops' frontend had gone from 69 tests to
+253 while the table still said 69.*
+
+*Size is `modules / LOC / test files`, and the definition is exact so the next
+measurement is comparable: **modules** = every tracked `.py` under the
+component's `src/`, `__init__.py` included; **LOC** = total lines in those
+files; **test files** = tracked `test_*.py` under its `tests/`; **Tests** =
+`uv run pytest <component>/tests --collect-only -q`. Checked against the
+2026-08-18 tree (`33d6f8e`) before use, where it reproduces the old
+figures exactly.*
+
+```bash
+c=services/field-ops   # any component
+git ls-files -- $c/src | grep -c '\.py$'                          # modules
+git ls-files -- $c/src | grep '\.py$' | xargs cat | wc -l          # LOC
+git ls-files -- $c/tests | grep -c 'test_.*\.py$'                  # test files
+uv run pytest $c/tests --collect-only -q | tail -1                # tests
+```
 
 | Component | Size | Tests | Status |
 |---|---|---|---|
 | drive-archaeologist | 25 / 2998 / 15 | 133 | ~60% — Phase 1 scanner works, archive support partial |
-| **bernese-workflow** | 10 / 2277 / 9 | 198 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config all implemented. **Not yet** the path production runs take (see above). **BRN-001 done 2026-07-29** — Bernese 5.4 verified on the R740; LUZON reprocessed 30/30 days unattended 2026-08-06 (5m33s/day) *via `scripts/`*, not via this service |
-| vadase-rt-monitor | 20 / 1387 / 7 | 51 | ~80% — parser, handler, core logic, leaky integrator, `ReceiverMode` state machine (replaced the old one-way integration latch) |
-| **pogf-geodetic-suite** | 10 / 1802 / 6 | 124 | ~75% — coordinates, IGS downloader, RINEX QC (teqc-first, gfzrnx fallback), and `timeseries/`: CRD→ENU, segmented velocities **verified against PHIVOLCS' production MATLAB output**, joint step+rate estimation, GMT velocity-field output |
-| **field-ops** | 13 / 1869 / 2 | 13 + 69 | ~90% — offline-first logsheet PWA, exercised on a real handset. 13 backend tests plus **69 frontend (vitest)**, the only frontend tests that run — `packages/CORS-dashboard` carries one 2017 React test file that nothing executes |
-| ingestion-pipeline | 7 / 612 / 3 | 33 | ~30% — architecture defined, not in the production loop |
+| **bernese-workflow** | 11 / 2627 / 11 | 229 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config all implemented. **Not yet** the path production runs take (see above). **BRN-001 done 2026-07-29** — Bernese 5.4 verified on the R740; LUZON reprocessed 30/30 days unattended 2026-08-06 (5m33s/day) *via `scripts/`*, not via this service |
+| vadase-rt-monitor | 19 / 1387 / 7 | 51 | ~80% — parser, handler, core logic, leaky integrator, `ReceiverMode` state machine (replaced the old one-way integration latch) |
+| **pogf-geodetic-suite** | 18 / 3417 / 13 | 260 | ~75% — coordinates, IGS downloader, RINEX QC (teqc-first, gfzrnx fallback), and `timeseries/`: CRD→ENU, segmented velocities **verified against PHIVOLCS' production MATLAB output**, joint step+rate estimation, GMT velocity-field output |
+| **field-ops** | 13 / 3041 / 6 | 102 + 253 | ~90% — offline-first logsheet PWA, exercised on a real handset. 102 backend tests (5 of them `@pytest.mark.integration`, which skip without Postgres) plus **253 frontend (vitest)**, the only frontend tests that run — `packages/CORS-dashboard` carries one 2017 React test file that nothing executes. The frontend count is not in `uv run pytest`: see below |
+| ingestion-pipeline | 7 / 632 / 3 | 36 | ~30% — architecture defined, not in the production loop |
 
 **The maturity that matters is not module count.** `bernese-workflow` was
 listed at ~10% for months while carrying 198 tests, and the genuinely
@@ -219,7 +237,17 @@ uv sync --extra dev                           # dev tools only
 uv sync --extra drive-archaeologist           # drive-arch deps
 uv sync --extra vadase-rt-monitor             # vadase deps
 
-# Run all tests -- all six suites, 785 passed / 3 skipped as of 2026-09-03.
+# Run all tests -- all seven suites (the six components plus scripts/tests),
+# 830 passed / 6 skipped on dfa1012, 2026-09-22, ON A MACHINE WITHOUT POSTGRES
+# OR THE gps3 DATAPOOL. The 6 skips are exactly those: five tests need
+# Postgres at localhost:5433 and one needs gps3's real DATAPOOL. Where both
+# exist (gps3) all six run, so the same commit reports 836 run there -- a
+# different split, not drift. Compare the TOTAL, not the passed count.
+#
+# It was "six suites, 785 / 3" until scripts/tests was added to testpaths by
+# #233 and the line did not follow. The per-component counts in the maturity
+# table sum to the total (811 + scripts' 25 = 836 = 830 + 6); if they stop
+# summing, one is stale.
 # Suite selection is `testpaths` in pyproject.toml, not discovery, so a new
 # suite has to be added there to be run.
 uv run pytest

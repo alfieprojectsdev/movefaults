@@ -14,6 +14,10 @@ Adds columns identified from PHIVOLCS SiteMetaData spreadsheets (via RAG analysi
   maintenance_interval_days — scheduled maintenance frequency in days (e.g. 180 = twice/year)
 
 Design notes:
+  - These are `op.execute` with a raw ALTER TABLE, not `op.add_column`. A grep
+    for `add_column` or `sa.Column` finds nothing in this file and suggests the
+    six columns above are unmanaged by alembic. They are managed; the idiom is
+    just different. Same in 001, which creates the table.
   - All new columns are nullable — existing rows are unaffected.
   - monitoring_method defaults to 'continuous' since the existing 35+ stations
     are all cGPS; campaign stations are added explicitly.
