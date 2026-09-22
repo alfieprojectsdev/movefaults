@@ -43,6 +43,7 @@ import {
   LogSheetIn,
   LogSheetOut,
   StationProposalIn,
+  fetchProposalStatus,
   proposeStation,
   submitLogSheets,
   uploadLogSheetPhoto,
@@ -131,6 +132,13 @@ export interface ProposalRecord extends StationProposalIn {
    * field is what distinguishes the two. See holdSheetsForUnsettledSites.
    */
   _collidesWith?: string | null;
+  /**
+   * The office's reason, when it declined this proposal on the reconcile
+   * screen. Present only after resolveContestedProposals has heard back; its
+   * presence is what turns a held sheet into one that says why it cannot be
+   * sent.
+   */
+  _rejectedReason?: string;
 }
 
 interface FieldOpsDB extends DBSchema {
@@ -467,6 +475,12 @@ async function runFlush(): Promise<FlushResult> {
   } catch {
     // Already logged where it matters; the sheets are the priority.
   }
+  try {
+    await resolveContestedProposals();
+  } catch {
+    // Same reasoning: a failed read-back leaves the sheets held, which is the
+    // safe direction. They are asked about again on the next flush.
+  }
 
   const allPending = await db.getAllFromIndex("logsheet_queue", "by_status", "pending");
   if (allPending.length === 0) return { attempted: 0, synced: 0, quarantined: 0 };
@@ -475,15 +489,28 @@ async function runFlush(): Promise<FlushResult> {
 
   // A sheet naming a code the server just refused must not be sent. Marked,
   // not dropped: the observation is real and the code is what is wrong.
+  const proposalsByCode = new Map(
+    (await getProposals()).map((p) => [p.station_code.toUpperCase(), p]),
+  );
   for (const rec of misattributed) {
+    const code = String(rec.station_code ?? "");
+    const reason = proposalsByCode.get(code.toUpperCase())?._rejectedReason;
     await db.put("logsheet_queue", {
       ...rec,
       _status: "error",
-      _error:
-        `The site code ${rec.station_code} was refused: it already belongs to a ` +
-        `different station. This sheet was NOT sent, because sending it would ` +
-        `file your observations against that other station. Re-file it under the ` +
-        `correct code.`,
+      // Two causes, two messages, because they call for different things
+      // from the observer. A refusal at sync time means the code already
+      // belongs to something else. An office rejection carries a reason a
+      // person wrote — often the right code — and hiding it behind the generic
+      // sentence would throw away the one piece of guidance they have.
+      _error: reason
+        ? `The office declined the site code ${code}: ${reason}. This sheet was ` +
+          `NOT sent, because the code does not name the site you visited. ` +
+          `Re-file it under the correct code.`
+        : `The site code ${code} was refused: it already belongs to a ` +
+          `different station. This sheet was NOT sent, because sending it would ` +
+          `file your observations against that other station. Re-file it under the ` +
+          `correct code.`,
     });
   }
   if (misattributed.length > 0) await refreshCount();
@@ -737,6 +764,77 @@ async function getProposals(): Promise<ProposalRecord[]> {
 // keep showing a site as unsynced after the flush that sent it.
 const proposalSubscribers = new Set<(rows: ProposalRecord[]) => void>();
 
+/**
+ * Ask the server what the office decided about contested proposals, and
+ * settle the ones it has decided.
+ *
+ * WHY THIS EXISTS
+ *
+ * Since #228 a contested code is accepted and its sheets are held here, because
+ * sending them would file the visit against whatever the code already names.
+ * Nothing released them: the office decided on the reconcile screen and the
+ * phone never heard, so the sheets sat in IndexedDB with this handset as the
+ * only copy.
+ *
+ * ONE ROW DECIDES, AND ONLY THIS HANDSET'S ROW
+ *
+ *   promoted (`reconciled_station_id` set) -- this claim is now the station.
+ *   The code names the monument the observer stood at, so the marker is
+ *   cleared and holdSheetsForUnsettledSites sends the sheets. That includes a
+ *   promotion made with merge_into_existing onto a code the inventory already
+ *   held; releasing then is correct ONLY because a reviewer compared both
+ *   claims and decided they are one monument. The release rests on that human
+ *   judgement, not on anything this function can check.
+ *
+ *   rejected (`rejected_reason` set) -- the code does not name this site.
+ *   Moved to `conflict`, which the sheet path already treats as "never send
+ *   under this code", carrying the office's reason so the observer is told
+ *   what to do instead of only that something failed.
+ *
+ *   neither -- still pending. Left alone, still held. Nothing tells the
+ *   observer how long; that is an honest gap, not an oversight, because only
+ *   the office knows.
+ *
+ * Nothing is inferred from a rival claim on the same code. Whether the OTHER
+ * team was promoted says nothing about this one: the office can merge both.
+ *
+ * Only contested proposals are asked about. A free code needed no decision,
+ * and asking about it would be traffic with no possible effect.
+ */
+async function resolveContestedProposals(): Promise<void> {
+  const db = await getDb();
+  const held = (await db.getAll("station_proposal_queue")).filter(
+    (p) => p._status === "synced" && p._collidesWith,
+  );
+  if (held.length === 0) return;
+
+  let verdicts;
+  try {
+    verdicts = await fetchProposalStatus(held.map((p) => p.client_uuid));
+  } catch {
+    // Offline, or the server is struggling. Keep holding: an unanswered
+    // question is not a verdict, and either default would be a guess.
+    return;
+  }
+
+  const byUuid = new Map(verdicts.map((v) => [v.client_uuid, v]));
+  for (const p of held) {
+    const v = byUuid.get(p.client_uuid);
+    if (!v) continue;
+    if (v.reconciled_station_id != null) {
+      await db.put("station_proposal_queue", { ...p, _collidesWith: null });
+    } else if (v.rejected_reason) {
+      await db.put("station_proposal_queue", {
+        ...p,
+        _status: "conflict",
+        _error: `the office declined it: ${v.rejected_reason}`,
+        _rejectedReason: v.rejected_reason,
+      });
+    }
+  }
+  await refreshProposals();
+}
+
 async function refreshProposals(): Promise<ProposalRecord[]> {
   const rows = await getProposals();
   for (const fn of proposalSubscribers) fn(rows);
@@ -802,10 +900,11 @@ async function flushProposals(): Promise<{
   let quarantined = 0;
 
   for (const rec of pending) {
-    const { _status, _queuedAt, _error, _collidesWith, ...payload } = rec;
+    const { _status, _queuedAt, _error, _collidesWith, _rejectedReason, ...payload } = rec;
     void _status;
     void _error;
     void _collidesWith;
+    void _rejectedReason;
     try {
       const stored = await proposeStation(payload);
       // `collides_with` rides along on a 201. The site is on the server either

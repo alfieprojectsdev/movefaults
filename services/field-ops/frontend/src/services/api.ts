@@ -422,6 +422,19 @@ export async function rejectProposal(id: number, reason: string): Promise<Statio
   });
 }
 
+/**
+ * What the office decided about proposals this handset already holds.
+ *
+ * Asks by the uuids the handset minted, and the server answers with exactly
+ * those rows — knowing the uuid is the capability, so no role gate is needed
+ * and nothing about another team's proposals comes back. A uuid the server has
+ * never seen is simply absent from the answer, not an error.
+ */
+export async function fetchProposalStatus(uuids: string[]): Promise<StationProposalOut[]> {
+  const qs = uuids.map((u) => `client_uuid=${encodeURIComponent(u)}`).join("&");
+  return apiFetch<StationProposalOut[]>(`/station-proposals/status?${qs}`);
+}
+
 export async function proposeStation(
   proposal: StationProposalIn,
 ): Promise<StationProposalOut> {

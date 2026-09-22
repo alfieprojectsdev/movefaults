@@ -23,6 +23,7 @@ import { openDB } from "idb";
 const submitLogSheets = vi.fn();
 const uploadLogSheetPhoto = vi.fn();
 const proposeStation = vi.fn();
+const fetchProposalStatus = vi.fn();
 /** Every API call in order, so "proposals before sheets" is assertable. */
 const callOrder: string[] = [];
 
@@ -46,6 +47,10 @@ vi.mock("../services/api", () => ({
   proposeStation: (...a: unknown[]) => {
     callOrder.push("proposal");
     return proposeStation(...a);
+  },
+  fetchProposalStatus: (...a: unknown[]) => {
+    callOrder.push("status");
+    return fetchProposalStatus(...a);
   },
   ApiError: FakeApiError,
 }));
@@ -77,6 +82,10 @@ beforeEach(async () => {
   submitLogSheets.mockReset();
   uploadLogSheetPhoto.mockReset();
   proposeStation.mockReset();
+  fetchProposalStatus.mockReset();
+  // Default: the server has decided nothing yet. A test that needs a verdict
+  // says so; one that does not is not silently handed one.
+  fetchProposalStatus.mockResolvedValue([]);
   callOrder.length = 0;
   vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
   await addProposal(proposal({ client_uuid: "warmup" })); // ensures the DB exists
@@ -495,5 +504,120 @@ describe("a synced site is not sent twice", () => {
     await flushProposals();
 
     expect(proposeStation).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("a held sheet learns what the office decided", () => {
+  /**
+   * Since #228 a contested code is accepted and its sheets are held. These
+   * cover the read-back that releases them — or explains why it never will.
+   * Each test syncs a contested site first, then answers the status question.
+   */
+  const { addProposal, addToQueue, flushQueue, getProposals, getQueue } = mod;
+
+  async function contestedSiteWithOneSheet(code = "NEWA") {
+    await addProposal(proposal({ station_code: code }));
+    await addToQueue({
+      client_uuid: "sheet-1", station_code: code,
+      visit_date: "2026-09-16", monitoring_method: "campaign",
+    } as never);
+    proposeStation.mockResolvedValue({ id: 1, collides_with: "proposal" });
+    await flushQueue(); // syncs the site, holds the sheet
+    expect(submitLogSheets).not.toHaveBeenCalled();
+  }
+
+  it("sends the sheets once the office promotes this claim", async () => {
+    /**
+     * Including a promotion onto a code the inventory already held
+     * (merge_into_existing). Releasing then is right ONLY because a reviewer
+     * compared both claims and decided they are one monument — the handset
+     * cannot check that and does not try. It trusts the row.
+     */
+    await contestedSiteWithOneSheet();
+    fetchProposalStatus.mockResolvedValue([
+      { client_uuid: "site-uuid-1", reconciled_station_id: 88, rejected_reason: null },
+    ]);
+    submitLogSheets.mockResolvedValue([{ client_uuid: "sheet-1", id: 9 }]);
+
+    await flushQueue();
+
+    const sent = submitLogSheets.mock.calls[0][0] as Array<{ station_code: string }>;
+    expect(sent[0].station_code).toBe("NEWA");
+    const [site] = await getProposals();
+    expect(site._collidesWith).toBeNull();
+  });
+
+  it("does not send, and says why in the office's words, when this claim is declined", async () => {
+    await contestedSiteWithOneSheet();
+    fetchProposalStatus.mockResolvedValue([
+      {
+        client_uuid: "site-uuid-1",
+        reconciled_station_id: null,
+        rejected_reason: "Same monument as PBIS; use that code",
+      },
+    ]);
+
+    await flushQueue();
+
+    expect(submitLogSheets).not.toHaveBeenCalled();
+    const [site] = await getProposals();
+    expect(site._status).toBe("conflict");
+    const [sheet] = await getQueue();
+    expect(sheet._status).toBe("error");
+    // The reason is the one piece of guidance the observer has. The generic
+    // "already belongs to a different station" sentence would throw it away.
+    expect(sheet._error).toContain("Same monument as PBIS; use that code");
+    expect(sheet._error).not.toContain("already belongs to a different station");
+  });
+
+  it("keeps holding, without an error, while the office has not decided", async () => {
+    await contestedSiteWithOneSheet();
+    fetchProposalStatus.mockResolvedValue([
+      { client_uuid: "site-uuid-1", reconciled_station_id: null, rejected_reason: null },
+    ]);
+
+    await flushQueue();
+
+    expect(submitLogSheets).not.toHaveBeenCalled();
+    const [sheet] = await getQueue();
+    expect(sheet._status).toBe("pending");
+    expect(sheet._error).toBeUndefined();
+  });
+
+  it("keeps holding when the question cannot be asked", async () => {
+    /** Offline or a struggling server. An unanswered question is not a
+     * verdict, and defaulting either way would be a guess. */
+    await contestedSiteWithOneSheet();
+    fetchProposalStatus.mockRejectedValue(new FakeApiError(503, "gateway"));
+
+    await flushQueue();
+
+    expect(submitLogSheets).not.toHaveBeenCalled();
+    const [sheet] = await getQueue();
+    expect(sheet._status).toBe("pending");
+  });
+
+  it("asks only about contested sites, so a free code costs nothing", async () => {
+    await addProposal(proposal({ station_code: "NEWB" }));
+    proposeStation.mockResolvedValue({ id: 1, collides_with: null });
+
+    await flushQueue();
+    await flushQueue();
+
+    expect(fetchProposalStatus).not.toHaveBeenCalled();
+  });
+
+  it("does not release on a verdict about a DIFFERENT proposal", async () => {
+    /** One row decides, and only this handset's row. A promotion of some
+     * other uuid — the rival claim, say — says nothing about this one. */
+    await contestedSiteWithOneSheet();
+    fetchProposalStatus.mockResolvedValue([
+      { client_uuid: "someone-elses-uuid", reconciled_station_id: 88, rejected_reason: null },
+    ]);
+
+    await flushQueue();
+
+    expect(submitLogSheets).not.toHaveBeenCalled();
   });
 });
