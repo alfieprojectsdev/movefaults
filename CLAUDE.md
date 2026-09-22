@@ -188,7 +188,7 @@ is the standing direction, not a completed migration.
 
 ### Implementation maturity
 
-*Measured 2026-09-22 on `d3dc49a`, not estimated. Re-measure when you update
+*Measured 2026-09-22 on `dfa1012`, not estimated. Re-measure when you update
 this: on 2026-08-18 three of five rows had drifted from being carried forward
 by hand, and by 2026-09-22 three had drifted again — `pogf-geodetic-suite`'s
 tests had more than doubled and field-ops' frontend had gone from 69 tests to
@@ -216,7 +216,7 @@ uv run pytest $c/tests --collect-only -q | tail -1                # tests
 | **bernese-workflow** | 11 / 2627 / 11 | 229 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config all implemented. **Not yet** the path production runs take (see above). **BRN-001 done 2026-07-29** — Bernese 5.4 verified on the R740; LUZON reprocessed 30/30 days unattended 2026-08-06 (5m33s/day) *via `scripts/`*, not via this service |
 | vadase-rt-monitor | 19 / 1387 / 7 | 51 | ~80% — parser, handler, core logic, leaky integrator, `ReceiverMode` state machine (replaced the old one-way integration latch) |
 | **pogf-geodetic-suite** | 18 / 3417 / 13 | 260 | ~75% — coordinates, IGS downloader, RINEX QC (teqc-first, gfzrnx fallback), and `timeseries/`: CRD→ENU, segmented velocities **verified against PHIVOLCS' production MATLAB output**, joint step+rate estimation, GMT velocity-field output |
-| **field-ops** | 13 / 3041 / 5 | 97 + 253 | ~90% — offline-first logsheet PWA, exercised on a real handset. 97 backend tests (5 of them `@pytest.mark.integration`, which skip without Postgres) plus **253 frontend (vitest)**, the only frontend tests that run — `packages/CORS-dashboard` carries one 2017 React test file that nothing executes. The frontend count is not in `uv run pytest`: see below |
+| **field-ops** | 13 / 3041 / 6 | 102 + 253 | ~90% — offline-first logsheet PWA, exercised on a real handset. 102 backend tests (5 of them `@pytest.mark.integration`, which skip without Postgres) plus **253 frontend (vitest)**, the only frontend tests that run — `packages/CORS-dashboard` carries one 2017 React test file that nothing executes. The frontend count is not in `uv run pytest`: see below |
 | ingestion-pipeline | 7 / 632 / 3 | 36 | ~30% — architecture defined, not in the production loop |
 
 **The maturity that matters is not module count.** `bernese-workflow` was
@@ -238,10 +238,10 @@ uv sync --extra drive-archaeologist           # drive-arch deps
 uv sync --extra vadase-rt-monitor             # vadase deps
 
 # Run all tests -- all seven suites (the six components plus scripts/tests),
-# 825 passed / 6 skipped on d3dc49a, 2026-09-22. It was "six suites, 785 / 3"
+# 830 passed / 6 skipped on dfa1012, 2026-09-22. It was "six suites, 785 / 3"
 # until scripts/tests was added to testpaths by #233 and the line did not
 # follow. The per-component counts in the maturity table sum to this total
-# (806 + scripts' 25 = 831 = 825 + 6); if they stop summing, one is stale.
+# (811 + scripts' 25 = 836 = 830 + 6); if they stop summing, one is stale.
 # Suite selection is `testpaths` in pyproject.toml, not discovery, so a new
 # suite has to be added there to be run.
 uv run pytest
