@@ -130,9 +130,14 @@ def test_the_original_error_is_chained_not_swallowed(fo008):
 
 
 def test_the_column_is_not_dropped_when_the_index_refuses(fo008):
-    """Order matters. `collides_with` is the only record of which claims were
-    contested; dropping it before the index succeeds would lose that even
-    though the downgrade as a whole fails."""
+    """`collides_with` is the only record of which claims were contested, so
+    nothing removes it until the step that can refuse has succeeded.
+
+    Defensive rather than load-bearing under alembic: env.py wraps migrations
+    in a transaction and Postgres DDL is transactional, so a refused rebuild
+    would roll an earlier drop_column back anyway. This pins the order for the
+    case where the statements run outside that transaction -- by hand, or
+    from `--sql` output applied piecemeal."""
     module, install = fo008
     rec = install(fail_create=True)
 

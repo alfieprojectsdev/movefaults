@@ -139,6 +139,13 @@ def downgrade() -> None:
             f"Postgres said: {exc.orig}"
         ) from exc
     # Only after the index is back. `collides_with` is the sole record of
-    # which claims were contested, so it must not go first and be lost on a
-    # downgrade that then fails.
+    # which claims were contested, so nothing should remove it until the step
+    # that can refuse has succeeded.
+    #
+    # Defensive, not a fix, and worth being exact about: env.py runs both the
+    # online and offline paths inside `context.begin_transaction()`, and
+    # Postgres DDL is transactional, so under alembic a refused rebuild rolls a
+    # preceding drop_column back and nothing is lost either way. The order
+    # matters when the statements are run outside that transaction -- by hand,
+    # or from `--sql` output applied piecemeal -- and costs nothing otherwise.
     op.drop_column("station_proposals", "collides_with", schema=SCHEMA)
