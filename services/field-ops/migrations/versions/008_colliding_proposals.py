@@ -67,6 +67,12 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+# Imported by name, not reached as `sa.exc`, for the reason fo007 gives
+# about `sa.dialects`: an attribute path only resolves if something
+# else already imported the submodule, so it can work in a test run
+# and fail in offline `--sql` generation.
+from sqlalchemy.exc import IntegrityError
+
 revision = "fo008"
 down_revision = "fo007"
 branch_labels = None
@@ -100,12 +106,46 @@ def downgrade() -> None:
     op.drop_index(_PENDING_CODE_INDEX, table_name="station_proposals", schema=SCHEMA)
     # Fails if a code has more than one pending claim. See the module
     # docstring: that failure is the point, not an oversight.
-    op.create_index(
-        _PENDING_CODE_INDEX,
-        "station_proposals",
-        ["station_code"],
-        unique=True,
-        schema=SCHEMA,
-        postgresql_where=sa.text("reconciled_at IS NULL"),
-    )
+    #
+    # The failure is caught only to EXPLAIN it. What an operator used to see
+    # was an asyncpg IntegrityError whose DETAIL line happened to name the
+    # code, leaving them to infer that the refusal was deliberate rather than a
+    # broken migration. The guard is unchanged and still lives in the index:
+    # a pre-check counting claims first was rejected in review of #234,
+    # because it is a second statement making a claim the index then
+    # re-decides, with a window between the two.
+    try:
+        op.create_index(
+            _PENDING_CODE_INDEX,
+            "station_proposals",
+            ["station_code"],
+            unique=True,
+            schema=SCHEMA,
+            postgresql_where=sa.text("reconciled_at IS NULL"),
+        )
+    except IntegrityError as exc:
+        raise RuntimeError(
+            "fo008 downgrade refused, deliberately, and nothing was deleted.\n"
+            "\n"
+            "Two or more field-collected claims still share a station code. "
+            "fo007's index allows only one pending claim per code, so it cannot "
+            "be restored while they exist -- and deleting a site an observer "
+            "travelled to, to make an index fit, would destroy the record "
+            "fo008 exists to keep.\n"
+            "\n"
+            "Resolve them on the reconcile screen (promote or reject each "
+            "claim on the code below), then run the downgrade again.\n"
+            "\n"
+            f"Postgres said: {exc.orig}"
+        ) from exc
+    # Only after the index is back. `collides_with` is the sole record of
+    # which claims were contested, so nothing should remove it until the step
+    # that can refuse has succeeded.
+    #
+    # Defensive, not a fix, and worth being exact about: env.py runs both the
+    # online and offline paths inside `context.begin_transaction()`, and
+    # Postgres DDL is transactional, so under alembic a refused rebuild rolls a
+    # preceding drop_column back and nothing is lost either way. The order
+    # matters when the statements are run outside that transaction -- by hand,
+    # or from `--sql` output applied piecemeal -- and costs nothing otherwise.
     op.drop_column("station_proposals", "collides_with", schema=SCHEMA)
