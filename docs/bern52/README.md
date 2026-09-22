@@ -32,11 +32,39 @@ they cannot account for.
 Those four are verified complete by per-extension count comparison and **can
 stay undocked permanently**.
 
+### All six drives were returned to long-term storage on 2026-09-21
+
+On Alfie's instruction. Recorded here rather than in a session log because this
+is the page somebody reads when a file they expected is not in `legacy/`, and
+the question they will be asking is whether it is missing or whether the disk
+is simply in a drawer.
+
+| drive, as it appears in `legacy/` | in `legacy/` |
+|---|---|
+| `RECOVERED_HD-LBU2_WD20EARS_WCAZA4430660` | yes, verified |
+| `RECOVERED_GPS_1TB_2_WD10EARS_WCAV5M032380` | yes, verified |
+| `RECOVERED_SEAGATE_W2A0W9T2_DATA0` | yes, verified |
+| `RECOVERED_SEAGATE_W2A0W9T2_DC9A88` | yes, verified |
+| `RECOVERED_DOSTB20150918_from_BackupPlus` | yes, out of scope by decision |
+| `New Volume` (HGST) | **no** — walked only, see below |
+
+Nothing was mid-transfer: the newest file copied off any of them is
+`legacy/RECOVERED_SEAGATE_W2A0W9T2_DC9A88/.../puer3121.13o.gz`, 2026-09-08
+18:39:38, and no legacy file has arrived since. Fixity does not depend on the
+disks: `legacy/` carries sha256 manifests, committed.
+
+**`New Volume` is the one to re-dock if a gap ever appears**, because it is the
+only one of the six whose contents are not held. The basename comparison below
+says nothing there is uniquely *named*; it does not say every byte is held.
+Closing that properly means a content-hash comparison, which is hours of
+reading and has not been done.
+
 ### A sixth drive exists, was walked, and was never transferred
 
 **`New Volume`** — HGST, 465.8 GB, 269 GB used — was walked on 2026-09-08
 (`manifests/t420-drive-arch-runs/all_NewVolume.txt`, 426,992 files) and is
-**not in `legacy/` under any name**. It may still be docked.
+**not in `legacy/` under any name**. It went to storage with the rest on
+2026-09-21.
 
 It was skipped because it is substantially a copy of HD-LBU2, sharing 297,601
 basenames with it. Measured before this was written:
