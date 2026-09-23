@@ -305,7 +305,8 @@ Do not open these as findings.
   **Verify the DATABASE, never the command.** On 2026-09-23 the field PWA
   returned 500 on every screen touching `station_proposals` while an observer
   was testing it, because fo008 had been merged two days earlier and never
-  applied. Three mechanisms can produce that, all exiting 0:
+  applied. Three mechanisms can produce that, none of which surfaces as an
+  error:
 
   1. **Stale checkout — the one that looks most like success.** `head` means
      *the newest file in this tree*, not the newest on `main`. finch's main
