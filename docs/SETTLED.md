@@ -301,6 +301,45 @@ Do not open these as findings.
   path, such as `scripts/match_rinex_to_site.py`. To test a package change,
   check the branch out in the main checkout, or `uv sync` inside the worktree.
   Found by gps3 reviewing #234, at the cost of one run.
+- **`alembic upgrade head` reports success relative to what it can see.**
+  **Verify the DATABASE, never the command.** On 2026-09-23 the field PWA
+  returned 500 on every screen touching `station_proposals` while an observer
+  was testing it, because fo008 had been merged two days earlier and never
+  applied. Three mechanisms can produce that, all exiting 0:
+
+  1. **Stale checkout — the one that looks most like success.** `head` means
+     *the newest file in this tree*, not the newest on `main`. finch's main
+     checkout was 29 commits behind and had no `008` file, so `upgrade head`
+     was a no-op printing nothing, and `current --verbose` answered
+     `Rev: fo007 (head)` — a correct answer about the wrong tree. Check
+     `git rev-list --count HEAD..origin/main` before migrating, and read the
+     `(head)` in that output as a claim about the checkout.
+  2. **Wrong `DATABASE_URL`** — migrates a local container while the hosted
+     database stays untouched. `migrations/env.py:get_url` falls back to
+     `localhost:5433` when the variable is unset, and its docstring records the
+     earlier incident. DEPLOY.md documents it too.
+  3. **GitHub Actions disabled at the repository level** — the automation never
+     runs at all. `field_ops_migrate.yml` has been on `main` since 2026-09-14,
+     triggers on `services/field-ops/migrations/**`, and reports `state=active`
+     via the API; none of that means it executes. **Registration is not
+     execution.** The cheap detector, one read, no credentials:
+
+     ```bash
+     gh api repos/alfieprojectsdev/movefaults/actions/permissions --jq .enabled
+     ```
+
+     It returned `false` on 2026-09-23, and no workflow of any kind had run
+     since 2026-04-23 — so no CI has run on this repo either, and every "tests
+     pass" on a PR since then has been a local claim.
+
+  Mechanism 1 and 2 are caught by a startup check comparing alembic's head to
+  the database's stamped revision; mechanism 3 is invisible from inside the
+  repo and needs the command above.
+
+  **A dirty working tree on a machine that deploys is a staleness risk, not
+  untidiness.** The checkout above was stuck because one uncommitted
+  `CLAUDE.md` edit had blocked `git pull --rebase` for days. Nothing connects
+  those two facts until the moment you need them connected.
 - **`vadase-rt-monitor` and `field-ops` fail collection** without `structlog`
   and `uvicorn`. Environmental, pre-existing, fixed by `uv sync --all-extras`.
 - **`RESUME_NEXT.md` discloses the R740 sudo password in prose** and the repo is
