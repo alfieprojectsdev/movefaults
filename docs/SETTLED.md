@@ -318,23 +318,12 @@ Do not open these as findings.
      database stays untouched. `migrations/env.py:get_url` falls back to
      `localhost:5433` when the variable is unset, and its docstring records the
      earlier incident. DEPLOY.md documents it too.
-  3. **GitHub Actions disabled at the repository level** — the automation never
-     runs at all. `field_ops_migrate.yml` has been on `main` since 2026-09-14,
-     triggers on `services/field-ops/migrations/**`, and reports `state=active`
-     via the API; none of that means it executes. **Registration is not
-     execution.** The cheap detector, one read, no credentials:
+  3. **The automation that should have applied it never ran.** That one is a
+     live defect, not settled behaviour — see §6.
 
-     ```bash
-     gh api repos/alfieprojectsdev/movefaults/actions/permissions --jq .enabled
-     ```
-
-     It returned `false` on 2026-09-23, and no workflow of any kind had run
-     since 2026-04-23 — so no CI has run on this repo either, and every "tests
-     pass" on a PR since then has been a local claim.
-
-  Mechanism 1 and 2 are caught by a startup check comparing alembic's head to
-  the database's stamped revision; mechanism 3 is invisible from inside the
-  repo and needs the command above.
+  Mechanisms 1 and 2 are caught by a startup check comparing alembic's head to
+  the database's stamped revision. Neither is detectable from the command's
+  exit status, which is the point of the entry.
 
   **A dirty working tree on a machine that deploys is a staleness risk, not
   untidiness.** The checkout above was stuck because one uncommitted
@@ -386,8 +375,25 @@ Old documents and older memory still assert these. They are wrong.
 ## 6. Still open — this list is not a gag
 
 A settled-list that suppresses live questions is worse than none. These are
-genuinely unresolved as of 2026-08-25 and *should* be worked on:
+genuinely unresolved as of 2026-09-23 and *should* be worked on:
 
+- **GitHub Actions is DISABLED repo-wide, so no workflow has ever run.**
+  `gh api repos/alfieprojectsdev/movefaults/actions/permissions --jq .enabled`
+  returns **`false`** (2026-09-23), and no run of any kind exists since
+  2026-04-23. Consequences, both current:
+  - `field_ops_migrate.yml` — on `main` since 2026-09-14, triggering on
+    `services/field-ops/migrations/**`, reporting `state=active` — **has never
+    executed.** It was added in response to an earlier migration incident, and
+    it did not prevent the 2026-09-23 outage because it cannot start. Every
+    future merge touching that path reproduces that outage until Actions is on.
+    **Registration is not execution**, and nothing inside the repo shows the
+    difference: the file is present, valid and reported active.
+  - `tests.yml` has likewise never run. Every "tests pass" on a PR since April
+    has been a local claim by whichever machine opened it.
+  Decide alongside `render.yaml`'s `autoDeployTrigger: commit`, which deploys
+  code from `main` without waiting for anything. Enabling Actions also restarts
+  `deploy_docs.yml`, which was failing on every run up to April, so this is not
+  a free switch.
 - **No production month has run through `services/bernese-workflow`.** Until one
   is compared byte-for-byte against `scripts/` output, its 229 tests are
   evidence about the service, not about the science.
