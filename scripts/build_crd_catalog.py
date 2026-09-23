@@ -311,6 +311,56 @@ def cluster_rows(rows: list[Row], radius: float) -> list[list[Row]]:
     return clusters
 
 
+def _cluster_row(site: str, idx: int, rows: list[Row], n_clusters: int) -> dict:
+    """One row per distinct MONUMENT, not per site code.
+
+    The main catalog publishes the largest cluster for a shared code and flags
+    the rest, which keeps the published coordinate anchored to a real mark. But
+    a code naming two monuments needs BOTH, and `SOLD` is the worked example:
+    154 solutions in Leyte at 11.03 N and 53 in Soldiers Hills Village,
+    Putatan, Muntinlupa at 14.40 N, 632 km apart. The Muntinlupa one is NCKU's
+    site 9875 in the West Valley Fault campaign, and it does not appear in the
+    catalog at all because Leyte's cluster is larger.
+
+    JUDGE A COLLISION BY CLUSTER SIZE AND RATIO, NOT BY EXTENT
+
+    118 sites carry `ambiguous`; only ~21 have a second cluster of 10+ files,
+    and even that over-counts. Compare:
+
+        BILI [438, 368]   CATA [386, 368]   SOLD [154, 53]   CENT [53, 53]
+            -> comparable clusters, genuinely two marks
+
+        PIMO [6745, 25]   BAKO [4477, 16]   ALBU [1266, 14]
+            -> PIMO is an IGS station and is not two monuments. A small group
+               agreeing on a wrong position is more likely one campaign with a
+               bad a-priori than a second mark.
+
+    `cluster_extent_m` alone is the worst guide of the three: POTR reports
+    10,290 km, which is a garbage coordinate rather than a site in orbit.
+
+    So this emits every cluster with its size and its share of the site's
+    solutions, and leaves the judgement to a reader who can see both.
+    """
+    xs = statistics.median(r.x for r in rows)
+    ys = statistics.median(r.y for r in rows)
+    zs = statistics.median(r.z for r in rows)
+    lat, lon, h = to_geodetic(xs, ys, zs)
+    spread = max(math.dist((r.x, r.y, r.z), (xs, ys, zs)) for r in rows)
+    kinds = {r.kind for r in rows}
+    return {
+        "site": site,
+        "cluster": idx,
+        "of_clusters": n_clusters,
+        "n_rows": len(rows),
+        "n_files": len({r.source for r in rows}),
+        "x": f"{xs:.4f}", "y": f"{ys:.4f}", "z": f"{zs:.4f}",
+        "lat": f"{lat:.7f}", "lon": f"{lon:.7f}", "height": f"{h:.3f}",
+        "spread_m": f"{spread:.2f}",
+        "best_kind": max(kinds, key=lambda k: (KIND_RANK.get(k, 0), k)),
+        "frames": "|".join(sorted({r.frame for r in rows if r.frame})),
+    }
+
+
 def to_geodetic(x: float, y: float, z: float) -> tuple[float, float, float]:
     """ECEF -> lat, lon (degrees), ellipsoidal height (m). WGS-84; the frame
     differences this ignores are far below the resolution that matters."""
@@ -340,6 +390,11 @@ def main() -> int:
     ap.add_argument("--rinex", type=Path,
                     help="listing of RINEX paths; header positions fill sites "
                          "that no CRD file covers, as kind RNXHDR")
+    ap.add_argument("--clusters-out", type=Path,
+                    help="also write a per-CLUSTER listing here. The main "
+                         "catalog publishes one row per site code; this writes "
+                         "one row per distinct MONUMENT, which is what a site "
+                         "code shared by two physical marks actually needs.")
     ap.add_argument("--ambiguous-m", type=float, default=1000.0,
                     help="spread above which a code is reported as naming more "
                          "than one monument (default 1000)")
@@ -429,6 +484,7 @@ def main() -> int:
             print(f"    {st}  {n} file(s)")
 
     cat = {}
+    monument_rows: list[dict] = []
     for site, rows in by_site.items():
         clusters = cluster_rows(rows, args.ambiguous_m)
         clusters.sort(key=len, reverse=True)
@@ -446,6 +502,10 @@ def main() -> int:
         # (rank, name) so an unranked kind still resolves deterministically.
         best = max(kinds, key=lambda k: (KIND_RANK.get(k, 0), k))
         eps = sorted({r.epoch for r in rows if r.epoch})
+        monument_rows.extend(
+            _cluster_row(site, i, c, len(clusters))
+            for i, c in enumerate(clusters, 1)
+        )
         cat[site] = {
             "site": site,
             "domes": next((r.domes for r in rows if r.domes), ""),
@@ -503,6 +563,23 @@ def main() -> int:
         for s in sorted(cat):
             w.writerow(cat[s])
     print(f"  wrote {args.output}  ({len(cat)} sites)")
+
+    if args.clusters_out:
+        cols = ["site", "cluster", "of_clusters", "n_rows", "n_files",
+                "x", "y", "z", "lat", "lon", "height", "spread_m",
+                "best_kind", "frames"]
+        args.clusters_out.parent.mkdir(parents=True, exist_ok=True)
+        with args.clusters_out.open("w", newline="", encoding="utf-8") as fh:
+            fh.write("# One row per distinct MONUMENT, not per site code. A code\n"
+                     "# naming two physical marks appears twice. Judge a real\n"
+                     "# collision by cluster SIZE and RATIO -- see _cluster_row().\n")
+            w2 = csv.DictWriter(fh, fieldnames=cols, extrasaction="ignore")
+            w2.writeheader()
+            for r in sorted(monument_rows, key=lambda r: (r["site"], -r["n_rows"])):
+                w2.writerow(r)
+        multi = len({r["site"] for r in monument_rows if r["of_clusters"] > 1})
+        print(f"  wrote {args.clusters_out}  ({len(monument_rows)} clusters, "
+              f"{multi} sites with more than one)")
 
     amb = sorted((s for s in cat if cat[s]["ambiguous"]),
                  key=lambda s: -float(cat[s]["cluster_extent_m"]))

@@ -40,10 +40,62 @@ minus the 47 the stale-header rule resolves.
 
 | class | files | who decides |
 |---|---:|---|
-| ambiguous-code | 644 | **nobody** — blocked on per-cluster catalog |
+| ambiguous-code | 644 | **nobody** — but see the correction below: the per-cluster catalog settles 3 of these, not 644 |
 | stale-header (of the 91) | 47 | **nobody** — filename wins |
 | **genuine residue** | **44** | **a person, per case** (~34 patterns) |
 | campaign-directory *(paths, separate count)* | ~900 | **nobody** — flag and skim |
+
+### Correction 2026-09-22 — the per-cluster catalog settles 3 files, not 644
+
+This note said the 644 ambiguous-code conflicts were "resolved by per-cluster
+catalog — nobody decides", and recommended landing that catalog first because
+it "removes 644 with no decisions". **Measured on gps3 against the built
+catalog and a full attribution run over 480,178 files, it removes 3.**
+
+The catalog is `docs/bern52/crd_clusters.csv`, one row per distinct monument:
+3,116 clusters across 2,249 sites, 132 of which carry more than one. It and
+`crd_catalog.csv` are rebuilt together by one command, recorded in both files'
+headers. Built separately they disagree: `--rinex` adds 58 sites that only
+RINEX headers cover, and a run without it silently omits them from whichever
+file it wrote.
+
+| gate on the second cluster | sites | files claiming those codes | already stale-header | genuinely open |
+|---|---:|---:|---:|---:|
+| none | 132 | 644 | 368 | 276 |
+| ≥2 files | 90 | 600 | 356 | 244 |
+| ≥10 files | 22 | 251 | 248 | **3** |
+| ≥10 files and ≥10% of the largest | 14 | 231 | 228 | **3** |
+| ≥20 files and ≥10% | 12 | 231 | 228 | **3** |
+
+**Two separate errors produced the 644.**
+
+*It counted files claiming an ambiguous code, without asking whether the
+ambiguity was real.* Most of the 118 are not two monuments. `PIMO` has 6,745
+solutions in one cluster and 25 in another; `BAKO` 4,477 against 16; `ALBU`
+1,266 against 14. A small group agreeing on a wrong position is one campaign
+with a bad a-priori, not a second mark. Exposing those as candidates would not
+resolve ambiguity — it would let a bad coordinate steal matches from a
+correctly attributed file. The gate that removes them keeps 14 sites and is
+insensitive to where it is set between 10 and 50 files.
+
+*It did not check what other rules had already handled.* Of the 231 files
+claiming a genuinely multi-monument code, **228 are already resolved as
+`stale-header`**, the rule that landed in the meantime. Three are left.
+
+**Consequence for the recommended order below.** Step 1 was "land
+`feat/crd-catalog-clusters` → removes 644 with no decisions". It does not.
+The per-cluster catalog is still worth having, for a different reason: it is
+the only place a code's second monument is recorded at all. `SOLD` is the
+worked example — 154 solutions in Leyte and 53 at NCKU's site 9875 in
+Muntinlupa, 632 km apart, and the Muntinlupa mark appears nowhere in
+`crd_catalog.csv` because Leyte's cluster is larger.
+
+**What is NOT being done, deliberately.** `match_rinex_to_site.py` has not been
+changed to consume the per-cluster file. Three files do not justify a change
+that moves candidate positions for an attribution run over 480,178 files,
+where the risk is silently reattributing files that are currently correct.
+If that changes — a new campaign, or a code whose second monument acquires
+data — the gate and the measurement above are how to decide, not the 644.
 
 Path conflicts are counted separately throughout — 1,017 of them across
 110 patterns — and are not part of the 735.
@@ -331,7 +383,10 @@ disagreement about something.
 
 ## Recommended order
 
-1. Land `feat/crd-catalog-clusters` → removes 644 with no decisions.
+1. ~~Land `feat/crd-catalog-clusters` → removes 644 with no decisions.~~
+   **Superseded 2026-09-22:** it removes 3. The catalog is worth landing
+   for the monuments it records, not for the conflicts it settles. See
+   the correction near the top of this file.
 2. Confirm the campaign-directory convention → removes most of 110.
 3. ~~Confirm HQ staging~~ **done** → 95 files, filename wins.
 4. Then look at ~34 patterns, of which the sub-kilometre pairs need
