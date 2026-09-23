@@ -330,6 +330,21 @@ Do not open these as findings.
   untidiness.** The checkout above was stuck because one uncommitted
   `CLAUDE.md` edit had blocked `git pull --rebase` for days. Nothing connects
   those two facts until the moment you need them connected.
+- **"Is this commit in `main`?" is the wrong question when content was
+  cherry-picked.** `git merge-base --is-ancestor <sha> origin/main` (or
+  `branch --contains`) answers whether that exact *commit* is in `main`. A
+  cherry-pick copies the content under a new SHA, so the original fails the
+  test while everything it said is sitting in `main`. On 2026-09-22 this nearly
+  caused the restore of `feat/bernese-capture-pagenet-pcf`: its two commits
+  failed the ancestry test, but gps3 had cherry-picked `6399c9a` on 2026-08-05,
+  and a content diff showed the findings already in `main` — while the
+  branch's copy of `config/bernese/gpsuser52-luzon/PROVENANCE.md` §3 was
+  *older* than `main`'s, so restoring it would have regressed a correction. To
+  ask whether content survived, diff the content — lines, or distinctive
+  phrases, across the whole tree, since it may have landed in a different file.
+  Same family as the worktree/editable-install entry and the `alembic upgrade
+  head` entry: in each, the obvious mechanical check answers a different
+  question from the one being asked.
 - **`vadase-rt-monitor` and `field-ops` fail collection** without `structlog`
   and `uvicorn`. Environmental, pre-existing, fixed by `uv sync --all-extras`.
 - **`RESUME_NEXT.md` discloses the R740 sudo password in prose** and the repo is
