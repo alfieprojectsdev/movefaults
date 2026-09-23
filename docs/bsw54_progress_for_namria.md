@@ -1,8 +1,8 @@
 # BSW 5.4 on the new PHIVOLCS server: progress to 18 September 2026
 
-*Written for Charisma Victoria Cayapan (NAMRIA), to judge whether the setup and
-results are sound and to flag where they differ from NAMRIA's own practice.
-Draft, not yet reviewed by anyone at PHIVOLCS.*
+*Written for Charisma (NAMRIA), to judge whether the setup and results are
+sound and to flag where they differ from NAMRIA's own practice. Draft, not yet
+reviewed by anyone at PHIVOLCS.*
 
 Bernese 5.4 is installed, patched, verified, and has processed a full year of
 daily solutions. The comparison against PHIVOLCS' production results is an
