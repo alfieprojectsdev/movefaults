@@ -70,8 +70,8 @@ solutions from 24 attempted days. Every day failed the same way, in ADDNEQ2:
 
 The cause was `MAXPAR 1000` in `$U/OPT/R2S_FIN/ADDNEQ2.INP`, the size ADDNEQ2
 allocates for the normal-equation parameter array. Raising it to 3000 fixed it:
-day 002 completed on 29 August 2026 with no error, and 309 or more days at 33
-to 38 stations have since succeeded.
+day 002 completed on 29 August 2026 with no error, and 309 or more days have
+since succeeded.
 
 We still don't know the actual requirement. We know only that it exceeds 1000
 and is below 3000. The value 1001 in the message is where the check tripped,
@@ -96,30 +96,36 @@ residuals. After a 7-parameter Helmert alignment, the median residuals were:
 
 This is an agreement test, not a reproduction. The two differ in version (5.4
 on Linux against 5.2 on Windows) and in constraints, and our daily solutions
-are stacked to weekly while theirs were computed weekly. Network size is not
-among the differences: PHIVOLCS' 2025 production estimates 28 to 40 stations
-per day, median 34, and ours carries 27 to 41. It can't be bit-for-bit and
-isn't offered as such.
+are stacked to weekly while theirs were computed weekly. The networks are close
+in size: PHIVOLCS' 2025 production estimates 28 to 40 stations per day, median
+34, and the PHREF national runs compared against it estimate 32 to 41, median
+37. Both counted the same way, from the `SITE/ID` block of each daily SINEX.
+It can't be bit-for-bit and isn't offered as such.
 
 ## Open items
 
 - 7 days of the 2025 LUZON year are still missing
 - The parameter requirement behind `MAXPAR` hasn't been measured, only bounded
 - We hold PAGENET observations for ten days only: 2026 DOY 081 to 090 (22 to
-  31 March), 72 sites, which is all of GPS week 2411 plus the first three days
-  of 2412 and appears to be the NAMRIA training campaign. DOY 084 to 090 are
-  complete at 71 to 72 sites; 081 to 083 are partial at 59 to 60. For 2025, the
-  year of the comparison above, we hold three PAGENET site codes: PBOG, PMAT
-  and PTAG. Reference coordinates for all 72 sites in `PGN.CRD` are already
-  staged here, so what is missing is observations, not setup. A few of those 72
-  are global fiducials rather than NAMRIA sites -- PIMO, for instance, is
-  operated by JPL and hosted at Manila Observatory.
-- One thing we cannot work out here: PMAT's 2025 files carry a
-  `MOVEFaultsProject PHIVOLCS` header while PBOG's and PTAG's carry
-  `PAGeNet NAMRIA`, which suggests some PAGENET data already reaches PHIVOLCS
-  by some route. Knowing what that route is would tell us whether a feed
-  already exists that simply is not reaching this processing.
+  31 March), which is all of GPS week 2411 plus the first three days of 2412
+  and appears to be the NAMRIA training campaign. DOY 084 to 090 are complete
+  at 71 to 72 sites; 081 to 083 are partial at 59 to 60. The 72 sites in
+  `PGN.CRD` are **62 PAGENET stations plus 10 global fiducials** (CUSV, DAEJ,
+  DARW, GUAM, HKSL, HUMG, JOG2, NTUS, PIMO, TWTF), so it is 62 of your marks we
+  hold for those ten days, not 72. Note that the `P` prefix does not separate
+  the two: PIMO is a fiducial, operated by JPL and hosted at Manila
+  Observatory. For 2025, the year of the comparison above, we hold three
+  PAGENET site codes: PBOG, PMAT and PTAG. Reference coordinates for all 72 are
+  already staged here, so what is missing is observations, not setup.
 
-The last two items are the ones where you can tell us something we can't work
-out here. PAGENET data is NAMRIA's, and if it should be in this processing as a
+That last item is the one where you can tell us something we can't work out
+here. PAGENET data is NAMRIA's, and if it should be in this processing as a
 matter of course, the gap is a data feed rather than anything in Bernese.
+
+One case shows a feed already working, which is why we ask. PMAT, at Mati City,
+is a PAGENET station that PHIVOLCS added to its own processing after an
+earthquake in the area, and its 2025 files here carry a `MOVEFaultsProject
+PHIVOLCS` header where PBOG's and PTAG's carry `PAGeNet NAMRIA`. So a route
+exists and has been used at least once, for one station, on one occasion.
+Whether that was a standing arrangement or a one-off request is the part we
+can't see from here.
