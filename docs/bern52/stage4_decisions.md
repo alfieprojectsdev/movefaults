@@ -53,11 +53,15 @@ it "removes 644 with no decisions". **Measured on gps3 against the built
 catalog and a full attribution run over 480,178 files, it removes 3.**
 
 The catalog is `docs/bern52/crd_clusters.csv`, one row per distinct monument:
-2,999 clusters across 2,189 sites, 118 of which carry more than one.
+3,116 clusters across 2,249 sites, 132 of which carry more than one. It and
+`crd_catalog.csv` are rebuilt together by one command, recorded in both files'
+headers. Built separately they disagree: `--rinex` adds 58 sites that only
+RINEX headers cover, and a run without it silently omits them from whichever
+file it wrote.
 
 | gate on the second cluster | sites | files claiming those codes | already stale-header | genuinely open |
 |---|---:|---:|---:|---:|
-| none | 118 | 644 | 368 | 276 |
+| none | 132 | 644 | 368 | 276 |
 | ≥2 files | 90 | 600 | 356 | 244 |
 | ≥10 files | 22 | 251 | 248 | **3** |
 | ≥10 files and ≥10% of the largest | 14 | 231 | 228 | **3** |
