@@ -95,23 +95,31 @@ residuals. After a 7-parameter Helmert alignment, the median residuals were:
 | Up | 7.09 mm | 7.31 | 5.84 to 10.25 |
 
 This is an agreement test, not a reproduction. The two differ in version (5.4
-on Linux against 5.2 on Windows), network size (33 to 41 stations against 93, because we hold almost no PAGENET
-observations for 2025, not because of a processing choice)
-and constraints, and our daily solutions are stacked to weekly while theirs
-were computed weekly. It can't be bit-for-bit and isn't offered as such.
+on Linux against 5.2 on Windows) and in constraints, and our daily solutions
+are stacked to weekly while theirs were computed weekly. Network size is not
+among the differences: PHIVOLCS' 2025 production estimates 28 to 40 stations
+per day, median 34, and ours carries 27 to 41. It can't be bit-for-bit and
+isn't offered as such.
 
 ## Open items
 
 - 7 days of the 2025 LUZON year are still missing
 - The parameter requirement behind `MAXPAR` hasn't been measured, only bounded
-- We process 33 to 41 stations where PHIVOLCS production carries 93, and the
-  reason is data rather than choice. We hold PAGENET observations for exactly
-  one week: 62 P-prefixed stations plus 10 regional IGS sites, 2026 DOY 084 to
-  090 (25 to 31 March), which is GPS week 2412 and appears to be the NAMRIA
-  training campaign. For 2025, the year of the comparison above, we hold two
-  PAGENET codes. Reference coordinates for all 72 are already staged here, so
-  what's missing is observations, not setup.
+- We hold PAGENET observations for ten days only: 2026 DOY 081 to 090 (22 to
+  31 March), 72 sites, which is all of GPS week 2411 plus the first three days
+  of 2412 and appears to be the NAMRIA training campaign. DOY 084 to 090 are
+  complete at 71 to 72 sites; 081 to 083 are partial at 59 to 60. For 2025, the
+  year of the comparison above, we hold three PAGENET site codes: PBOG, PMAT
+  and PTAG. Reference coordinates for all 72 sites in `PGN.CRD` are already
+  staged here, so what is missing is observations, not setup. A few of those 72
+  are global fiducials rather than NAMRIA sites -- PIMO, for instance, is
+  operated by JPL and hosted at Manila Observatory.
+- One thing we cannot work out here: PMAT's 2025 files carry a
+  `MOVEFaultsProject PHIVOLCS` header while PBOG's and PTAG's carry
+  `PAGeNet NAMRIA`, which suggests some PAGENET data already reaches PHIVOLCS
+  by some route. Knowing what that route is would tell us whether a feed
+  already exists that simply is not reaching this processing.
 
-That last item is the one where you can tell us something we can't work out
-here. PAGENET data is NAMRIA's, and if it should be in this processing as a
+The last two items are the ones where you can tell us something we can't work
+out here. PAGENET data is NAMRIA's, and if it should be in this processing as a
 matter of course, the gap is a data feed rather than anything in Bernese.
