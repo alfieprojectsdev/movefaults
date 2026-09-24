@@ -10,7 +10,7 @@ Method and its justification: `phref_vs_production_comparison_plan.md`.*
 |---|---|---|
 | software | BSW **5.4**, Linux, R740 | BSW **5.2**, Windows |
 | cadence | 360 daily NEQ, stacked to weekly | weekly, as retained |
-| stations | 33–41 | 93 |
+| stations | 33–41 per day; ~35 per week | 93 in `WK_2375` (2025 weeks: 87–95, median 91) |
 | weeks | 53 | 53 |
 
 **53 of 53 weeks compared. No week lacked a counterpart.** 1,979 station-week
@@ -113,7 +113,10 @@ than quietly removed.
   B_38 touches `TRPSTORE` on the GPSEST/ADDNEQ2 path. This result belongs to
   release `2024-11-11` **unpatched**, and must be re-run after patching.
 - **Nothing about the 58 stations we do not process.** Overlap is complete in
-  one direction only: all of ours are in hers, not the reverse.
+  one direction only: all of ours are in hers, not the reverse. Measured
+  2026-09-24 for `WK_2375`: we hold 2025 RINEX for 53 of those 58 in the
+  PHIVOLCS datapool archive, and only 4 of them are in NAMRIA's `PGN.CRD`. The
+  gap is network selection, not missing data and not PAGENET.
 - **Nothing about velocities.** This compares coordinates. Whether the velocity
   fields agree is a separate question on a longer baseline.
 - **The vertical is not diagnosed.** ~7 mm is unsurprising, but no attempt was
