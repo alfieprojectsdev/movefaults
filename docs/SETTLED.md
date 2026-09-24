@@ -333,9 +333,14 @@ Do not open these as findings.
             --jq '[.jobs[].steps|length]|add'   # 0 = locked or never started
      ```
 
-  Mechanisms 1 and 2 are caught by a startup check comparing alembic's head to
-  the database's stamped revision. Neither is detectable from the command's
-  exit status, which is the point of the entry.
+  None of the three is detectable from the command's exit status, which is the
+  point of the entry. **Since #249 the service checks the effect instead of the
+  command:** `/health` compares the database's stamped revision with the head
+  of the migration files the image ships, and answers 503 when the database is
+  behind. Render then refuses the deploy and the previous version keeps
+  serving. That catches all three mechanisms at the point where they would
+  hurt, but only for the `field_ops` tree, and it refuses the deploy rather
+  than migrating: the migration is still run by hand.
 
   **A dirty working tree on a machine that deploys is a staleness risk, not
   untidiness.** The checkout above was stuck because one uncommitted
@@ -417,9 +422,11 @@ genuinely unresolved as of 2026-09-24 and *should* be worked on:
   - `field_ops_migrate.yml` — on `main` since 2026-09-14, triggering on
     `services/field-ops/migrations/**` — **has still never executed.** It was
     added after an earlier migration incident and did not prevent the
-    2026-09-23 outage, because it cannot start. Every merge touching that path
-    reproduces that outage until the billing lock is cleared. **Registration is
-    not execution, and neither is being enabled.**
+    2026-09-23 outage, because it cannot start. **Registration is not
+    execution, and neither is being enabled.** Since #249 a merge touching that
+    path no longer reproduces the outage: `/health` refuses the deploy and the
+    previous version keeps serving. It is still a failed deploy until someone
+    runs the migration by hand (DEPLOY.md, "Run the migrations").
   - `tests.yml` has likewise never run, so every "tests pass" on a PR since
     April is a local claim by whichever machine opened it. **While the lock
     holds, every PR shows a red Tests check for reasons unrelated to its code.**

@@ -140,3 +140,68 @@ async def test_sqlite_session_reports_unknown_not_behind(db_session):
     schema_check.reset_cache()
     assert status.state == "unknown"
     assert not status.blocks_traffic
+
+
+# --- permanent vs transient database errors -------------------------------------------
+#
+# Review of #249: a catch-all turned a wrong password into "unknown" -> 200, so a
+# deploy with dead credentials took traffic and 500ed on every database route.
+
+
+class InvalidPasswordError(Exception):
+    """Stands in for asyncpg's class of the same name; matched by name."""
+
+
+class _Wrapper(Exception):
+    def __init__(self, orig):
+        super().__init__("wrapped")
+        self.orig = orig
+
+
+class _PgSession:
+    class bind:  # noqa: N801 - mimics AsyncSession.bind
+        class dialect:  # noqa: N801
+            name = "postgresql"
+
+    def __init__(self, exc):
+        self._exc = exc
+
+    async def execute(self, *_a, **_k):
+        raise self._exc
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "exc",
+    [
+        InvalidPasswordError("password authentication failed"),
+        _Wrapper(InvalidPasswordError("wrapped by SQLAlchemy")),
+    ],
+    ids=["raw", "wrapped"],
+)
+async def test_rejected_credentials_block_traffic(exc):
+    schema_check.reset_cache()
+    status = await schema_check.current_status(_PgSession(exc))
+    schema_check.reset_cache()
+    assert status.state == "misconfigured"
+    assert status.blocks_traffic
+    assert "InvalidPasswordError" in status.detail
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("exc", [TimeoutError(), ConnectionRefusedError(), OSError("dns")])
+async def test_transient_errors_do_not_block_traffic(exc):
+    schema_check.reset_cache()
+    status = await schema_check.current_status(_PgSession(exc))
+    schema_check.reset_cache()
+    assert status.state == "unknown"
+    assert not status.blocks_traffic
+
+
+@pytest.mark.asyncio
+async def test_health_names_the_misconfiguration(health_client):
+    status = schema_check.SchemaStatus("misconfigured", HEAD, detail="InvalidPasswordError")
+    async with health_client(status) as c:
+        r = await c.get("/health")
+    assert r.status_code == 503
+    assert r.json()["status"] == "database_misconfigured"

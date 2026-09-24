@@ -27,6 +27,10 @@ WHAT COUNTS AS A FAILURE, AND WHAT DELIBERATELY DOES NOT
   came back. Old code on an additively-migrated schema normally works, and
   failing health here would block the rollback that is being used to recover.
   -> 200, and it is reported so it can be seen.
+- misconfigured: the database refused this deploy's own settings (wrong or
+  expired password, missing database, missing rights). -> 503. These do not go
+  away on retry, and serving with them is the 23 Sep outage by another door:
+  every route that touches the database fails while /health says ok.
 - unknown: the database could not be asked (unreachable, timed out, or not
   PostgreSQL, as in the SQLite unit tests). -> 200. A health check that fails on
   a transient database blip makes Render restart a healthy process, and the
@@ -90,14 +94,14 @@ def known_revisions() -> frozenset[str]:
 
 @dataclass(frozen=True)
 class SchemaStatus:
-    state: str  # "current" | "behind" | "unrecognised" | "unknown"
+    state: str  # "current" | "behind" | "misconfigured" | "unrecognised" | "unknown"
     expected: frozenset[str] = field(default_factory=frozenset)
     database: frozenset[str] = field(default_factory=frozenset)
     detail: str = ""
 
     @property
     def blocks_traffic(self) -> bool:
-        return self.state == "behind"
+        return self.state in ("behind", "misconfigured")
 
     def as_dict(self) -> dict:
         return {
@@ -150,6 +154,37 @@ async def database_revisions(session: AsyncSession) -> frozenset[str] | None:
     return frozenset(r[0] for r in rows)
 
 
+# Errors that will not go away on the next probe, because they come from this
+# deploy's own settings: a wrong or expired password, a database name that does
+# not exist, a role without rights. Failing closed on these costs nothing: the
+# previous deploy keeps serving, and it has working settings by construction.
+# Failing closed on a TRANSIENT error would cost a restart loop, so those stay
+# "unknown". Matched by name so the check does not import the driver, and
+# looked up along the exception chain because SQLAlchemy may wrap them.
+PERMANENT_ERRORS = frozenset(
+    {
+        "InvalidPasswordError",
+        "InvalidAuthorizationSpecificationError",
+        "InvalidCatalogNameError",
+        "InsufficientPrivilegeError",
+    }
+)
+
+
+def permanent_error_name(exc: BaseException) -> str | None:
+    seen: set[int] = set()
+    todo: list[BaseException | None] = [exc]
+    while todo:
+        e = todo.pop()
+        if e is None or id(e) in seen:
+            continue
+        seen.add(id(e))
+        if type(e).__name__ in PERMANENT_ERRORS:
+            return type(e).__name__
+        todo += [getattr(e, "orig", None), e.__cause__, e.__context__]
+    return None
+
+
 _cache: tuple[float, SchemaStatus] | None = None
 
 
@@ -162,10 +197,18 @@ async def current_status(session: AsyncSession) -> SchemaStatus:
     expected = expected_heads()
     try:
         database = await database_revisions(session)
-    except Exception as exc:  # unreachable, timed out, auth failure
-        status = SchemaStatus(
-            "unknown", expected, detail=f"database not reachable: {type(exc).__name__}"
-        )
+    except Exception as exc:
+        permanent = permanent_error_name(exc)
+        if permanent:
+            status = SchemaStatus(
+                "misconfigured",
+                expected,
+                detail=f"database rejected this deploy's settings: {permanent}",
+            )
+        else:  # timed out, refused, DNS, waking from idle: may pass on the next probe
+            status = SchemaStatus(
+                "unknown", expected, detail=f"database not reachable: {type(exc).__name__}"
+            )
     else:
         if database is None:
             status = SchemaStatus("unknown", expected, detail="not a PostgreSQL database")

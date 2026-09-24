@@ -72,6 +72,17 @@ with `current --verbose`, then in Render use **Manual Deploy → Deploy latest
 commit**. A database *ahead* of the code (a rollback) or one that can't be
 reached does not fail the check; see `src/field_ops/schema_check.py`.
 
+A database that **refuses the deploy's own settings** (wrong or expired
+password, missing database, missing rights) answers 503 too, with
+`"status": "database_misconfigured"`. Those errors don't clear on retry, and
+the previous deploy has working settings by construction. Fix `DATABASE_URL`
+in Render, then redeploy.
+
+**`alembic` is now a runtime dependency, not only tooling.** The service reads
+the migration files at startup to learn which revision it expects. It is in the
+`field-ops` extra that the Dockerfile installs. Moving it to a dev-only group
+would make every deploy fail at startup.
+
 
 **Since 2026-09-14 this is normally automatic.**
 `.github/workflows/field_ops_migrate.yml` runs `upgrade head` against the
