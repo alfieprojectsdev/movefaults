@@ -32,7 +32,12 @@ WHAT COUNTS AS A FAILURE, AND WHAT DELIBERATELY DOES NOT
   away on retry, and serving with them is the 23 Sep outage by another door:
   every route that touches the database fails while /health says ok.
 - unknown: the database could not be asked (unreachable, timed out, or not
-  PostgreSQL, as in the SQLite unit tests). -> 200. A health check that fails on
+  PostgreSQL, as in the SQLite unit tests). -> 200.
+  This includes failures that ARE permanent but arrive as connection errors: a
+  suspended or billing-disabled database endpoint looks exactly like one waking
+  from idle at probe time. They are treated as transient because they cannot be
+  told apart in the moment, not because they were overlooked. Such a deploy
+  takes traffic and fails on every database route; the guard does not cover it. A health check that fails on
   a transient database blip makes Render restart a healthy process, and the
   hosted database can take seconds to wake from idle.
 
