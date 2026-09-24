@@ -235,6 +235,25 @@ def post_status(sha: str, state: str, description: str) -> bool:
     return True
 
 
+def runner_version() -> str:
+    """
+    Which local_ci.py is judging, and how fresh that is.
+
+    Cron runs origin/main's copy, and origin/main is only as fresh as the last
+    successful fetch. A fetch that silently failed would run an old judge while
+    the output looked normal, so every run logs the commit it came from and the
+    age of the fetch. (Raised in review of #251.)
+    """
+    sha = sh(["git", "-C", str(REPO), "rev-parse", "--short", "origin/main"], timeout=30)
+    fetch_head = REPO / ".git" / "FETCH_HEAD"
+    try:
+        age = f"{int((time.time() - fetch_head.stat().st_mtime) // 60)} min"
+    except OSError:
+        age = "unknown"
+    src = "stdin (origin/main)" if not Path(sys.argv[0]).is_file() else sys.argv[0]
+    return f"{src} @ origin/main {sha.stdout.strip() or '?'}, last fetch {age} ago"
+
+
 def bpe_running() -> bool:
     return sh(["pgrep", "-f", BPE_PATTERN], timeout=10).returncode == 0
 
@@ -418,7 +437,8 @@ def cmd_run(args) -> int:
         return 0
 
     state = load(HOME / "state.json", {})
-    beat = {"at": time.time(), "ran": [], "note": ""}
+    beat = {"at": time.time(), "ran": [], "note": "", "runner": runner_version()}
+    log(f"runner: {beat['runner']}")
     try:
         if bpe_running() and not args.ignore_bpe:
             beat["note"] = "deferred: a Bernese BPE is running"
@@ -476,6 +496,7 @@ def cmd_status(args) -> int:
         f"local-ci: last run {int(age // 60)} min ago{'  ** STALE **' if stale else ''}"
         f"  {beat.get('note', '')}"
     )
+    print(f"  runner: {beat.get('runner', '?')}")
     for sha, rec in sorted(
         load(HOME / "state.json", {}).items(), key=lambda kv: kv[1].get("finished", "")
     )[-args.last :]:

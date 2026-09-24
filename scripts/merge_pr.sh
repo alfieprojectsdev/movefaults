@@ -53,4 +53,9 @@ case "$state" in
 esac
 
 if [ -n "$CHECK" ]; then echo "gate passed; --check given, not merging"; exit 0; fi
-gh pr merge "$PR" $METHOD $DELETE
+# Bind the merge to the commit the gate judged. Without --match-head-commit, a
+# push landing between the status check above and this line would be merged
+# unchecked, while the gate reported success for a commit it never looked at.
+# Applies to the override paths too: an override means "merge THIS red commit",
+# not "merge whatever arrives next". (Raised in review of #251.)
+gh pr merge "$PR" --match-head-commit "$sha" $METHOD $DELETE
