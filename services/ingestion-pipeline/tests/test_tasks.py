@@ -24,17 +24,54 @@ from ingestion_pipeline.tasks import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
-MINIMAL_RINEX_HEADER = """\
-     2.11           OBSERVATION DATA    G (GPS)             RINEX VERSION / TYPE
-PBIS                                                        MARKER NAME
-     5                                                      # / TYPES OF OBSERV
-    30.000                                                  INTERVAL
-  2023     1     1     0     0    0.0000000     GPS         TIME OF FIRST OBS
-  2023     1     1    23    59   30.0000000     GPS         TIME OF LAST OBS
-SN12345678901234567 TRIMBLE NETRS       4.23                REC # / TYPE / VERS
-ANT001              TRM41249.00     NONE                    ANT # / TYPE
-                                                            END OF HEADER
-"""
+def _rec(data: str, label: str) -> str:
+    """One RINEX 2.x header record: data in columns 1-60, label in 61-80.
+
+    Built rather than typed because the fixed-width layout is the point: the
+    hand-typed version had every label starting near column 59, and teqc read
+    the stray characters as an observable code (issue #243).
+    """
+    assert len(data) <= 60, f"data overflows into the label columns: {data!r}"
+    return f"{data:<60}{label:<20}"
+
+
+def _epoch(minute: int, second: float, sats: list[str]) -> list[str]:
+    """One RINEX 2.11 epoch: header line, then one 5-observable line per satellite."""
+    head = f" 23  1  1  0{minute:3d}{second:11.7f}  0{len(sats):3d}" + "".join(sats)
+    obs = [
+        "".join(f"{v:14.3f}  " for v in (1.1e8 + i, 8.6e7 + i, 2.1e7 + i, 2.1e7 + i, 2.1e7 + i))
+        for i, _ in enumerate(sats)
+    ]
+    return [head, *obs]
+
+
+# A header teqc accepts, with every record RINEX 2.11 marks mandatory, plus two
+# epochs of data because gfzrnx rejects a header-only file ("no observations
+# got/left"). The "valid" test must pass on BOTH tools, or it asserts a fact
+# about whichever tool the machine happens to have.
+MINIMAL_RINEX_HEADER = (
+    "\n".join(
+        [
+            _rec("     2.11           OBSERVATION DATA    G (GPS)", "RINEX VERSION / TYPE"),
+            _rec("pogf-test           PHIVOLCS            20230101 000000 UTC", "PGM / RUN BY / DATE"),
+            _rec("PBIS", "MARKER NAME"),
+            _rec("pogf                PHIVOLCS", "OBSERVER / AGENCY"),
+            _rec("SN12345678901234567 TRIMBLE NETRS       4.23", "REC # / TYPE / VERS"),
+            _rec("ANT001              TRM41249.00     NONE", "ANT # / TYPE"),
+            _rec(" -3499087.8994  5191752.4907  1214049.9581", "APPROX POSITION XYZ"),
+            _rec("        0.0000        0.0000        0.0000", "ANTENNA: DELTA H/E/N"),
+            _rec("     1     1", "WAVELENGTH FACT L1/2"),
+            _rec("     5    L1    L2    C1    P1    P2", "# / TYPES OF OBSERV"),
+            _rec("    30.000", "INTERVAL"),
+            _rec("  2023     1     1     0     0    0.0000000     GPS", "TIME OF FIRST OBS"),
+            _rec("  2023     1     1     0     0   30.0000000     GPS", "TIME OF LAST OBS"),
+            _rec("", "END OF HEADER"),
+            *_epoch(0, 0.0, ["G05", "G12"]),
+            *_epoch(0, 30.0, ["G05", "G12"]),
+        ]
+    )
+    + "\n"
+)
 # REC # / TYPE / VERS field layout (RINEX 2.x, fixed-width 80 chars):
 #   cols  1-20 (0-indexed  0-19): receiver serial number  → "SN12345678901234567 "
 #   cols 21-40 (0-indexed 20-39): receiver type           → "TRIMBLE NETRS       "
@@ -116,6 +153,10 @@ def test_parse_rinex_time_invalid():
 # validate_rinex
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(
+    not (shutil.which("teqc") or shutil.which("gfzrnx")),
+    reason="neither teqc nor gfzrnx on PATH: this test cannot tell a valid file from an unvalidated one, and a pass here would be green for no reason (#243)",
+)
 def test_validate_rinex_valid_header(rinex_file):
     result = _validate_rinex(rinex_file)
     assert result["file_path"] == rinex_file
