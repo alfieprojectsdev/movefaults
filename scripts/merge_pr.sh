@@ -12,6 +12,11 @@
 #                 workflow that never starts (SETTLED.md §6), so absence blocks.
 #   pending    -> a run is in progress, or died mid-run.
 #   failure / error -> the suite failed, or the harness did.
+# TRUST: the gate trusts that a `local-ci/gps3` success on this repo came from
+# gps3's runner. Any token that can write commit statuses here can write that
+# context too; that is how commit statuses work. It is a fair trade for CI that
+# runs while the account is billing-locked, but it is not an authenticated
+# attestation, and shouldn't be read as one.
 # Overrides take a reason, which is printed, so the bypass is a decision on the
 # record rather than a habit: --allow-red for failure/error, --no-local-ci for
 # a missing or pending status.
@@ -58,4 +63,4 @@ if [ -n "$CHECK" ]; then echo "gate passed; --check given, not merging"; exit 0;
 # unchecked, while the gate reported success for a commit it never looked at.
 # Applies to the override paths too: an override means "merge THIS red commit",
 # not "merge whatever arrives next". (Raised in review of #251.)
-gh pr merge "$PR" --match-head-commit "$sha" $METHOD $DELETE
+gh pr merge "$PR" -R "$SLUG" --match-head-commit "$sha" $METHOD $DELETE

@@ -70,8 +70,12 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# LOCAL_CI_REPO is required when run from stdin (the cron form below), where
-# there is no __file__ to derive it from.
+# LOCAL_CI_REPO is required when run from stdin (the cron form below).
+if not os.environ.get("LOCAL_CI_REPO") and not Path(__file__).is_file():
+    # Under `python3 -` __file__ is the string '<stdin>', not missing, so
+    # deriving REPO from it would silently give the parent of the working
+    # directory. Refuse instead. (Measured in review of #251.)
+    sys.exit("local_ci.py: LOCAL_CI_REPO must be set when the script is read from stdin")
 REPO = Path(os.environ.get("LOCAL_CI_REPO") or Path(__file__).resolve().parents[1])
 SLUG = os.environ.get("LOCAL_CI_SLUG", "alfieprojectsdev/movefaults")
 HOME = Path(os.environ.get("LOCAL_CI_HOME", Path.home() / ".local/state/local-ci"))
@@ -251,7 +255,8 @@ def runner_version() -> str:
     except OSError:
         age = "unknown"
     src = "stdin (origin/main)" if not Path(sys.argv[0]).is_file() else sys.argv[0]
-    return f"{src} @ origin/main {sha.stdout.strip() or '?'}, last fetch {age} ago"
+    ref = sha.stdout.strip() if sha.returncode == 0 else "REV-PARSE FAILED"
+    return f"{src} @ origin/main {ref} in {REPO}, last fetch {age} ago"
 
 
 def bpe_running() -> bool:
