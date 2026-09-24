@@ -153,6 +153,10 @@ def test_parse_rinex_time_invalid():
 # validate_rinex
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(
+    not (shutil.which("teqc") or shutil.which("gfzrnx")),
+    reason="neither teqc nor gfzrnx on PATH: this test cannot tell a valid file from an unvalidated one, and a pass here would be green for no reason (#243)",
+)
 def test_validate_rinex_valid_header(rinex_file):
     result = _validate_rinex(rinex_file)
     assert result["file_path"] == rinex_file
