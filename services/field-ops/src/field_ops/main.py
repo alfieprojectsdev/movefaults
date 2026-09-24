@@ -13,10 +13,13 @@ Architecture note:
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from field_ops import schema_check
 from field_ops.config import settings
+from field_ops.database import get_db
 from field_ops.routers import auth, equipment, logsheets, staff, stations
 
 
@@ -29,10 +32,15 @@ async def lifespan(_app: FastAPI):
     a bad R2 configuration would surface as a 500 on the first upload from the
     field rather than as a failed deploy. Constructing it here makes the failure
     happen while someone is still watching the deploy logs.
+
+    The same reasoning covers the migration files: schema_check needs them to
+    know which schema revision this code expects, so an image built without
+    them fails here rather than passing every health check blind.
     """
     from field_ops.storage import get_storage
 
     get_storage()
+    schema_check.expected_heads()
     yield
 
 
@@ -76,8 +84,19 @@ app.include_router(staff.router)
 
 
 @app.get("/health")
-async def health() -> dict:
-    return {"status": "ok", "service": "field-ops-api"}
+async def health(response: Response, db: AsyncSession = Depends(get_db)) -> dict:
+    """
+    Render's health check (render.yaml: healthCheckPath). A new deploy receives
+    traffic only once this passes, so answering 503 when the database is behind
+    the code keeps the previous version serving instead of shipping a 500 to
+    the field. See schema_check for what does and deliberately does not fail.
+    """
+    status = await schema_check.current_status(db)
+    body = {"status": "ok", "service": "field-ops-api", "schema": status.as_dict()}
+    if status.blocks_traffic:
+        response.status_code = 503
+        body["status"] = "schema_behind"
+    return body
 
 
 def start() -> None:
