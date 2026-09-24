@@ -99,10 +99,18 @@ on Linux against 5.2 on Windows) and in constraints, and our daily solutions
 are stacked to weekly while theirs were computed weekly. The networks differ
 in size: PHIVOLCS' 2025 weekly solutions carry 87 to 95 stations (median 91),
 and ours about 35. Every station we process is in theirs. The difference is
-which stations each network includes, not missing data: we hold 2025
+which stations each network includes, not missing data. We hold 2025
 observations for 53 of the 58 stations they process and we don't. It is also
 not PAGENET: only two NAMRIA stations, PMAT and PTAG, appear in their weekly
 solutions. It can't be bit-for-bit and isn't offered as such.
+
+An earlier version of this page said the two networks were close in size,
+PHIVOLCS at 28 to 40 stations per day against 32 to 41 for ours. That was
+wrong. Two different files share the name `WK_2375.SNX`: the national
+production solution this comparison used, with 93 stations, and a Luzon
+campaign solution with 37. The smaller one was read as PHIVOLCS production.
+Corrected here rather than quietly removed, in case an earlier version was
+read.
 
 ## Open items
 
