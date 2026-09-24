@@ -320,7 +320,8 @@ cd services/vadase-rt-monitor && PYTHONPATH=. uv run python scripts/run_ingestor
 | NMEA parser | `services/vadase-rt-monitor/src/parsers/nmea_parser.py` |
 | Ingestion domain core | `services/vadase-rt-monitor/src/domain/processor.py` |
 | Station definitions (**4 configured**) | `services/vadase-rt-monitor/config/stations.yml` |
-| Event thresholds | `services/vadase-rt-monitor/config/thresholds.yml` |
+| Event thresholds (**`threshold_mm_s`, per station**) | `services/vadase-rt-monitor/config/stations.yml` |
+| ~~Event thresholds~~ `config/thresholds.yml` | **0 bytes — empty.** The value lives in `stations.yml` above |
 | Drive scanner | `tools/drive-archaeologist/src/drive_archaeologist/scanner.py` |
 | File classifier profiles | `tools/drive-archaeologist/src/drive_archaeologist/profiles.py` |
 | Coordinate transforms | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/modeling/coordinates.py` |

@@ -320,7 +320,18 @@ Do not open these as findings.
      `localhost:5433` when the variable is unset, and its docstring records the
      earlier incident. DEPLOY.md documents it too.
   3. **The automation that should have applied it never ran.** That one is a
-     live defect, not settled behaviour — see §6.
+     live defect, not settled behaviour — see §6. **Do not check this with
+     `actions/permissions --jq .enabled` alone.** Since 2026-09-24 that
+     returns `true` while the account is billing-locked and nothing executes,
+     so the obvious detector passes on a broken guard. Ask whether a run
+     actually did anything:
+
+     ```bash
+     id=$(gh api "repos/alfieprojectsdev/movefaults/actions/runs?per_page=1" \
+            --jq '.workflow_runs[0].id')
+     gh api "repos/alfieprojectsdev/movefaults/actions/runs/$id/jobs" \
+            --jq '[.jobs[].steps|length]|add'   # 0 = locked or never started
+     ```
 
   Mechanisms 1 and 2 are caught by a startup check comparing alembic's head to
   the database's stamped revision. Neither is detectable from the command's
@@ -393,23 +404,33 @@ Old documents and older memory still assert these. They are wrong.
 A settled-list that suppresses live questions is worse than none. These are
 genuinely unresolved as of 2026-09-23 and *should* be worked on:
 
-- **GitHub Actions is DISABLED repo-wide, so no workflow has ever run.**
-  `gh api repos/alfieprojectsdev/movefaults/actions/permissions --jq .enabled`
-  returns **`false`** (2026-09-23), and no run of any kind exists since
-  2026-04-23. Consequences, both current:
+- **GitHub Actions is ENABLED and still runs nothing: the account is
+  billing-locked.** Enabled 2026-09-24 (it had been disabled repo-wide since
+  before `field_ops_migrate.yml` existed). The switch moved; the behaviour did
+  not. Every job of every run since carries **zero steps** and the annotation:
+
+  > The job was not started because your account is locked due to a billing
+  > issue.
+
+  Verified 2026-09-24: `enabled=true`, latest run `35837495421`, total steps
+  across its jobs **0**. No workflow has executed since **2026-04-23**.
   - `field_ops_migrate.yml` — on `main` since 2026-09-14, triggering on
-    `services/field-ops/migrations/**`, reporting `state=active` — **has never
-    executed.** It was added in response to an earlier migration incident, and
-    it did not prevent the 2026-09-23 outage because it cannot start. Every
-    future merge touching that path reproduces that outage until Actions is on.
-    **Registration is not execution**, and nothing inside the repo shows the
-    difference: the file is present, valid and reported active.
-  - `tests.yml` has likewise never run. Every "tests pass" on a PR since April
-    has been a local claim by whichever machine opened it.
-  Decide alongside `render.yaml`'s `autoDeployTrigger: commit`, which deploys
-  code from `main` without waiting for anything. Enabling Actions also restarts
-  `deploy_docs.yml`, which was failing on every run up to April, so this is not
-  a free switch.
+    `services/field-ops/migrations/**` — **has still never executed.** It was
+    added after an earlier migration incident and did not prevent the
+    2026-09-23 outage, because it cannot start. Every merge touching that path
+    reproduces that outage until the billing lock is cleared. **Registration is
+    not execution, and neither is being enabled.**
+  - `tests.yml` has likewise never run, so every "tests pass" on a PR since
+    April is a local claim by whichever machine opened it. **While the lock
+    holds, every PR shows a red Tests check for reasons unrelated to its code.**
+    Say so in the PR body; a reviewer cannot tell the difference from the badge.
+  - `deploy_docs.yml` was disabled manually on 2026-09-24. It had failed on all
+    twelve of its runs to April, so leaving it active would have added noise
+    with no signal.
+  **Clearing the lock is an account-billing action, not a repository one** — it
+  is Alfie's, and nothing in the repo can do it. Decide alongside
+  `render.yaml`'s `autoDeployTrigger: commit`, which deploys `main` regardless.
+
 - **No production month has run through `services/bernese-workflow`.** Until one
   is compared byte-for-byte against `scripts/` output, its 229 tests are
   evidence about the service, not about the science.
