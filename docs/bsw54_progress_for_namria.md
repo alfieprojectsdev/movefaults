@@ -96,11 +96,13 @@ residuals. After a 7-parameter Helmert alignment, the median residuals were:
 
 This is an agreement test, not a reproduction. The two differ in version (5.4
 on Linux against 5.2 on Windows) and in constraints, and our daily solutions
-are stacked to weekly while theirs were computed weekly. The networks are close
-in size: PHIVOLCS' 2025 production estimates 28 to 40 stations per day, median
-34, and the PHREF national runs compared against it estimate 32 to 41, median
-37. Both counted the same way, from the `SITE/ID` block of each daily SINEX.
-It can't be bit-for-bit and isn't offered as such.
+are stacked to weekly while theirs were computed weekly. The networks differ
+in size: PHIVOLCS' 2025 weekly solutions carry 87 to 95 stations (median 91),
+and ours about 35. Every station we process is in theirs. The difference is
+which stations each network includes, not missing data: we hold 2025
+observations for 53 of the 58 stations they process and we don't. It is also
+not PAGENET: only two NAMRIA stations, PMAT and PTAG, appear in their weekly
+solutions. It can't be bit-for-bit and isn't offered as such.
 
 ## Open items
 
