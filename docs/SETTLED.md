@@ -402,7 +402,7 @@ Old documents and older memory still assert these. They are wrong.
 ## 6. Still open — this list is not a gag
 
 A settled-list that suppresses live questions is worse than none. These are
-genuinely unresolved as of 2026-09-23 and *should* be worked on:
+genuinely unresolved as of 2026-09-24 and *should* be worked on:
 
 - **GitHub Actions is ENABLED and still runs nothing: the account is
   billing-locked.** Enabled 2026-09-24 (it had been disabled repo-wide since
