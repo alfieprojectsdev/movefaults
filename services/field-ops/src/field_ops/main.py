@@ -96,7 +96,11 @@ async def health(
     body = {"status": "ok", "service": "field-ops-api", "schema": status.as_dict()}
     if status.blocks_traffic:
         response.status_code = 503
-        body["status"] = "schema_behind" if status.state == "behind" else "database_misconfigured"
+        body["status"] = {
+            "behind": "schema_behind",
+            "misconfigured": "database_misconfigured",
+            "unverified": "schema_unverified",
+        }[status.state]
     return body
 
 

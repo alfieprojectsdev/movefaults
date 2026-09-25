@@ -31,15 +31,25 @@ WHAT COUNTS AS A FAILURE, AND WHAT DELIBERATELY DOES NOT
   expired password, missing database, missing rights). -> 503. These do not go
   away on retry, and serving with them is the 23 Sep outage by another door:
   every route that touches the database fails while /health says ok.
-- unknown: the database could not be asked (unreachable, timed out, or not
-  PostgreSQL, as in the SQLite unit tests). -> 200.
-  This includes failures that ARE permanent but arrive as connection errors: a
-  suspended or billing-disabled database endpoint looks exactly like one waking
-  from idle at probe time. They are treated as transient because they cannot be
-  told apart in the moment, not because they were overlooked. Such a deploy
-  takes traffic and fails on every database route; the guard does not cover it. A health check that fails on
-  a transient database blip makes Render restart a healthy process, and the
-  hosted database can take seconds to wake from idle.
+- unknown: the database could not be asked (unreachable or timed out). What
+  that means depends on whether THIS PROCESS has ever completed a check:
+  - never (a fresh deploy, or a restart): -> 503, as "unverified". On
+    2026-09-25 09:34:56 the first probe after #249 deployed hit a sleeping
+    database, read unknown, and the deploy went live unchecked. It was harmless
+    because the database was already right, but the probe that mattered most was
+    the one that skipped the check. Render keeps probing a new deploy for up to
+    15 minutes, so a database waking in seconds costs seconds; one that never
+    answers gets the deploy refused while the old version keeps serving.
+  - at least once: -> 200. A running instance whose database naps must not be
+    restarted for it: Render restarts after 60 s of failures, and the hosted
+    database sleeps after minutes of idleness.
+  Failures that ARE permanent but arrive as connection errors (a suspended or
+  billing-disabled endpoint) look exactly like a wake at probe time. At startup
+  they now fail closed; after a first success they are still treated as
+  transient, because they cannot be told apart in the moment. Such an instance
+  keeps taking traffic and fails on every database route.
+- not_applicable: the database is not PostgreSQL (the SQLite unit tests and
+  local development). There is no version table to read. -> 200, always.
 
 The expected head comes from the migration files shipped in the image. If they
 are missing, `expected_heads()` raises, and the app refuses to start: a build
@@ -174,14 +184,14 @@ def known_revisions() -> frozenset[str]:
 
 @dataclass(frozen=True)
 class SchemaStatus:
-    state: str  # "current" | "behind" | "misconfigured" | "unrecognised" | "unknown"
+    state: str  # current | behind | misconfigured | unverified | unrecognised | unknown | not_applicable
     expected: frozenset[str] = field(default_factory=frozenset)
     database: frozenset[str] = field(default_factory=frozenset)
     detail: str = ""
 
     @property
     def blocks_traffic(self) -> bool:
-        return self.state in ("behind", "misconfigured")
+        return self.state in ("behind", "misconfigured", "unverified")
 
     def as_dict(self) -> dict:
         return {
@@ -221,7 +231,15 @@ def classify(
 
 
 async def database_revisions(session: AsyncSession) -> frozenset[str] | None:
-    """Revisions recorded in field_ops.alembic_version; None when not determinable."""
+    """
+    Revisions recorded in field_ops.alembic_version; None when not PostgreSQL.
+
+    COMMANDS ISSUED: at most two, the SELECT and, when the version table does
+    not exist, a rollback. HEALTH_COMMAND_TIMEOUT is budgeted for exactly two
+    (test_worst_case_budget_fits_under_the_backstop_and_render counts them as
+    `2 *`). Adding a command here means updating that count, or the budget
+    silently overruns Render's 5 s.
+    """
     bind = session.bind
     if bind is None or bind.dialect.name != "postgresql":
         return None
@@ -266,11 +284,20 @@ def permanent_error_name(exc: BaseException) -> str | None:
 
 
 _cache: tuple[float, SchemaStatus] | None = None
+# Set once this process completes a check that reached the database, whatever
+# it found. Until then, "unknown" means "not yet verified" and fails closed.
+_verified_once = False
+
+# States that come from actually reading the database. Only these are cached,
+# and only these count as the process having verified: an "unknown" result is
+# re-tried on the very next probe rather than held for CACHE_SECONDS, so a
+# deploy waiting on a waking database goes live as soon as it answers.
+_DETERMINED = frozenset({"current", "behind", "misconfigured", "unrecognised"})
 
 
 async def current_status(session: AsyncSession) -> SchemaStatus:
-    """Schema status, re-checked at most every CACHE_SECONDS."""
-    global _cache
+    """Schema status, re-checked at most every CACHE_SECONDS once determined."""
+    global _cache, _verified_once
     now = time.monotonic()
     if _cache and now - _cache[0] < CACHE_SECONDS:
         return _cache[1]
@@ -291,13 +318,25 @@ async def current_status(session: AsyncSession) -> SchemaStatus:
             )
     else:
         if database is None:
-            status = SchemaStatus("unknown", expected, detail="not a PostgreSQL database")
+            status = SchemaStatus("not_applicable", expected, detail="not a PostgreSQL database")
         else:
             status = classify(expected, known_revisions(), database)
-    _cache = (now, status)
+    if status.state == "unknown" and not _verified_once:
+        status = SchemaStatus(
+            "unverified",
+            expected,
+            detail="no schema check has succeeded since this process started ("
+            + status.detail
+            + "); a new deploy must not take traffic unchecked",
+        )
+    if status.state in _DETERMINED:
+        _verified_once = True
+        _cache = (now, status)
     return status
 
 
 def reset_cache() -> None:
-    global _cache
+    """Forget the cached result AND whether this process has verified (tests)."""
+    global _cache, _verified_once
     _cache = None
+    _verified_once = False

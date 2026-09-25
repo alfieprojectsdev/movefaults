@@ -69,8 +69,16 @@ serving, so field staff see nothing. The response body names both revisions:
 
 To recover: run the migration below against the hosted database, confirm it
 with `current --verbose`, then in Render use **Manual Deploy → Deploy latest
-commit**. A database *ahead* of the code (a rollback) or one that can't be
-reached does not fail the check; see `src/field_ops/schema_check.py`.
+commit**. A database *ahead* of the code (a rollback) does not fail the check.
+
+**A deploy onto a database that can't be reached is refused too**, as
+`"status": "schema_unverified"`, until the process has completed one check.
+The hosted database sleeps when idle, so the first probes after a deploy may
+find it asleep: Render keeps probing for up to 15 minutes, and a database that
+wakes in seconds costs seconds. One that never answers gets the deploy refused
+while the previous version keeps serving. **Once a process has verified, a
+database that later naps does not fail its health check**, so a running
+instance is never restarted for it. See `src/field_ops/schema_check.py`.
 
 A database that **refuses the deploy's own settings** (wrong or expired
 password, missing database, missing rights) answers 503 too, with
