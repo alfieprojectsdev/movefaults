@@ -346,6 +346,53 @@ Do not open these as findings.
   untidiness.** The checkout above was stuck because one uncommitted
   `CLAUDE.md` edit had blocked `git pull --rebase` for days. Nothing connects
   those two facts until the moment you need them connected.
+
+  **Running it from the wrong directory fails loudly, and the error recommends
+  the worst available fix.** `alembic.ini` sets a `script_location` relative to
+  the **repository root**, so the command works from the root and dies from
+  inside `services/field-ops/`:
+
+  ```
+  Path doesn't exist: services/field-ops/migrations.
+  Please use the 'init' command to create a new scripts folder.
+  ```
+
+  That reads as a broken or missing install rather than a wrong `cd`, and
+  following the suggestion would create a second, empty migration tree beside
+  the real one. Run alembic from the repository root. Asked during the
+  2026-09-23 incident and recorded here so it is not re-derived under pressure.
+- **A check that could not run reports the same thing as a check that ran and
+  found nothing.** The three mechanisms above are instances of this, not
+  separate curiosities, and six have now been found in this repository inside
+  three days. It is written down as a *family* because each was found alone and
+  looked novel, and the next one will look novel too.
+
+  | reported fine | what had actually happened | when | status |
+  |---|---|---|---|
+  | `alembic upgrade head`, then `Rev: fo007 (head)` | a checkout 29 commits behind shipped no `008` file, so `head` meant fo007 | 2026-09-23 | settled above; `/health` now checks the effect |
+  | `actions/permissions --jq .enabled` → `true` | the account was billing-locked and every job ran **zero steps** | 2026-09-24 | §6, open |
+  | `ruff ok (no Python changes)` | the commit changed **only** ruff's config; ruff never ran, and a malformed table would have read the same | 2026-09-25 (#253) | fixed in #254 |
+  | `845 passed, 1 skipped` | cron's `PATH` lacked `~/bin`, so teqc was absent and the RINEX validator skipped on **every** unattended run | 2026-09-25 | fixed in #254 (preflight) |
+  | `changed_files` → nothing changed | a short SHA compared against `merge-base`'s full one made the diff a commit against itself | 2026-09-25 | fixed in #254 |
+  | `/health` → 200, deploy proceeds | a cold database is unreachable, which reads `unknown`, so the schema was never checked | 2026-09-25 09:34:56, in production | open; consecutive-unknowns fix planned |
+
+  **The rule: never let an absence be the pass condition.** "No error", "no
+  findings", "no changed files" and "nothing skipped" are all satisfied by a
+  check that never executed. State what must be *present* and assert that.
+
+  Two techniques found five of the six, and are cheap enough to be routine:
+
+  1. **Ask whether the green could have been red.** Break the thing on purpose
+     and confirm the check fails. `select = ["E", "NOTARULE"]` is what proved
+     the config lint actually loads the config; a mock that cancels instantly
+     is what *failed* to prove a timeout was a real bound.
+  2. **Observe both directions.** An exemption that is working and a rule set
+     that is dead both produce silence. `__init__.py` clean **and** a sibling
+     module still reporting `F401` is a result; either alone is not.
+
+  Also: **a verification path that differs from the production path only tests
+  itself.** The short-SHA bug never fired in cron, because production passes
+  full SHAs — it existed solely on the path used to check the other path.
 - **"Is this commit in `main`?" is the wrong question when content was
   cherry-picked.** `git merge-base --is-ancestor <sha> origin/main` (or
   `branch --contains`) answers whether that exact *commit* is in `main`. A
