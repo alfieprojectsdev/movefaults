@@ -120,7 +120,7 @@ class Outcome:
 PREFLIGHT_TOOLS = ("git", "uv", "gh", "npm", "node", "teqc", "gfzrnx", "gzip", "zcat")
 
 
-def test_pg_address(environ=os.environ) -> tuple[str, int]:
+def pg_test_address(environ=os.environ) -> tuple[str, int]:
     """
     Where the field-ops DB tests will connect: FIELD_OPS_TEST_DATABASE_URL when
     set, else conftest's default. Read from the same variable the tests read, so
@@ -149,7 +149,7 @@ def preflight(which=shutil.which, can_connect=None) -> list[str]:
     if can_connect is None:
         can_connect = _tcp_ok
     problems = [f"{t} not on PATH" for t in PREFLIGHT_TOOLS if which(t) is None]
-    host, port = test_pg_address()
+    host, port = pg_test_address()
     if not can_connect(host, port):
         problems.append(f"test Postgres not answering at {host}:{port}")
     return problems
@@ -370,19 +370,13 @@ def prepare_worktree(sha: str) -> str | None:
     return None
 
 
-def changed_python_files(sha: str) -> list[str]:
-    """
-    Python files this commit changes: against its merge-base with main for a PR
-    head, against its first parent for main itself.
-
-    Only these are linted. The repository as a whole carries several hundred
-    pre-existing ruff findings (666 on 2026-09-24), so linting everything would
-    make every commit red for reasons it did not introduce, and a check that is
-    always red is read as noise and then ignored.
-    """
+def _diff_base(sha: str) -> str:
+    """Merge-base with main for a PR head; first parent for main itself."""
     base = sh(["git", "-C", str(WORKTREE), "merge-base", "origin/main", sha]).stdout.strip()
-    if not base or base == sha:
-        base = f"{sha}^"
+    return f"{sha}^" if not base or base == sha else base
+
+
+def changed_files(sha: str, *pathspecs: str) -> list[str]:
     r = sh(
         [
             "git",
@@ -391,13 +385,97 @@ def changed_python_files(sha: str) -> list[str]:
             "diff",
             "--name-only",
             "--diff-filter=ACMR",
-            base,
+            _diff_base(sha),
             sha,
             "--",
-            "*.py",
+            *pathspecs,
         ]
     )
     return [f for f in r.stdout.split() if f]
+
+
+def changed_python_files(sha: str) -> list[str]:
+    """
+    Python files this commit changes. Only these are linted in the ordinary case.
+
+    The repository as a whole carries several hundred pre-existing ruff findings
+    (the count depends on the working tree), so linting everything would make
+    every commit red for reasons it did not introduce, and a check that is
+    always red is read as noise and then ignored.
+    """
+    return changed_files(sha, "*.py")
+
+
+# Files that change what ruff checks. A commit touching one gets a whole-tree
+# lint, because a config change is invisible to a changed-.py-files lint: #253
+# changed ONLY ruff's config and was reported "ruff ok (no Python changes)"
+# with ruff never run (found in review, 2026-09-25).
+RUFF_CONFIG_FILES = ("pyproject.toml", "ruff.toml", ".ruff.toml")
+
+
+def ruff_total(output: str) -> int | None:
+    """Sum of the counts in `ruff check --statistics` output; None if unparseable."""
+    counts = re.findall(r"^\s*(\d+)\s+\S", output, re.M)
+    return sum(int(c) for c in counts) if counts else (0 if output.strip() == "" else None)
+
+
+def ruff_config_step(sha: str, env: dict, logdir: Path) -> StepResult:
+    """
+    Lint the whole tree under the NEW config, and compare with the base config.
+
+    Fails only if ruff can't run with the new config (exit 2: a malformed table,
+    an unknown rule). A different findings total is reported, not failed: a
+    config change may mean to change what gets flagged, and the reviewer judges
+    that. What it must not do again is say "ok" without having run.
+    """
+    import tempfile
+
+    t0 = time.monotonic()
+    head = sh(
+        ["uv", "run", "--frozen", "ruff", "check", ".", "--statistics"],
+        cwd=WORKTREE,
+        env=env,
+        timeout=600,
+    )
+    out = head.stdout + head.stderr
+    base_total = None
+    base_cfg = sh(["git", "-C", str(WORKTREE), "show", f"{_diff_base(sha)}:pyproject.toml"])
+    if base_cfg.returncode == 0:
+        with tempfile.TemporaryDirectory() as d:
+            cfg = Path(d) / "pyproject.toml"
+            cfg.write_text(base_cfg.stdout)
+            base = sh(
+                [
+                    "uv",
+                    "run",
+                    "--frozen",
+                    "ruff",
+                    "check",
+                    ".",
+                    "--statistics",
+                    "--config",
+                    str(cfg),
+                ],
+                cwd=WORKTREE,
+                env=env,
+                timeout=600,
+            )
+            out += "\n--- base config ---\n" + base.stdout + base.stderr
+            if base.returncode in (0, 1):
+                base_total = ruff_total(base.stdout)
+    (logdir / "ruff.log").write_text(out)
+    if head.returncode not in (0, 1):
+        return StepResult(
+            "ruff", False, "config broken: ruff could not run", round(time.monotonic() - t0, 1)
+        )
+    total = ruff_total(head.stdout)
+    delta = "" if base_total is None else f", base {base_total}"
+    return StepResult(
+        "ruff",
+        True,
+        f"config changed: whole tree {total} findings{delta}",
+        round(time.monotonic() - t0, 1),
+    )
 
 
 def import_check(env: dict) -> str | None:
@@ -455,7 +533,9 @@ def test_sha(sha: str, logdir: Path) -> Outcome:
 
     fe = WORKTREE / FRONTEND
     changed = changed_python_files(sha)
-    if changed:
+    if changed_files(sha, *RUFF_CONFIG_FILES):
+        ruff = ruff_config_step(sha, env, logdir)
+    elif changed:
         ruff = run_step(
             "ruff",
             ["uv", "run", "--frozen", "ruff", "check", *changed],

@@ -141,5 +141,12 @@ def test_preflight_checks_where_the_tests_will_connect():
     # Same variable conftest reads, or preflight could pass on localhost while
     # the DB tests connect elsewhere and skip (review of #254).
     env = {"FIELD_OPS_TEST_DATABASE_URL": "postgresql+asyncpg://u:p@db.example:6543/x"}
-    assert ci.test_pg_address(env) == ("db.example", 6543)
-    assert ci.test_pg_address({}) == ("localhost", 5433)
+    assert ci.pg_test_address(env) == ("db.example", 6543)
+    assert ci.pg_test_address({}) == ("localhost", 5433)
+
+
+def test_ruff_total_sums_the_statistics():
+    out = "   20\tE741\tambiguous-variable-name\n    5\tF401\t[*] unused-import\n"
+    assert ci.ruff_total(out) == 25
+    assert ci.ruff_total("") == 0
+    assert ci.ruff_total("error: TOML parse error") is None
