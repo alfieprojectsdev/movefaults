@@ -180,7 +180,7 @@ def _assert_deployable(s: Settings) -> None:
     if s.field_ops_jwt_secret == _WEAK_JWT_SECRET or len(s.field_ops_jwt_secret) < 32:
         problems.append(
             "FIELD_OPS_JWT_SECRET is unset, default, or under 32 chars "
-            "(generate: python -c \"import secrets; print(secrets.token_hex(32))\")"
+            '(generate: python -c "import secrets; print(secrets.token_hex(32))")'
         )
 
     if s.field_ops_storage_backend.lower() != "r2":
@@ -206,18 +206,31 @@ def _assert_deployable(s: Settings) -> None:
         ]
         if missing_r2:
             problems.append(
-                "FIELD_OPS_STORAGE_BACKEND=r2 but these are unset: "
-                + ", ".join(missing_r2)
+                "FIELD_OPS_STORAGE_BACKEND=r2 but these are unset: " + ", ".join(missing_r2)
             )
 
     if not s.database_url:
         problems.append("DATABASE_URL is unset")
+    else:
+        # The /health schema guard reads PostgreSQL's version table. On any other
+        # driver it reports not_applicable and passes, the one state that passes
+        # without reading the database. A non-Postgres URL is inferred to be
+        # production (it isn't loopback), so without this check a deploy on
+        # SQLite would boot and answer 200 with the guard permanently inert:
+        # the same argument as the R2 check above, word for word. Raised in
+        # review of #256.
+        from urllib.parse import urlsplit
+
+        driver = urlsplit(s.database_url).scheme.split("+")[0]
+        if driver not in ("postgresql", "postgres"):
+            problems.append(
+                f"DATABASE_URL uses the '{driver}' driver; production must be PostgreSQL "
+                "(the /health schema guard cannot check anything else)"
+            )
 
     if problems:
         # Names and conditions only — never the values.
-        raise RuntimeError(
-            "Refusing to start in production mode:\n  - " + "\n  - ".join(problems)
-        )
+        raise RuntimeError("Refusing to start in production mode:\n  - " + "\n  - ".join(problems))
 
 
 settings = Settings()

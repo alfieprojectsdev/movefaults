@@ -120,8 +120,9 @@ async def test_health_is_503_when_database_is_behind(health_client):
         schema_check.classify(HEAD, KNOWN, frozenset({"fo008"})),
         schema_check.classify(HEAD, KNOWN, frozenset({"fo009"})),
         schema_check.SchemaStatus("unknown", HEAD, detail="database not reachable"),
+        schema_check.SchemaStatus("not_applicable", HEAD, detail="not a PostgreSQL database"),
     ],
-    ids=["current", "rollback", "unreachable"],
+    ids=["current", "rollback", "unreachable-after-success", "sqlite"],
 )
 async def test_health_is_200_otherwise(health_client, status):
     async with health_client(status) as c:
@@ -131,13 +132,14 @@ async def test_health_is_200_otherwise(health_client, status):
 
 
 @pytest.mark.asyncio
-async def test_sqlite_session_reports_unknown_not_behind(db_session):
-    # The unit-test database is SQLite. It must read as "cannot tell", never as
-    # "behind", or every existing test that touches /health would start failing.
+async def test_sqlite_session_is_not_applicable_never_unverified(db_session):
+    # The unit-test database is SQLite and has no version table. It must never
+    # read as "behind" or as "unverified", or every test and every local dev run
+    # touching /health would get 503.
     schema_check.reset_cache()
     status = await schema_check.current_status(db_session)
     schema_check.reset_cache()
-    assert status.state == "unknown"
+    assert status.state == "not_applicable"
     assert not status.blocks_traffic
 
 
@@ -187,14 +189,62 @@ async def test_rejected_credentials_block_traffic(exc):
     assert "InvalidPasswordError" in status.detail
 
 
+class _GoodSession(_PgSession):
+    def __init__(self, rows=(("fo008",),)):
+        self._rows = list(rows)
+
+    async def execute(self, *_a, **_k):
+        return self._rows
+
+
+TRANSIENT = [TimeoutError(), ConnectionRefusedError(), OSError("dns")]
+
+
 @pytest.mark.asyncio
-@pytest.mark.parametrize("exc", [TimeoutError(), ConnectionRefusedError(), OSError("dns")])
-async def test_transient_errors_do_not_block_traffic(exc):
+@pytest.mark.parametrize("exc", TRANSIENT)
+async def test_unreachable_before_any_success_is_unverified_and_blocks(exc):
+    # 2026-09-25 09:34:56: the first probe after a deploy hit a sleeping database,
+    # read "unknown", and the deploy went live unchecked. A process that has never
+    # completed a check must not take traffic on the strength of not knowing.
     schema_check.reset_cache()
+    status = await schema_check.current_status(_PgSession(exc))
+    schema_check.reset_cache()
+    assert status.state == "unverified"
+    assert status.blocks_traffic
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("exc", TRANSIENT)
+async def test_unreachable_after_a_success_is_unknown_and_does_not_block(exc, monkeypatch):
+    # A running instance whose database naps must not be restarted for it.
+    schema_check.reset_cache()
+    assert (await schema_check.current_status(_GoodSession())).state == "current"
+    monkeypatch.setattr(schema_check, "CACHE_SECONDS", 0.0)  # force a fresh probe
     status = await schema_check.current_status(_PgSession(exc))
     schema_check.reset_cache()
     assert status.state == "unknown"
     assert not status.blocks_traffic
+
+
+@pytest.mark.asyncio
+async def test_an_unverified_result_is_not_cached():
+    # A deploy waiting on a waking database should go live on the first probe
+    # that reaches it, not wait out CACHE_SECONDS behind a stale "unverified".
+    schema_check.reset_cache()
+    first = await schema_check.current_status(_PgSession(TimeoutError()))
+    second = await schema_check.current_status(_GoodSession())
+    schema_check.reset_cache()
+    assert first.state == "unverified"
+    assert second.state == "current"
+
+
+@pytest.mark.asyncio
+async def test_health_names_the_unverified_state(health_client):
+    status = schema_check.SchemaStatus("unverified", HEAD, detail="TimeoutError")
+    async with health_client(status) as c:
+        r = await c.get("/health")
+    assert r.status_code == 503
+    assert r.json()["status"] == "schema_unverified"
 
 
 @pytest.mark.asyncio
@@ -216,7 +266,8 @@ class _SlowSession(_PgSession):
 @pytest.mark.asyncio
 async def test_a_sleeping_database_answers_unknown_quickly(monkeypatch):
     # A probe on a database waking from idle must not hang past Render's own
-    # health-check timeout: it reads as unknown (200) within the bound.
+    # health-check timeout: it answers within the bound. (In a fresh process that
+    # answer is "unverified"; what this test pins is the time, not the state.)
     import time
 
     monkeypatch.setattr(schema_check, "DB_TIMEOUT_SECONDS", 0.2)
@@ -225,7 +276,7 @@ async def test_a_sleeping_database_answers_unknown_quickly(monkeypatch):
     status = await schema_check.current_status(_SlowSession(None))
     elapsed = time.monotonic() - t0
     schema_check.reset_cache()
-    assert status.state == "unknown" and not status.blocks_traffic
+    assert status.state == "unverified"
     assert elapsed < 2.0
 
 
@@ -249,7 +300,7 @@ async def test_health_connection_bounds_a_hung_connect():
     elapsed = time.monotonic() - t0
     schema_check.reset_cache()
     await engine.dispose()
-    assert status.state == "unknown" and not status.blocks_traffic
+    assert status.state == "unverified"  # a fresh process that never reached its DB
     # Under 3 s, not merely under 5: the 4 s wait_for backstop would pass a
     # looser bound on its own, and this test exists to prove the DRIVER's bound.
     # Budget test below keeps the three-step worst case under the backstop.
@@ -259,6 +310,51 @@ async def test_health_connection_bounds_a_hung_connect():
 def test_worst_case_budget_fits_under_the_backstop_and_render():
     # connect + SELECT + rollback (the fresh-database path) must finish before the
     # wait_for backstop fires, and leave room under Render's 5 s for the response.
+    # 2 commands: the SELECT and, on a fresh database, the rollback. The count
+    # lives in database_revisions' docstring; change both together.
     worst = schema_check.HEALTH_CONNECT_TIMEOUT + 2 * schema_check.HEALTH_COMMAND_TIMEOUT
     assert worst < schema_check.DB_TIMEOUT_SECONDS, "backstop would fire on a correct probe"
     assert worst <= 3.0, "leave at least 2 s under Render's 5 s for TLS, FastAPI, response"
+
+
+# --- production must be PostgreSQL, or the guard is inert ---------------------------
+#
+# Review of #256: not_applicable is the one state that passes without reading the
+# database, and a sqlite DATABASE_URL isn't loopback, so it reads as production.
+# Without a driver check that deploy boots and answers 200 with the guard inert.
+
+
+def _prod_settings(database_url: str):
+    from field_ops.config import Settings
+
+    return Settings(
+        _env_file=None,
+        database_url=database_url,
+        field_ops_jwt_secret="x" * 40,
+        field_ops_storage_backend="r2",
+        r2_account_id="a",
+        r2_access_key_id="b",
+        r2_secret_access_key="c",
+        r2_bucket="d",
+    )
+
+
+def test_production_on_sqlite_refuses_to_start(monkeypatch):
+    from field_ops.config import _assert_deployable
+
+    monkeypatch.delenv("FIELD_OPS_DEV", raising=False)
+    s = _prod_settings("sqlite+aiosqlite:///./field_ops.db")
+    assert s.is_production, "the premise: a sqlite URL reads as production"
+    with pytest.raises(RuntimeError, match="must be PostgreSQL"):
+        _assert_deployable(s)
+
+
+def test_production_on_postgres_passes_the_driver_check(monkeypatch):
+    # The other direction: the same settings on a remote Postgres URL must boot,
+    # or the check above is just a check that everything fails.
+    from field_ops.config import _assert_deployable
+
+    monkeypatch.delenv("FIELD_OPS_DEV", raising=False)
+    s = _prod_settings("postgresql://u:p@db.example.neon.tech/pogf?sslmode=require")
+    assert s.is_production
+    _assert_deployable(s)  # must not raise
