@@ -195,9 +195,15 @@ def select_targets(
     main = [t for t in pending if t.label == "main"]
     rest = sorted(
         (t for t in pending if t.label != "main"),
-        key=lambda t: first_seen.get(t.sha, float("inf")),
+        # Ties (SHAs first seen in the same tick) go to the older PR, so a tie
+        # doesn't fall back to gh's newest-first order, the thing this replaces.
+        key=lambda t: (first_seen.get(t.sha, float("inf")), _pr_number(t.label)),
     )
     return (main + rest)[:limit]
+
+
+def _pr_number(label: str) -> int:
+    return int(label[1:]) if label.startswith("#") and label[1:].isdigit() else 0
 
 
 def record_first_seen(first_seen: dict, targets: list[Target], now: float) -> dict:
@@ -290,6 +296,11 @@ def gh_targets() -> list[Target]:
             SLUG,
             "--state",
             "open",
+            # Explicit, not gh's silent default of 30: record_first_seen prunes
+            # SHAs that go missing, so a truncated list would erase the arrival
+            # times of the PRs cut off and send them to the back (review of #257).
+            "--limit",
+            "200",
             "--json",
             "number,headRefOid",
             "--jq",

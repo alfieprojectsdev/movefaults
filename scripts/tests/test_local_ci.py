@@ -179,3 +179,12 @@ def test_first_seen_keeps_the_original_time_and_forgets_dead_shas():
     seen = ci.record_first_seen({}, [t1, t2], now=100)
     seen = ci.record_first_seen(seen, [t1], now=500)
     assert seen == {"a" * 40: 100}
+
+
+def test_ties_in_arrival_go_to_the_older_pr():
+    # Every SHA new in the same tick shares a timestamp. Without a tie-break the
+    # stable sort keeps gh's newest-first order, the behaviour FIFO replaces.
+    targets = [T("n" * 40, "#257"), T("o" * 40, "#249"), T("p" * 40, "#1000")]
+    seen = ci.record_first_seen({}, targets, now=100)
+    picked = ci.select_targets(targets, {}, limit=3, first_seen=seen)
+    assert [t.label for t in picked] == ["#249", "#257", "#1000"]
