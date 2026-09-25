@@ -11,7 +11,9 @@
 #                 A check that silently never reports is the same failure as a
 #                 workflow that never starts (SETTLED.md §6), so absence blocks.
 #   pending    -> a run is in progress, or died mid-run.
-#   failure / error -> the suite failed, or the harness did.
+#   failure   -> the suite ran and failed.
+#   error     -> the harness broke before the suite finished: NOT a verdict on
+#                the code, so it's treated like no status at all.
 # TRUST: the gate trusts that a `local-ci/gps3` success on this repo came from
 # gps3's runner. Any token that can write commit statuses here can write that
 # context too; that is how commit statuses work. It is a fair trade for CI that
@@ -19,7 +21,7 @@
 # attestation, and shouldn't be read as one.
 # Overrides take a reason, which is printed, so the bypass is a decision on the
 # record rather than a habit: --allow-red for failure/error, --no-local-ci for
-# a missing or pending status.
+# a missing, pending or error status.
 set -euo pipefail
 PR="${1:?pr number required}"; shift || true
 METHOD="--merge"; DELETE=""; ALLOW_RED=""; NO_LOCAL_CI=""; CHECK=""
@@ -47,12 +49,18 @@ echo "local-ci/gps3 on #$PR @ ${sha:0:7}: $state${desc:+ -- $desc}"
 
 case "$state" in
   success) ;;
-  failure|error)
+  failure)
+    # The suite ran and judged. --allow-red accepts what it found.
     if [ -n "$ALLOW_RED" ]; then echo "override accepted (red): $ALLOW_RED"
-    else echo "refused: local CI is $state. Fix it, or pass --allow-red \"<reason>\"." >&2; exit 3; fi;;
-  none|pending)
-    if [ -n "$NO_LOCAL_CI" ]; then echo "override accepted (no local CI result): $NO_LOCAL_CI"
-    else echo "refused: no finished local CI result for this commit. Is gps3 up? (scripts/local_ci.py status)" >&2
+    else echo "refused: local CI ran and failed. Fix it, or pass --allow-red \"<reason>\"." >&2; exit 3; fi;;
+  none|pending|error)
+    # Nothing finished testing this commit: never run, still running, or the
+    # harness broke (preflight, checkout, sync, a crash). To whoever merges,
+    # those are the same thing, so they share the override. `error` must NOT
+    # take --allow-red, or untested code merges under a reason like "known
+    # flaky test". (Raised in review of #254.)
+    if [ -n "$NO_LOCAL_CI" ]; then echo "override accepted (untested: $state): $NO_LOCAL_CI"
+    else echo "refused: nothing finished testing this commit ($state). Is gps3 up? (scripts/local_ci.py status)" >&2
          echo "         Pass --no-local-ci \"<reason>\" to merge anyway." >&2; exit 3; fi;;
   *) echo "refused: unexpected status '$state'" >&2; exit 3;;
 esac

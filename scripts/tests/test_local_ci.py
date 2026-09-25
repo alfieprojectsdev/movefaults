@@ -135,3 +135,11 @@ def test_skip_reasons_reach_the_description():
     s = ci.summarize_pytest_with_skips(out)
     assert s.startswith("830 passed, 4 skipped [skipped: ")
     assert "production catalog not present" in s
+
+
+def test_preflight_checks_where_the_tests_will_connect():
+    # Same variable conftest reads, or preflight could pass on localhost while
+    # the DB tests connect elsewhere and skip (review of #254).
+    env = {"FIELD_OPS_TEST_DATABASE_URL": "postgresql+asyncpg://u:p@db.example:6543/x"}
+    assert ci.test_pg_address(env) == ("db.example", 6543)
+    assert ci.test_pg_address({}) == ("localhost", 5433)

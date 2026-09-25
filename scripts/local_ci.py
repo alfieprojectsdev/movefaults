@@ -118,8 +118,21 @@ class Outcome:
 # Kept honest by test_preflight_covers_every_tool_the_tests_check, which
 # greps the test tree and fails if a which() target is missing here.
 PREFLIGHT_TOOLS = ("git", "uv", "gh", "npm", "node", "teqc", "gfzrnx", "gzip", "zcat")
-# field-ops/tests/conftest.py's default FIELD_OPS_TEST_DATABASE_URL.
-TEST_PG = ("localhost", 5433)
+
+
+def test_pg_address(environ=os.environ) -> tuple[str, int]:
+    """
+    Where the field-ops DB tests will connect: FIELD_OPS_TEST_DATABASE_URL when
+    set, else conftest's default. Read from the same variable the tests read, so
+    the preflight can't check localhost while the tests go elsewhere and skip.
+    """
+    from urllib.parse import urlsplit
+
+    url = environ.get("FIELD_OPS_TEST_DATABASE_URL")
+    if url:
+        parts = urlsplit(url)
+        return parts.hostname or "localhost", parts.port or 5432
+    return "localhost", 5433  # field-ops/tests/conftest.py's default
 
 
 def preflight(which=shutil.which, can_connect=None) -> list[str]:
@@ -136,8 +149,9 @@ def preflight(which=shutil.which, can_connect=None) -> list[str]:
     if can_connect is None:
         can_connect = _tcp_ok
     problems = [f"{t} not on PATH" for t in PREFLIGHT_TOOLS if which(t) is None]
-    if not can_connect(*TEST_PG):
-        problems.append(f"test Postgres not answering at {TEST_PG[0]}:{TEST_PG[1]}")
+    host, port = test_pg_address()
+    if not can_connect(host, port):
+        problems.append(f"test Postgres not answering at {host}:{port}")
     return problems
 
 
