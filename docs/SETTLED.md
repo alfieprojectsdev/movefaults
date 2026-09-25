@@ -372,7 +372,7 @@ Do not open these as findings.
   | `alembic upgrade head`, then `Rev: fo007 (head)` | a checkout 29 commits behind shipped no `008` file, so `head` meant fo007 | 2026-09-23 | settled above; `/health` now checks the effect |
   | `actions/permissions --jq .enabled` → `true` | the account was billing-locked and every job ran **zero steps** | 2026-09-24 | §6, open |
   | `ruff ok (no Python changes)` | the commit changed **only** ruff's config; ruff never ran, and a malformed table would have read the same | 2026-09-25 (#253) | fixed in #254 |
-  | `845 passed, 1 skipped` | cron's `PATH` lacked `~/bin`, so teqc was absent and the RINEX validator skipped on **every** unattended run | 2026-09-25 | fixed in #254 (preflight) |
+  | `845 passed, 1 skipped` | cron's `PATH` lacked `~/bin`, so teqc was absent and the RINEX validator skipped on **every** unattended run | 2026-09-25 | crontab fixed 09:09; #254's preflight now fails a run that lacks it |
   | `changed_files` → nothing changed | a short SHA compared against `merge-base`'s full one made the diff a commit against itself | 2026-09-25 | fixed in #254 |
   | `/health` → 200, deploy proceeds | a cold database is unreachable, which reads `unknown`, so the schema was never checked | 2026-09-25 09:34:56, in production | open; consecutive-unknowns fix planned |
 
@@ -380,7 +380,15 @@ Do not open these as findings.
   findings", "no changed files" and "nothing skipped" are all satisfied by a
   check that never executed. State what must be *present* and assert that.
 
-  Two techniques found five of the six, and are cheap enough to be routine:
+  **What finds them is reading what an output claims ran**, against what it
+  could actually have done. Five of the six came out that way, from a line
+  somebody had already seen and skimmed: `(head)`, a step count, "no Python
+  changes", "1 skipped", an empty diff. The sixth came from reading the code
+  path instead — `TimeoutError` is not in `PERMANENT_ERRORS`, so an unreachable
+  database reads `unknown` and returns 200.
+
+  Two further techniques **confirm** a check is real. Neither found any of the
+  six; both are cheap enough to be routine once you suspect one:
 
   1. **Ask whether the green could have been red.** Break the thing on purpose
      and confirm the check fails. `select = ["E", "NOTARULE"]` is what proved
