@@ -41,7 +41,7 @@ WHAT IT DELIBERATELY DOES NOT DO
 INSTALL (gps3, user crontab; linger is off, so a systemd user timer would not
 fire without a login):
 
-    PATH=/home/gps3/.local/bin:/usr/local/bin:/usr/bin:/bin
+    PATH=/home/gps3/bin:/home/gps3/.local/bin:/usr/local/bin:/usr/bin:/bin
     LOCAL_CI_REPO=/home/gps3/repos/movefaults_clean
     */10 * * * * git -C "$LOCAL_CI_REPO" fetch -q origin main && git -C "$LOCAL_CI_REPO" show origin/main:scripts/local_ci.py | python3 - run >> /home/gps3/.local/state/local-ci/cron.log 2>&1
 
@@ -50,9 +50,10 @@ Why it runs main's copy straight out of git, not the file on disk:
   as people work, and can lack the script entirely;
 - a PR must not be able to change the CI that judges it. The runner is always
   the reviewed, merged version; a PR that edits this file is tested by main's.
-cron's default PATH has neither uv (~/.local/bin) nor, on some hosts, gh; without
-the PATH line every run exits 2 and the heartbeat goes stale, which `status`
-reports.
+cron's default PATH has neither uv (~/.local/bin) nor teqc and gfzrnx (~/bin).
+Without ~/.local/bin every run exits 2; without ~/bin the RINEX validator test
+skips on every unattended run. That second one happened (2026-09-25) and
+showed only as "1 skipped", which is why the preflight below exists.
 """
 
 from __future__ import annotations
@@ -111,6 +112,59 @@ class Outcome:
     reason: str = ""
 
 
+# Every external tool a test checks for with shutil.which(), plus what the
+# harness itself needs. A missing one means THIS RUNNER is misconfigured, and
+# the tests guarded by it would skip rather than fail, which reads as green.
+# Kept honest by test_preflight_covers_every_tool_the_tests_check, which
+# greps the test tree and fails if a which() target is missing here.
+PREFLIGHT_TOOLS = ("git", "uv", "gh", "npm", "node", "teqc", "gfzrnx", "gzip", "zcat")
+
+
+def pg_test_address(environ=os.environ) -> tuple[str, int]:
+    """
+    Where the field-ops DB tests will connect: FIELD_OPS_TEST_DATABASE_URL when
+    set, else conftest's default. Read from the same variable the tests read, so
+    the preflight can't check localhost while the tests go elsewhere and skip.
+    """
+    from urllib.parse import urlsplit
+
+    url = environ.get("FIELD_OPS_TEST_DATABASE_URL")
+    if url:
+        parts = urlsplit(url)
+        return parts.hostname or "localhost", parts.port or 5432
+    return "localhost", 5433  # field-ops/tests/conftest.py's default
+
+
+def preflight(which=shutil.which, can_connect=None) -> list[str]:
+    """
+    Problems with the runner's environment, empty when it's fit to judge.
+
+    Skips come in three kinds (review of the skip markers, 2026-09-25): a tool
+    missing (the runner is misconfigured), data absent (legitimate on a fresh
+    clone), and a race (one scan-jobs test). Only the first is a CI bug, and it
+    is exactly what this checks, before the suite, so the status says "teqc
+    not on PATH" rather than "1 skipped". Failing on skip counts instead would
+    flap on the race and stay red wherever data is absent.
+    """
+    if can_connect is None:
+        can_connect = _tcp_ok
+    problems = [f"{t} not on PATH" for t in PREFLIGHT_TOOLS if which(t) is None]
+    host, port = pg_test_address()
+    if not can_connect(host, port):
+        problems.append(f"test Postgres not answering at {host}:{port}")
+    return problems
+
+
+def _tcp_ok(host: str, port: int) -> bool:
+    import socket
+
+    try:
+        with socket.create_connection((host, port), timeout=2):
+            return True
+    except OSError:
+        return False
+
+
 def select_targets(targets: list[Target], state: dict, limit: int) -> list[Target]:
     """New SHAs first by position (main is listed first), deduplicated, capped."""
     picked: list[Target] = []
@@ -137,6 +191,29 @@ def summarize_pytest(output: str) -> str:
     """'836 passed, 0 skipped' style tail line, or '' if none found."""
     matches = list(_PYTEST_TAIL.finditer(output))
     return matches[-1].group(1).strip() if matches else ""
+
+
+_SKIP_REASON = re.compile(r"^SKIPPED \[\d+\] [^:]+:\d+: (.*)$", re.M)
+
+
+def skip_reasons(output: str) -> list[str]:
+    """Distinct skip reasons from `pytest -rs`, in order of first appearance."""
+    seen: list[str] = []
+    for r in _SKIP_REASON.findall(output):
+        r = r.strip()
+        if r not in seen:
+            seen.append(r)
+    return seen
+
+
+def summarize_pytest_with_skips(output: str) -> str:
+    """Tally, plus WHY things skipped: "1 skipped" is a number nobody decodes."""
+    tally = summarize_pytest(output)
+    reasons = skip_reasons(output)
+    if not reasons:
+        return tally
+    short = "; ".join(r if len(r) <= 40 else r[:37] + "..." for r in reasons)
+    return f"{tally} [skipped: {short}]"
 
 
 def summarize_vitest(output: str) -> str:
@@ -293,19 +370,18 @@ def prepare_worktree(sha: str) -> str | None:
     return None
 
 
-def changed_python_files(sha: str) -> list[str]:
-    """
-    Python files this commit changes: against its merge-base with main for a PR
-    head, against its first parent for main itself.
-
-    Only these are linted. The repository as a whole carries several hundred
-    pre-existing ruff findings (666 on 2026-09-24), so linting everything would
-    make every commit red for reasons it did not introduce, and a check that is
-    always red is read as noise and then ignored.
-    """
+def _diff_base(sha: str) -> str:
+    """Merge-base with main for a PR head; first parent for main itself."""
+    # Compare full SHAs: merge-base prints a full one, and a short `sha` would
+    # never match it, making the diff a commit against itself (found testing
+    # with short SHAs; production passes full ones, but a string compare of
+    # SHAs shouldn't depend on that).
+    full = sh(["git", "-C", str(WORKTREE), "rev-parse", sha]).stdout.strip()
     base = sh(["git", "-C", str(WORKTREE), "merge-base", "origin/main", sha]).stdout.strip()
-    if not base or base == sha:
-        base = f"{sha}^"
+    return f"{full}^" if not base or base == full else base
+
+
+def changed_files(sha: str, *pathspecs: str) -> list[str]:
     r = sh(
         [
             "git",
@@ -314,13 +390,90 @@ def changed_python_files(sha: str) -> list[str]:
             "diff",
             "--name-only",
             "--diff-filter=ACMR",
-            base,
+            _diff_base(sha),
             sha,
             "--",
-            "*.py",
+            *pathspecs,
         ]
     )
     return [f for f in r.stdout.split() if f]
+
+
+def changed_python_files(sha: str) -> list[str]:
+    """
+    Python files this commit changes. Only these are linted in the ordinary case.
+
+    The repository as a whole carries several hundred pre-existing ruff findings
+    (the count depends on the working tree), so linting everything would make
+    every commit red for reasons it did not introduce, and a check that is
+    always red is read as noise and then ignored.
+    """
+    return changed_files(sha, "*.py")
+
+
+# Files that change what ruff checks. A commit touching one gets a whole-tree
+# lint, because a config change is invisible to a changed-.py-files lint: #253
+# changed ONLY ruff's config and was reported "ruff ok (no Python changes)"
+# with ruff never run (found in review, 2026-09-25).
+RUFF_CONFIG_FILES = ("pyproject.toml", "ruff.toml", ".ruff.toml")
+
+
+def ruff_total(output: str) -> int | None:
+    """Sum of the counts in `ruff check --statistics` output; None if unparseable."""
+    counts = re.findall(r"^\s*(\d+)\s+\S", output, re.M)
+    return sum(int(c) for c in counts) if counts else (0 if output.strip() == "" else None)
+
+
+def ruff_config_step(sha: str, env: dict, logdir: Path) -> StepResult:
+    """
+    Lint the whole tree under the NEW config, and compare with the base config.
+
+    Fails only if ruff can't run with the new config (exit 2: a malformed table,
+    an unknown rule). A different findings total is reported, not failed: a
+    config change may mean to change what gets flagged, and the reviewer judges
+    that. It runs IN ADDITION to the changed-files lint, never instead of it,
+    because pyproject.toml also holds dependencies and entry points and changes
+    with ordinary feature work (review of #254).
+
+    The base config is swapped into the worktree's own pyproject.toml, not
+    written elsewhere and passed with --config: ruff resolves relative paths in
+    a config (exclude, per-file-ignores) against the config's own directory, so
+    a base config in /tmp would resolve them differently and fabricate a delta.
+    The head file is restored before returning, whatever happens.
+    """
+    t0 = time.monotonic()
+
+    def stats() -> subprocess.CompletedProcess:
+        return sh(
+            ["uv", "run", "--frozen", "ruff", "check", ".", "--statistics"],
+            cwd=WORKTREE,
+            env=env,
+            timeout=600,
+        )
+
+    head = stats()
+    out = head.stdout + head.stderr
+    base_note = ""
+    base_cfg = sh(["git", "-C", str(WORKTREE), "show", f"{_diff_base(sha)}:pyproject.toml"])
+    if base_cfg.returncode != 0:
+        base_note = ", no base config"
+    else:
+        target = WORKTREE / "pyproject.toml"
+        try:
+            target.write_text(base_cfg.stdout)
+            base = stats()
+        finally:
+            sh(["git", "-C", str(WORKTREE), "checkout", "--", "pyproject.toml"])
+        out += "\n--- base config ---\n" + base.stdout + base.stderr
+        base_total = ruff_total(base.stdout) if base.returncode in (0, 1) else None
+        base_note = f", base {base_total}" if base_total is not None else ", base config unusable"
+    (logdir / "ruff-config.log").write_text(out)
+    secs = round(time.monotonic() - t0, 1)
+    if head.returncode not in (0, 1):
+        return StepResult("ruff-config", False, "config broken: ruff could not run", secs)
+    return StepResult(
+        "ruff-config", True, f"whole tree {ruff_total(head.stdout)} findings{base_note}", secs
+    )
 
 
 def import_check(env: dict) -> str | None:
@@ -389,15 +542,20 @@ def test_sha(sha: str, logdir: Path) -> Outcome:
         )
     else:
         ruff = StepResult("ruff", True, "no Python changes", 0.0)
+    # Both, never one or the other: the changed-files lint FAILS on new
+    # findings, the config step REPORTS a whole-tree delta (review of #254).
+    lint = [ruff]
+    if changed_files(sha, *RUFF_CONFIG_FILES):
+        lint.append(ruff_config_step(sha, env, logdir))
     steps = [
-        ruff,
+        *lint,
         run_step(
             "pytest",
-            ["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider"],
+            ["uv", "run", "--frozen", "pytest", "-q", "-rs", "-p", "no:cacheprovider"],
             WORKTREE,
             env,
             logdir,
-            summarize_pytest,
+            summarize_pytest_with_skips,
         ),
     ]
     npm_ci = run_step(
@@ -455,6 +613,10 @@ def cmd_run(args) -> int:
             f"{len(targets)} targets, {len(todo)} to test: "
             + ", ".join(f"{t.label}@{t.sha[:7]}" for t in todo)
         )
+        problems = preflight() if todo else []
+        if problems:
+            beat["note"] = "preflight failed: " + "; ".join(problems)
+            log(beat["note"])
         for t in todo:
             if args.dry_run:
                 continue
@@ -463,7 +625,10 @@ def cmd_run(args) -> int:
             post_status(t.sha, "pending", f"testing on gps3 since {time.strftime('%H:%M')}")
             t0 = time.monotonic()
             try:
-                outcome = test_sha(t.sha, logdir)
+                if problems:  # a misconfigured runner must not report green
+                    outcome = Outcome("error", reason="preflight: " + "; ".join(problems))
+                else:
+                    outcome = test_sha(t.sha, logdir)
             except Exception as e:  # harness bug: report it, never swallow it
                 outcome = Outcome("error", reason=f"{type(e).__name__}: {e}"[:120])
             desc = describe(outcome)
