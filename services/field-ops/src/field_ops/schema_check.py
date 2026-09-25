@@ -65,13 +65,66 @@ _DEFAULT_MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations"
 
 CACHE_SECONDS = 30.0
 
-# The revision query must answer well inside Render's health-check timeout. The
-# hosted database sleeps when idle and can take seconds to wake; without a bound,
-# a probe landing on a sleeping database hangs until Render gives up on the probe
-# itself, and a healthy process gets restarted or a good deploy refused. A query
-# that doesn't answer in time reads as "unknown" (200), like any other
-# transient failure.
-DB_TIMEOUT_SECONDS = 3.0
+# TIME BUDGET. Render counts a health check as passed only if it answers 2xx
+# within 5 s (render.com/docs/health-checks, checked 2026-09-25). The hosted
+# database sleeps when idle and can take seconds to wake, and asyncpg's default
+# connect timeout is 60 s, so an unbounded probe could hang past Render's limit
+# and get a healthy process restarted or a good deploy refused.
+#
+# The bound lives in the DRIVER, on a connection used only by /health:
+#   connect  <= HEALTH_CONNECT_TIMEOUT  (a sleeping database is a slow connect)
+#   query    <= HEALTH_COMMAND_TIMEOUT
+# so the worst case is 2 + 1 = 3 s, with 2 s left for TLS, FastAPI and the
+# response. asyncio.wait_for is only a backstop: it cancels and then AWAITS the
+# driver's cleanup, and asyncpg cleans up an in-flight query by opening a second
+# connection to send a cancel request, so its bound is timeout + unwind, not a
+# ceiling (raised in review of #249). The app's own pool keeps the normal
+# timeouts: a 1 s command limit there would break real requests.
+#
+# CACHE_SECONDS is part of this budget. Render stops traffic only after 15 s of
+# CONSECUTIVE failures; with a 30 s cache, at most the first probe in each window
+# can be slow, so a slow database can never string 15 s of failures together.
+# Tuning the cache down removes that bound; don't, without re-checking this.
+HEALTH_CONNECT_TIMEOUT = 2.0
+HEALTH_COMMAND_TIMEOUT = 1.0
+DB_TIMEOUT_SECONDS = 4.0  # backstop only; see above
+
+_health_engine = None
+
+
+def make_health_engine(url: str):
+    """The bounded engine /health uses. Separate so the bound can be tested for real."""
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    from field_ops.config import settings
+
+    return create_async_engine(
+        url,
+        poolclass=NullPool,  # one short connection per check, never a pooled one
+        connect_args={
+            **settings.db_connect_args,
+            "timeout": HEALTH_CONNECT_TIMEOUT,
+            "command_timeout": HEALTH_COMMAND_TIMEOUT,
+        },
+    )
+
+
+def _get_health_engine():
+    global _health_engine
+    if _health_engine is None:
+        from field_ops.config import settings
+
+        _health_engine = make_health_engine(settings.db_url)
+    return _health_engine
+
+
+async def get_health_db():
+    """FastAPI dependency: a session on the bounded health-check connection."""
+    from sqlalchemy.ext.asyncio import AsyncSession as _S
+
+    async with _S(_get_health_engine()) as session:
+        yield session
 
 
 def migrations_dir() -> Path:

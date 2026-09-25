@@ -19,7 +19,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from field_ops import schema_check
 from field_ops.config import settings
-from field_ops.database import get_db
 from field_ops.routers import auth, equipment, logsheets, staff, stations
 
 
@@ -84,7 +83,9 @@ app.include_router(staff.router)
 
 
 @app.get("/health")
-async def health(response: Response, db: AsyncSession = Depends(get_db)) -> dict:
+async def health(
+    response: Response, db: AsyncSession = Depends(schema_check.get_health_db)
+) -> dict:
     """
     Render's health check (render.yaml: healthCheckPath). A new deploy receives
     traffic only once this passes, so answering 503 when the database is behind

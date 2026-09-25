@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 from field_ops import schema_check
-from field_ops.database import get_db
 from field_ops.main import app
 from httpx import ASGITransport, AsyncClient
 
@@ -88,7 +87,7 @@ def health_client(monkeypatch):
     async def no_db():
         yield None
 
-    app.dependency_overrides[get_db] = no_db
+    app.dependency_overrides[schema_check.get_health_db] = no_db
 
     def with_status(status):
         async def fake(_session):
@@ -98,7 +97,7 @@ def health_client(monkeypatch):
         return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
     yield with_status
-    app.dependency_overrides.pop(get_db, None)
+    app.dependency_overrides.pop(schema_check.get_health_db, None)
     schema_check.reset_cache()
 
 
@@ -228,3 +227,29 @@ async def test_a_sleeping_database_answers_unknown_quickly(monkeypatch):
     schema_check.reset_cache()
     assert status.state == "unknown" and not status.blocks_traffic
     assert elapsed < 2.0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_health_connection_bounds_a_hung_connect():
+    # The real driver, not a fake: a connect to an address that never answers
+    # must give up inside Render's 5 s health-check limit. A fake that cancels
+    # instantly can't tell a hard bound from a soft one (review of #249).
+    import time
+
+    from field_ops.config import settings
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    host = settings.db_url.split("@")[-1].split("/")[0]
+    engine = schema_check.make_health_engine(settings.db_url.replace(host, "10.255.255.1:5433"))
+    schema_check.reset_cache()
+    t0 = time.monotonic()
+    async with AsyncSession(engine) as s:
+        status = await schema_check.current_status(s)
+    elapsed = time.monotonic() - t0
+    schema_check.reset_cache()
+    await engine.dispose()
+    assert status.state == "unknown" and not status.blocks_traffic
+    # Under 3 s, not merely under 5: the 4 s wait_for backstop would pass a
+    # looser bound on its own, and this test exists to prove the DRIVER's bound.
+    assert elapsed < 3.0, f"health probe took {elapsed:.1f}s; the driver bound is 2 s"
