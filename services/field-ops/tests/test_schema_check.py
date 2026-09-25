@@ -315,3 +315,46 @@ def test_worst_case_budget_fits_under_the_backstop_and_render():
     worst = schema_check.HEALTH_CONNECT_TIMEOUT + 2 * schema_check.HEALTH_COMMAND_TIMEOUT
     assert worst < schema_check.DB_TIMEOUT_SECONDS, "backstop would fire on a correct probe"
     assert worst <= 3.0, "leave at least 2 s under Render's 5 s for TLS, FastAPI, response"
+
+
+# --- production must be PostgreSQL, or the guard is inert ---------------------------
+#
+# Review of #256: not_applicable is the one state that passes without reading the
+# database, and a sqlite DATABASE_URL isn't loopback, so it reads as production.
+# Without a driver check that deploy boots and answers 200 with the guard inert.
+
+
+def _prod_settings(database_url: str):
+    from field_ops.config import Settings
+
+    return Settings(
+        _env_file=None,
+        database_url=database_url,
+        field_ops_jwt_secret="x" * 40,
+        field_ops_storage_backend="r2",
+        r2_account_id="a",
+        r2_access_key_id="b",
+        r2_secret_access_key="c",
+        r2_bucket="d",
+    )
+
+
+def test_production_on_sqlite_refuses_to_start(monkeypatch):
+    from field_ops.config import _assert_deployable
+
+    monkeypatch.delenv("FIELD_OPS_DEV", raising=False)
+    s = _prod_settings("sqlite+aiosqlite:///./field_ops.db")
+    assert s.is_production, "the premise: a sqlite URL reads as production"
+    with pytest.raises(RuntimeError, match="must be PostgreSQL"):
+        _assert_deployable(s)
+
+
+def test_production_on_postgres_passes_the_driver_check(monkeypatch):
+    # The other direction: the same settings on a remote Postgres URL must boot,
+    # or the check above is just a check that everything fails.
+    from field_ops.config import _assert_deployable
+
+    monkeypatch.delenv("FIELD_OPS_DEV", raising=False)
+    s = _prod_settings("postgresql://u:p@db.example.neon.tech/pogf?sslmode=require")
+    assert s.is_production
+    _assert_deployable(s)  # must not raise
