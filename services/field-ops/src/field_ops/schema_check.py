@@ -72,22 +72,35 @@ CACHE_SECONDS = 30.0
 # and get a healthy process restarted or a good deploy refused.
 #
 # The bound lives in the DRIVER, on a connection used only by /health:
-#   connect  <= HEALTH_CONNECT_TIMEOUT  (a sleeping database is a slow connect)
-#   query    <= HEALTH_COMMAND_TIMEOUT
-# so the worst case is 2 + 1 = 3 s, with 2 s left for TLS, FastAPI and the
-# response. asyncio.wait_for is only a backstop: it cancels and then AWAITS the
-# driver's cleanup, and asyncpg cleans up an in-flight query by opening a second
-# connection to send a cancel request, so its bound is timeout + unwind, not a
-# ceiling (raised in review of #249). The app's own pool keeps the normal
-# timeouts: a 1 s command limit there would break real requests.
+#   connect           <= HEALTH_CONNECT_TIMEOUT  (a sleeping database is a slow connect)
+#   each command      <= HEALTH_COMMAND_TIMEOUT
+# The longest real path runs three steps: connect, the SELECT, and, when the
+# version table doesn't exist yet (a fresh database, the first deploy, which is
+# exactly the moment this guard exists for), a rollback. So the worst case is
+# 1.5 + 0.75 + 0.75 = 3 s, leaving 2 s for TLS, FastAPI and the response. The
+# connect is where the time actually goes; a one-row SELECT and a rollback don't
+# need a second each once the connection is up.
+#
+# DB_TIMEOUT_SECONDS (asyncio.wait_for) is a BACKSTOP and cannot be a ceiling at
+# any value. wait_for cancels and then awaits the driver's cleanup, and when a
+# query is in flight asyncpg cleans up by opening a second TLS connection to send
+# a cancel request, and that connection has no timeout at all (connect_utils
+# _cancel takes none). So lowering this number makes an UNBOUNDED unwind more
+# likely to be entered: it is the one knob here that gets worse when tightened.
+# It must sit above the 3 s worst case, so the backstop never fires on a probe
+# that was about to answer correctly. If probes are slow, tune the driver
+# timeouts above, not this. (Both points raised in review of #249.)
+#
+# The app's own pool keeps the normal timeouts: a sub-second command limit there
+# would break real requests while the database wakes.
 #
 # CACHE_SECONDS is part of this budget. Render stops traffic only after 15 s of
 # CONSECUTIVE failures; with a 30 s cache, at most the first probe in each window
 # can be slow, so a slow database can never string 15 s of failures together.
 # Tuning the cache down removes that bound; don't, without re-checking this.
-HEALTH_CONNECT_TIMEOUT = 2.0
-HEALTH_COMMAND_TIMEOUT = 1.0
-DB_TIMEOUT_SECONDS = 4.0  # backstop only; see above
+HEALTH_CONNECT_TIMEOUT = 1.5
+HEALTH_COMMAND_TIMEOUT = 0.75
+DB_TIMEOUT_SECONDS = 4.0  # backstop only, keep it above the 3 s worst case; see above
 
 _health_engine = None
 

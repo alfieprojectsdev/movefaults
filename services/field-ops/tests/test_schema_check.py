@@ -252,4 +252,13 @@ async def test_health_connection_bounds_a_hung_connect():
     assert status.state == "unknown" and not status.blocks_traffic
     # Under 3 s, not merely under 5: the 4 s wait_for backstop would pass a
     # looser bound on its own, and this test exists to prove the DRIVER's bound.
-    assert elapsed < 3.0, f"health probe took {elapsed:.1f}s; the driver bound is 2 s"
+    # Budget test below keeps the three-step worst case under the backstop.
+    assert elapsed < 2.5, f"health probe took {elapsed:.1f}s; the driver connect bound is 1.5 s"
+
+
+def test_worst_case_budget_fits_under_the_backstop_and_render():
+    # connect + SELECT + rollback (the fresh-database path) must finish before the
+    # wait_for backstop fires, and leave room under Render's 5 s for the response.
+    worst = schema_check.HEALTH_CONNECT_TIMEOUT + 2 * schema_check.HEALTH_COMMAND_TIMEOUT
+    assert worst < schema_check.DB_TIMEOUT_SECONDS, "backstop would fire on a correct probe"
+    assert worst <= 3.0, "leave at least 2 s under Render's 5 s for TLS, FastAPI, response"
