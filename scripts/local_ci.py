@@ -41,7 +41,7 @@ WHAT IT DELIBERATELY DOES NOT DO
 INSTALL (gps3, user crontab; linger is off, so a systemd user timer would not
 fire without a login):
 
-    PATH=/home/gps3/.local/bin:/usr/local/bin:/usr/bin:/bin
+    PATH=/home/gps3/bin:/home/gps3/.local/bin:/usr/local/bin:/usr/bin:/bin
     LOCAL_CI_REPO=/home/gps3/repos/movefaults_clean
     */10 * * * * git -C "$LOCAL_CI_REPO" fetch -q origin main && git -C "$LOCAL_CI_REPO" show origin/main:scripts/local_ci.py | python3 - run >> /home/gps3/.local/state/local-ci/cron.log 2>&1
 
@@ -50,9 +50,10 @@ Why it runs main's copy straight out of git, not the file on disk:
   as people work, and can lack the script entirely;
 - a PR must not be able to change the CI that judges it. The runner is always
   the reviewed, merged version; a PR that edits this file is tested by main's.
-cron's default PATH has neither uv (~/.local/bin) nor, on some hosts, gh; without
-the PATH line every run exits 2 and the heartbeat goes stale, which `status`
-reports.
+cron's default PATH has neither uv (~/.local/bin) nor teqc and gfzrnx (~/bin).
+Without ~/.local/bin every run exits 2; without ~/bin the RINEX validator test
+skips on every unattended run. That second one happened (2026-09-25) and
+showed only as "1 skipped", which is why the preflight below exists.
 """
 
 from __future__ import annotations
@@ -111,6 +112,45 @@ class Outcome:
     reason: str = ""
 
 
+# Every external tool a test checks for with shutil.which(), plus what the
+# harness itself needs. A missing one means THIS RUNNER is misconfigured, and
+# the tests guarded by it would skip rather than fail, which reads as green.
+# Kept honest by test_preflight_covers_every_tool_the_tests_check, which
+# greps the test tree and fails if a which() target is missing here.
+PREFLIGHT_TOOLS = ("git", "uv", "gh", "npm", "node", "teqc", "gfzrnx", "gzip", "zcat")
+# field-ops/tests/conftest.py's default FIELD_OPS_TEST_DATABASE_URL.
+TEST_PG = ("localhost", 5433)
+
+
+def preflight(which=shutil.which, can_connect=None) -> list[str]:
+    """
+    Problems with the runner's environment, empty when it's fit to judge.
+
+    Skips come in three kinds (review of the skip markers, 2026-09-25): a tool
+    missing (the runner is misconfigured), data absent (legitimate on a fresh
+    clone), and a race (one scan-jobs test). Only the first is a CI bug, and it
+    is exactly what this checks, before the suite, so the status says "teqc
+    not on PATH" rather than "1 skipped". Failing on skip counts instead would
+    flap on the race and stay red wherever data is absent.
+    """
+    if can_connect is None:
+        can_connect = _tcp_ok
+    problems = [f"{t} not on PATH" for t in PREFLIGHT_TOOLS if which(t) is None]
+    if not can_connect(*TEST_PG):
+        problems.append(f"test Postgres not answering at {TEST_PG[0]}:{TEST_PG[1]}")
+    return problems
+
+
+def _tcp_ok(host: str, port: int) -> bool:
+    import socket
+
+    try:
+        with socket.create_connection((host, port), timeout=2):
+            return True
+    except OSError:
+        return False
+
+
 def select_targets(targets: list[Target], state: dict, limit: int) -> list[Target]:
     """New SHAs first by position (main is listed first), deduplicated, capped."""
     picked: list[Target] = []
@@ -137,6 +177,29 @@ def summarize_pytest(output: str) -> str:
     """'836 passed, 0 skipped' style tail line, or '' if none found."""
     matches = list(_PYTEST_TAIL.finditer(output))
     return matches[-1].group(1).strip() if matches else ""
+
+
+_SKIP_REASON = re.compile(r"^SKIPPED \[\d+\] [^:]+:\d+: (.*)$", re.M)
+
+
+def skip_reasons(output: str) -> list[str]:
+    """Distinct skip reasons from `pytest -rs`, in order of first appearance."""
+    seen: list[str] = []
+    for r in _SKIP_REASON.findall(output):
+        r = r.strip()
+        if r not in seen:
+            seen.append(r)
+    return seen
+
+
+def summarize_pytest_with_skips(output: str) -> str:
+    """Tally, plus WHY things skipped: "1 skipped" is a number nobody decodes."""
+    tally = summarize_pytest(output)
+    reasons = skip_reasons(output)
+    if not reasons:
+        return tally
+    short = "; ".join(r if len(r) <= 40 else r[:37] + "..." for r in reasons)
+    return f"{tally} [skipped: {short}]"
 
 
 def summarize_vitest(output: str) -> str:
@@ -393,11 +456,11 @@ def test_sha(sha: str, logdir: Path) -> Outcome:
         ruff,
         run_step(
             "pytest",
-            ["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider"],
+            ["uv", "run", "--frozen", "pytest", "-q", "-rs", "-p", "no:cacheprovider"],
             WORKTREE,
             env,
             logdir,
-            summarize_pytest,
+            summarize_pytest_with_skips,
         ),
     ]
     npm_ci = run_step(
@@ -455,6 +518,10 @@ def cmd_run(args) -> int:
             f"{len(targets)} targets, {len(todo)} to test: "
             + ", ".join(f"{t.label}@{t.sha[:7]}" for t in todo)
         )
+        problems = preflight() if todo else []
+        if problems:
+            beat["note"] = "preflight failed: " + "; ".join(problems)
+            log(beat["note"])
         for t in todo:
             if args.dry_run:
                 continue
@@ -463,7 +530,10 @@ def cmd_run(args) -> int:
             post_status(t.sha, "pending", f"testing on gps3 since {time.strftime('%H:%M')}")
             t0 = time.monotonic()
             try:
-                outcome = test_sha(t.sha, logdir)
+                if problems:  # a misconfigured runner must not report green
+                    outcome = Outcome("error", reason="preflight: " + "; ".join(problems))
+                else:
+                    outcome = test_sha(t.sha, logdir)
             except Exception as e:  # harness bug: report it, never swallow it
                 outcome = Outcome("error", reason=f"{type(e).__name__}: {e}"[:120])
             desc = describe(outcome)

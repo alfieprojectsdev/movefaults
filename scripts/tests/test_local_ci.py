@@ -80,3 +80,58 @@ def test_harness_error_is_not_described_as_a_code_failure():
 def test_heartbeat_age():
     assert ci.heartbeat_age(None, 100.0) is None
     assert ci.heartbeat_age({"at": 40.0}, 100.0) == 60.0
+
+
+# --- preflight: assert the environment rather than counting skips -----------------
+
+
+def test_preflight_passes_when_everything_resolves():
+    assert ci.preflight(which=lambda t: f"/bin/{t}", can_connect=lambda h, p: True) == []
+
+
+def test_preflight_names_what_is_missing():
+    missing = {"teqc"}
+    problems = ci.preflight(
+        which=lambda t: None if t in missing else f"/bin/{t}", can_connect=lambda h, p: False
+    )
+    assert "teqc not on PATH" in problems
+    assert any("Postgres not answering" in p for p in problems)
+
+
+def test_preflight_covers_every_tool_the_tests_check():
+    # PREFLIGHT_TOOLS is a hand-carried list. This keeps it honest: every tool
+    # name a test file passes to shutil.which must be in it, or a new tool dependency
+    # would skip unnoticed on a runner that lacks it, which is the 2026-09-25
+    # cron bug (teqc not on cron's PATH, showing only as "1 skipped").
+    import re
+
+    root = Path(__file__).resolve().parents[2]
+    found = set()
+    for path in root.rglob("*.py"):
+        parts = set(path.parts)
+        if ".venv" in parts or "node_modules" in parts:
+            continue
+        if "tests" not in parts and path.name != "conftest.py":
+            continue
+        if path.resolve() == Path(__file__).resolve():
+            continue  # this file names the pattern it scans for
+        found |= set(re.findall(r'shutil\.which\("([^"]+)"\)', path.read_text(errors="ignore")))
+    assert found, "found no shutil.which() calls at all; the scan itself is broken"
+    missing = found - set(ci.PREFLIGHT_TOOLS)
+    assert not missing, f"tests check for {sorted(missing)}; add them to PREFLIGHT_TOOLS"
+
+
+def test_skip_reasons_reach_the_description():
+    out = (
+        "SKIPPED [1] services/x/tests/test_a.py:156: neither teqc nor gfzrnx on PATH\n"
+        "SKIPPED [2] tools/y/tests/test_b.py:9: production catalog not present\n"
+        "SKIPPED [1] services/x/tests/test_a.py:200: neither teqc nor gfzrnx on PATH\n"
+        "830 passed, 4 skipped in 70.00s\n"
+    )
+    assert ci.skip_reasons(out) == [
+        "neither teqc nor gfzrnx on PATH",
+        "production catalog not present",
+    ]
+    s = ci.summarize_pytest_with_skips(out)
+    assert s.startswith("830 passed, 4 skipped [skipped: ")
+    assert "production catalog not present" in s
