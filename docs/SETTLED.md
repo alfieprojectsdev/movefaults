@@ -403,7 +403,7 @@ Do not open these as findings.
   full SHAs — it existed solely on the path used to check the other path.
 
   **A seventh, from watching the #256 deploy: evidence gathered from outside
-  can be real and still not answer the question.** 25 consecutive probes of
+  can be real and still not answer the question.** 24 consecutive probes of
   production returned 200 `current` at `fo008` across the deploy. That is true,
   and it proves the service is healthy. It does **not** prove the new
   startup rule ran, because a healthy old instance and a healthy new one answer
@@ -413,9 +413,9 @@ Do not open these as findings.
   different claims, and only the first was measured. The rule is proven on
   gps3's real PostgreSQL; production proof would need Render's deploy log or a
   version field in `/health`.
-- **`Path.read_text()` then `write_text()` converts a CRLF file to LF**, and
-  the same is true of most editor-and-tool round trips. Text mode translates on
-  read and writes `\n` back, so the conversion never appears in an editor and
+- **`Path.read_text()` then `write_text()` converts a CRLF file to LF**, as
+  does any tool that reads the file in text mode. Text mode translates on read
+  and writes `\n` back, so the conversion never appears in an editor and
   never appears in a diff as itself — it appears as *the whole file changed*.
 
   This is not a style question. `.gitattributes` deliberately does **not**
@@ -435,7 +435,10 @@ Do not open these as findings.
   | `main.py` | #249 | **merged unnoticed**; restored in #256 |
   | `config.py` | #256 | caught in review |
 
-  Only one of the four was noticed by the person who made it.
+  Two different sessions produced these, so it is not one machine's habit.
+  **One of the four reached `main`** — `main.py`, unnoticed by anyone until the
+  audit that #256 prompted. Two were caught by whoever made them, one in
+  review. That is why the check below matters more than the care above it.
 
   **Before editing, know what the file is**; if CRLF, patch bytes
   (`read_bytes`/`write_bytes`, or `newline=""`). Then, whatever it was, before
@@ -448,9 +451,9 @@ Do not open these as findings.
 
   The second command is the durable half: it catches the mistake whatever
   caused it, including whichever tool does this next. Restore a converted file
-  **whole** rather than partially — a mixed-ending file is what lets the next
-  tool convert it silently, which is how the five frontend files that prompted
-  `.gitattributes` got that way.
+  **whole** rather than partially: a file left with mixed endings is the state
+  in which the next tool converts it silently, and `models.py` was exactly that
+  — 309 CRLF lines out of 437.
 - **"Is this commit in `main`?" is the wrong question when content was
   cherry-picked.** `git merge-base --is-ancestor <sha> origin/main` (or
   `branch --contains`) answers whether that exact *commit* is in `main`. A
