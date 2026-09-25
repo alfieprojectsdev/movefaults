@@ -372,8 +372,13 @@ def prepare_worktree(sha: str) -> str | None:
 
 def _diff_base(sha: str) -> str:
     """Merge-base with main for a PR head; first parent for main itself."""
+    # Compare full SHAs: merge-base prints a full one, and a short `sha` would
+    # never match it, making the diff a commit against itself (found testing
+    # with short SHAs; production passes full ones, but a string compare of
+    # SHAs shouldn't depend on that).
+    full = sh(["git", "-C", str(WORKTREE), "rev-parse", sha]).stdout.strip()
     base = sh(["git", "-C", str(WORKTREE), "merge-base", "origin/main", sha]).stdout.strip()
-    return f"{sha}^" if not base or base == sha else base
+    return f"{full}^" if not base or base == full else base
 
 
 def changed_files(sha: str, *pathspecs: str) -> list[str]:
@@ -426,55 +431,48 @@ def ruff_config_step(sha: str, env: dict, logdir: Path) -> StepResult:
     Fails only if ruff can't run with the new config (exit 2: a malformed table,
     an unknown rule). A different findings total is reported, not failed: a
     config change may mean to change what gets flagged, and the reviewer judges
-    that. What it must not do again is say "ok" without having run.
-    """
-    import tempfile
+    that. It runs IN ADDITION to the changed-files lint, never instead of it,
+    because pyproject.toml also holds dependencies and entry points and changes
+    with ordinary feature work (review of #254).
 
+    The base config is swapped into the worktree's own pyproject.toml, not
+    written elsewhere and passed with --config: ruff resolves relative paths in
+    a config (exclude, per-file-ignores) against the config's own directory, so
+    a base config in /tmp would resolve them differently and fabricate a delta.
+    The head file is restored before returning, whatever happens.
+    """
     t0 = time.monotonic()
-    head = sh(
-        ["uv", "run", "--frozen", "ruff", "check", ".", "--statistics"],
-        cwd=WORKTREE,
-        env=env,
-        timeout=600,
-    )
-    out = head.stdout + head.stderr
-    base_total = None
-    base_cfg = sh(["git", "-C", str(WORKTREE), "show", f"{_diff_base(sha)}:pyproject.toml"])
-    if base_cfg.returncode == 0:
-        with tempfile.TemporaryDirectory() as d:
-            cfg = Path(d) / "pyproject.toml"
-            cfg.write_text(base_cfg.stdout)
-            base = sh(
-                [
-                    "uv",
-                    "run",
-                    "--frozen",
-                    "ruff",
-                    "check",
-                    ".",
-                    "--statistics",
-                    "--config",
-                    str(cfg),
-                ],
-                cwd=WORKTREE,
-                env=env,
-                timeout=600,
-            )
-            out += "\n--- base config ---\n" + base.stdout + base.stderr
-            if base.returncode in (0, 1):
-                base_total = ruff_total(base.stdout)
-    (logdir / "ruff.log").write_text(out)
-    if head.returncode not in (0, 1):
-        return StepResult(
-            "ruff", False, "config broken: ruff could not run", round(time.monotonic() - t0, 1)
+
+    def stats() -> subprocess.CompletedProcess:
+        return sh(
+            ["uv", "run", "--frozen", "ruff", "check", ".", "--statistics"],
+            cwd=WORKTREE,
+            env=env,
+            timeout=600,
         )
-    total = ruff_total(head.stdout)
-    delta = "" if base_total is None else f", base {base_total}"
+
+    head = stats()
+    out = head.stdout + head.stderr
+    base_note = ""
+    base_cfg = sh(["git", "-C", str(WORKTREE), "show", f"{_diff_base(sha)}:pyproject.toml"])
+    if base_cfg.returncode != 0:
+        base_note = ", no base config"
+    else:
+        target = WORKTREE / "pyproject.toml"
+        try:
+            target.write_text(base_cfg.stdout)
+            base = stats()
+        finally:
+            sh(["git", "-C", str(WORKTREE), "checkout", "--", "pyproject.toml"])
+        out += "\n--- base config ---\n" + base.stdout + base.stderr
+        base_total = ruff_total(base.stdout) if base.returncode in (0, 1) else None
+        base_note = f", base {base_total}" if base_total is not None else ", base config unusable"
+    (logdir / "ruff-config.log").write_text(out)
+    secs = round(time.monotonic() - t0, 1)
+    if head.returncode not in (0, 1):
+        return StepResult("ruff-config", False, "config broken: ruff could not run", secs)
     return StepResult(
-        "ruff",
-        True,
-        f"config changed: whole tree {total} findings{delta}",
-        round(time.monotonic() - t0, 1),
+        "ruff-config", True, f"whole tree {ruff_total(head.stdout)} findings{base_note}", secs
     )
 
 
@@ -533,9 +531,7 @@ def test_sha(sha: str, logdir: Path) -> Outcome:
 
     fe = WORKTREE / FRONTEND
     changed = changed_python_files(sha)
-    if changed_files(sha, *RUFF_CONFIG_FILES):
-        ruff = ruff_config_step(sha, env, logdir)
-    elif changed:
+    if changed:
         ruff = run_step(
             "ruff",
             ["uv", "run", "--frozen", "ruff", "check", *changed],
@@ -546,8 +542,13 @@ def test_sha(sha: str, logdir: Path) -> Outcome:
         )
     else:
         ruff = StepResult("ruff", True, "no Python changes", 0.0)
+    # Both, never one or the other: the changed-files lint FAILS on new
+    # findings, the config step REPORTS a whole-tree delta (review of #254).
+    lint = [ruff]
+    if changed_files(sha, *RUFF_CONFIG_FILES):
+        lint.append(ruff_config_step(sha, env, logdir))
     steps = [
-        ruff,
+        *lint,
         run_step(
             "pytest",
             ["uv", "run", "--frozen", "pytest", "-q", "-rs", "-p", "no:cacheprovider"],
