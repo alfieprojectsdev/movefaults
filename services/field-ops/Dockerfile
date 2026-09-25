@@ -45,10 +45,15 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --extra field-ops --no-dev --no-install-project
 
 # Service source. field_ops imports nothing outside its own package and the
-# third-party deps above, so this is the only tree the runtime needs — src/db/
+# third-party deps above, so this and the migration files below are the only
+# trees the runtime needs — src/db/
 # is used by the root alembic tree, which runs from an operator's machine, not
 # from here.
 COPY services/field-ops/src/ ./src/
+# The migration files ship too: /health compares the database's revision with
+# the head these files define, and refuses traffic when the database is behind.
+# Without them the app refuses to start (field_ops/schema_check.py).
+COPY services/field-ops/migrations/ ./migrations/
 
 EXPOSE 8001
 
