@@ -302,12 +302,10 @@ directory instead:
 cd services/vadase-rt-monitor && PYTHONPATH=. uv run python scripts/run_ingestor.py
 ```
 
-### Ruff configuration (pyproject.toml)
-
-- Line length: 100
-- Target: Python 3.11
-- Rules: E, F, I, B, C4, UP (ignores E501, B008)
-- `__init__.py` ignores F401 (unused imports)
+**Ruff settings are in `pyproject.toml` under `[tool.ruff]`**, and are not
+restated here. This file used to carry a copy of the line length, target
+version and rule list. It was accurate, which is the problem: a second copy
+of a value nobody diffs is how every other stale claim in this file started.
 
 ---
 
