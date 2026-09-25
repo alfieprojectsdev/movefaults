@@ -401,6 +401,56 @@ Do not open these as findings.
   Also: **a verification path that differs from the production path only tests
   itself.** The short-SHA bug never fired in cron, because production passes
   full SHAs — it existed solely on the path used to check the other path.
+
+  **A seventh, from watching the #256 deploy: evidence gathered from outside
+  can be real and still not answer the question.** 25 consecutive probes of
+  production returned 200 `current` at `fo008` across the deploy. That is true,
+  and it proves the service is healthy. It does **not** prove the new
+  startup rule ran, because a healthy old instance and a healthy new one answer
+  identically, and Render probes a new instance privately before switching
+  traffic — so the `schema_unverified` window, if there was one, was visible
+  only to Render. "No failure visible" and "the new behaviour executed" are
+  different claims, and only the first was measured. The rule is proven on
+  gps3's real PostgreSQL; production proof would need Render's deploy log or a
+  version field in `/health`.
+- **`Path.read_text()` then `write_text()` converts a CRLF file to LF**, and
+  the same is true of most editor-and-tool round trips. Text mode translates on
+  read and writes `\n` back, so the conversion never appears in an editor and
+  never appears in a diff as itself — it appears as *the whole file changed*.
+
+  This is not a style question. `.gitattributes` deliberately does **not**
+  cover `*.py`, and says why: converting them "belongs in its own change,
+  verified against the test suite, not smuggled in beside a UI screen." That
+  file puts the count at 82; measured 2026-09-25 it is **80 of 303**, so assume
+  any `.py` you touch may be one of them. A flip buries the real
+  change — 19 lines inside a 237-line rewrite, in the case that prompted this —
+  and repoints `git blame` for the whole file at the commit that did it.
+
+  **Four instances from this one mechanism, across both machines:**
+
+  | file | when | outcome |
+  |---|---|---|
+  | `models.py` | 2026-09-21 | caught; undone with a byte-level patch |
+  | `crd_catalog.csv` | #242 | merged as-is, by decision |
+  | `main.py` | #249 | **merged unnoticed**; restored in #256 |
+  | `config.py` | #256 | caught in review |
+
+  Only one of the four was noticed by the person who made it.
+
+  **Before editing, know what the file is**; if CRLF, patch bytes
+  (`read_bytes`/`write_bytes`, or `newline=""`). Then, whatever it was, before
+  committing:
+
+  ```bash
+  git diff --stat                      # vs
+  git diff --ignore-cr-at-eol --stat   # a large gap means endings changed
+  ```
+
+  The second command is the durable half: it catches the mistake whatever
+  caused it, including whichever tool does this next. Restore a converted file
+  **whole** rather than partially — a mixed-ending file is what lets the next
+  tool convert it silently, which is how the five frontend files that prompted
+  `.gitattributes` got that way.
 - **"Is this commit in `main`?" is the wrong question when content was
   cherry-picked.** `git merge-base --is-ancestor <sha> origin/main` (or
   `branch --contains`) answers whether that exact *commit* is in `main`. A
