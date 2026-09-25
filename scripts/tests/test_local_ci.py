@@ -150,3 +150,32 @@ def test_ruff_total_sums_the_statistics():
     assert ci.ruff_total(out) == 25
     assert ci.ruff_total("") == 0
     assert ci.ruff_total("error: TOML parse error") is None
+
+
+# --- fairness: FIFO by when a SHA arrived ------------------------------------------
+
+
+def test_main_first_then_prs_in_arrival_order():
+    targets = [T("m" * 40, "main"), T("n" * 40, "#254"), T("o" * 40, "#249")]
+    first_seen = {"m" * 40: 50, "n" * 40: 300, "o" * 40: 100}  # #249's SHA arrived first
+    picked = ci.select_targets(targets, {}, limit=2, first_seen=first_seen)
+    assert [t.label for t in picked] == ["main", "#249"]
+
+
+def test_a_new_push_goes_to_the_back_and_cannot_hold_the_slot():
+    # The 2026-09-25 starvation: repeated pushes to one PR kept another waiting.
+    # Each push is a new SHA with a new arrival time, so it queues behind the
+    # waiting one instead of jumping ahead of it.
+    waiting = T("w" * 40, "#249")
+    busy_v1, busy_v2 = T("a" * 40, "#254"), T("b" * 40, "#254")
+    seen = ci.record_first_seen({}, [waiting, busy_v1], now=100)
+    seen = ci.record_first_seen(seen, [waiting, busy_v2], now=200)  # push to #254
+    picked = ci.select_targets([busy_v2, waiting], {}, limit=1, first_seen=seen)
+    assert picked == [waiting]
+
+
+def test_first_seen_keeps_the_original_time_and_forgets_dead_shas():
+    t1, t2 = T("a" * 40, "#1"), T("b" * 40, "#2")
+    seen = ci.record_first_seen({}, [t1, t2], now=100)
+    seen = ci.record_first_seen(seen, [t1], now=500)
+    assert seen == {"a" * 40: 100}

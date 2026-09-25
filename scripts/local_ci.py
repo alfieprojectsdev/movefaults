@@ -165,9 +165,23 @@ def _tcp_ok(host: str, port: int) -> bool:
         return False
 
 
-def select_targets(targets: list[Target], state: dict, limit: int) -> list[Target]:
-    """New SHAs first by position (main is listed first), deduplicated, capped."""
-    picked: list[Target] = []
+def select_targets(
+    targets: list[Target], state: dict, limit: int, first_seen: dict | None = None
+) -> list[Target]:
+    """
+    Which SHAs to test this run: main first, then the rest FIFO by when each SHA
+    was first seen, deduplicated, capped at `limit`.
+
+    The order key is when a SHA ARRIVED, not how old its PR is (review
+    discussion with finch, 2026-09-25). Newest-PR-first starved #249: two ticks
+    went by while pushes to a newer PR went ahead of it. Oldest-PR-first starves
+    the other way: a PR under active development stays oldest forever, and with
+    main first and limit 2 there is one PR slot per tick. Arrival order is fair
+    by construction: a push puts its new SHA at the back of the queue, so no PR
+    can hold the slot.
+    """
+    first_seen = first_seen or {}
+    pending: list[Target] = []
     seen: set[str] = set()
     for t in targets:
         if t.sha in seen:
@@ -177,10 +191,22 @@ def select_targets(targets: list[Target], state: dict, limit: int) -> list[Targe
         if rec is None or (
             rec.get("state") == "error" and rec.get("attempts", 0) < MAX_ERROR_ATTEMPTS
         ):
-            picked.append(t)
-        if len(picked) >= limit:
-            break
-    return picked
+            pending.append(t)
+    main = [t for t in pending if t.label == "main"]
+    rest = sorted(
+        (t for t in pending if t.label != "main"),
+        key=lambda t: first_seen.get(t.sha, float("inf")),
+    )
+    return (main + rest)[:limit]
+
+
+def record_first_seen(first_seen: dict, targets: list[Target], now: float) -> dict:
+    """Stamp SHAs seen for the first time; drop ones no longer targeted."""
+    live = {t.sha for t in targets}
+    kept = {sha: ts for sha, ts in first_seen.items() if sha in live}
+    for t in targets:
+        kept.setdefault(t.sha, now)
+    return kept
 
 
 _PYTEST_TAIL = re.compile(r"^=*\s*((?:\d+ \w+(?:, )?)+) in [\d.]+s", re.M)
@@ -364,9 +390,12 @@ def prepare_worktree(sha: str) -> str | None:
     r = sh(["git", "-C", str(WORKTREE), "clean", "-qfdx", "-e", ".venv", "-e", "node_modules"])
     if r.returncode != 0:
         return f"git clean: {r.stderr.strip()[:120]}"
+    # Resolve both before comparing: a string compare of SHAs depends on both
+    # sides being the same length (the _diff_base bug, 2026-09-25).
     head = sh(["git", "-C", str(WORKTREE), "rev-parse", "HEAD"]).stdout.strip()
-    if head != sha:
-        return f"worktree is at {head[:7]}, not {sha[:7]}"
+    want = sh(["git", "-C", str(WORKTREE), "rev-parse", f"{sha}^{{commit}}"]).stdout.strip()
+    if not head or head != want:
+        return f"worktree is at {head[:7] or '?'}, not {sha[:7]}"
     return None
 
 
@@ -608,7 +637,9 @@ def cmd_run(args) -> int:
             log(beat["note"])
             return 0
         targets = gh_targets()
-        todo = select_targets(targets, state, args.limit)
+        first_seen = record_first_seen(load(HOME / "first_seen.json", {}), targets, time.time())
+        save(HOME / "first_seen.json", first_seen)
+        todo = select_targets(targets, state, args.limit, first_seen)
         log(
             f"{len(targets)} targets, {len(todo)} to test: "
             + ", ".join(f"{t.label}@{t.sha[:7]}" for t in todo)
