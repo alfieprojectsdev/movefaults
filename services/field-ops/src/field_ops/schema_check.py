@@ -48,6 +48,7 @@ that forgot to copy them fails its deploy rather than passing every check.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from dataclasses import dataclass, field
@@ -63,6 +64,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 _DEFAULT_MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations"
 
 CACHE_SECONDS = 30.0
+
+# The revision query must answer well inside Render's health-check timeout. The
+# hosted database sleeps when idle and can take seconds to wake; without a bound,
+# a probe landing on a sleeping database hangs until Render gives up on the probe
+# itself, and a healthy process gets restarted or a good deploy refused. A query
+# that doesn't answer in time reads as "unknown" (200), like any other
+# transient failure.
+DB_TIMEOUT_SECONDS = 3.0
 
 
 def migrations_dir() -> Path:
@@ -201,7 +210,7 @@ async def current_status(session: AsyncSession) -> SchemaStatus:
         return _cache[1]
     expected = expected_heads()
     try:
-        database = await database_revisions(session)
+        database = await asyncio.wait_for(database_revisions(session), DB_TIMEOUT_SECONDS)
     except Exception as exc:
         permanent = permanent_error_name(exc)
         if permanent:

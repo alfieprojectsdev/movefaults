@@ -205,3 +205,26 @@ async def test_health_names_the_misconfiguration(health_client):
         r = await c.get("/health")
     assert r.status_code == 503
     assert r.json()["status"] == "database_misconfigured"
+
+
+class _SlowSession(_PgSession):
+    async def execute(self, *_a, **_k):
+        import asyncio
+
+        await asyncio.sleep(30)
+
+
+@pytest.mark.asyncio
+async def test_a_sleeping_database_answers_unknown_quickly(monkeypatch):
+    # A probe on a database waking from idle must not hang past Render's own
+    # health-check timeout: it reads as unknown (200) within the bound.
+    import time
+
+    monkeypatch.setattr(schema_check, "DB_TIMEOUT_SECONDS", 0.2)
+    schema_check.reset_cache()
+    t0 = time.monotonic()
+    status = await schema_check.current_status(_SlowSession(None))
+    elapsed = time.monotonic() - t0
+    schema_check.reset_cache()
+    assert status.state == "unknown" and not status.blocks_traffic
+    assert elapsed < 2.0
