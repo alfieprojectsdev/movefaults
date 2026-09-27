@@ -492,6 +492,75 @@ Do not open these as findings.
   not settled when it was queried. **"Ignore it" would have taught the next
   session to merge over a genuinely failing check**, which is the opposite of
   what happened. Caught before this entry was written, 2026-08-26.
+- **A slow BPE job and a hung one look identical from outside, and the two
+  obvious tests for it are both wrong.** Measured on the T420, 2026-07-02,
+  across two sessions that behaved differently.
+
+  **Not a stall signal: `.RUN` mtime.** The BPE menu server rewrites
+  `<PCF>.RUN` on every poll cycle whether or not a worker is alive, so its
+  mtime stays under a few seconds during a *real* hang exactly as it does
+  during normal slow work.
+
+  **Not a stall signal: zero child processes under the server PID.** Every
+  cluster-parallel stage — `GPSCLU_P`, `GNSL53_P`, `GNSAMB_P`, `MAUPRP_P`,
+  anything suffixed `_P` — spawns one worker per cluster *sequentially*, so
+  between clusters there is a genuine gap with no workers at all, and a single
+  cluster can run tens of minutes.
+
+  **What actually discriminates** is that in a hang the job's *program* has
+  finished while its *status* never moved:
+
+  | | session 0870 (hung) | session 0900 (merely slow) |
+  |---|---|---|
+  | job | 201 `RNXGRA` | 502 `GPSCLU_P` |
+  | worker `RS<yyyddd>_<job>_*.PRT` | `MSG RNXGRA PROGRAM ENDED`, output written | no `PROGRAM ENDED` — still computing |
+  | `<PCF>.RUN` | stuck at `201 … running <` | advancing |
+  | `<PCF>.OUT` | never got `Script finished OK` | — |
+  | outcome | dead ~44 min; RUNBPE→server handshake lost | finished on its own, wrote `FIN_20260900.NQ0` |
+
+  So the test is **both** conditions: the program has ended *and* the `.RUN`
+  job-state string has not changed — sustained long enough that no legitimate
+  stage could still be working. For PAGENET that is **40–45 minutes**, because
+  `GPSCLU_P` alone can take ~40. **Size the window from the session, not from
+  that number:** a LUZON day is ~5m33s end to end (30/30 days, 2026-08-06), so
+  a LUZON session still running at 45 minutes is not a judgement call. For a
+  network whose session length is not yet known — the ~91-station densification
+  trial, say — measure the first successful session and scale from it.
+
+  **Bias toward waiting — where waiting is cheaper than being wrong.** Session
+  0900 was called hung at minute 21 and came within moments of being killed; it
+  completed 502→511→512→513→514 twenty-one minutes later. **No driver sets
+  `$$bpe{RERUN}=1`** — not `pagenet_pcs.pl`, `luzon_pcs.pl`, `LZFLT_DLY_pcs.pl`
+  or `rnx2snx_pcs.pl`, and not `backends.py` — so a kill restarts that session
+  from job 001. The wrappers (`run_luzon_month.sh`, `run_luzon_year.sh`,
+  `run_phref_year.sh`, `run_pagenet_week.sh`) all resume across *days*, skipping
+  any day whose `FIN_*.NQ0` exists, so the cost is **one session**: about two
+  hours for PAGENET, minutes for LUZON.
+
+  **That resume is a property of `scripts/`, not of the system.**
+  `services/bernese-workflow` exposes only per-session `run()` /
+  `run_continuous()` — there is no month driver and no skip-if-`FIN`-exists
+  anywhere in the package. **The service has no resume of its own: the cost of a
+  kill is set by whatever drives it, and today nothing does, so it is whatever
+  you re-invoke by hand.** The "just re-run it" reasoning above holds only under
+  a driver that skips banked days. Since moving production onto the service is
+  the standing direction, check which path you are on — and which driver, if
+  any — before pricing a restart.
+
+  **Which means the advice inverts for short sessions, and that is not a
+  quibble.** Waiting 45 minutes to be sure is obviously right when the session
+  costs two hours. It is obviously wrong when the session costs five and a half
+  minutes — there, re-running *is* the cheap diagnostic, and a session past a
+  few multiples of its normal length should simply be restarted. Compare the two
+  costs before waiting; do not carry PAGENET's answer to a network it wasn't
+  measured on.
+
+  **The cause of the 0870 hang is deliberately not recorded here.** A note from
+  the day attributes it to I/O contention from concurrent `uv sync` and pytest
+  runs, but that rests on a single co-occurrence on one machine, with no
+  controlled test — a hypothesis, and it has no business in this file next to
+  things that were measured. What was measured is everything above: the
+  signature, and the two heuristics that were tried and found false.
 
 ---
 
