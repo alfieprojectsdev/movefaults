@@ -492,6 +492,50 @@ Do not open these as findings.
   not settled when it was queried. **"Ignore it" would have taught the next
   session to merge over a genuinely failing check**, which is the opposite of
   what happened. Caught before this entry was written, 2026-08-26.
+- **A slow BPE job and a hung one look identical from outside, and the two
+  obvious tests for it are both wrong.** Measured on the T420, 2026-07-02,
+  across two sessions that behaved differently.
+
+  **Not a stall signal: `.RUN` mtime.** The BPE menu server rewrites
+  `<PCF>.RUN` on every poll cycle whether or not a worker is alive, so its
+  mtime stays under a few seconds during a *real* hang exactly as it does
+  during normal slow work.
+
+  **Not a stall signal: zero child processes under the server PID.** Every
+  cluster-parallel stage — `GPSCLU_P`, `GNSL53_P`, `GNSAMB_P`, `MAUPRP_P`,
+  anything suffixed `_P` — spawns one worker per cluster *sequentially*, so
+  between clusters there is a genuine gap with no workers at all, and a single
+  cluster can run tens of minutes.
+
+  **What actually discriminates** is that in a hang the job's *program* has
+  finished while its *status* never moved:
+
+  | | session 0870 (hung) | session 0900 (merely slow) |
+  |---|---|---|
+  | job | 201 `RNXGRA` | 502 `GPSCLU_P` |
+  | worker `RS<yyyddd>_<job>_*.PRT` | `MSG RNXGRA PROGRAM ENDED`, output written | no `PROGRAM ENDED` — still computing |
+  | `<PCF>.RUN` | stuck at `201 … running <` | advancing |
+  | `<PCF>.OUT` | never got `Script finished OK` | — |
+  | outcome | dead ~44 min; RUNBPE→server handshake lost | finished on its own, wrote `FIN_20260900.NQ0` |
+
+  So the test is **both** conditions, sustained over **40–45 minutes**: the
+  program has ended *and* the `.RUN` job-state string has not changed. The
+  window has to be that long because `GPSCLU_P` alone can legitimately take
+  ~40 minutes.
+
+  **Bias toward waiting.** Session 0900 was called hung at minute 21 and came
+  within moments of being killed; it completed 502→511→512→513→514 twenty-one
+  minutes later. Killing it would have destroyed a healthy run — and the
+  recovery is not cheap: `pagenet_pcs.pl` never sets `$$bpe{RERUN}=1`, so a
+  re-invocation starts fresh from job 001 rather than resuming at the stuck
+  job. Misreading slow as hung costs the whole session, roughly two hours.
+
+  **The cause of the 0870 hang is deliberately not recorded here.** A note from
+  the day attributes it to I/O contention from concurrent `uv sync` and pytest
+  runs, but that rests on a single co-occurrence on one machine, with no
+  controlled test — a hypothesis, and it has no business in this file next to
+  things that were measured. What was measured is everything above: the
+  signature, and the two heuristics that were tried and found false.
 
 ---
 
