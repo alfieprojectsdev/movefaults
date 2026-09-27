@@ -518,17 +518,32 @@ Do not open these as findings.
   | `<PCF>.OUT` | never got `Script finished OK` | — |
   | outcome | dead ~44 min; RUNBPE→server handshake lost | finished on its own, wrote `FIN_20260900.NQ0` |
 
-  So the test is **both** conditions, sustained over **40–45 minutes**: the
-  program has ended *and* the `.RUN` job-state string has not changed. The
-  window has to be that long because `GPSCLU_P` alone can legitimately take
-  ~40 minutes.
+  So the test is **both** conditions: the program has ended *and* the `.RUN`
+  job-state string has not changed — sustained long enough that no legitimate
+  stage could still be working. For PAGENET that is **40–45 minutes**, because
+  `GPSCLU_P` alone can take ~40. **Size the window from the session, not from
+  that number:** a LUZON day is ~5m33s end to end (30/30 days, 2026-08-06), so
+  a LUZON session still running at 45 minutes is not a judgement call. For a
+  network whose session length is not yet known — the ~91-station densification
+  trial, say — measure the first successful session and scale from it.
 
-  **Bias toward waiting.** Session 0900 was called hung at minute 21 and came
-  within moments of being killed; it completed 502→511→512→513→514 twenty-one
-  minutes later. Killing it would have destroyed a healthy run — and the
-  recovery is not cheap: `pagenet_pcs.pl` never sets `$$bpe{RERUN}=1`, so a
-  re-invocation starts fresh from job 001 rather than resuming at the stuck
-  job. Misreading slow as hung costs the whole session, roughly two hours.
+  **Bias toward waiting — where waiting is cheaper than being wrong.** Session
+  0900 was called hung at minute 21 and came within moments of being killed; it
+  completed 502→511→512→513→514 twenty-one minutes later. **No driver sets
+  `$$bpe{RERUN}=1`** — not `pagenet_pcs.pl`, `luzon_pcs.pl`, `LZFLT_DLY_pcs.pl`
+  or `rnx2snx_pcs.pl`, and not `backends.py` — so a kill restarts that session
+  from job 001. The wrappers (`run_luzon_month.sh`, `run_luzon_year.sh`,
+  `run_phref_year.sh`, `run_pagenet_week.sh`) all resume across *days*, skipping
+  any day whose `FIN_*.NQ0` exists, so the cost is **one session**: about two
+  hours for PAGENET, minutes for LUZON.
+
+  **Which means the advice inverts for short sessions, and that is not a
+  quibble.** Waiting 45 minutes to be sure is obviously right when the session
+  costs two hours. It is obviously wrong when the session costs five and a half
+  minutes — there, re-running *is* the cheap diagnostic, and a session past a
+  few multiples of its normal length should simply be restarted. Compare the two
+  costs before waiting; do not carry PAGENET's answer to a network it wasn't
+  measured on.
 
   **The cause of the 0870 hang is deliberately not recorded here.** A note from
   the day attributes it to I/O contention from concurrent `uv sync` and pytest
