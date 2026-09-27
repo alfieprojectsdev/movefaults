@@ -540,11 +540,12 @@ Do not open these as findings.
   **That resume is a property of `scripts/`, not of the system.**
   `services/bernese-workflow` exposes only per-session `run()` /
   `run_continuous()` — there is no month driver and no skip-if-`FIN`-exists
-  anywhere in the package. On the service path a kill therefore costs **the
-  whole run**, not one session, and the "just re-run it" reasoning above does
-  not apply until a month loop with the same idempotence exists. Since moving
-  production onto the service is the standing direction, check which path you
-  are on before pricing a restart.
+  anywhere in the package. **The service has no resume of its own: the cost of a
+  kill is set by whatever drives it, and today nothing does, so it is whatever
+  you re-invoke by hand.** The "just re-run it" reasoning above holds only under
+  a driver that skips banked days. Since moving production onto the service is
+  the standing direction, check which path you are on — and which driver, if
+  any — before pricing a restart.
 
   **Which means the advice inverts for short sessions, and that is not a
   quibble.** Waiting 45 minutes to be sure is obviously right when the session
