@@ -537,6 +537,15 @@ Do not open these as findings.
   any day whose `FIN_*.NQ0` exists, so the cost is **one session**: about two
   hours for PAGENET, minutes for LUZON.
 
+  **That resume is a property of `scripts/`, not of the system.**
+  `services/bernese-workflow` exposes only per-session `run()` /
+  `run_continuous()` — there is no month driver and no skip-if-`FIN`-exists
+  anywhere in the package. On the service path a kill therefore costs **the
+  whole run**, not one session, and the "just re-run it" reasoning above does
+  not apply until a month loop with the same idempotence exists. Since moving
+  production onto the service is the standing direction, check which path you
+  are on before pricing a restart.
+
   **Which means the advice inverts for short sessions, and that is not a
   quibble.** Waiting 45 minutes to be sure is obviously right when the session
   costs two hours. It is obviously wrong when the session costs five and a half
