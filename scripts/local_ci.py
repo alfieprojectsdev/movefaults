@@ -374,6 +374,15 @@ def runner_version() -> str:
 
 
 def bpe_running() -> bool:
+    """
+    True while a Bernese BPE runs, so this run defers instead of testing.
+
+    Deliberate, on resource grounds: a full test suite (`uv sync`, pytest, npm ci,
+    vitest) and a BPE competing for one box is worth avoiding however BPE timing
+    behaves. HANDOVER.md already rules out bulk transfers during a BPE for the same
+    reason. While deferred, the heartbeat stays fresh with note "deferred: ...", so
+    a fresh heartbeat means the runner is alive, NOT that CI is testing.
+    """
     return sh(["pgrep", "-f", BPE_PATTERN], timeout=10).returncode == 0
 
 
