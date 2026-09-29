@@ -77,4 +77,36 @@ describe("check before sending, in the form", () => {
     expect(screen.queryByText(/check before sending/i)).toBeNull();
     expect(submitLogSheet).not.toHaveBeenCalled();
   });
+
+  it("checks again after a Send anyway that failed validation (review of #261)", async () => {
+    // Send anyway arms a one-shot pass, but handleSubmit validates BEFORE
+    // onSubmit, which is where the pass is spent. If validation fails, the pass
+    // stayed armed, and a later ordinary Submit skipped the check entirely.
+    renderForm();
+    const user = await fillRequired();
+    submitForm();
+    await screen.findByText(/check before sending/i);
+    await user.clear(screen.getByLabelText(/arrival time/i)); // now invalid
+    await user.click(screen.getByRole("button", { name: /send anyway/i }));
+    await user.click(screen.getByRole("button", { name: /go back/i }));
+    await user.type(screen.getByLabelText(/arrival time/i), "09:15"); // repaired
+    submitForm();
+    expect(await screen.findByText(/check before sending/i)).toBeInTheDocument();
+    expect(submitLogSheet).not.toHaveBeenCalled();
+  });
+
+  it("disarms a failed Send anyway even if Go back is never pressed", async () => {
+    // Pins the invalid-submit handler on its own: here nothing else clears the
+    // pass, so without the handler the next submit would skip the check.
+    renderForm();
+    const user = await fillRequired();
+    submitForm();
+    await screen.findByText(/check before sending/i);
+    await user.clear(screen.getByLabelText(/arrival time/i));
+    await user.click(screen.getByRole("button", { name: /send anyway/i }));
+    await user.type(screen.getByLabelText(/arrival time/i), "09:15");
+    submitForm(); // any submit that doesn't go through the panel's buttons
+    await screen.findByText(/check before sending/i);
+    expect(submitLogSheet).not.toHaveBeenCalled();
+  });
 });

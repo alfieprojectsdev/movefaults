@@ -1330,10 +1330,19 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
         <SendReview
           items={reviewItems}
           sending={isSubmitting}
-          onBack={() => setReviewItems(null)}
+          onBack={() => {
+            // Going back to fill things in makes any earlier "Send anyway" stale.
+            reviewAcknowledged.current = false;
+            setReviewItems(null);
+          }}
           onSend={() => {
             reviewAcknowledged.current = true;
-            void handleSubmit(onSubmit)();
+            // handleSubmit validates BEFORE onSubmit, where the pass is spent. If
+            // validation fails, disarm it here, or a later ordinary Submit would
+            // skip the check (found in review of #261).
+            void handleSubmit(onSubmit, () => {
+              reviewAcknowledged.current = false;
+            })();
           }}
         />
       ) : (
