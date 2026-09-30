@@ -66,7 +66,7 @@ from `CLAUDE.md` because both duplicates were removed.
 | **~107 stations** have 2025 RINEX 2 in our local datapool. Not 76 (one day's count), not 439 (file-server catalogue) | measured 2026-08-25 |
 | **No production month has run through `services/bernese-workflow`.** The service has never created a campaign on the R740 | confirmed 2026-08-25 from run history: every 2025 solution came from a Perl driver in `$U/SCRIPT` launched by `scripts/run_luzon_year.sh`. The 2025 run made this *more* true — 358 days through `scripts/` while the service gained tests |
 
-| **`MAXPAR` in `$U/OPT/R2S_FIN/ADDNEQ2.INP` was 1000 and is now 3000.** For a 33–38 station day the requirement is bounded to `(1000, 3000)` and **is not known more precisely** — the "~30 parameters per station" in the first version of `bernese_maxpar_limit.md` was an inference from the overflow report and is **withdrawn** | 24/24 days failed at 1000; 309+ days clean at 3000. Measurement method in `bernese_maxpar_limit.md` |
+| **`MAXPAR` in `$U/OPT/R2S_FIN/ADDNEQ2.INP` was 1000, then 3000, and is 6000 since 2026-09-29** — raised to match the team's BSW 5.2 `R2S_FIN` panel on gps2 (read 2026-09-29) ahead of the ~91-station densification trial; backup `ADDNEQ2.INP.pre-maxpar6000-20260929`. The preliminary step's `$U/OPT/R2S_GEN/ADDNEQ2.INP` went 1000 → 4000 the same day, also matching gps2 (backup `.pre-maxpar4000-20260929`). For a 33–38 station day the requirement is bounded to `(1000, 3000)` and **is not known more precisely** — the "~30 parameters per station" in the first version of `bernese_maxpar_limit.md` was an inference from the overflow report and is **withdrawn** | 24/24 days failed at 1000; 309+ days clean at 3000. Measurement method in `bernese_maxpar_limit.md` |
 | **`neqckdim` reports the first request that OVERFLOWS, not the requirement.** Its number is the ceiling plus one and says nothing about how much headroom is needed | the figure was exactly 1001 on all 24 failed days while station counts varied 35–38 |
 | **Cass runs ONE network of ~52–65 stations, not six subnetworks.** Her hierarchy is temporal — daily `F1_` → weekly `WK_` → monthly `MO_` — not GEONET's spatial one | established from her `FN*.CRD` output on the file server, 2026-08-28 |
 | **BLQ is column-sensitive.** A block indented one column left reports as NOT FOUND, not as malformed. `PHIVOLCS.BLQ` has three such: CALU, PTTN, URDT | `*** SR GTOCNL`, PHNAT attempt 4 |
@@ -636,9 +636,9 @@ genuinely unresolved as of 2026-09-24 and *should* be worked on:
   method in `docs/external-sources/README.md`.
 - **PHNAT (102 stations) is still not diagnosed, but is now sizeable.** The
   parameter count was measured 2026-09-01: ~30 explicit parameters per station.
-  102 stations therefore needs **~3060**, which exceeds the current `MAXPAR`
-  3000 — so MAXPAR would block it again regardless of the metadata fixes.
-  Raise to ≥5000 and re-attempt. (The withdrawn estimate turned out to be
+  102 stations therefore needs **~3060**, which exceeded the then `MAXPAR`
+  3000. **MAXPAR is now 6000 (2026-09-29)**, so that blocker is gone; the
+  metadata fixes and a re-attempt remain. (The withdrawn estimate turned out to be
   right; the *method* that produced it was not, and the withdrawal stands as a
   correction of method, not of number.)
 - **LGYE shows intermittent East excursions up to 76 mm in 11 of 53 weeks of
