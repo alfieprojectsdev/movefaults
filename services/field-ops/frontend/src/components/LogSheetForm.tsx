@@ -33,6 +33,8 @@ import { useQuery } from "@tanstack/react-query";
 import StationPicker from "./StationPicker";
 import ObserverPicker from "./ObserverPicker";
 import FormSection from "./FormSection";
+import SendReview from "./SendReview";
+import { reviewBeforeSend, type ReviewItem } from "../utils/review";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { generateUUID } from "../utils/uuid";
 import { checkPhotos, formatBytes } from "../utils/photos";
@@ -226,6 +228,13 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
     "idle" | "saving" | "queued" | "saved" | "error"
   >("idle");
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Check before sending (utils/review.ts). A non-null list means the panel is
+  // showing instead of the submit button. `reviewAcknowledged` lets exactly one
+  // submit through after the observer chooses "Send anyway"; it is cleared at
+  // the start of that submit, so the next sheet is checked afresh.
+  const [reviewItems, setReviewItems] = useState<ReviewItem[] | null>(null);
+  const reviewAcknowledged = useRef(false);
 
   /**
    * One identity per sheet, not per submit attempt.
@@ -427,6 +436,19 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   const onSubmit = async (values: FormValues) => {
+    // Once a sheet reaches the server it can't be edited, so a forgotten field
+    // is cheapest to catch here. A sheet with nothing to flag goes straight
+    // through: the panel only appears when there is something to look at.
+    if (!reviewAcknowledged.current) {
+      const items = reviewBeforeSend(values);
+      if (items.length > 0) {
+        setReviewItems(items);
+        return;
+      }
+    }
+    reviewAcknowledged.current = false;
+    setReviewItems(null);
+
     setSubmitState("saving");
     setErrorMsg("");
 
@@ -1303,14 +1325,35 @@ export default function LogSheetForm({ stationRequest = null }: Props = {}) {
 
       </FormSection>
 
-      {/* ── Submit ── */}
-      <button
-        type="submit"
-        className="submit-btn"
-        disabled={isSubmitting || !hasPhoto || !photoCheck.ok || equipmentChangeIncomplete}
-      >
-        {isSubmitting ? "Saving…" : "Submit Log Sheet"}
-      </button>
+      {/* ── Submit, or the check-before-sending panel in its place ── */}
+      {reviewItems ? (
+        <SendReview
+          items={reviewItems}
+          sending={isSubmitting}
+          onBack={() => {
+            // Going back to fill things in makes any earlier "Send anyway" stale.
+            reviewAcknowledged.current = false;
+            setReviewItems(null);
+          }}
+          onSend={() => {
+            reviewAcknowledged.current = true;
+            // handleSubmit validates BEFORE onSubmit, where the pass is spent. If
+            // validation fails, disarm it here, or a later ordinary Submit would
+            // skip the check (found in review of #261).
+            void handleSubmit(onSubmit, () => {
+              reviewAcknowledged.current = false;
+            })();
+          }}
+        />
+      ) : (
+        <button
+          type="submit"
+          className="submit-btn"
+          disabled={isSubmitting || !hasPhoto || !photoCheck.ok || equipmentChangeIncomplete}
+        >
+          {isSubmitting ? "Saving…" : "Submit Log Sheet"}
+        </button>
+      )}
 
       {/* ── Status messages ── */}
       {submitState === "saved" && (
