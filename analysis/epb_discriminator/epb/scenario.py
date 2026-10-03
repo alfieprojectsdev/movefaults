@@ -85,7 +85,9 @@ def build(label: str, cfg: Config, rng: np.random.Generator) -> Scenario:
     }
 
     if "quake" in label:
-        v = quake_velocity(t, cfg.quake_onset_s, cfg.quake_peak_enu, cfg.quake_dur_s, cfg.quake_shape)
+        v = quake_velocity(
+            t, cfg.quake_onset_s, cfg.quake_peak_enu, cfg.quake_dur_s, cfg.quake_shape
+        )
         truth["quake_onset_s"] = cfg.quake_onset_s
     if "epb" in label:
         onset = cfg.quake_onset_s + cfg.coseismic_lag_s if label == "quake+epb" else cfg.epb_onset_s
@@ -95,7 +97,9 @@ def build(label: str, cfg: Config, rng: np.random.Generator) -> Scenario:
         sats = np.argsort(dist)[: cfg.epb_n_affected]
         mask = np.zeros(n, dtype=bool)
         mask[sats] = True
-        d += epb_range_rate(t, onset, cfg.epb_dur_s, cfg.epb_amp, mask, epb_rng, cfg.rate_hz, cfg.epb_band_hz)
+        d += epb_range_rate(
+            t, onset, cfg.epb_dur_s, cfg.epb_amp, mask, epb_rng, cfg.rate_hz, cfg.epb_band_hz
+        )
         truth["epb_onset_s"] = onset
         truth["epb_sats"] = sorted(int(i) for i in sats)
     if label == "glitch":

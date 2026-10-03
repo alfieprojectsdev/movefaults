@@ -77,7 +77,9 @@ def main() -> int:
     out = HERE / "figures" / f"epoch_quake_vs_epb_seed{args.seed}"
     out.parent.mkdir(exist_ok=True)
     fig.savefig(out.with_suffix(".png"), dpi=110)
-    out.with_suffix(".json").write_text(json.dumps({"seed": args.seed, "config": asdict(cfg)}, indent=2) + "\n")
+    out.with_suffix(".json").write_text(
+        json.dumps({"seed": args.seed, "config": asdict(cfg)}, indent=2) + "\n"
+    )
     print(out.with_suffix(".png"))
     return 0
 
