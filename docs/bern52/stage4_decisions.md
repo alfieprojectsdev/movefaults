@@ -346,6 +346,70 @@ epoch question, not a position question, and may not be answerable at all for
 files inside the overlapping 1998-2006 window where `PHIV` and `PHIC` ran
 concurrently.
 
+### Co-location is the larger problem, and it is mostly not ambiguity
+
+The HQ rooftop is not an isolated case. Measured from `crd_catalog.csv` (the
+2026-09-23 build, 2,249 sites) using its `nearest_other_m` column:
+
+```
+another site code within   sites   in the PH box*   of these, flagged ambiguous
+        1 m                 257          67                  13
+       10 m                 432         133                  39
+       50 m                 603         169                  46
+      100 m                 663         180                  48
+
+* lat 4-22 N, lon 116-127 E, a box, not a border
+```
+
+Against that, **132 codes are flagged `ambiguous`**, and only **46 of the 603**
+are among them. The two problems are close to disjoint:
+
+- **Ambiguity is one code, many places** (`SOLD`, `CATA`). 87 of the 132
+  ambiguous codes have no other code within 50 m.
+- **Co-location is many codes, one place** (the rooftop). It touches about
+  4.5 times as many sites, and the `ambiguous` flag does not see it, because
+  each code on its own is consistent.
+
+Position cannot separate co-located codes, for the same reason it cannot
+separate the rooftop's: they sit closer together than a RINEX header fix is
+good for (~35 m), and under 1 m closer than any position at all. So for these
+603 a position match can only ever return a family of candidates. What picks
+one is epoch where the codes ran at different times, as for `PHIV`, and
+otherwise someone who knows the site's history.
+
+What the distances suggest, without settling anything (`SETTLED.md`,
+*Codes ending in a digit are often AUXILIARY BENCHMARKS*):
+
+- **Under 1 m (257)** is mostly one mark under two names: IGS co-locations
+  (`ADE1`/`ADE2`, `BAHR`/`BHR1`), receivers run side by side, or a code renamed
+  after an equipment change. That last one must **not** be merged, because the
+  rename marks a real offset in the series.
+- **1 to 50 m (346)** includes deliberately separate auxiliary benchmarks.
+  Merging those collapses two monuments into one.
+
+Neither band is a merge rule. Both mean stage 3's single-site answer is
+under-determined, and stage 4 should report the candidate family rather than
+pick one.
+
+**A stale figure, noted rather than fixed here.** `crd_catalog.md` still
+describes the 2026-09-03 build: 2,189 sites, 118 ambiguous, 616 within 100 m.
+The committed CSV is the 2026-09-23 build, with 2,249, 132 and 663. The
+numbers above are from the CSV.
+
+Reproduce:
+
+```python
+import csv
+rows = [r for r in csv.DictReader(l for l in open("docs/bern52/crd_catalog.csv")
+                                  if not l.startswith("#"))]
+near = [r for r in rows if r["nearest_other_m"] and float(r["nearest_other_m"]) < 50]
+print(len(near), sum(r["ambiguous"] == "yes" for r in near))   # 603 46
+```
+
+*First measured on finch (603 / 257 against the then-current 118), and never
+written into the repo. Recomputed on gps3 on 2026-10-03 from the committed CSV,
+not copied.*
+
 ---
 
 ## 4. The residue — this is the part that needs a person
