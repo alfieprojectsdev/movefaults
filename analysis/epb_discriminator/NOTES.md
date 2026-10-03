@@ -59,6 +59,9 @@ better.
 
 ### Separately requested
 
+Check whether `cq` or the covariance tracks disturbed periods in the existing
+local captures (station-level, never committed).
+
 **Result (2026-10-03, local DGOS captures, nothing committed):** station-level
 `cq` and covariance do not track disturbed periods. `cq` sits at 22-29 mm/s
 every hour in both the October 2025 and January 2026 captures and did not react
@@ -69,6 +72,87 @@ deep. Worth carrying to the VADASE threshold evidence: a nearby M6.7 crossed the
 15 mm/s threshold for only two epochs.
 
 
-Check whether `cq` or the covariance tracks disturbed periods in the existing
-local captures (station-level, never committed). See the PR description for
-what was found.
+## Stop 2 — 2026-10-03 (same branch)
+
+`epb/eval.py`, `epb/ledger.py`, `run_session2.py`; 26 tests. Every number below
+is in `figures/session2_results.json` with its config and seeds (20 per cell,
+alpha = 0.001, window 30 s). Placeholder amplitudes and white noise throughout,
+so these are shapes, not calibrated rates.
+
+### 1. Cost on true quakes (reported first, as the brief asks)
+
+Neither residual test rejected a single quake-pulse epoch (0 of 420 per peak,
+peaks 5–120 mm/s; ~0.4 expected at alpha 0.001). **This is true by
+construction**: in this model a quake is an exact rigid motion. The real cost
+comes from what the model leaves out (multipath, unmodelled satellite motion,
+receiver dynamics during shaking) and can only be measured on recorded data
+with per-satellite residuals. The current detector, for reference, alarms on
+22 % of pulse epochs at 15 mm/s peak and 81 % at 60 mm/s.
+
+### 2. Power: summing over time is what makes the test work
+
+Share of bubble epochs flagged, bubble RMS (rows) by satellites affected (cols):
+
+```
+              per-epoch test              30 s window test
+mm/s     1     2     3     5           1     2     3     5
+   4   0.00  0.01  0.01  0.02        0.01  0.09  0.23  0.53
+   6   0.01  0.02  0.04  0.09        0.10  0.38  0.68  0.93
+  10   0.04  0.11  0.19  0.35        0.42  0.84  0.96  1.00
+  20   0.18  0.40  0.58  0.80        0.85  0.99  1.00  1.00
+```
+
+A sustained bubble that one epoch cannot see, a 30 s window finds: at 6 mm/s
+on 3 satellites, 4 % against 68 %. This answers stop 1's open question.
+
+### 3. The purpose question: what per-satellite data adds
+
+The current detector (horizontal speed >= 15 mm/s, station-level only) raises
+**false quake alarms on bubble epochs**: 32 % at 20 mm/s on 3 satellites, 66 %
+at 40 mm/s. From station-level data alone those epochs look like motion, and
+the October captures showed `cq` does not move either.
+
+Of the bubble epochs that trip the detector, the window test flags **98–100 %**
+once the bubble reaches 10 mm/s on 3 or more satellites. It is weak only for a
+single satellite at small amplitude (10 % at 6 mm/s), which is also where the
+detector rarely fires. **So per-satellite residuals would veto most
+bubble-driven false alarms, and station-level data cannot.**
+
+### 4. Blind spots (500 random geometries each)
+
+```
+           MDB (mm/s)       horizontal fake at MDB (mm/s)
+  N   median   p95          median   p95
+  6     47     166            28     191
+ 10     29      67             8.5    23
+ 20     24      61             3.5     6.4
+```
+
+"Fake at MDB" is the horizontal velocity that a single-satellite bias just
+below detectability produces. With 10 satellites, at least 5 % of geometries
+let an undetectable fault fake more than 22 mm/s, enough to trip the 15 mm/s
+detector. With 20, the 95th percentile is 6.4 mm/s. The October 2025 DGOS capture used about 40
+satellites, so a multi-GNSS solve should sit well inside the safe end; this
+model has been run only to N = 20.
+
+### 5. Ledger
+
+`ledger.py`: claims with status and confidence. A change is refused unless it
+cites the SHA-256 of evidence stored for that same claim. Evidence results are
+`support | reject | insufficient` (plus `reject_H_eq`). Tested, including that
+quake + bubble evidence leaves both hypotheses open.
+
+### Still simplified
+
+White noise per epoch (real TDCP noise is differenced and correlated, which
+will make windowed sums optimistic); static geometry; placeholder sigma0 and
+amplitudes; no cycle slips. Calibrating sigma0 needs per-satellite residuals
+from a quiet day, which needs the raw stream (stage 3 on the NTRIP page).
+
+### Next
+
+1. Correlated noise: rerun power with differenced noise to see how much of the
+   window gain survives.
+2. A real calibration day once raw observations reach gps3.
+3. A cheap classifier baseline (brief, evaluation 5) on station features vs the
+   same plus residual features.

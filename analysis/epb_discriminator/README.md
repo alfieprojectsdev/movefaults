@@ -45,6 +45,9 @@ epb/signals.py    quake velocity pulse, bubble range-rate noise, single-satellit
 epb/scenario.py   Config + build(label): truth + noise + labels, and LVM-style station outputs
 epb/residual.py   WLS, chi2/dof, Baarda normalized residuals, MDB, leakage, station_level()
 plot_epoch.py     session 1 figure (quake vs bubble), writes PNG + config JSON
+epb/eval.py       session 2: per-epoch and windowed decisions, power, quake cost, blind spots
+epb/ledger.py     claims, evidence and the cite-your-evidence verifier
+run_session2.py   session 2 sweeps, writes figures/session2_power.png + results JSON
 tests/            statistics against theory, scenarios, reproducibility
 NOTES.md          state at each stopping point
 ```
