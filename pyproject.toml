@@ -208,6 +208,7 @@ testpaths = [
     "packages/pogf-geodetic-suite/tests",
     "services/bernese-workflow/tests",
     "services/field-ops/tests",
+    "analysis/epb_discriminator/tests",
     "services/ingestion-pipeline/tests",
     "services/vadase-rt-monitor/tests",
     "tools/drive-archaeologist/tests",
