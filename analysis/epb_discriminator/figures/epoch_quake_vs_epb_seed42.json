@@ -1,0 +1,31 @@
+{
+  "seed": 42,
+  "config": {
+    "n_sat": 10,
+    "el_mask_deg": 10.0,
+    "sigma0": 0.003,
+    "rate_hz": 1.0,
+    "duration_s": 1500.0,
+    "clock_drift": 0.01,
+    "quake_onset_s": 300.0,
+    "quake_peak_enu": [
+      0.05,
+      0.03,
+      0.01
+    ],
+    "quake_dur_s": 20.0,
+    "quake_shape": "halfsine",
+    "epb_onset_s": 300.0,
+    "epb_dur_s": 600.0,
+    "epb_amp": 0.01,
+    "epb_n_affected": 3,
+    "epb_band_hz": [
+      0.02,
+      0.3
+    ],
+    "glitch_amp": 0.03,
+    "glitch_kind": "spike",
+    "coseismic_lag_s": 600.0,
+    "extra": {}
+  }
+}
