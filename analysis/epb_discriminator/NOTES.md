@@ -59,6 +59,16 @@ better.
 
 ### Separately requested
 
+**Result (2026-10-03, local DGOS captures, nothing committed):** station-level
+`cq` and covariance do not track disturbed periods. `cq` sits at 22-29 mm/s
+every hour in both the October 2025 and January 2026 captures and did not react
+to the M7.4 itself. The one post-sunset reading above 15 mm/s (2025-10-10
+11:12:52 UTC, 15.4 mm/s, two epochs) is **seismic, not ionospheric**: USGS lists
+an M6.7 (Mww) at 11:12:05 UTC, 12 km SE of Santiago, Davao Oriental, 47 km
+deep. Worth carrying to the VADASE threshold evidence: a nearby M6.7 crossed the
+15 mm/s threshold for only two epochs.
+
+
 Check whether `cq` or the covariance tracks disturbed periods in the existing
 local captures (station-level, never committed). See the PR description for
 what was found.
