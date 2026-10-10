@@ -40,6 +40,13 @@ class Config:
     glitch_amp: float = 0.03  # m/s
     glitch_kind: str = "spike"
     coseismic_lag_s: float = 600.0  # ionospheric disturbance after a large quake
+    # Session 3. "white": independent per epoch (sessions 1-2). "tdcp": range
+    # rate as the difference of consecutive phase errors, same per-epoch sigma,
+    # lag-1 correlation -0.5.
+    noise_model: str = "white"
+    mp_amp: float = 0.0  # m, carrier-phase multipath amplitude per satellite
+    mp_period_s: float = 120.0  # mean period; short = distant reflector
+    mp_resid_frac: float = 1.0  # share left after a sidereal / sky-map model
     extra: dict = field(default_factory=dict)
 
 
@@ -52,6 +59,36 @@ class Scenario:
     t: np.ndarray  # (T,) seconds
     truth: dict
     station: dict  # LVM-style outputs: v, cov, cq, n_sats per epoch
+
+
+def _correlated_errors(cfg: Config, t, W, white: np.ndarray, rng) -> np.ndarray:
+    """What to ADD to the white draw to get the configured noise. (T, N), m/s.
+
+    tdcp: the white draw is reused as phase error p[1:] / sqrt(2) per epoch,
+    with one extra leading epoch, and the range-rate error is p[k+1] - p[k].
+    Per-epoch sigma is unchanged; consecutive epochs correlate at -0.5.
+
+    multipath: phase error A sin(2 pi t / T_i + phi_i) per satellite, so its
+    range-rate is A (2 pi / T_i) cos(...). T_i is mp_period_s +/- 30 %. A
+    sinusoid is the simplest stand-in for a quasi-periodic reflection;
+    amplitude is not scaled with elevation. mp_resid_frac scales what is left
+    after a sidereal or sky-map correction.
+    """
+    n = white.shape[1]
+    out = np.zeros_like(white)
+    if cfg.noise_model == "tdcp":
+        p0 = rng.standard_normal(n) / np.sqrt(W)
+        p = np.vstack([p0, white]) / np.sqrt(2.0)
+        out += (p[1:] - p[:-1]) - white
+    elif cfg.noise_model != "white":
+        raise ValueError(f"unknown noise_model {cfg.noise_model!r}")
+    if cfg.mp_amp > 0:
+        period = cfg.mp_period_s * rng.uniform(0.7, 1.3, n)
+        phase = rng.uniform(0, 2 * np.pi, n)
+        w = 2 * np.pi / period
+        rate = cfg.mp_amp * w[None, :] * np.cos(w[None, :] * t[:, None] + phase[None, :])
+        out += cfg.mp_resid_frac * rate
+    return out
 
 
 def build(label: str, cfg: Config, rng: np.random.Generator) -> Scenario:
@@ -105,6 +142,12 @@ def build(label: str, cfg: Config, rng: np.random.Generator) -> Scenario:
     if label == "glitch":
         d += glitch(t, cfg.quake_onset_s, glitch_sat, cfg.glitch_amp, n, cfg.glitch_kind)
         truth["glitch_sat"] = glitch_sat
+
+    # Drawn last and only when asked for, so the default white-noise scenario
+    # (and every session-1/2 number) is bit-identical to before.
+    if cfg.noise_model != "white" or cfg.mp_amp > 0:
+        extra_rng = np.random.default_rng(rng.integers(2**63))
+        noise = noise + _correlated_errors(cfg, t, W, noise, extra_rng)
 
     y = -(v @ los.T) + cfg.clock_drift + d + noise
     truth["v_true"] = v
