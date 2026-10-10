@@ -25,12 +25,15 @@ Post-Helmert residuals, per week, across all 53:
 
 | component | median | mean | min | max |
 |---|---|---|---|---|
-| **North** | **1.29** | 1.36 | 0.67 | 2.38 |
-| **East** | **2.37** | 2.75 | 1.57 | 6.47 |
-| Up | 7.09 | 7.31 | 5.84 | 10.25 |
-| **horizontal** | **2.77** | 3.10 | 1.80 | 6.73 |
+| **North** | **1.26** | 1.32 | 0.67 | 2.38 |
+| **East** | **2.28** | 2.43 | 1.57 | 6.47 |
+| Up | 6.99 | 7.26 | 5.84 | 10.25 |
+| **horizontal** | **2.70** | 2.79 | 1.80 | 6.73 |
 
-mm. **The two independent solutions agree horizontally at the few-millimetre
+mm. *Revised 2026-10-11: the outlier test now uses local North/East instead of
+ECEF X/Y (see "Why outlier rejection was necessary"). The first version read
+1.29 / 2.37 / 7.09 / 2.77 median and 3.10 mean horizontal; 7 of 53 weeks
+changed, all by rejecting a station the old test kept.* **The two independent solutions agree horizontally at the few-millimetre
 level in every week of 2025.** Vertical at ~7 mm is the expected GNSS
 asymmetry, not a defect.
 
@@ -100,12 +103,21 @@ because GUMA was dragging the transformation.
 
 The fit is now iterative, rejecting at **4σ or 15 mm, whichever is larger**, so
 a very clean week does not begin discarding good stations for being 4σ from an
-already-tight mean. **8 weeks of 53 have any rejection at all**, and every
+already-tight mean. **14 weeks of 53 have any rejection at all**, and every
 rejected station is named in the per-week output.
 
-The threshold was **not tuned to improve the result**. GUMA survives in WK_2370
-at 32 mm (3.5σ against σ=9.2) and is reported as retained-but-notable rather
-than quietly removed.
+**The test is on local North/East.** Until 2026-10-11 it used ECEF X and Y,
+which at these latitudes carry most of the vertical, so σ was inflated by the
+Up scatter: WK_2370's σ came out at 9.2 mm on a week whose horizontal RMS is
+nearer 3. That is why GUMA (33 mm East) survived in WK_2370, and why LGYE
+(30 mm East) survived in WK_2375 while the PHDEN comparison of the same week
+rejected it. With North/East, 6 more weeks reject LGYE, WK_2370 also rejects
+GUMA, and WK_2388 rejects POLI. Week-level changes, before → after
+(horizontal mm): 2347 3.60 → 2.08, 2351 4.61 → 2.31, 2357 4.40 → 2.80,
+2370 6.31 → 3.02, 2373 6.05 → 2.76, 2375 5.79 → 2.58, 2388 3.90 → 2.70.
+
+The threshold itself (4σ or 15 mm) was **not changed or tuned**; only the
+components it is applied to.
 
 ## What this does not establish
 

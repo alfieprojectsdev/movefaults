@@ -129,13 +129,20 @@ def helmert_robust(ours, theirs, sites, max_iter=10, k=4.0, floor_mm=15.0):
     Rejection is at k sigma OR `floor_mm`, whichever is LARGER, so a very clean
     week does not start discarding good stations for being 4 sigma from an
     already-tight mean.
+
+    The test is on local North/East. It used ECEF X/Y until 2026-10-11, which at
+    Philippine latitudes carry most of the vertical: sigma came out near 9 mm
+    on a week whose horizontal RMS was 2-6, and a 30 mm East outlier was kept
+    in one network and rejected in another (week 2375, PHREF vs PHDEN).
     """
+    rot = np.array([xyz_to_neu_rotation(x) for x in ours])
     keep = np.ones(len(ours), dtype=bool)
     rejected: list[str] = []
     for _ in range(max_iter):
         p, res = helmert(ours[keep], theirs[keep])
         full = ((theirs - ours).reshape(-1) - _design(ours) @ p).reshape(-1, 3)
-        h = np.hypot(full[:, 0], full[:, 1]) * 1000.0
+        neu = np.einsum("nij,nj->ni", rot, full)
+        h = np.hypot(neu[:, 0], neu[:, 1]) * 1000.0
         sigma = float(np.sqrt(np.mean(h[keep] ** 2)))
         thr = max(k * sigma, floor_mm)
         new = keep & (h <= thr)
