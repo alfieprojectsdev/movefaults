@@ -1,13 +1,20 @@
 """Tests for BPE backend implementations — no Perl, no filesystem side effects."""
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+import time
+
 import pytest
+from bernese_workflow import backends
 from bernese_workflow.backends import (
     _SUBDIRS,
     LinuxBPEBackend,
     WindowsBPEBackend,
     _count_crd_stations,
     _parse_bpe_output,
+    _run_bpe_process,
     compute_maxpar,
 )
 
@@ -196,7 +203,7 @@ def test_run_exports_parameterized_bpe_vars(tmp_path, monkeypatch):
         captured["env"] = kwargs["env"]
         return _FakeProc()
 
-    monkeypatch.setattr("bernese_workflow.backends.subprocess.run", fake_run)
+    monkeypatch.setattr("bernese_workflow.backends._run_bpe_process", fake_run)
 
     # Campaign CRD with 3 stations so MAXPAR is auto-sized (floored to 1000).
     camp = tmp_path / "GPSDATA" / "PAGENET"
@@ -226,7 +233,7 @@ def test_run_exports_parameterized_bpe_vars(tmp_path, monkeypatch):
 def test_run_explicit_max_par_overrides_crd_count(tmp_path, monkeypatch):
     captured: dict[str, object] = {}
     monkeypatch.setattr(
-        "bernese_workflow.backends.subprocess.run",
+        "bernese_workflow.backends._run_bpe_process",
         lambda cmd, **kw: captured.update(env=kw["env"]) or _FakeProc(),
     )
 
@@ -248,7 +255,7 @@ def test_run_omits_maxpar_when_uncomputable(tmp_path, monkeypatch):
     """No CRD, no override → no MAXPAR injected (panel/PCF default stands)."""
     captured: dict[str, object] = {}
     monkeypatch.setattr(
-        "bernese_workflow.backends.subprocess.run",
+        "bernese_workflow.backends._run_bpe_process",
         lambda cmd, **kw: captured.update(env=kw["env"]) or _FakeProc(),
     )
 
@@ -266,7 +273,7 @@ def test_run_defaults_preserve_stock_contract(tmp_path, monkeypatch):
     """Unconfigured backend still drives RNX2SNX via the stock driver."""
     captured: dict[str, object] = {}
     monkeypatch.setattr(
-        "bernese_workflow.backends.subprocess.run",
+        "bernese_workflow.backends._run_bpe_process",
         lambda cmd, **kw: captured.update(cmd=cmd, env=kw["env"]) or _FakeProc(),
     )
 
@@ -289,4 +296,76 @@ def test_run_defaults_preserve_stock_contract(tmp_path, monkeypatch):
 def test_windows_backend_raises_not_implemented():
     backend = WindowsBPEBackend()
     with pytest.raises(NotImplementedError):
+        backend.run("CAMP", 2023, "0100")
+
+
+# ---------------------------------------------------------------------------
+# _run_bpe_process: a timeout kills the whole BPE, not just the driver
+# ---------------------------------------------------------------------------
+
+def _alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    # A reaped-later zombie still answers kill(0); it is dead for our purposes.
+    try:
+        with open(f"/proc/{pid}/stat") as f:
+            return f.read().split(")")[-1].split()[0] != "Z"
+    except FileNotFoundError:
+        return False
+
+
+def _gone_within(pid: int, seconds: float) -> bool:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if not _alive(pid):
+            return True
+        time.sleep(0.05)
+    return not _alive(pid)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="process groups are POSIX")
+def test_timeout_kills_jobs_started_the_way_the_cpu_file_starts_them(tmp_path, monkeypatch):
+    """USER.CPU launches jobs as `echo '<COMMAND>' | sh &`: grandchildren of the
+    driver. subprocess.run's timeout killed only the driver and left them running."""
+    monkeypatch.setattr(backends, "_KILL_GRACE_SEC", 1)
+    pidfile = tmp_path / "job.pid"
+    driver = tmp_path / "driver.sh"
+    driver.write_text(
+        "#!/bin/sh\n"
+        f"echo 'echo $$ > {pidfile}; exec sleep 300' | sh &\n"
+        "exec sleep 300\n"
+    )
+    with pytest.raises(subprocess.TimeoutExpired):
+        _run_bpe_process(["sh", str(driver)], env=dict(os.environ), timeout=1)
+
+    job_pid = int(pidfile.read_text())
+    assert _gone_within(job_pid, 5), "the BPE job outlived the timeout"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="process groups are POSIX")
+def test_bpe_runs_in_its_own_group_so_the_kill_cannot_reach_the_caller():
+    out = _run_bpe_process(
+        [sys.executable, "-c", "import os; print(os.getpgrp())"],
+        env=dict(os.environ),
+        timeout=10,
+    )
+    assert out.returncode == 0
+    assert int(out.stdout) != os.getpgrp()
+
+
+def test_run_reports_a_killed_group_as_a_timeout(tmp_path, monkeypatch):
+    def times_out(cmd, **kw):
+        raise subprocess.TimeoutExpired(cmd, kw["timeout"])
+
+    monkeypatch.setattr("bernese_workflow.backends._run_bpe_process", times_out)
+    (tmp_path / "GPSDATA" / "CAMP" / "STA").mkdir(parents=True)
+    backend = LinuxBPEBackend(
+        bernese_root=tmp_path / "BERN54",
+        user_dir=tmp_path / "GPSUSER",
+        campaign_dir=tmp_path / "GPSDATA",
+        timeout_sec=5,
+    )
+    with pytest.raises(RuntimeError, match="timed out after 5s.*process group was killed"):
         backend.run("CAMP", 2023, "0100")

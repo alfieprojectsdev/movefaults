@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import signal
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -39,6 +40,63 @@ class BPEBackend(Protocol):
     def prepare_campaign(self, campaign_name: str, year: int, session: str, **kwargs: object) -> None: ...
     def run(self, campaign_name: str, year: int, session: str) -> BPEResult: ...
     def collect_outputs(self, campaign_name: str, year: int, session: str) -> dict[str, Path]: ...
+
+
+_KILL_GRACE_SEC = 10
+
+
+def _kill_group(proc: subprocess.Popen[str]) -> None:
+    """SIGTERM the process's whole group, then SIGKILL whatever is left."""
+    try:
+        pgid = os.getpgid(proc.pid)
+    except ProcessLookupError:
+        return
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(pgid, sig)
+        except ProcessLookupError:
+            return
+        try:
+            proc.wait(timeout=_KILL_GRACE_SEC)
+        except subprocess.TimeoutExpired:
+            continue
+        # The leader is gone, but a job it started may still be in the group.
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError:
+            return
+
+
+def _run_bpe_process(
+    cmd: list[str], *, env: dict[str, str], timeout: float
+) -> subprocess.CompletedProcess[str]:
+    """Run a BPE driver in its own process group, and kill the group on the way out.
+
+    BPE jobs are started by the CPU file as `echo '<COMMAND> ...' | sh &`, so
+    they are grandchildren of the driver, in its process group. subprocess.run
+    kills only the direct child on timeout, which leaves the BPE server and its
+    jobs running unsupervised. A new session gives the driver a group of its
+    own, so one killpg reaches all of them, and the caller's group is untouched.
+    """
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
+    except BaseException:
+        _kill_group(proc)
+        try:
+            # Bounded: a process that left the group could still hold the pipe.
+            proc.communicate(timeout=_KILL_GRACE_SEC)
+        except subprocess.TimeoutExpired:
+            logger.error("BPE output pipe still open after killing group %s", proc.pid)
+        raise
+    return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
 
 
 def _parse_bpe_output(log_text: str) -> BPEResult:
@@ -373,16 +431,15 @@ class LinuxBPEBackend:
         try:
             # PCF passed as argv[2] for pagenet_pcs.pl-style drivers; stock
             # rnx2snx_pcs.pl ignores the extra argument.
-            proc = subprocess.run(
+            proc = _run_bpe_process(
                 ["perl", str(script), str(year), session, self.pcf_file],
-                capture_output=True,
-                text=True,
                 env=env,
                 timeout=self.timeout_sec,
             )
         except subprocess.TimeoutExpired as exc:
             raise RuntimeError(
-                f"BPE timed out after {self.timeout_sec}s for campaign {campaign_name}"
+                f"BPE timed out after {self.timeout_sec}s for campaign {campaign_name}; "
+                "its process group was killed"
             ) from exc
 
         combined = proc.stdout + "\n" + proc.stderr
