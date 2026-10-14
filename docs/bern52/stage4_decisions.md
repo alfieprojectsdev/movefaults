@@ -364,7 +364,7 @@ another site code within   sites   in the PH box*   of these, flagged ambiguous
 Against that, **132 codes are flagged `ambiguous`**, and only **46 of the 603**
 are among them. The two problems are close to disjoint:
 
-- **Ambiguity is one code, many places** (`SOLD`, `CATA`). 87 of the 132
+- **Ambiguity is one code, many places** (`SOLD`, `CATA`). 86 of the 132
   ambiguous codes have no other code within 50 m.
 - **Co-location is many codes, one place** (the rooftop). It touches about
   4.5 times as many sites, and the `ambiguous` flag does not see it, because
