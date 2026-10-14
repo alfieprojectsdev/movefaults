@@ -4,6 +4,11 @@
 
 **Date:** 2026-01-25
 
+> **Original specification (January 2026), targeting BSW 5.2.** The service was
+> built against Bernese 5.4 and differs from this in places; for what exists,
+> see `services/bernese-workflow/README.md`. Production still runs through
+> `scripts/`.
+
 ## 1. Introduction
 
 ### 1.1. Purpose
@@ -12,7 +17,7 @@ This document outlines the technical specifications for the Automated Bernese Pr
 
 ### 1.2. Scope
 
-This specification details the system's architecture, the stages of the processing workflow, the technology stack, and strategies for configuration and error handling. It assumes the Bernese GNSS Software v5.2+ is installed and licensed on the execution machine, and its operation is informed by the comprehensive documentation found in `/home/finch/repos/movefaults/docs/bern52/`, particularly the "BERN52 Guide (detailed version).pdf". The system is designed to seamlessly process **RINEX data streams** from diverse GNSS observation methods, focusing on high-precision geodetic products.
+This specification details the system's architecture, the stages of the processing workflow, the technology stack, and strategies for configuration and error handling. It assumes the Bernese GNSS Software v5.2+ is installed and licensed on the execution machine, and its operation is informed by the comprehensive documentation found in `docs/bern52/`, particularly the "BERN52 Guide (detailed version).pdf". The system is designed to seamlessly process **RINEX data streams** from diverse GNSS observation methods, focusing on high-precision geodetic products.
 
 ## 2. System Architecture
 

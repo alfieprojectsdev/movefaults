@@ -1,6 +1,6 @@
 # Implementation Ticket Backlog
 
-**Last updated:** 2026-08-23
+**Last updated:** 2026-10-14 (ticket headers re-checked against the code and merge history)
 **Source:** Codebase survey [`codebase_status_20260425.md`](codebase_status_20260425.md) cross-referenced with [`roadmap.md`](roadmap.md) and [`bernese_orchestrator_r740_readiness.md`](bernese_orchestrator_r740_readiness.md) (14 gaps from NAMRIA training week, 2026-06)
 
 > **Priority:** P0 = critical path blocker · P1 = production deployment · P2 = feature complete · P3 = deferred
@@ -184,7 +184,7 @@ Staff-identified bottleneck (2026-05-05): RXOBV3 (PID 221/222) silently drops st
 > Source: `geonet_bernese_strategy_research.md` (verified against primary sources)
 > and `bernese_workflow_geonet_actions.md`. None of these need the R740.
 
-### GEO-001 · P1 · S
+### ~~GEO-001~~ · P1 · S · **DONE** (PR #112, `bernese_workflow/fiducial_set.py`)
 **Record the fiducial set in the provenance record**
 
 `ADDNEQ2.INP` resolves its datum from `FREESTA_F = ${P}/PHIVOLCS\STA\REF190110.FIX`,
@@ -201,7 +201,7 @@ about it and is currently unrecorded.
 
 ---
 
-### GEO-002 · P2 · S
+### ~~GEO-002~~ · P2 · S · **SETTLED BY MEASUREMENT** (`geo002_mapping_function_result.md`: the split is inert)
 **Resolve the mapping-function inconsistency across GPSEST panels**
 
 Measured: `WET_GMF` in R2S_EDT/R2S_FIN, `WET_NIELL` in R2S_QIF/L53/L12, `COSZ` in
@@ -219,7 +219,7 @@ Also: R2S_FIN estimates zenith delay at `01 00 00` while every upstream panel is
 
 ---
 
-### GEO-003 · P2 · S
+### ~~GEO-003~~ · P2 · S · **DONE** (PR #113; drift guard fixed in #125)
 **Template the troposphere block in `PCFContext`**
 
 `MAPPNG`/`NUMPAR`/`NUMGRD` live only as literals across six panel files and have
@@ -263,7 +263,7 @@ is a file someone remembers, not a recorded input.
 
 ---
 
-### GEO-006 · P3 · L
+### GEO-006 · P3 · L · **RESEARCH SETTLED** (PR #141, `geo006_network_architecture.md`); partitioning deliberately not adopted at ~107 stations (`SETTLED.md` §3)
 **Backbone/regional network architecture evaluation**
 
 Distinct from RH-006. GEONET partitions ~1,300 stations into a backbone cluster
@@ -611,7 +611,7 @@ Quality-of-life for the recurring "is this stick safe to blank?" task; NOT on th
 
 ---
 
-### DA-005 · P3 · L
+### DA-005 · P3 · L · **PARTIAL** — 005a and 005b shipped; 005c (explorer) and 005d not started
 **Textual TUI — the drive-rehab funnel as an interface**
 
 Full design: [`tools/drive-archaeologist/docs/TUI_PLAN.md`](../../tools/drive-archaeologist/docs/TUI_PLAN.md).
@@ -648,7 +648,7 @@ IGS20 long filenames, `.gz` decompression in-memory, IGN→BKG→CDDIS mirror or
 in this backlog, which is why its one structural gap went unrecorded until the
 field reported it.*
 
-### FO-001 · P1 · L
+### ~~FO-001~~ · P1 · L · **DONE** — API + table (fo007, PR #155), review/promote/reject (PR #227), field form (PR #226), collisions (fo008)
 **Let an observer create a station from inside the app**
 
 Reported from the field ([#118](https://github.com/alfieprojectsdev/movefaults/issues/118)):
@@ -660,7 +660,7 @@ campaign occupations "must be seeded from another source" — a source that does
 not exist. Campaign sites have no ingest path whatsoever, so keeping the export
 fresher fixes nothing.
 
-Design decided, nothing built:
+Design decided, nothing built *(as of 2026-08-23; all of it has since shipped, see the header)*:
 
 - App-created stations go to a new `field_ops.station_proposals` table, **not**
   `public.stations` — which serves VADASE and Bernese too, and which field-ops

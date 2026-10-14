@@ -1,6 +1,6 @@
 # Project Roadmap: Phased Implementation Based on Dependency Hierarchies
 
-**Last updated:** 2026-08-20
+**Last updated:** 2026-10-14 (status of every deliverable re-checked against the code)
 **Original date:** 2026-01-26
 
 > For per-deliverable status and projected dates, see [`deliverables_tracker.md`](deliverables_tracker.md).
@@ -62,16 +62,19 @@ movefaults_clean/
 │   ├── pogf-geodetic-suite/     # Shared: coordinate transforms, RINEX QC, IGS downloader
 │   └── CORS-dashboard/          # Legacy React/GraphQL dashboard (forensic reference only)
 ├── services/
-│   ├── vadase-rt-monitor/       # Real-time NMEA earthquake detection (~85%; ReceiverMode state machine, TimescaleDB wired)
-│   ├── ingestion-pipeline/      # Celery-based RINEX ingestion (~30% complete)
-│   ├── bernese-workflow/        # Bernese BPE orchestrator — CORE BUILT (BRN-002..006); R740-hardening is the frontier
-│   └── field-ops/               # Digital field logsheet PWA (Phase 1A — complete)
+│   ├── vadase-rt-monitor/       # Real-time NMEA earthquake detection (~80%; ReceiverMode state machine, TimescaleDB wired)
+│   ├── ingestion-pipeline/      # Celery-based RINEX ingestion (~30%; not in the production loop)
+│   ├── bernese-workflow/        # Bernese BPE orchestrator (~60%; invokes BSW for real; no production month yet)
+│   └── field-ops/               # Digital field logsheet PWA (deployed)
 ├── tools/
-│   ├── drive-archaeologist/     # CLI: excavate legacy GNSS data (~60%; scanner proven on real media drive, GNSS-classification path mock-only)
+│   ├── drive-archaeologist/     # CLI + TUI: excavate legacy GNSS data (~60%; GNSS classification untested on a real GNSS drive)
 │   └── velocity-reviewer/       # Web UI: interactive GNSS time series outlier review (complete, bd743bb)
-├── src/ingestion/               # Simplified local ingestion module (consolidation pending)
-├── analysis/                    # Numbered research scripts 01–10 (legacy, not yet ported)
+├── scripts/                     # THE PRODUCTION PATH: staging, PCF derivation, BPE drivers, QC
+├── src/db/                      # Shared SQLAlchemy models (src/ingestion/ was consolidated away)
+├── migrations/                  # Root Alembic tree, 001–013
+├── analysis/                    # Numbered research scripts 01–10 (largely ported; see 2.4) + epb_discriminator
 └── docs/
+    ├── SETTLED.md               # What is established; read first
     ├── project_documentation/   # Roadmap, tracker, tech specs, ADRs
     └── bernese_orchestration_explainer.md
 ```
@@ -94,7 +97,8 @@ movefaults_clean/
 
 **Deliverable 1.1: Centralized Geodetic Database** ✅ **COMPLETE**
 - PostgreSQL + TimescaleDB + PostGIS via docker-compose
-- Alembic migrations 001–006; 4 CORS stations seeded
+- Alembic migrations 001–006 at completion; the root tree is now at 013 (offset events, SHA-256 rename, VADASE tables and policies, QC fields); 4 CORS stations seeded
+- **Nothing writes Bernese solutions into it yet** (`docs/SETTLED.md` §6)
 - Schema: `stations`, `timeseries_data`, `velocity_products`, `ingestion_logs`
 - Committed: `bafa06b` (branch `feat/phase0-database-foundation`)
 - *Spec: `docs/project_documentation/pogf_infrastructure/tech_spec_database.md`*
@@ -109,19 +113,29 @@ movefaults_clean/
 
 > Build on Tier 1. Components can be developed in parallel once 1.1 is complete.
 
-**Deliverable 2.3: Digital Field Operations System** ✅ **COMPLETE**
+**Deliverable 2.3: Digital Field Operations System** ✅ **COMPLETE — DEPLOYED**
 - FastAPI backend + React/Vite PWA; offline-first with IndexedDB queue + Service Worker sync
+- Since August: deployed and used on a real handset; Today screen; site proposals from the
+  field with office review (#155, #226, #227); check-before-sending (2026-09-29); `/health`
+  refuses a deploy whose schema is behind (#249, #256). 131 backend + 273 frontend tests.
+- Pending: amendments and review status (`field_ops_amend_review_design.md`, proposed);
+  logsheet PDF with paper-layout parity; equipment QR scanner in the PWA
 - Own `field_ops` schema namespace; station picker syncs from central `stations` table
 - Location: `services/field-ops/`
 - *Spec: `docs/project_documentation/gnss_automation_modules/tech_spec_digital_logsheet.md`*
 
-**Deliverable 2.5: RINEX Quality Control Module** 🔄 **IN PROGRESS**
+**Deliverable 2.5: RINEX Quality Control Module** ✅ **DONE IN PRACTICE** (2026-10-14)
+- **Current state:** teqc first, gfzrnx fallback on exactly two triggers (teqc refuses RINEX 3,
+  or teqc is not installed), wired since PR #80; every result records which tool produced it.
+  Completeness preflight `rinex-completeness` (#144). Open: the gfzrnx commercial licence for
+  operational use. Evidence: `gfzrnx_vs_teqc_rinex3_evidence.md`.
+- *The bullets below are the 2026-06 decision record, kept as written.*
 - `teqc` as primary QC backend. **gfzrnx migration decision (2026-06):** teqc stays primary for
   GPS-only RINEX-2 work; the migration trigger is the **first RINEX 3/4 file teqc can't process**,
   NOT a multi-GNSS desire. teqc is unmaintained (UNAVCO 2019); the mixed-version PAGENET data
   (IGS=RINEX3) makes the version migration when-not-if. gfzrnx needs a **commercial campus license**
-  for the planned automated pipeline (scientific-free covers current manual work). See
-  `gfzrnx_teqc_decision` memory + `~/Downloads/gfzrnx_license_inquiry_GFZ.md`.
+  for the planned automated pipeline (scientific-free covers current manual work). The licence
+  inquiry draft is not in the repository.
 - Wrapper exists in `packages/pogf-geodetic-suite/`; Trimble conversion step documented
 - Trimble NetR9 filename pattern identified; `drive-archaeologist` profiles need updating
 - *Spec: `docs/project_documentation/gnss_automation_modules/tech_spec_rinex_qc.md`*
@@ -132,9 +146,12 @@ movefaults_clean/
 - *Spec: `docs/project_documentation/gnss_automation_modules/tech_spec_igs_downloader.md`*
 
 **Deliverable 1.2: Unified Data Ingestion Pipeline** 🔄 **IN PROGRESS (~30%)**
-- Architecture defined; Celery tasks are stubs
+- Celery chain `standardize_format → validate_rinex → load_to_postgres`, 36 tests; **not in
+  the production loop**
 - Phase 1B-i: consolidation of `src/ingestion/` → `services/ingestion-pipeline/` complete (PR #32)
-- Pending: teqc integration, Trimble→RINEX conversion step, scanner→pipeline handoff
+- Done since: RINEX QC through `pogf_geodetic_suite.qc.rinex_qc` (teqc, gfzrnx fallback);
+  scanner → pipeline handoff (`drive-arch scan --ingest`)
+- Pending: Trimble→RINEX conversion step; running it on real data
 - *Spec: `docs/project_documentation/pogf_infrastructure/tech_spec_ingestion_pipeline.md`*
 
 **Deliverable 2.1: drive-archaeologist Integration** 🔄 **IN PROGRESS (~60%)**
@@ -145,8 +162,9 @@ movefaults_clean/
   profiles — the tool's actual purpose) has only synthetic/mock coverage (`mock_drive/`, `test_data/`,
   `tmp_path` fixtures). → **DA-001: validate classification against a real legacy GNSS drive** before
   trusting excavation output. Real GNSS drives likely available (DOST/PHIVOLCS archive).
-- Pending: Trimble raw file classification (`.T01`, `.T02`, `.T04`, `.DAT`, `.TGD`),
-  ingestion-pipeline handoff (ING-001)
+- Since July: `survey` triage, recycle-bin `recover` (DA-006), a Textual TUI with detached
+  scans (DA-005), hardened scanning (DA-002); ingestion handoff via `scan --ingest` (ING-001)
+- Pending: DA-001 (above); Trimble raw file classification (`.T01`, `.T02`, `.T04`, `.DAT`, `.TGD`)
 - Location: `tools/drive-archaeologist/`
 - *Ref: `docs/project_documentation/gnss_automation_modules/ref_drive_archaeologist.md`*
 
@@ -164,8 +182,8 @@ movefaults_clean/
 >
 > | path | days of 2025 solutions produced |
 > |---|---|
-> | `scripts/` + Perl drivers | **683** (LUZON 358 complete; PHREF 325/359, run in progress 2026-08-29) |
-> | `services/bernese-workflow` | **0** |
+> | `scripts/` + Perl drivers | **683** at the time (LUZON 358 complete; PHREF 325/359, run in progress 2026-08-29). Final: **LUZON 358 + PHREF 360 = 718** |
+> | `services/bernese-workflow` | **0** (still 0 on 2026-10-14) |
 >
 > The gap has *widened*, not closed. `scripts/` gained a year driver, block
 > resume, staging, data-derived exclusions, and status/email reporting. The
@@ -202,6 +220,14 @@ movefaults_clean/
   stock driver (`pagenet_pcs.pl`) + idempotent runner (`scripts/run_pagenet_week.sh`).
 - Module 13/14 HELMCHK passed: RMS 8.64 mm, 6 fiducials accepted, 0 rejected (sub-10mm datum gate).
 - The orchestrator's **execution contract is validated on real data.**
+
+**Progress since 2026-08-29 (re-checked 2026-10-14).** The service gained the two
+mechanical pieces of a multi-day run that only `scripts/` had: `month_driver.run_days`, a
+day-level resume driver with `.done` markers and a two-consecutive-failures stop (#268), and
+a timeout that kills the BPE's whole process group (#271). PHREF 2025 finished 360/360 and
+agrees with PHIVOLCS production at 1.26 / 2.28 / 6.99 mm N/E/U median over 53 weeks
+(`phref_vs_production_comparison_results.md`). **None of the five decision-layer items below
+is built yet**, and no production day has run through the service.
 
 **THE FRONTIER — the decision layer (see `bpe_orchestration_design.md`):**
 Build order, each independently useful and testable without Bernese:
@@ -292,7 +318,15 @@ Architecture decisions:
 - **`velocity-reviewer` tool complete** (`tools/velocity-reviewer/`, commit `bd743bb`):
   browser-based ENU time series review, IQR auto-outlier detection, PLOT file stripping
   on export with backup/restore for idempotency — replaces Windows-only GUI
-- Remaining: port `RUNX_v2.py` → Python library; port `vel_line_v8.m` → Python; dislocation models
+- **Done since (re-checked 2026-10-14):** `vel_line_v8.m` ported and verified against PHIVOLCS'
+  published output (161/165 components to <5e-6 mm/yr; `timeseries/analysis.py`); joint
+  step + rate estimation (#86); GMT velocity-field output (#87); `RUNX_v2.py` chain as
+  `crd-to-plots` (#146); offsets catalog sorted and validated on read (#111); DC3D, disloc and
+  disloc3d without MATLAB, so no MEX code remains (#153); the 2-D grid-search inversion
+  (`modeling/inversion.py`)
+- Remaining: bootstrapping (`08 Bootstrapping`); which inversion method to adopt
+  (`inversion_method_decision.md`, awaiting PHIVOLCS sign-off); production still runs
+  `RUNX_v2.py` and MATLAB
 - *Spec: `docs/project_documentation/gnss_automation_modules/tech_spec_timeseries_suite.md`*
 
 **Deliverable 1.4: Public Data Portal and API** ⏳ **PENDING**
@@ -315,9 +349,14 @@ of the Bernese pipeline. Key remaining work:
   `ReceiverMode` enum state machine replaces the one-way bool
 - ~~Trimble sentence parser dead code~~ — removed (VAD-003); GR50 is Leica, `$PTNL` sentences
   were never called
-- `TCPAdapter`: complete NTRIP handshake (header drain + SOURCETABLE handling + exponential
-  backoff) — VAD-002
-- TimescaleDB compression + retention policies — VAD-001 (migration 012)
+- ~~`TCPAdapter`: complete NTRIP handshake~~ — done (VAD-002): `ICY 200` / header drain,
+  SOURCETABLE refusal, jittered exponential backoff, `FatalConfigError` for bad credentials
+- ~~TimescaleDB compression + retention policies~~ — done (VAD-001, migration 012). Neon
+  refuses 012's compression, so the hosted database is stamped at 011 (`services/field-ops/DEPLOY.md`)
+- Threshold evidence from real captures: `vadase_detection_validation.md`,
+  `vadase_threshold_evidence.md` (2026-09/10)
+- Open: the service `Dockerfile` cannot build as written (it copies a `pyproject.toml` the
+  service does not have and runs a console script that does not exist)
 - PR #1 remediation (paused, lower priority than Phase 1B)
 
 ---
