@@ -325,7 +325,9 @@ def _gone_within(pid: int, seconds: float) -> bool:
     return not _alive(pid)
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="process groups are POSIX")
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"), reason="process groups; _alive reads /proc"
+)
 def test_timeout_kills_jobs_started_the_way_the_cpu_file_starts_them(tmp_path, monkeypatch):
     """USER.CPU launches jobs as `echo '<COMMAND>' | sh &`: grandchildren of the
     driver. subprocess.run's timeout killed only the driver and left them running."""
@@ -338,7 +340,7 @@ def test_timeout_kills_jobs_started_the_way_the_cpu_file_starts_them(tmp_path, m
         "exec sleep 300\n"
     )
     with pytest.raises(subprocess.TimeoutExpired):
-        _run_bpe_process(["sh", str(driver)], env=dict(os.environ), timeout=1)
+        _run_bpe_process(["sh", str(driver)], env=dict(os.environ), timeout=3)
 
     job_pid = int(pidfile.read_text())
     assert _gone_within(job_pid, 5), "the BPE job outlived the timeout"
@@ -369,3 +371,15 @@ def test_run_reports_a_killed_group_as_a_timeout(tmp_path, monkeypatch):
     )
     with pytest.raises(RuntimeError, match="timed out after 5s.*process group was killed"):
         backend.run("CAMP", 2023, "0100")
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="process groups are POSIX")
+def test_timeout_keeps_the_partial_bpe_log(monkeypatch):
+    monkeypatch.setattr(backends, "_KILL_GRACE_SEC", 1)
+    with pytest.raises(subprocess.TimeoutExpired) as info:
+        _run_bpe_process(
+            ["sh", "-c", "echo PCF started; exec sleep 300"],
+            env=dict(os.environ),
+            timeout=1,
+        )
+    assert "PCF started" in info.value.stdout
