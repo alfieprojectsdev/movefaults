@@ -60,6 +60,12 @@ Thumbs.db
 !docs/bern52/BERN52 Inventory.xlsx
 *.gmt
 *.cpt
+# VADASE NMEA captures are PHIVOLCS field data and do not belong in a public
+# repository. Two capture sets (48 files, 45 MiB) were committed on 2026-01-31
+# and removed from the tip on 2026-10-14; they remain in history. Keep captures
+# under services/vadase-rt-monitor/data/ in a working clone, untracked.
+*.rtl
+services/vadase-rt-monitor/data/
 
 # Office documents under analysis/ are the scientists' working files, often
 # tens of MB each. `analysis/07 Dislocation Model/` alone is 62 MB. They are
