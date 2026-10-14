@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from epb.eval import _core as eval_core
 from epb.eval import reject_epoch, reject_window, station_alarm
 from epb.ledger import Ledger, LedgerError
 from epb.scenario import Config, build
@@ -48,8 +49,7 @@ def test_station_alarm_is_the_current_horizontal_speed_rule():
 
 
 def _core(s, cfg):
-    on = s.truth["epb_onset_s"]
-    return (s.t >= on + 0.1 * cfg.epb_dur_s) & (s.t <= on + 0.9 * cfg.epb_dur_s)
+    return eval_core(s, cfg, "epb_onset_s", cfg.epb_dur_s)
 
 
 # ---- ledger --------------------------------------------------------------
