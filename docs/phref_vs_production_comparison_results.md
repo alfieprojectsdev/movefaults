@@ -76,7 +76,7 @@ Contributing sites:
 | GUMA | 2 | includes **-281 mm** in WK_2352 |
 | VIGN, POLI | 1 each | — |
 
-**LGYE** is the one to act on: `+18 -19 +20 -26 -19 -26 +44 +76 +61 -31 +30` mm
+**LGYE** is the one to act on: `+18 -19 +21 -26 -20 -26 +44 +75 +61 -32 +31` mm
 East across weeks 2347–2375, then nothing for the rest of the year. The
 **alternating sign rules out a coordinate offset and rules out real
 deformation**, both of which are one-directional. An intermittent
@@ -86,7 +86,7 @@ firmware change around July 2025.
 Note for anyone tempted by geology: LGYE is at Legazpi, beside Mayon. That
 makes a volcanic story attractive and it is **not supported** — the sign
 alternates, and LGYE's median across all 53 weeks is **3.60 mm**, entirely
-normal. A single week (2375, +30 mm East) is what first drew attention, and the
+normal. A single week (2375, +31 mm East) is what first drew attention, and the
 population contradicted the impression the sample gave.
 
 **GUMA in WK_2352 at -281 mm East** is a separate, single-week event, and it
@@ -109,9 +109,9 @@ rejected station is named in the per-week output.
 **The test is on local North/East.** Until 2026-10-11 it used ECEF X and Y,
 which at these latitudes carry most of the vertical, so σ was inflated by the
 Up scatter: WK_2370's σ came out at 9.2 mm on a week whose horizontal RMS is
-nearer 3. That is why GUMA (33 mm East) survived in WK_2370, and why LGYE
+nearer 3. That is why GUMA (32 mm East under the old fit) survived in WK_2370, and why LGYE
 (30 mm East) survived in WK_2375 while the PHDEN comparison of the same week
-rejected it. With North/East, 6 more weeks reject LGYE, WK_2370 also rejects
+rejected it. With North/East, 5 more weeks reject LGYE, WK_2370 also rejects
 GUMA, and WK_2388 rejects POLI. Week-level changes, before → after
 (horizontal mm): 2347 3.60 → 2.08, 2351 4.61 → 2.31, 2357 4.40 → 2.80,
 2370 6.31 → 3.02, 2373 6.05 → 2.76, 2375 5.79 → 2.58, 2388 3.90 → 2.70.
@@ -136,7 +136,7 @@ components it is applied to.
 
 ## For Cass
 
-1. **LGYE** shows intermittent East excursions up to 76 mm in 11 of 53 weeks of
+1. **LGYE** shows intermittent East excursions up to 75 mm in 11 of 53 weeks of
    2025, alternating in sign, ceasing after mid-July. Worth checking against
    the site log for an equipment or firmware change around then.
 2. **GUMA, week 2352** (DOY 057–063): -281 mm East in the production weekly.

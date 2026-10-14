@@ -99,21 +99,26 @@ def xyz_to_neu_rotation(xyz: np.ndarray) -> np.ndarray:
     ])
 
 
+def neu_rotations(xyz: np.ndarray) -> np.ndarray:
+    """Stack of per-site rotations, shape (n, 3, 3), for `to_neu`."""
+    return np.array([xyz_to_neu_rotation(x) for x in xyz])
+
+
+def to_neu(rot: np.ndarray, delta: np.ndarray) -> np.ndarray:
+    """Rotate per-site Cartesian deltas (n, 3) into local N/E/U (n, 3)."""
+    return np.einsum("nij,nj->ni", rot, delta)
+
+
 def helmert(ours: np.ndarray, theirs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """7-parameter fit taking `ours` onto `theirs`.
 
     Returns (params, residuals). params = [Tx,Ty,Tz (m), s (unitless),
     Rx,Ry,Rz (rad)]. Residuals are theirs - transformed(ours), in metres.
     """
-    n = len(ours)
-    A = np.zeros((3 * n, 7))
+    A = _design(ours)
     L = (theirs - ours).reshape(-1)
-    for i, (x, y, z) in enumerate(ours):
-        A[3 * i + 0] = [1, 0, 0, x, 0.0,  z,  -y]
-        A[3 * i + 1] = [0, 1, 0, y, -z,  0.0,  x]
-        A[3 * i + 2] = [0, 0, 1, z, y,   -x,  0.0]
     p, *_ = np.linalg.lstsq(A, L, rcond=None)
-    res = (L - A @ p).reshape(n, 3)
+    res = (L - A @ p).reshape(-1, 3)
     return p, res
 
 
@@ -135,13 +140,13 @@ def helmert_robust(ours, theirs, sites, max_iter=10, k=4.0, floor_mm=15.0):
     on a week whose horizontal RMS was 2-6, and a 30 mm East outlier was kept
     in one network and rejected in another (week 2375, PHREF vs PHDEN).
     """
-    rot = np.array([xyz_to_neu_rotation(x) for x in ours])
+    rot = neu_rotations(ours)
     keep = np.ones(len(ours), dtype=bool)
     rejected: list[str] = []
     for _ in range(max_iter):
-        p, res = helmert(ours[keep], theirs[keep])
+        p, _ = helmert(ours[keep], theirs[keep])
         full = ((theirs - ours).reshape(-1) - _design(ours) @ p).reshape(-1, 3)
-        neu = np.einsum("nij,nj->ni", rot, full)
+        neu = to_neu(rot, full)
         h = np.hypot(neu[:, 0], neu[:, 1]) * 1000.0
         sigma = float(np.sqrt(np.mean(h[keep] ** 2)))
         thr = max(k * sigma, floor_mm)
@@ -187,7 +192,7 @@ def main() -> int:
     p, res, keep, rejected = helmert_robust(xyz_o, xyz_t, common)
     res = res.reshape(len(common), 3)
 
-    neu = np.array([xyz_to_neu_rotation(xyz_o[i]) @ res[i] for i in range(len(common))])
+    neu = to_neu(neu_rotations(xyz_o), res)
     neu_mm = neu * 1000.0
 
     if not args.quiet:

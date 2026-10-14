@@ -20,8 +20,8 @@ cws = importlib.util.module_from_spec(_spec)
 sys.modules["compare_weekly_solutions"] = cws
 _spec.loader.exec_module(cws)
 
-A = 6378137.0
-E2 = 2 / 298.257223563 - (1 / 298.257223563) ** 2
+A = cws.A_WGS84
+E2 = 2 * cws.F_WGS84 - cws.F_WGS84**2
 
 
 def _xyz(lat_deg: float, lon_deg: float, h: float = 50.0) -> np.ndarray:
