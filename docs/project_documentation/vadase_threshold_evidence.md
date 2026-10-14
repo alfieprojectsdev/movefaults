@@ -26,9 +26,9 @@ catalogue's place descriptions.
 
 Every figure below is reproduced by
 `services/vadase-rt-monitor/scripts/threshold_evidence.py`. The captures are
-PHIVOLCS field data. The two DGOS captures are committed under
-`services/vadase-rt-monitor/data/` (since 2026-01-31); TUA2, BOST and PBIS are
-not. (Corrected 2026-10-14; this said none were committed.)
+PHIVOLCS field data and are not in the repository. (Corrected 2026-10-14: the
+two DGOS captures were committed from 2026-01-31 until #277 removed them; they
+remain in git history.)
 
 ## The five captures
 

@@ -69,7 +69,7 @@ PYTHONPATH=. uv run python scripts/run_ingestor.py --dry-run       # log writes,
 ```
 
 `run_demo.sh` needs the BOST capture at `data/NMEA_BOST LDM_20231202_140000/`,
-which is not committed. With only the committed captures, replay by hand:
+which is not in the repository. Replay any capture by hand:
 
 ```bash
 PYTHONPATH=. uv run python scripts/replay_events.py \
@@ -137,9 +137,10 @@ environment, defaulting to `admin`; set it before exposing the port.
   and a non-seismic TUA2 spike), measured 2026-10-06. Every figure is
   reproduced by `scripts/threshold_evidence.py`.
 
-Two of these capture sets, `data/NMEA_DGOS_10102025/` and
-`data/DGOS_NMEA_01282026/` (48 `.rtl` files), are committed here; the others
-are not.
+None of the captures are in the repository: they are PHIVOLCS field data,
+and `*.rtl` and `data/` are git-ignored. Keep them under `data/` in a working
+clone. (Two DGOS sets were committed from 2026-01-31 until #277 removed them;
+they remain in history.)
 
 ## Known defects outside the Python package
 

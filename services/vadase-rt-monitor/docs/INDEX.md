@@ -11,7 +11,8 @@ Welcome to the technical documentation for the VADASE Real-Time Monitor. This do
 5.  **[Data Ingestion & Ports](INGESTION_SYSTEM.md)**: Input adapters, queues and playback strategies.
 6.  **[Database Schema](DATABASE_SCHEMA.md)**: The `vadase_*` tables, their TimescaleDB policies, and how the adapter writes.
 7.  **[Developer & Researcher Guide](DEVELOPER_GUIDE.md)**: Extending the system and using the scripts for analysis.
-8.  **Validation:** what the detector does on real earthquakes is measured in the repo-root `docs/project_documentation/vadase_detection_validation.md` and `vadase_threshold_evidence.md`.
+8.  **[GEOCON 2025 poster notes](GEOCON_2025_POSTER_NOTES.md)**: The poster's case studies and the reasons for moving off SpiderQC.
+9.  **Validation:** what the detector does on real earthquakes is measured in the repo-root `docs/project_documentation/vadase_detection_validation.md` and `vadase_threshold_evidence.md`.
 
 `Architectural Refactor Plan.md` and `../tree.md` are pre-implementation proposals, kept for history.
 
@@ -26,6 +27,6 @@ This service is designed for researchers and engineers at PHIVOLCS. We assume fa
 
 - Ingestion Engine: `src/`
 - Configuration: `config/`
-- Recorded captures: `data/` (two DGOS capture sets are committed; others are held outside the repo)
+- Recorded captures: `data/` in a working clone, git-ignored (field data, not in the repository)
 - Operational Scripts: `scripts/`
 - Database migrations: repo-root `migrations/versions/` 010–012
