@@ -2,7 +2,6 @@
 > for the reasoning; it does not describe the code. For what the tool does now,
 > see `../README.md` and `../CLAUDE.md`.
 
-[Smart USB data ingestion system \| ar.pelicano@phivolcs.dost.gov.ph/Claude](https://claude.ai/share/d9bdf15b-3960-440b-83c2-ddd2b69025ea)
 This is an **expansion** of the original USB hot-drop concept—transforming it from a passive GNSS data ingestion tool into an **intelligent filesystem archaeologist** that understands MOVE Faults' messy legacy infrastructure;  phased implementation strategy below, builds toward a production-grade system.
 
 ---
