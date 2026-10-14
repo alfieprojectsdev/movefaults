@@ -1,5 +1,9 @@
 # Quick Decision Guide - Drive Archaeologist
 
+> **PLANNING DOCUMENT, November 2025, written before the tool existed.** Kept
+> for the reasoning; it does not describe the code. For what the tool does now,
+> see `../README.md` and `../CLAUDE.md`.
+
 **Date:** 2025-11-06
 **Purpose:** Fast reference for key decisions before starting implementation
 

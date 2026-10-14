@@ -1,6 +1,6 @@
 # drive-archaeologist TUI — design plan (DA-005)
 
-**Drafted:** 2026-07-03 · **Status:** plan only, not scheduled
+**Drafted:** 2026-07-03 · **Status (2026-10-14):** screens 1–3 built (`tui/screens/drives.py`, `survey.py`, `scan.py`; detached scan jobs in `scanjobs.py`); screens 4 (explore) and 5 (actions) not started
 **Framework:** [Textual](https://textual.textualize.io/) — Python, built on rich (already a
 dependency), async, headless-testable via `Pilot`. Optional extra: `drive-archaeologist[tui]`,
 entry point `drive-arch tui`.

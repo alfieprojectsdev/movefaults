@@ -1,5 +1,9 @@
 # Tailored Implementation Plan - Drive Archaeologist
 
+> **PLANNING DOCUMENT, November 2025, written before the tool existed.** Kept
+> for the reasoning; it does not describe the code. For what the tool does now,
+> see `../README.md` and `../CLAUDE.md`.
+
 **Date:** 2025-11-06
 **Status:** Customized based on user requirements
 **Customization:** Windows-first, archive support, OCR priority, profile system

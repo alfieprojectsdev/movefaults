@@ -1,5 +1,9 @@
 # Phase 0 Implementation Specification
 
+> **PLANNING DOCUMENT, November 2025, written before the tool existed.** Kept
+> for the reasoning; it does not describe the code. For what the tool does now,
+> see `../README.md` and `../CLAUDE.md`.
+
 **Date:** 2025-11-06
 **Phase:** 0 - Cross-Platform Scanner
 **Duration:** 10 hours

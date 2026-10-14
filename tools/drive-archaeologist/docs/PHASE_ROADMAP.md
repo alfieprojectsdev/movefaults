@@ -1,5 +1,9 @@
 # Drive Archaeologist - Phase Roadmap
 
+> **PLANNING DOCUMENT, November 2025, written before the tool existed.** Kept
+> for the reasoning; it does not describe the code. For what the tool does now,
+> see `../README.md` and `../CLAUDE.md`.
+
 **Visual guide to implementation phases**
 
 ---
