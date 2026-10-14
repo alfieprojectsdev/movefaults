@@ -73,7 +73,7 @@ revision 2 of the brief confirms it. Corrected.
 
 ## What was deliberately not done
 
-The other {nlive} documents were **not** mass-edited. Most dead references sit
+The other 52 documents were **not** mass-edited. Most dead references sit
 in documents that are historical in spirit — a code review of a past state, a
 backlog of tickets partly completed — and bulk-editing them would destroy more
 context than it repairs. The audit's value is the classification; acting on it
