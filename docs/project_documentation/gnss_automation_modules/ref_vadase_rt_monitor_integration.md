@@ -2,7 +2,7 @@
 
 **Deliverable originally related to:** Aspects of Time Series Analysis & Visualization.
 
-**Addressed by:** Existing project `/home/finch/repos/movefaults/docs/vadase-rt-monitor/`
+**Addressed by:** `services/vadase-rt-monitor/` in this repository
 
 ## Purpose
 
@@ -12,7 +12,7 @@ The presence of MATLAB scripts like `vel_line_v6_ldm.m` and `vel_line_v6_lvm.m` 
 
 ## VADASE Real-Time Monitor Overview
 
-The `vadase-rt-monitor` project (located at `/home/finch/repos/movefaults/docs/vadase-rt-monitor/`) is designed for:
+The `vadase-rt-monitor` service (`services/vadase-rt-monitor/`) is designed for:
 
 -   Ingesting **NMEA-based LDM (Displacement) and LVM (Velocity) data streams**, primarily for rapid evaluation and display.
 -   Real-time velocity and displacement monitoring.
@@ -34,4 +34,4 @@ To avoid duplication of effort and ensure a clear separation of concerns, the MO
 
 -   **Geodetic Post-Processing & Modeling Suite (Deliverable 2.4):** This suite will explicitly *exclude* the processing and analysis of real-time or near real-time VADASE NMEA streams. Its focus will remain on post-processed, daily or high-rate data products (e.g., from Bernese solutions) for long-term time series analysis, deformation modeling, and historical data visualization.
 -   **Public Data Portal and API (Deliverable 1.4):** This portal will provide access to processed, historical geodetic data. It will **not** provide its own real-time data visualizations but will offer direct links to the relevant `vadase-rt-monitor` Grafana dashboards for users seeking live information.
--   **Data Flow:** The `vadase-rt-monitor` project will manage its own data ingestion and database (likely its TimescaleDB instance) for real-time data. Data outputs from `vadase-rt-monitor` that are deemed "finalized" (e.g., confirmed event detections, daily averages that could be part of a historical archive) may be integrated into the Centralized Geodetic Database (Deliverable 1.1) in the future, if deemed necessary. This integration point will require a separate, future specification.
+-   **Data Flow:** `vadase-rt-monitor` manages its own ingestion. Its tables (`vadase_velocities`, `vadase_displacements`, `vadase_events`) are created by migrations 010–012 in the repo-root `migrations/` tree, so they sit in the same database as the rest of the project, in separate tables with no foreign keys into them. Data outputs from `vadase-rt-monitor` that are deemed "finalized" (e.g., confirmed event detections, daily averages that could be part of a historical archive) may be integrated into the Centralized Geodetic Database (Deliverable 1.1) in the future, if deemed necessary. This integration point will require a separate, future specification.

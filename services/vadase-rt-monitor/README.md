@@ -1,179 +1,165 @@
 # VADASE Real-Time Monitor
 
-Open-source real-time GNSS displacement monitoring system for earthquake detection, replacing proprietary Leica SpiderQC visualization.
+Real-time GNSS displacement monitoring for earthquake detection, as an open
+replacement for the visualisation in Leica SpiderQC.
 
 ## Overview
 
-This system ingests NMEA-based VADASE (Variometric Approach for Displacement Analysis Stand-alone Engine) data streams from PHIVOLCS's network of 35 CORS stations and provides:
+The service ingests NMEA VADASE (Variometric Approach for Displacement Analysis
+Stand-alone Engine) streams from CORS receivers. For each station it:
 
-- Real-time velocity and displacement monitoring
-- Automatic earthquake detection based on configurable thresholds
-- Time-series visualization via Grafana dashboards
-- Event cataloging and alerting
+- parses `$GNLVM` (velocity) and `$GNLDM` (displacement) sentences, with checksum validation
+- decides, epoch by epoch, whether to trust the receiver's own displacement or integrate velocity itself (`ReceiverMode`)
+- detects events when horizontal velocity exceeds a per-station threshold (`threshold_mm_s`, 15.0 mm/s for every configured station)
+- writes velocity, displacement and event summaries to TimescaleDB, with Grafana dashboards on top
 
-## Key Features
+**Two station counts, both real.** PHIVOLCS operates a CORS network of about 35
+stations. `config/stations.yml` configures **4** of them (PBIS, BOST, BTU2,
+PAPI), on LAN addresses that only resolve inside one building. Check the file
+rather than this sentence; the configured count is the one that changes.
 
-- **Parser**: Full LDM (Displacement) and LVM (Velocity) NMEA sentence parsing with checksum validation
-- **Stream Handler**: Async TCP connections supporting 35+ concurrent stations
-- **Database**: TimescaleDB for optimized time-series storage
-- **Detection**: Configurable threshold-based event detection with quality filtering
-- **Visualization**: Grafana dashboards replicating conference poster layouts
+## Layout
 
-## Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- [UV](https://github.com/astral-sh/uv) package manager
-- Docker & Docker Compose
-- PostgreSQL/TimescaleDB
-
-### Installation
-```bash
-# Install UV (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Clone repository
-git clone https://github.com/YOUR_USERNAME/vadase-rt-monitor.git
-cd vadase-rt-monitor
-
-# Install dependencies (creates virtual environment automatically)
-uv sync --all-extras
-
-# Copy environment template
-cp .env.example .env
-# Edit .env with your database credentials and station configurations
+```
+src/
+  parsers/nmea_parser.py        LVM/LDM parsing, XOR checksum (NMEAChecksumError)
+  domain/processor.py           IngestionCore: ReceiverMode state machine, leaky integrator, event detection
+  ports/                        InputPort, OutputPort protocols
+  adapters/inputs/              TCPAdapter (NTRIP, reconnect with jittered backoff), DirectoryAdapter (files)
+  adapters/outputs/             TimescaleDBAdapter, LoggingOutputPort (dry run), NullOutputPort, CompositeOutputPort
+  strategies/playback.py        FastImportStrategy, RealTimeStrategy (replay at 1 Hz or faster)
+  visualization/live_plot.py    matplotlib live ENU plot for replays
+scripts/                        run_ingestor.py, replay_events.py, stress_test_parallel.py,
+                                mock_ntrip_caster.py, threshold_evidence.py
+config/                         stations.yml, stations_local_test.yml, logging.yml, thresholds.yml (empty)
+grafana/                        dashboards and provisioning, mounted by the repo-root docker-compose.yml
+notebooks/                      event_validation.ipynb, poster_reproduction.ipynb
 ```
 
-### Setup Database
-```bash
-# Start TimescaleDB via Docker
-docker-compose up -d timescaledb
+The database schema is not here: it is migrations `010`–`012` in the repo-root
+`migrations/` tree. See [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md).
 
-# Initialize schema
-uv run python -c "
-import asyncio
-from scripts.init_database import init_db
-asyncio.run(init_db())
-"
+## Quick start
+
+Everything runs from the monorepo; this service has no `pyproject.toml` of its own.
+
+```bash
+# from the repository root
+uv sync --all-extras                 # structlog, asyncpg, typer etc. come from the extras
+docker compose up -d db grafana      # TimescaleDB on 5433, Grafana on 127.0.0.1:3000
+uv run alembic upgrade head          # creates the vadase_* tables (run from the root)
 ```
 
-### Run Ingestion
+### Run the ingestor
+
 ```bash
-# From the service directory (PYTHONPATH=. makes the bare `src.` imports
-# resolve — the monorepo wheel does not package this service's scripts/):
 cd services/vadase-rt-monitor
-PYTHONPATH=. uv run python scripts/run_ingestor.py
+PYTHONPATH=. uv run python scripts/run_ingestor.py                 # config/stations.yml
+PYTHONPATH=. uv run python scripts/run_ingestor.py --dry-run       # log writes, no database
 ```
 
-### Development
+`PYTHONPATH=.` makes the bare `src.` imports resolve. There is deliberately no
+`vadase-ingestor` console script: the wheel maps only `src/` directories, so a
+`scripts.` target could never import.
+
+### Replay a recorded event, no database needed
+
 ```bash
-# Run tests
-uv run pytest
-
-# Run tests with coverage
-uv run pytest --cov=src --cov-report=html
-
-# Format code
-uv run black src/ tests/ scripts/
-
-# Lint code
-uv run ruff check src/ tests/ scripts/
-
-# Type check
-uv run mypy src/
+./run_demo.sh                        # BOST, 2023-12-02 Mw 7.6, at 8x speed
 ```
 
-### Access Grafana
-```
-http://localhost:3000
-Username: admin
-Password: admin
-```
+`run_demo.sh` needs the BOST capture at `data/NMEA_BOST LDM_20231202_140000/`,
+which is not committed. With only the committed captures, replay by hand:
 
-## Testing & Verification
-### 1. Offline Event Replay
-Replay historical earthquake log files (`.rtl`, `.nmea`) to verify parser logic and visualization.
 ```bash
-# Replay a specific earthquake file with live plotting and forced manual integration
-# (from services/vadase-rt-monitor with PYTHONPATH=. — see Run Ingestion above)
 PYTHONPATH=. uv run python scripts/replay_events.py \
   --file "data/NMEA_DGOS_10102025/NMEA_DGOS LDM_20251010_040000.rtl" \
-  --mode replay \
-  --base-date 2025-10-10 \
-  --plot \
-  --force-integration \
-  --dry-run
+  --mode replay --base-date 2025-10-10 --plot --dry-run
 ```
-*   `--mode replay`: Simulates real-time 1Hz streaming.
-*   `--force-integration`: Overrides receiver's displacement data with locally calculated values (fixes "Velocity Only" issues).
-*   `--dry-run`: Skips writing to Postgres (replay discards writes silently —
-    event banners still print; `run_ingestor.py --dry-run` logs every write so
-    you can verify a station's data flow before going live).
 
-### 2. Parallel Stress Test
-Simulate multi-station load by running concurrent ingestion pipelines.
+- `--mode replay` streams at 1 Hz; `--mode import` (the default) goes as fast as possible.
+- `--force-integration` starts in MANUAL mode (integrate velocity) instead of RECEIVER.
+- `--speed` multiplies replay speed (`--speed 8` is 8x real time).
+- `--decay` sets the leaky-integrator factor (default 1.0, no leak).
+- `--dry-run` discards database writes; event banners still print.
+
+### Parallel stress test
+
 ```bash
-# Run 6 simulated stations in parallel from the data directory
-uv run python scripts/stress_test_parallel.py \
-  --data-dir "data/NMEA_DGOS_10102025" \
-  --count 6 \
-  --mode replay \
-  --force-integration \
-  --plot
+PYTHONPATH=. uv run python scripts/stress_test_parallel.py \
+  --data-dir "data/NMEA_DGOS_10102025" --count 6 --mode replay --plot
 ```
-*   `--plot`: Enables live plotting for the **first** station (SIM_01) only.
 
-### 3. Mock NTRIP Integration
-Test the full TCP/NTRIP stack using a mock server.
+`--plot` draws the first simulated station (SIM_01) only.
 
-**Terminal 1 (Server):**
+### Mock NTRIP caster
+
 ```bash
+# terminal 1
 PYTHONPATH=. uv run python scripts/mock_ntrip_caster.py \
-  --file "data/NMEA_DGOS_10102025/NMEA_DGOS LDM_20251010_040000.rtl" \
-  --port 2101
+  --file "data/NMEA_DGOS_10102025/NMEA_DGOS LDM_20251010_040000.rtl" --port 2101
+# terminal 2
+PYTHONPATH=. uv run python scripts/run_ingestor.py --config config/stations_local_test.yml --dry-run
 ```
 
-**Terminal 2 (Client):**
+### Tests and lint
+
 ```bash
-# Create a local test config pointing to localhost
-PYTHONPATH=. uv run python scripts/run_ingestor.py \
-  --config config/stations_local_test.yml \
-  --dry-run
+# from the repository root
+uv run pytest services/vadase-rt-monitor/tests      # 51 tests, 2026-10-14
+ruff check services/vadase-rt-monitor
 ```
 
-## Architecture
+### Grafana
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.
-
-## Validation
-
-The parser has been validated against known earthquake events:
-- 2022 Mw 7.0 Northwest Luzon earthquake
-- 2023 Mw 7.4 Surigao del Sur earthquake
-- 2023 Mw 6.8 Sarangani earthquake
-
-See [docs/VALIDATION_GUIDE.md](docs/VALIDATION_GUIDE.md) for reproduction steps.
+`http://127.0.0.1:3000`. The admin password is `GRAFANA_PASSWORD` from the
+environment, defaulting to `admin`; set it before exposing the port.
 
 ## Configuration
 
-Station metadata, detection thresholds, and logging are configured via YAML files in `config/`:
+`config/stations.yml`, one entry per station:
 
-- `stations.yml` - Station IDs, coordinates, TCP connection details
-- `thresholds.yml` - Velocity thresholds per fault segment
-- `logging.yml` - Log levels and output destinations
+- `id`, `name`, `latitude`, `longitude`, `elevation`, `fault_segment`
+- `host`, `port`, and for an NTRIP caster `mountpoint`, `user`, `password`
+- `threshold_mm_s`: the event threshold for that station
+- `filter: {enabled, decay}`: when enabled, the leaky integrator uses `decay`
+  (0.99 in the shipped config); when absent or disabled, 1.0 (pure integration)
 
-## Contributing
+`config/thresholds.yml` is **empty** (0 bytes). The threshold lives in
+`stations.yml`.
 
-This is an internal PHIVOLCS project. For questions or contributions, contact the Geodesy Section.
+## Evidence for the threshold
+
+- [`vadase_detection_validation.md`](../../docs/project_documentation/vadase_detection_validation.md):
+  the 2026-06-08 Mw 7.8 Sarangani event across ten sites, measured 2026-09-22.
+- [`vadase_threshold_evidence.md`](../../docs/project_documentation/vadase_threshold_evidence.md):
+  five captures (BOST and PBIS December 2023, DGOS October 2025 and January 2026,
+  and a non-seismic TUA2 spike), measured 2026-10-06. Every figure is
+  reproduced by `scripts/threshold_evidence.py`.
+
+Two of these capture sets, `data/NMEA_DGOS_10102025/` and
+`data/DGOS_NMEA_01282026/` (48 `.rtl` files), are committed here; the others
+are not.
+
+## Known defects outside the Python package
+
+- `Dockerfile` copies a `pyproject.toml` this directory does not have and runs
+  `vadase-ingestor`, which does not exist. It cannot build as written.
+- `docker-compose.yml` in this directory is not a compose file (its content is
+  its own filename). Use the repo-root `docker-compose.yml`.
+
+## Documentation
+
+[docs/INDEX.md](docs/INDEX.md) lists the rest. `CLAUDE.md` at the repo root has
+the architecture notes that span files (receiver mode, import paths, the `src`
+namespace package).
 
 ## License
 
-[Specify license - likely GPL-3.0 or MIT for open-source]
+MIT, copyright PHIVOLCS/DOST: see the repo-root [`LICENSE`](../../LICENSE) and
+[`NOTICE`](../../NOTICE). GNSS observation data is not covered by that licence.
 
 ## Citation
-
-If you use this system in research, please cite:
 
 > Bacolcol, T., et al. (2025). Real-time measurement of GNSS motions using VADASE: Application to recent earthquakes in the Philippines. GEOCON 2025.
 

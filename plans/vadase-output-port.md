@@ -1,5 +1,12 @@
 # Plan
 
+> **STATUS: IMPLEMENTED.** All three milestones landed: migration 010 (plus
+> 011 `displacement_source` and 012 TimescaleDB policies), `TimescaleDBAdapter`
+> and `NullOutputPort` in `services/vadase-rt-monitor/src/adapters/outputs/`,
+> and the wiring in `scripts/run_ingestor.py`. `src/database/writer.py`, the
+> legacy writer this plan ports from, no longer exists. Kept as the decision
+> log (the DL-0xx numbers cited in the adapter's docstring are defined here).
+
 ## Overview
 
 IngestionCore (the VADASE hexagonal domain core) has no concrete OutputPort implementation. The legacy DatabaseWriter in src/database/writer.py has working asyncpg batch-write logic but lives outside the hexagonal adapter boundary. No Alembic migration defines the VADASE-specific hypertables.

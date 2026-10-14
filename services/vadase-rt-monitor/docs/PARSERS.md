@@ -7,11 +7,11 @@ The system includes a custom, high-performance NMEA 0183 parser optimized for Le
 ### 1. `$GNLVM` / `$GPLVM` (Velocity)
 Contains instantaneous velocity components and variances.
 - **Precision**: 4 decimal places ($0.0001 m/s$).
-- **Key Fields**: `vE`, `vN`, `vU`, `cq` (3D quality), `n_sats`.
+- **Fields returned**: `timestamp`, `vE`, `vN`, `vU` (m/s), `varE`, `varN`, `varU`, `covEN`, `covEU`, `covUN` (m²/s²), `cq` (3D quality, m/s), `n_sats`.
 
 ### 2. `$GNLDM` / `$GPLDM` (Displacement)
 Contains integrated displacement from the start of the session.
-- **Key Fields**: `dE`, `dN`, `dU`, `epoch_completeness`, `overall_completeness`.
+- **Fields returned**: `timestamp`, `start_time` (start of integration), `dE`, `dN`, `dU` (m), `varE`…`covUN` (m²), `cq` (m), `n_sats`, `reset_indicator`, `epoch_completeness`, `overall_completeness`.
 
 ## Technical Implementation
 
@@ -35,12 +35,15 @@ NMEA timestamps are typically UTC. The parser handles the standard `hhmmss.ss` f
 # Result: 2015-02-03 11:38:05.500+00:00
 ```
 
-## Regular Expression Parsers
-For older or generic VADASE streams, the system also supports:
-- `$PTNL,VEL`: Proprietary Trimble-style velocity sentence.
-- `$PTNL,POS`: Proprietary Trimble-style position/displacement sentence.
+## Malformed sentences
 
-These are parsed using optimized regular expressions (`re.match`) for robustness against varying whitespace or field order.
+A sentence with a valid checksum but fields that do not convert (too few
+fields, a non-numeric value) makes `parse_lvm` / `parse_ldm` print the error
+and return `None`; `IngestionCore` skips it. Only checksum failures raise.
+
+Only the four sentence types above are parsed. Anything else on the stream,
+including other NMEA sentences, is ignored by `IngestionCore.process_sentence`.
 
 ## Testing the Parser
-The parser is rigorously tested in `tests/test_parsers.py` using historical data strings from PHIVOLCS CORS stations.
+The parser is tested in `tests/test_nmea_parser.py`, with fixtures in
+`tests/fixtures/sample_lvm.nmea` and `sample_ldm.nmea`.

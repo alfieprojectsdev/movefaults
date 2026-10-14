@@ -1,3 +1,9 @@
+> **HISTORICAL DOCUMENT (pre-implementation proposal, January 2026).** The
+> `DataSource` protocol and `src/sources/` it proposes were built and later
+> removed; input now goes through `src/ports/inputs.py` (`InputPort`) and
+> `src/adapters/inputs/` (`TCPAdapter`, `DirectoryAdapter`). See
+> `docs/INDEX.md` for the current documentation.
+
 ### 1\. Architectural Refactor Plan
 
 **Goal:** Decouple data acquisition from data processing.

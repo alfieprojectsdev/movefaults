@@ -1,8 +1,8 @@
 """Measure the VADASE alarm threshold against real captures.
 
 Produces every figure in docs/project_documentation/vadase_threshold_evidence.md.
-The captures are PHIVOLCS field data and are not committed; point --data at the
-directory that holds them (services/vadase-rt-monitor/data in a working clone).
+The captures are PHIVOLCS field data. Only the two DGOS sets are committed (under
+services/vadase-rt-monitor/data); point --data at the directory that holds all five.
 
 Run from services/vadase-rt-monitor:
 

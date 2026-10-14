@@ -16,35 +16,83 @@ $$vH = \sqrt{vE^2 + vN^2}$$
 
 where $vE$ is the velocity in the East-West direction and $vN$ is the velocity in the North-South direction.
 
-## 3. "Smart Integration" (Leaky Integrator)
+## 3. Receiver mode and the leaky integrator
 
-Some legacy GNSS receivers fail to provide stable LDM (displacement) sentences, outputting zero or identical-to-velocity values. To solve this, the monitor implements a **manual integration** fallback.
+Leica receivers behave in three ways, and the monitor has to tell them apart:
 
-### The Algorithm
-When displacement data is detected as "bad" (i.e., identical to velocity), the system switches to integrating the velocity stream:
+1. **Quiet time:** velocity is the default output and the displacement fields
+   echo the velocity values (`vel == disp`). This is normal receiver behaviour,
+   not a fault.
+2. **Event time:** the receiver's internal threshold is crossed and it sends a
+   real integrated displacement (`vel != disp`).
+3. **Anomalous spikes:** how the receiver behaves during a non-seismic
+   excursion is not established empirically.
+
+So for every LDM epoch, `IngestionCore` compares it with the latest LVM epoch
+and classifies the pair (`_classify_signal`):
+
+| signal | condition |
+|---|---|
+| `IDENTICAL` | `vE == dE` and `vN == dN` (to 1e-9) |
+| `HIGH_VEL_NEQ` | different, and horizontal velocity is at or above the station's threshold |
+| `LOW_VEL_NEQ` | different, and horizontal velocity is below the threshold |
+
+### The state machine (`ReceiverMode`, in both directions)
+
+Two modes: **RECEIVER** (use the receiver's displacement) and **MANUAL**
+(integrate velocity ourselves). Streak counters drive the transitions
+(`_update_mode`):
+
+| from | to | after | why |
+|---|---|---|---|
+| RECEIVER | MANUAL | `STREAK_THRESHOLD` = **5** consecutive `IDENTICAL` | quiet time: the displacement fields are echoes |
+| RECEIVER | MANUAL, integration **frozen** | `SUSPECT_THRESHOLD` = **3** consecutive `LOW_VEL_NEQ` | displacement disagrees with velocity while nothing is moving: treated as scintillation |
+| MANUAL | RECEIVER | `GOOD_THRESHOLD` = **30** consecutive `HIGH_VEL_NEQ` | the receiver is reporting a real event displacement |
+
+While integration is frozen, velocity epochs do not accumulate into the
+integrated displacement. A `HIGH_VEL_NEQ` or `IDENTICAL` epoch unfreezes it.
+
+Each displacement row records which decision produced it in
+`displacement_source`: `INTEGRATOR` (MANUAL mode), `RECEIVER_SUSPECT` (RECEIVER
+mode with a suspect streak in progress) or `RECEIVER`.
+
+`--force-integration` on the replay scripts, or `force_integration=True`,
+starts a station in MANUAL instead of RECEIVER.
+
+### The integrator
+
+In MANUAL mode the displacement written is the integrated velocity:
 
 $$d_{t} = (d_{t-1} \times \lambda) + (v_{t} \times \Delta t)$$
 
-- $d_t$: Calculated displacement at time $t$.
-- $v_t$: Instantaneous velocity.
-- $\Delta t$: Time delta between epochs (nominally 1 second).
-- $\lambda$: **Decay Factor** (nominally 1.0). A factor $< 1.0$ implements a high-pass filter to prevent long-term drift (Brownian motion).
+- $\lambda$ is `decay_factor`. It **defaults to 1.0**, which is no leak at all
+  (pure integration). A value below 1 is a high-pass filter that bleeds off
+  accumulated drift; it is opt-in per station through `filter: {enabled: true,
+  decay: 0.99}` in `stations.yml`.
+- Integration happens only when $0 < \Delta t < 5$ s, so an outage cannot
+  inject a step. The last velocity time still updates, so the next gap is
+  measured correctly.
 
-### Automatic Latching
-The system uses a "Streak" mechanism to detect bad data:
-- **Bad Streak**: If $v_E = d_E$ for 5 consecutive epochs, the system "latches" into manual integration mode.
-- **Good Streak**: If $v_E \neq d_E$ for 10 consecutive epochs, the system "unlatches" and returns to using the receiver's proprietary LDM data.
+## 4. Event detection
 
-## 4. Earthquake Event Detection
+Per station, on every **velocity** epoch (`check_event_threshold`):
 
-The monitor maintains an internal state machine for each station to track seismic events.
+1. **Start:** horizontal velocity above `threshold_mm_s` (15.0 mm/s for every
+   configured station) opens an event, and records its start time and peak.
+2. **Peaks:** while it is open, the peak horizontal velocity and (from LDM
+   epochs) the peak horizontal displacement are tracked.
+3. **End:** the **first** velocity epoch at or below the threshold closes it.
+   There is no hold-off period. The summary goes to `write_event_detection`
+   (the `vadase_events` table).
 
-1.  **Detection**: If $vH > \text{threshold}$ (nominally 15 mm/s), an event is marked as **Active**.
-2.  **Peak Tracking**: During an active event, the monitor tracks the `peak_velocity` and `peak_displacement`.
-3.  **Termination**: When $vH$ stays below the threshold for a period, the event is closed, and a summary record is written to the `event_detections` table.
+What this threshold does and does not separate on real data is measured in
+`docs/project_documentation/vadase_detection_validation.md` and
+`vadase_threshold_evidence.md` at the repo root.
 
-## 5. Quality Filtering
+## 5. Quality filtering
 
-The monitor respects the VADASE quality flags:
-- `min_completeness`: LDM sentences with an `overall_completeness` below 50% are discarded to prevent "jumps" during signal re-acquisition.
-- `delta_t` limit: Integration only occurs if the time gap between velocity samples is $< 5.0$ seconds. This prevents massive displacement spikes after a communication outage.
+- **Completeness:** an LDM sentence whose `overall_completeness` is below
+  `min_completeness` (0.5) is dropped before any processing.
+- **Gap limit:** the 5-second integration window above.
+- **Checksums:** a sentence that fails the XOR checksum raises
+  `NMEAChecksumError`; the core logs `checksum_error` and skips it.
