@@ -1,5 +1,9 @@
 # Drive Archaeologist - Implementation Recommendations
 
+> **PLANNING DOCUMENT, November 2025, written before the tool existed.** Kept
+> for the reasoning; it does not describe the code. For what the tool does now,
+> see `../README.md` and `../CLAUDE.md`.
+
 **Date:** 2025-11-06
 **Status:** Awaiting Approval
 **Objective:** Excavate decades of data from old hard drives

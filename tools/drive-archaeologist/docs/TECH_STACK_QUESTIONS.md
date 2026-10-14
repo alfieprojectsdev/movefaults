@@ -1,5 +1,9 @@
 # Tech Stack Questions - Awaiting Decision
 
+> **PLANNING DOCUMENT, November 2025, written before the tool existed.** Kept
+> for the reasoning; it does not describe the code. For what the tool does now,
+> see `../README.md` and `../CLAUDE.md`.
+
 **Date Created:** 2025-11-01
 **Status:** Pending Review by Alfie
 **Context:** Root instance (claude-config) reviewed the proposed tech stack in `Smart USB data ingestion system.md`

@@ -2,7 +2,7 @@
 
 **Deliverable originally:** 2.1: Smart USB Data Ingestion System
 
-**Replaced by:** Existing project `/home/finch/repos/drive-archaeologist/`
+**Replaced by:** `tools/drive-archaeologist/` in this repository
 
 ## Purpose
 
@@ -10,14 +10,14 @@ The "Smart USB Data Ingestion System" deliverable, which aimed to automate the p
 
 ## Drive Archaeologist Overview
 
-The `Drive Archaeologist` project (located at `/home/finch/repos/drive-archaeologist/`) is a cross-platform CLI scanner designed to automatically scan, classify, and organize legacy GNSS data, field notes, and other files. It outputs detailed metadata in JSONL format, supports resuming interrupted scans, and tracks progress.
+The `Drive Archaeologist` tool (`tools/drive-archaeologist/`) is a cross-platform CLI and TUI scanner designed to automatically scan, classify, and organize legacy GNSS data, field notes, and other files. It outputs detailed metadata in JSONL format, supports resuming interrupted scans, and tracks progress.
 
 ### Key Features Relevant to Data Ingestion
 
 -   **Cross-platform CLI scanner:** Works on both Windows and Linux, ideal for lab machines.
 -   **JSONL output:** Provides structured metadata for all scanned files, which can be easily ingested into our database or other systems for further processing.
 -   **Resume capability:** Ensures robustness against interruptions during long scans.
--   **Future USB auto-detection:** The roadmap for `Drive Archaeologist` explicitly includes "Phase 4: USB auto-detection + HTML reports," which directly covers the automatic detection and processing of connected USB drives, a core requirement of the original deliverable.
+-   **USB detection:** The TUI's drive picker (`drive-arch tui`, DA-005) enumerates attached block devices and identifies each by vendor, serial and label. Automatic processing on plug-in (the November 2025 plan's "Phase 4") has not been built; a person picks the drive.
 
 ## Integration
 
