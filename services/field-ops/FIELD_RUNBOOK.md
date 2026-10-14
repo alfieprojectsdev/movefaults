@@ -4,7 +4,9 @@
 photo storage is a different job and lives in `DEPLOY.md`.
 
 A rendered version for sharing with staff is published as an Artifact; this file
-is the source of truth and the two are generated together.
+is the source of truth. **Regenerate the shared copy whenever this file
+changes**: it was last brought up to date with the app on 2026-10-14 (Today
+screen, adding a site from the field, the check-before-sending step).
 
 ---
 
@@ -29,6 +31,10 @@ will not open at the monument.
 - [ ] Check your initials appear under **Observers**.
 - [ ] File one throwaway sheet and confirm *"Saved and synced to server."*
 - [ ] Charge the phone.
+
+The app opens on **Today**: up to four stations within 15 km of where the phone
+is, with a button to start a sheet for each (the rest are one tap further). It is a shortcut, not a
+gate; the **Logsheet** tab and its station list work as before.
 
 **Sign in each morning.** A session lasts 8 hours and can expire while you are
 out. Nothing is lost when it does, but the app will ask you to sign in again
@@ -59,12 +65,27 @@ Maintenance)* asks for power and battery.
 are selectable — a station under maintenance is one you were sent to because it
 needs work.
 
+**If the site is not in the list,** tap **The site is not listed — add it** at
+the bottom of the station list. Give it a code and a name; the app takes the
+phone's position itself and shows how accurate it is. This works offline. The
+site is a **proposal**, not a new station: it is marked *awaiting review* until
+someone in the office accepts it, but you can file the sheet against it
+straight away. If the office later tells you the code is already taken, the
+picker says so and you choose another.
+
 **The photo is not optional.** Submit stays disabled until one is attached. It
 is the only record of what the site looked like and the one thing nobody can
 reconstruct later.
 
 Offline, a yellow banner says sheets are saved on the device. That is normal;
 submitting offline is not a degraded mode.
+
+**Before it sends, the app may stop on "Check before sending".** It lists
+fields left blank that are usually filled for this kind of visit (departure
+time, weather, observers, battery voltage, missing slant readings, session ID,
+UTC end, the bubble-centred tick). Each may legitimately be blank: **Go back and
+fill in**, or **Send anyway**. It only appears when something is flagged. A
+sheet cannot be changed once it reaches the server, so this is the last chance.
 
 **If it says there is not enough storage:** nothing was saved — not the sheet,
 not the photo. The form keeps what you typed. Sync pending sheets to free space,
@@ -164,8 +185,9 @@ A phone wiped with sheets still queued loses them permanently, and silently.
 ## 6. Known gaps — decide before departure
 
 **The station list is continuous CORS only.** All 138 seeded stations are
-continuous. No campaign sites are loaded; if the team is doing campaign
-occupations, those sites must be added first.
+continuous. No campaign sites are loaded. A campaign site can be proposed from
+the field (section 2), and the sheet filed against it at once, but someone with
+the **Review sites** tab must accept it before it joins the station list.
 
 **Palawan coverage is thin.** `PLWN` (Brooke's Point) is the only Palawan site
 in PHIVOLCS' own inventory and has no coordinates. `PPPC`, `PNDO` and `PKLY` are

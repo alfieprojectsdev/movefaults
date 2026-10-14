@@ -92,14 +92,17 @@ the migration files at startup to learn which revision it expects. It is in the
 would make every deploy fail at startup.
 
 
-**Since 2026-09-14 this is normally automatic.**
-`.github/workflows/field_ops_migrate.yml` runs `upgrade head` against the
-DIRECT endpoint whenever anything under `services/field-ops/migrations/`
-reaches `main`, and fails the run if the database does not end at head. The
-manual path below remains correct for a first deploy, a new database, or
-recovery.
+**Run it by hand: the automation exists but has never run.**
+`.github/workflows/field_ops_migrate.yml` (on `main` since 2026-09-14) is meant
+to run `upgrade head` against the DIRECT endpoint whenever anything under
+`services/field-ops/migrations/` reaches `main`. **It has never executed:** the
+GitHub account is billing-locked, and every Actions job since has run zero
+steps (re-checked 2026-10-14; `docs/SETTLED.md` §6). Until the lock is cleared,
+every migration that reaches `main` must be applied with the manual path below.
+The `/health` check above is what stops a forgotten one from reaching field
+staff; it refuses the deploy, it does not migrate.
 
-**Why it was automated.** On 2026-09-12 a field observer reported the station
+**Why the automation was written.** On 2026-09-12 a field observer reported the station
 picker permanently unavailable. `fo007` created
 `field_ops.station_proposals`, the code querying it shipped, and the migration
 was never run. `/stations` was the only endpoint touching that table, so login,
@@ -289,7 +292,9 @@ curl https://pogf-field-ops-api.onrender.com/health     # {"status":"ok",...}
 
 A **fail-closed** startup check refuses to boot if the JWT secret is the shipped
 default or under 32 characters, if storage is not R2, if any of the four R2
-variables is unset, or if `DATABASE_URL` is missing. It names every missing
+variables is unset, if `DATABASE_URL` is missing, or if `DATABASE_URL` is not
+PostgreSQL (the `/health` schema guard can only read PostgreSQL, so on SQLite it
+would pass without checking anything). It names every missing
 variable at once and never prints a value.
 
 That check exists because this repo is **public**. With the default secret,
@@ -494,17 +499,21 @@ closing it.
 
 ## 8. Known gaps — decide before, not during
 
-- ~~**No frontend tests.**~~ 69 vitest tests now cover the time helpers, the
-  offline queue, role grouping, haversine distance and the slant→RH computation
-  — including its published constants, monotonicity, and `NaN` for a slant
-  shorter than its own horizontal offset. Still untested: component rendering,
-  so `LogSheetForm`'s conditional sections and submit states are unverified.
+- ~~**No frontend tests.**~~ 273 vitest tests in 25 files (2026-10-14) cover
+  the time helpers, the offline queue, role grouping, haversine distance and
+  the slant→RH computation, and since September also component rendering: the
+  logsheet's conditional sections, the Today screen, the check-before-sending
+  step and the review wiring. `npm test` in `frontend/`; `uv run pytest` does
+  not run them. Local CI on gps3 runs them with `tsc` on every PR.
 - **No self-service password reset.** Locked out means an operator runs
   `seed_field_accounts.py --reset INITIALS`, or
   `scripts/reset_all_field_passwords.sh --slips FILE` to reissue the whole
   roster at once. Both print once. Make sure someone with database access is
   reachable during the fieldwork.
-- **No admin view.** Reading the data means SQL against Neon.
+- **No general admin view.** The **Sheets** tab lists every filed sheet, and
+  accounts with the `admin` or `data_processor` role get a **Review sites** tab
+  to accept or reject sites proposed from the field. Anything else (editing a
+  sheet, managing accounts) still means SQL against Neon or the scripts above.
 - **Free tiers sleep.** A Render web service idle ~15 minutes takes 30–50 s on
   the next request (measured: 32 s); a Neon endpoint suspends similarly. Harmless,
   but tell staff so a slow first load is not read as a failure.

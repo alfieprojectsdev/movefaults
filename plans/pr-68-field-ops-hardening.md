@@ -1,5 +1,8 @@
 # PR #68 field-ops hardening plan
 
+> **STATUS: DONE.** PR #68 merged 2026-08-17. Kept as the record of which
+> review findings were addressed and why.
+
 PR: https://github.com/alfieprojectsdev/movefaults/pull/68  
 Scope: address the outstanding CodeRabbit findings while preserving the PR's primary objectives: reliable offline photo capture, deployable R2-backed storage, and a safe field PWA. Do not introduce unrelated line-ending normalization or broad UI redesign.
 
