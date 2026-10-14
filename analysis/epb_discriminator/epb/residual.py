@@ -52,6 +52,10 @@ def mdb(H: np.ndarray, W: np.ndarray, alpha: float = 0.001, power: float = 0.8):
     """
     delta0 = stats.norm.ppf(1 - alpha / 2) + stats.norm.ppf(power)
     qr = np.diag(residual_cofactor(H, W))
+    # round-off can leave qr a hair below zero for an absorbed satellite; treat
+    # it as zero (MDB = inf) rather than letting sqrt return NaN, which would
+    # poison every median and percentile taken over geometries
+    qr = np.clip(qr, 0.0, None)
     with np.errstate(divide="ignore"):
         return delta0 / np.sqrt(W**2 * qr)
 

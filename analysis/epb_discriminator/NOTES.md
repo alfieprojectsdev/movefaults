@@ -144,15 +144,45 @@ quake + bubble evidence leaves both hypotheses open.
 
 ### Still simplified
 
-White noise per epoch (real TDCP noise is differenced and correlated, which
-will make windowed sums optimistic); static geometry; placeholder sigma0 and
-amplitudes; no cycle slips. Calibrating sigma0 needs per-satellite residuals
-from a quiet day, which needs the raw stream (stage 3 on the NTRIP page).
+White noise per epoch; static geometry; placeholder sigma0 and amplitudes; no
+cycle slips. Calibrating sigma0 needs per-satellite residuals from a quiet day,
+which needs the raw stream (stage 3 on the NTRIP page).
+
+The white-noise assumption is optimistic for the window test, on two counts
+(measured in session 3, `SESSION3.md`):
+
+- **Differencing hurts this test.** TDCP velocity is a difference of
+  consecutive phases, so neighbouring epochs correlate at −0.5. A *sum of
+  residuals* would cancel that, but the window test sums *squared* residuals,
+  and squares of correlated errors are positively correlated whatever the
+  sign. The window statistic is wider than χ² and over-alarms (4.5× α), so
+  its threshold must be calibrated on quiet data.
+- **Slow errors hurt.** Multipath and troposphere change over minutes. On one
+  satellite they look like a sustained push in the same direction, the same
+  signature as a bubble, and they do not cancel in the window sum.
+
+Multipath is removable, because it is not random. It is a function of the
+static environment and of the satellite's direction, so it repeats with the
+geometry: one sidereal day for GPS, 10 for Galileo. Sidereal filtering, or a
+per-station sky map (residuals stacked by azimuth and elevation, which suits
+multi-GNSS), subtracts most of it. The discriminating property is
+**repeatability, not duration**: a bubble can sit on a satellite as long as a
+multipath drift does, but it does not recur at the same sky position the next
+day. Caveats: the environment changes (wet surfaces, vegetation, vehicles,
+new structures), so the map needs refreshing and the day of a change will
+leave a one-off residual; and building the map needs weeks of quiet raw-stream
+residuals per station, the same dependency as sigma0.
+
+A second cheap discriminator, independent of the residual test: EPBs are
+post-sunset, peak near the equinoxes and near solar maximum. A satellite flag
+in local daytime is unlikely to be a bubble.
 
 ### Next
 
-1. Correlated noise: rerun power with differenced noise to see how much of the
-   window gain survives.
+1. ~~Correlated noise~~: done in session 3 (`SESSION3.md`, PR #273). At a
+   calibrated threshold the window test still flags 94–100 % of
+   detector-tripping bubble epochs at 10 mm/s on 3+ satellites; fast
+   multipath needs the sky-map correction at low noise.
 2. A real calibration day once raw observations reach gps3.
 3. A cheap classifier baseline (brief, evaluation 5) on station features vs the
    same plus residual features.

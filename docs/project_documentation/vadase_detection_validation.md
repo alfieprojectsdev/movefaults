@@ -8,6 +8,14 @@ Until now the detector had only ever been exercised against synthetic
 fixtures. These three captures are the first evidence about how it behaves on
 real data: two earthquakes, and a full day with no earthquake in it.
 
+> **Corrected 2026-10-06** — see
+> [`vadase_threshold_evidence.md`](vadase_threshold_evidence.md). The "full day
+> with no earthquake in it" was not one: the USGS catalogue lists **25
+> earthquakes M4.5–5.9 within 300 km of DGOS on 2026-01-28**, none of which the
+> detector registered. The DGOS 2025-10-10 event is now identified, and its
+> "nine hours of excursions" were two earthquakes. Each is corrected below
+> rather than quietly removed, in case an earlier version was read.
+
 ## What was measured
 
 Horizontal velocity, `sqrt(vE^2 + vN^2)`, from `$GNLVM` sentences parsed by
@@ -18,7 +26,7 @@ Horizontal velocity, `sqrt(vE^2 + vN^2)`, from `$GNLVM` sentences parsed by
 |---|---|---|---|
 | `NMEA_10SITE_20260607` | 10 | 30,213 | Mw 7.8 Offshore Maasim, Sarangani, 2026-06-08 07:37 PST |
 | `NMEA_DGOS_10102025` | 1 (DGOS) | 86,197 | an event arriving 2025-10-10 01:44:52 UTC |
-| `DGOS_NMEA_01282026` | 1 (DGOS) | 85,453 | 24 hours, no event |
+| `DGOS_NMEA_01282026` | 1 (DGOS) | 85,453 | 24 hours; ~~no event~~ **an M4.5–5.9 swarm, 169–191 km away** (corrected 2026-10-06) |
 
 ## The quiet-time noise floor is about 0.9 mm/s
 
@@ -86,11 +94,21 @@ Arrival at 01:44:52 UTC is 09:44 PST. **The event is not identified here.** The
 date and the arrival time are measured; which earthquake produced them has not
 been checked against the PHIVOLCS catalog, and this note does not name it.
 
+> **Identified 2026-10-06:** USGS lists an **M7.4 (Mww) at 2025-10-10 01:43:59
+> UTC**, 7.29°N 126.69°E, 59 km deep, **159 km** from DGOS. The first crossing is
+> +53 s after origin.
+
 Excursions continue for nine hours after the first. That is *consistent with* an
 aftershock sequence and is interpretation, not measurement: the same data would
 be produced by any repeated excursion above threshold.
 
-## The quiet day, 2026-01-28
+> **Corrected 2026-10-06:** the excursions do not continue for nine hours. Of the
+> 31 samples, **30 fall within 73 s of the M7.4** (01:44:52–01:46:05) and the
+> 31st, at 11:12:52, is a separate catalogued earthquake, an **M6.7 at 11:12:05
+> UTC, 153 km** away, which crossed by 0.37 mm/s. Nothing crosses in between.
+> "First and last" described the span, not the activity.
+
+## The quiet day, 2026-01-28 — *not quiet; corrected 2026-10-06*
 
 ```
 85,453 records over 24 hours
@@ -101,6 +119,20 @@ largest single sample 10.9 mm/s
 **This is the control, and it is the most important of the three.** Two
 detections prove the threshold is not too high. A full day without a single
 false crossing is the only evidence here that it is not too low.
+
+> **Corrected 2026-10-06:** this day is not a control. USGS lists **25
+> earthquakes M4.5–5.9** within 300 km of DGOS, a swarm 169–191 km away near
+> Bantogon and Sangay; the largest is an M5.9 at 06:47:01 UTC. None is visible in
+> the data — each peak exceeds the 30 minutes before it by at most 0.8 mm/s, and
+> all sit below the day's maximum, which lands at 18:18 with nothing catalogued.
+>
+> What survives: **zero crossings in 24 hours** is still true, and still says the
+> threshold did not fire on this station's background. What does not: it is not
+> "a full day with no earthquake", so it cannot be the only evidence that the
+> threshold is not too low. It is equally evidence that M5.4–5.9 at ~180 km is
+> below what this station can see. This note's own lesson, in the correction
+> section below, is that "quiet time" was an assumption about the data rather
+> than a property of it. It applied to the control too.
 
 ## What this does not establish
 
@@ -116,7 +148,9 @@ false crossing is the only evidence here that it is not too low.
 - **Nothing about receiver state 3.** `CLAUDE.md` records an anomalous,
   non-seismic spike as an empirically unconfirmed receiver behaviour. No capture
   here contains one, so nothing here says how the detector responds to a real
-  excursion that is not ground motion.
+  excursion that is not ground motion. *(2026-10-06: TUA2 2025-10-06 is one —
+  35 crossings in an hour with no earthquake, peaking at 5,698.8 mm/s. See
+  [`vadase_threshold_evidence.md`](vadase_threshold_evidence.md).)*
 - **Nothing about lowering the threshold, beyond one data point.** At 10 mm/s
   the Sarangani hour would have produced a false crossing at MAGU before the
   earthquake arrived, and the January day would have come within 1 mm/s of one.
@@ -168,5 +202,5 @@ PYTHONPATH=. uv run python scripts/replay_events.py \
 | capture | event | origin |
 |---|---|---|
 | `NMEA_10SITE_20260607` | Mw 7.8 Offshore Maasim, Sarangani | 2026-06-08 07:37 PST = 2026-06-07 23:37 UTC |
-| `NMEA_DGOS_10102025` | not identified | first excursion 2025-10-10 01:44:52 UTC |
-| `DGOS_NMEA_01282026` | none | not applicable |
+| `NMEA_DGOS_10102025` | M7.4 Mww; M6.7 Mww (identified 2026-10-06) | 2025-10-10 01:43:59 UTC; 11:12:05 UTC |
+| `DGOS_NMEA_01282026` | ~~none~~ M4.5–5.9 swarm, largest M5.9 (2026-10-06) | largest 2026-01-28 06:47:01 UTC |

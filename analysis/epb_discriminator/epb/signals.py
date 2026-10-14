@@ -13,8 +13,11 @@ def quake_velocity(t, t0, peak_vel_enu, dur_s, shape="halfsine"):
 
     halfsine: one positive lobe, so displacement steps to a permanent offset of
               peak * 2 * dur / pi.
-    damped:   a decaying oscillation with period dur, which returns to rest
-              (no permanent offset), as ground shaking without a static step does.
+    damped:   a decaying oscillation with period dur. Velocity returns to rest,
+              but displacement does NOT: the integral of sin(2 pi tau/dur) *
+              exp(-tau/dur) is peak * 2 pi dur / (1 + 4 pi^2), about
+              0.155 * dur * peak (155 mm for 50 mm/s over 20 s). It is not a
+              "shaking without a static step" model as it stands.
     """
     t = np.asarray(t, dtype=float)
     tau = t - t0

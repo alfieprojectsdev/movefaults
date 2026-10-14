@@ -95,6 +95,9 @@ def build(label: str, cfg: Config, rng: np.random.Generator) -> Scenario:
     if label not in LABELS:
         raise ValueError(f"unknown label {label!r}; one of {LABELS}")
     n = cfg.n_sat
+    if n < 5:
+        # dof = n - 4; at zero the chi2/dof and the variance factor divide by zero
+        raise ValueError(f"n_sat must be at least 5 for any redundancy, got {n}")
     t = np.arange(int(cfg.duration_s * cfg.rate_hz)) / cfg.rate_hz
     az, el = make_sky(n, rng, cfg.el_mask_deg)
     los = los_enu(az, el)
