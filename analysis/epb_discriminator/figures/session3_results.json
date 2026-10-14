@@ -660,12 +660,12 @@
       ],
       "window_given_station": [
         [
-          NaN,
-          NaN,
+          null,
+          null,
           1.0
         ],
         [
-          NaN,
+          null,
           1.0,
           1.0
         ],
@@ -767,7 +767,7 @@
       ],
       "window_given_station": [
         [
-          NaN,
+          null,
           1.0,
           1.0
         ],
@@ -874,12 +874,12 @@
       ],
       "window_given_station": [
         [
-          NaN,
-          NaN,
+          null,
+          null,
           1.0
         ],
         [
-          NaN,
+          null,
           1.0,
           1.0
         ],

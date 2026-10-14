@@ -74,6 +74,11 @@ def _correlated_errors(cfg: Config, t, W, white: np.ndarray, rng) -> np.ndarray:
     amplitude is not scaled with elevation. mp_resid_frac scales what is left
     after a sidereal or sky-map correction.
     """
+    if cfg.mp_amp < 0 or cfg.mp_period_s <= 0 or not 0 <= cfg.mp_resid_frac <= 1:
+        raise ValueError(
+            f"need mp_amp >= 0, mp_period_s > 0, 0 <= mp_resid_frac <= 1; got "
+            f"{cfg.mp_amp}, {cfg.mp_period_s}, {cfg.mp_resid_frac}"
+        )
     n = white.shape[1]
     out = np.zeros_like(white)
     if cfg.noise_model == "tdcp":
@@ -148,7 +153,7 @@ def build(label: str, cfg: Config, rng: np.random.Generator) -> Scenario:
 
     # Drawn last and only when asked for, so the default white-noise scenario
     # (and every session-1/2 number) is bit-identical to before.
-    if cfg.noise_model != "white" or cfg.mp_amp > 0:
+    if cfg.noise_model != "white" or cfg.mp_amp != 0:
         extra_rng = np.random.default_rng(rng.integers(2**63))
         noise = noise + _correlated_errors(cfg, t, W, noise, extra_rng)
 

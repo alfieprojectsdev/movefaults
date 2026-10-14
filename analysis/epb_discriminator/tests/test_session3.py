@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 from epb.eval import reject_window
 from epb.scenario import Config, build
 
@@ -26,8 +27,10 @@ def test_white_noise_is_uncorrelated_and_unchanged_by_default():
     e, _ = _noise(Config(duration_s=6000))
     assert abs(_lag1(e)) < 0.05
     a = build("epb", Config(), np.random.default_rng(3)).y
-    b = build("epb", Config(noise_model="white", mp_amp=0.0), np.random.default_rng(3)).y
-    assert np.array_equal(a, b)
+    # A negligible multipath forces the extra-noise branch. If its draws came
+    # before any session-1/2 draw, every other random quantity would shift.
+    b = build("epb", Config(mp_amp=1e-300), np.random.default_rng(3)).y
+    assert np.allclose(a, b, rtol=0, atol=1e-12)
 
 
 def test_multipath_residual_fraction_scales_what_is_left():
@@ -52,3 +55,16 @@ def test_differenced_noise_breaks_the_nominal_window_threshold():
         )
     assert rates["white"] < 0.015
     assert rates["tdcp"] > 1.5 * rates["white"]
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"mp_amp": -0.01},
+        {"mp_amp": 0.01, "mp_period_s": 0.0},
+        {"mp_amp": 0.01, "mp_resid_frac": 1.5},
+    ],
+)
+def test_invalid_multipath_parameters_are_refused(bad):
+    with pytest.raises(ValueError):
+        build("quiet", Config(**bad), np.random.default_rng(0))

@@ -1,7 +1,7 @@
 # Session 3: the window test under realistic noise
 
 *2026-10-11, gps3. Synthetic, like sessions 1–2. `run_session3.py` reproduces
-every number here in about 5 s; `figures/session3_results.json` holds them all.*
+every number here in about 9 s; `figures/session3_results.json` holds them all.*
 
 Session 2 found that a 30 s window test on per-satellite residuals flags 98–100 %
 of the bubble epochs that trip the current detector, once a bubble reaches
@@ -66,7 +66,8 @@ Differencing costs some power on small bubbles (6 mm/s on 3 satellites: 0.70 →
 - **Fast multipath (30 s), about 2 mm/s range-rate**, raises false alarms
   7-fold at σ0 = 3 mm/s. At σ0 = 1 mm/s it dominates: 95 % of quiet windows
   alarm at the nominal threshold, and calibrating around it costs real power
-  (4 mm/s on 3 satellites: 0.99 → 0.71).
+  (4 mm/s on 3 satellites: 0.99 for tdcp at σ0 1 mm/s with no
+  multipath, 0.71 with it; the first is not a column in the Result 2 table).
 - **Removing 80 % of it** (a sidereal or sky-map model) brings both back to
   the no-multipath case. That is the quantitative case for the multipath
   model: it matters exactly when the receiver noise is low, which is when the

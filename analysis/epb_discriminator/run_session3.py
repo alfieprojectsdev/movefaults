@@ -34,14 +34,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from epb.eval import (  # noqa: E402
-    _core,
-    reject_epoch,
-    reject_window,
-    reject_window_at,
-    station_alarm,
-    window_stat,
-)
+from epb.eval import power_grid, reject_epoch, window_stat  # noqa: E402
 from epb.scenario import Config, build  # noqa: E402
 
 ALPHA = 0.001
@@ -75,12 +68,12 @@ def null_calibration(cfg: Config) -> dict:
     sums, ep, wn = [], [], []
     for seed in NULL_SEEDS:
         s = build("quiet", cfg, np.random.default_rng(seed))
-        st, _ = window_stat(s, WINDOW_S)
-        sums.append(st[~np.isnan(st)])
+        st, df = window_stat(s, WINDOW_S)
+        st = st[~np.isnan(st)]
+        sums.append(st)
         ep.append(reject_epoch(s, ALPHA).mean())
-        wn.append(reject_window(s, WINDOW_S, ALPHA)[~np.isnan(st)].mean())
+        wn.append((st > stats.chi2.ppf(1 - ALPHA, df)).mean())
     pooled = np.concatenate(sums)
-    _, df = window_stat(s, WINDOW_S)
     return {
         "epoch_false_alarm_at_nominal": float(np.mean(ep)),
         "window_false_alarm_at_nominal": float(np.mean(wn)),
@@ -91,25 +84,31 @@ def null_calibration(cfg: Config) -> dict:
 
 
 def power(cfg: Config, threshold: float) -> dict:
-    keys = ("window_calibrated", "station", "window_given_station")
-    out = {k: np.full((len(AMPS_MM), len(N_AFF)), np.nan) for k in keys}
-    for i, a in enumerate(AMPS_MM):
-        for j, n in enumerate(N_AFF):
-            c = replace(cfg, epb_amp=a / 1000, epb_n_affected=n)
-            acc = {k: [] for k in keys}
-            for seed in SEEDS:
-                s = build("epb", c, np.random.default_rng(seed))
-                core = _core(s, c, "epb_onset_s", c.epb_dur_s)
-                rw = reject_window_at(s, WINDOW_S, threshold)[core]
-                st = station_alarm(s)[core]
-                acc["window_calibrated"].append(rw.mean())
-                acc["station"].append(st.mean())
-                if st.any():
-                    acc["window_given_station"].append(rw[st].mean())
-            for k in keys:
-                if acc[k]:
-                    out[k][i, j] = float(np.mean(acc[k]))
-    return out
+    g = power_grid(
+        [a / 1000 for a in AMPS_MM],
+        N_AFF,
+        SEEDS,
+        alpha=ALPHA,
+        window_s=WINDOW_S,
+        base=cfg,
+        window_threshold=threshold,
+    )
+    return {
+        "window_calibrated": g["window"],
+        "station": g["station"],
+        "window_given_station": g["window_given_station"],
+    }
+
+
+def _json_safe(x):
+    """NaN (no station alarm in any seed) as null, so the file is strict JSON."""
+    if isinstance(x, dict):
+        return {k: _json_safe(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_json_safe(v) for v in x]
+    if isinstance(x, float) and np.isnan(x):
+        return None
+    return x
 
 
 def main() -> int:
@@ -159,7 +158,7 @@ def main() -> int:
     ax[0].set_ylabel("bubble RMS range-rate (mm/s)")
     fig.colorbar(im, ax=ax, shrink=0.8, label="share of bubble epochs flagged")
     fig.suptitle(
-        f"30 s window test at a threshold calibrated on quiet data (alpha {ALPHA}, {len(SEEDS)} seeds)",
+        f"{WINDOW_S:.0f} s window test at a threshold calibrated on quiet data (alpha {ALPHA}, {len(SEEDS)} seeds)",
         fontsize=10,
     )
     out = HERE / "figures" / "session3_power.png"
@@ -174,7 +173,9 @@ def main() -> int:
         "n_affected": N_AFF,
         "models": results,
     }
-    (HERE / "figures" / "session3_results.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (HERE / "figures" / "session3_results.json").write_text(
+        json.dumps(_json_safe(payload), indent=2, allow_nan=False) + "\n"
+    )
     print(f"\n{out}")
     return 0
 
