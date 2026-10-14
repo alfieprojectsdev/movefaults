@@ -5263,8 +5263,9 @@ again. **Retarget the child first.**
 Findings deliberately not fixed are each recorded in the fix commit's "Not
 changed" paragraph. Two matter before production. A SIGHUP or SIGTERM to the
 Python process leaves the BPE group running (#271); decide before the service is
-run from ssh. And each calibrated VADASE threshold rests on about six
-exceedances, with no out-of-sample check (#273).
+run from ssh. And EPB session 3's calibrated window-test threshold rests on
+about six exceedances (60 seeds, 0.999 quantile), with no out-of-sample check
+(#273).
 
 ### 36.2 A documentation sweep (#274–#281)
 
