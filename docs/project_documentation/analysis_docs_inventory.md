@@ -2,7 +2,7 @@
 
 **Date:** 2026-01-25
 
-This document lists the binary document files found within the `/home/finch/repos/movefaults/analysis/` directory. As per instructions, these files have not been parsed for content but are cataloged here for future reference and manual review.
+This document lists the binary document files found within the `analysis/` directory. As per instructions, these files have not been parsed for content but are cataloged here for future reference and manual review.
 
 ## 01 RINEX conversion
 - `antenna_height_conversion_20190508.xlsx`

@@ -4,6 +4,9 @@
 
 **Date:** 2026-01-25
 
+> **Original specification (January 2026).** Kept as the design record; the
+> code has since diverged from it in places. For what exists, see `packages/pogf-geodetic-suite/README.md` (teqc first, gfzrnx fallback).
+
 ## 1. Introduction
 
 ### 1.1. Purpose

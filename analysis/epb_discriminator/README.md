@@ -48,7 +48,10 @@ plot_epoch.py     session 1 figure (quake vs bubble), writes PNG + config JSON
 epb/eval.py       session 2: per-epoch and windowed decisions, power, quake cost, blind spots
 epb/ledger.py     claims, evidence and the cite-your-evidence verifier
 run_session2.py   session 2 sweeps, writes figures/session2_power.png + results JSON
-tests/            statistics against theory, scenarios, reproducibility
+run_session3.py   session 3: the window test under realistic (TDCP, multipath) noise;
+                  writes figures/session3_power.png + session3_results.json
+SESSION3.md       session 3 write-up
+tests/            statistics against theory, scenarios, reproducibility (33 tests, 2026-10-14)
 NOTES.md          state at each stopping point
 ```
 
