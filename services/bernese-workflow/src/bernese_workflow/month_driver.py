@@ -10,10 +10,24 @@ driver, so a multi-day run through the service can be stopped and restarted
 the way the scripts' runs can.
 
 WHAT "DONE" MEANS
-A day is banked when FIN_<year><doy><session-char>.NQ0 (or .NQ0.gz) exists in
-the results directory: the same evidence the wrappers use. A BPE that reports
-success but leaves no FIN file counts as failed, because a later resume could
-not tell it had run.
+A day is banked when its FIN_<year><doy><session-char>.NQ0 (or .NQ0.gz) is
+non-zero, intact, and carries a companion .done marker written by this driver.
+The marker is keyed to the session (FIN_<year><doy><s>.done), not to the FIN's
+exact filename, so compressing or decompressing a FIN after banking does not
+break the match. The marker is created only when the BPE reports success AND
+the FIN file passes validation, so the first-run check and the resume check
+are the same test. The FIN is re-validated on every resume, not trusted from
+the marker alone: the first-run validation reads through the page cache, which
+may show writes not yet on disk, so a power loss can leave a zero-byte FIN
+whose marker still exists.
+
+A BPE that fails but leaves a FIN file is not banked, because no marker is
+written. A zero-byte FIN from a crash mid-write is not banked because the
+re-validation catches it. A truncated .gz is detected by reading it to the end.
+
+Days banked by scripts/ (which write FIN files without .done markers) will be
+rerun. This is acceptable for fresh campaigns run through the service. To adopt
+a scripts/-started range, write the markers beforehand.
 
 WHEN IT STOPS
 Two consecutive failed days stop the run; the remaining days are reported as
@@ -28,6 +42,7 @@ Perl drivers for now.
 
 from __future__ import annotations
 
+import gzip
 import logging
 import time
 from collections.abc import Iterable
@@ -57,9 +72,40 @@ def session_for(doy: int, session_char: str = "0") -> str:
     return f"{doy:03d}{session_char}"
 
 
-def fin_banked(sol_dir: Path, year: int, doy: int, session_char: str = "0") -> bool:
+def _fin_path(sol_dir: Path, year: int, doy: int, session_char: str = "0") -> Path | None:
+    """Return the FIN path if it exists, is non-zero and intact, else None."""
     stem = f"FIN_{year}{session_for(doy, session_char)}.NQ0"
-    return (sol_dir / stem).exists() or (sol_dir / f"{stem}.gz").exists()
+    for name in (stem, f"{stem}.gz"):
+        p = sol_dir / name
+        if not p.exists() or p.stat().st_size == 0:
+            continue
+        if name.endswith(".gz"):
+            try:
+                with gzip.open(p, "rb") as f:
+                    while f.read(8192):
+                        pass
+            except (gzip.BadGzipFile, EOFError, OSError):
+                continue
+        return p
+    return None
+
+
+def _done_marker(sol_dir: Path, year: int, doy: int, session_char: str = "0") -> Path:
+    """Session-keyed marker, independent of whether the FIN is plain or compressed."""
+    return sol_dir / f"FIN_{year}{session_for(doy, session_char)}.done"
+
+
+def fin_banked(sol_dir: Path, year: int, doy: int, session_char: str = "0") -> bool:
+    """A day is banked when its FIN is non-zero, intact, and carries a .done marker.
+
+    The FIN is re-validated on every call, not just when the marker is written.
+    This is load-bearing: the first-run validation reads through the page cache,
+    which may show writes not yet on disk. A power loss between writing and
+    fsync leaves a zero-byte FIN whose marker still exists. Re-checking the FIN
+    here catches that; trusting the marker alone would not.
+    """
+    fin = _fin_path(sol_dir, year, doy, session_char)
+    return fin is not None and _done_marker(sol_dir, year, doy, session_char).exists()
 
 
 def run_days(
@@ -83,17 +129,20 @@ def run_days(
             continue
 
         t0 = time.monotonic()
-        result = backend.run(campaign, year, session)  # a kill propagates; resume reruns it
+        result = backend.run(campaign, year, session)
         seconds = time.monotonic() - t0
-        if result.success and fin_banked(sol_dir, year, doy, session_char):
+        fin = _fin_path(sol_dir, year, doy, session_char)
+        if result.success and fin is not None:
+            _done_marker(sol_dir, year, doy, session_char).touch()
             out.append(DayOutcome(doy, session, "ok", seconds))
             consecutive = 0
             logger.info("DOY %03d ok in %.0f s", doy, seconds)
             continue
 
-        note = (
-            "BPE reported failure" if not result.success else "BPE reported success but no FIN file"
-        )
+        if not result.success:
+            note = "BPE reported failure"
+        else:
+            note = "BPE reported success but no valid FIN file"
         out.append(DayOutcome(doy, session, "failed", seconds, note))
         consecutive += 1
         logger.warning("DOY %03d failed: %s", doy, note)
