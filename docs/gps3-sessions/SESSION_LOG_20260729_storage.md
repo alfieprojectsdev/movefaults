@@ -34,6 +34,16 @@ T420.
 since been scoped out — it is NAMRIA's network, relevant only to the June
 training (§21.7). The legacy archive is still single-copy; that one stands.
 
+**Update (2026-10-14, §31–§37):** five unlogged weeks reconstructed from PRs
+#189–#281. The archive's IBAZ truncation was retracted and the retraction
+retracted (§31.1). The T420's crashes are unresolved, and it has been offline
+since 10-12 (§32). field-ops had two outages from unapplied migrations and now
+refuses a deploy whose schema is behind (§33). Local CI on gps3 replaces the
+billing-locked Actions (§34). The densification trial's headline was mostly one
+station (§35.2). On 10-14 the merge queue was cleared, the docs were synced to
+the code, and raw captures and chat exports were removed from the public tip
+but not from history (§36).
+
 **Update (2026-08-25 evening, §24):** **the 2025 national run is COMPLETE** —
 **358 of 365 days**, over three runs plus a targeted recovery of DOY 036 —
 two restarts for bugs found mid-flight, the main run 249 days in 476 minutes. Seven absences are deliberate; DOY 036 is the
@@ -4913,3 +4923,434 @@ Four events have produced no stack. The fifth should self-capture — panic at
 The user has been asked to **wait ~30 s before touching SysRq**, which makes
 even a non-event informative: nothing by 30 s means the CPU is not stuck in
 kernel mode and softlockup is not the mechanism.
+
+---
+
+## 31. The archive's shape settles, and a retraction that was itself wrong — 2026-09-09 → 09-10
+
+Five weeks went unlogged after §30. This section and the six that follow
+reconstruct them from the merged PRs (#189–#281), `SETTLED.md`, the crash
+witness log on gps3, and the 2026-10-14 session. Where a PR body is the only
+record of a measurement, the section names the PR.
+
+### 31.1 The 113 truncated IBAZ sessions: retracted, then the retraction retracted
+
+`docs/bern52/decode_113_failures.md` concluded that 113 truncated Leica sessions
+had **no better copy anywhere**: the truncation was record-aligned, so the
+*recording* had stopped, not a copy.
+
+- **#199 (gps3) retracted it:** 105 of the 113 have full-size copies on `DATA0`,
+  24× larger, same MDB magic bytes.
+- **#204 (the T420) retracted the retraction:** the match was by **basename**,
+  and Leica `.mNN` names carry no year. `IBAZ245a.m00` under `RAW/2014/` and
+  `RAW/2017/` are different observations that share a name with the 2012 file.
+  The real 2012 files are on the drive at exactly the archive's sizes. **The
+  original conclusion stands.**
+
+Two lessons, kept separate on purpose (#201, #203):
+
+```
+instrument returned a wrong answer   ->  check the instrument
+instrument was right, read too far   ->  ask what the number can decide
+```
+
+The record-alignment measurement was sound, and a control added from gps3 made
+it look stronger. It could not distinguish a recording that ended from a copy
+that ended. And: **when the claim is whether a file exists somewhere, look for
+the file.** Two exchanges argued about MDB record layouts while the deciding
+evidence was 224 `stat` calls against drives already docked.
+
+**A name is not an identity**, twice now in this archive (Leica `.mNN`, Trimble
+`.T0x`). #202 added the coordination rule the collision exposed: both machines
+wrote the same retraction forty minutes apart, so **announce who is correcting a
+merged claim before correcting it**.
+
+### 31.2 Stage 4 is ~34 judgement calls, not 200
+
+Carried in handovers as "~200 patterns awaiting human judgement". Separated by
+cause (#205), most are mechanical or blocked on data: ambiguous codes need the
+per-cluster catalog, campaign directories are mechanical, stale headers are
+mechanical once confirmed. **About 34 real judgement calls and three factual
+confirmations** remain for the domain owner.
+
+### 31.3 Stale headers, epochs, and what a column name invites
+
+- **#206** reads the observation epoch in stage 3. 95 files matching `PHIV`
+  while named for other sites are all observed *after* PHIV's last epoch: these
+  are receivers tested at PHIVOLCS HQ that kept the HQ position in the header.
+- **#211** makes that a verdict, `stale-header`, not a column. A consumer who
+  ignores a new column gets the same silent wrongness; a consumer whose
+  `unique` filter returns fewer rows has to look.
+- **#207**: `epoch_min`/`epoch_max` are the reference epochs of coordinate
+  *solutions*, not an operating period. A check built on the other reading
+  would have flagged 19% of files, 4,704 of them ordinary observations. It
+  looked right because for a retired code the range does approximate operation,
+  so it was validated on the one case least able to falsify it.
+- **#212** stamps the producing commit into every attribution CSV, after an
+  18,148-row partial carried the verdict from one commit and a bug from the one
+  before, and was internally consistent.
+- **#213**: digit-4 codes have four causes, one of which (an instrument change
+  renamed as a new monument) makes "same monument?" and "merge?" come apart.
+  `LHO2`/`LHOV` is open and needs the domain owner.
+
+### 31.4 Review hygiene between two machines on one account
+
+Both machines post as one GitHub account. CodeRabbit's "fewer than 10 stars"
+notice inflated comment counts until #205 was reported reviewed when it was not;
+it was disabled (#208). `gh pr comment` makes an issue comment and
+`gh pr review` makes a review object, and the review check counted only the
+second (#209). Reviews are now signed "Reviewed from gps3" / "Reviewed from
+finch".
+
+---
+
+## 32. The T420's crashes, and a witness that is not the patient — 2026-09-09 → 10-14
+
+### 32.1 Where §30 left it, and the scope correction
+
+§30.3 called pstore "armed and empty, kernel panic eliminated". **#197 and #198
+narrowed it:** the first read was without root and its silence was read as
+empty; the root read is genuinely empty, but an empty pstore rules out only a
+panic that reached the panic handler. **A hang never reaches the panic path**,
+so the elimination excluded something nobody was arguing for. With
+`softlockup_panic` armed, a hang would become a panic and write pstore, the
+first time the instrumentation matched the hypothesis.
+
+And the crash signature (journal ends mid-activity, no shutdown) **cannot tell a
+spontaneous wedge from a human SysRq-B**.
+
+### 32.2 An outside witness (#214, #232)
+
+Six crashes by 2026-09-11, every kernel-visible cause eliminated
+(`softlockup_panic` never fired, pstore empty under root, watchdog
+`bootstatus=0`, thermals 42–46 °C against a 98 °C critical). **A machine cannot
+witness its own death**, so `scripts/finch_watch.sh` runs on gps3 and records
+LAN and tailnet reachability and the T420's boot ID.
+
+`~/finch-watch.log` on gps3, read 2026-10-14:
+
+```
+2026-09-14 08:54  CRASH  down 82 s    boot_id changed
+2026-09-15 01:24  CRASH  down 106 s   boot_id changed
+2026-09-15 11:42  CRASH  down 120 s   boot_id changed
+2026-09-16 08:34  CRASH  down 52 s    boot_id changed
+2026-09-16 17:39  CRASH  down 8064 s  boot_id changed
+```
+
+**#232 fixed two defects that bit on 09-15.** A forced power-cycle of gps3 left
+128 NUL bytes in the log; `grep` then prints nothing for a pattern that is
+present and exits 1 either way, so three CRASH records were one step from
+being reported as zero. `log()` now `sync -d`s each line; events are rare, so
+the cost is nothing against an unreadable crash record. Read the log with
+`tr -d '\000'` first, as this section did.
+
+### 32.3 After 09-17: the power experiment, then silence
+
+By 2026-09-17 the T420 was running a power experiment with its battery
+physically removed (the §30.4 cell was at 16.9% of design; #230). After that date the witness logged no
+boot-ID-confirmed crash. **That is not the same as no crash**: from 09-17 the
+tailnet check mostly failed, so the boot ID was unavailable and outages were
+classified by duration only. The log shows repeated DOWN periods through
+September and early October, and **the T420 has been unreachable since
+2026-10-12 13:02** (still DOWN at 22:15 on 10-14).
+
+So the investigation is unresolved, not concluded: the battery is the leading
+suspect, the experiment was never read out, and the instrument lost its
+discriminator at the moment the experiment began. Reading that experiment is
+the T420's next job when it comes back; so is the inventory and data move in
+§36.4.
+
+---
+
+## 33. field-ops from the field: an outage, then a station-first app — 2026-09-12 → 10-01
+
+### 33.1 Two outages from unapplied migrations
+
+**2026-09-12 to 09-14.** An observer reported the station picker permanently
+unavailable on iOS and Windows. `fo007` had created
+`field_ops.station_proposals`, the code querying it shipped, and **the migration
+was never run in production**. Only `/stations` touched that table, so login,
+staff and observers all worked and one dropdown went blank. It cost two days
+because the picker said *"Stations unavailable (offline?)"* for every failure
+(#217 now names the actual one; #216 added the migration workflow).
+
+**2026-09-23**, the same shape again: `fo008` merged two days earlier, never
+applied, 500 on every screen touching proposals while it was being tested in
+the field. #246 records why: three mechanisms leave a migration unapplied and
+**all exit 0** (a stale checkout's `head`, a wrong `DATABASE_URL`, and an
+automation that never runs).
+
+The fix that does not depend on anyone remembering is **#249 + #256**:
+`/health` compares the database's revision with the migrations the image ships
+and answers 503 when behind, so Render refuses the deploy and the old version
+keeps serving. #256 closed the hole #249's first production deploy found: a
+sleeping database read `unknown`, `unknown` answered 200, and the schema was
+never checked. A process that has never completed a check now fails closed.
+
+### 33.2 The app the observers use now
+
+The design handoff (`Field Ops Alternatives.dc.html`) became five PRs:
+station detail fields (#220), **Today**, a station-first landing screen (#221),
+a sheet collapsed into sections (#224), observers as a grid of initials (#225),
+and then the half of #219 that mattered most: **creating a site from the field,
+offline included (#226)**, with office review (#227). Contested codes are kept,
+not refused (#234), and a held sheet learns the office's verdict (#237). #238
+explains why `fo008`'s downgrade refuses on purpose.
+
+**#261, check before sending:** a sheet cannot be edited once it reaches the
+server, so the commonest correction ("I forgot X") is caught before Send. It
+flags only fields expected for this kind of visit, blank, and not already
+enforced, because a flat list of blanks would fire on every sheet and teach
+people to dismiss it.
+
+### 33.3 Tests that could not fail
+
+#231: nine `expect(await screen.findByText(x)).toBeTruthy()` lines. `findBy`
+rejects or returns an element, so `toBeTruthy` had no input that could fail it.
+The rule (await the `findBy` bare; use `queryBy ... not.toBeNull()` after the
+render settles) is in the file's docstring.
+
+---
+
+## 34. CI that runs, and the family of greens that did not — 2026-09-24 → 09-28
+
+### 34.1 Actions is enabled and still runs nothing
+
+Enabled 2026-09-24. **The switch moved; the behaviour did not**: the account is
+billing-locked and every job carries zero steps (#247). Nothing has executed
+since 2026-04-23. Re-checked 2026-10-14: still locked.
+
+### 34.2 Local CI on gps3 (#251, #254, #257, #259)
+
+`scripts/local_ci.py`, from cron every 10 minutes: `main` first, then untested
+SHAs **in the order they were first seen** (#257, after one PR starved another),
+two per run. Each SHA gets its own worktree **and its own venv**, and the run
+refuses to go on unless `field_ops` imports from that worktree (SETTLED §4: the
+editable install otherwise tests the main checkout's code). It runs ruff on
+changed files, the whole pytest suite, and the frontend (`npm ci`, vitest,
+`tsc`), and posts `local-ci/gps3`. `merge_pr.sh` refuses a merge without it.
+
+**#254's preflight exists because of a green that did not run:** cron's `PATH`
+lacked `~/bin`, so teqc and gfzrnx were absent, the RINEX validator test
+skipped on every unattended run, and the run still posted success. The only
+sign was "1 skipped". Every required tool and the test Postgres must now
+resolve, or each target gets `error: preflight: ...` instead of a green. Local
+CI defers during a BPE run (#259), and a fresh heartbeat during a long run means
+the runner is alive, not that it is testing.
+
+**When the cron fetch fails, the run fails silently.** Run by hand:
+
+```
+export LOCAL_CI_REPO=/home/gps3/repos/movefaults_clean
+git -C "$LOCAL_CI_REPO" fetch -q origin main && \
+  git -C "$LOCAL_CI_REPO" show origin/main:scripts/local_ci.py | python3 - run \
+  >> ~/.local/state/local-ci/cron.log 2>&1
+```
+
+### 34.3 Six greens in three days
+
+SETTLED §4 records them as one family, because each looked novel alone:
+`alembic upgrade head` on a stale tree; Actions `enabled=true` with zero steps;
+`ruff ok (no Python changes)` on a commit that only changed ruff's config;
+`845 passed, 1 skipped` with teqc missing; a short SHA diffed against a full one
+returning "nothing changed"; `/health` 200 on a database never asked. **Never let
+an absence be the pass condition.** Two more entries joined the family in this
+period: an `echo "typecheck clean"` that restated a status as prose and then read
+back as confirmation (#218), and a CRLF file converted by a
+`read_text`/`write_text` round trip that one PR merged unnoticed (#258).
+
+### 34.4 Docker on gps3 (#230)
+
+TimescaleDB and PostGIS on gps3, database off the root LV. **The port bindings
+were the load-bearing half:** Docker writes its own iptables chain ahead of ufw,
+so publishing `5433:5432` would have put a database guarded by a password in
+this public repo in front of every tailnet device. It binds to localhost.
+
+---
+
+## 35. Densification, and a headline that was mostly one station — 2026-09-29 → 10-11
+
+### 35.1 MAXPAR raised to production's values, and three NOT FOUNDs
+
+To run production's own 93-station network (week 2375, DOY 194–200, campaign
+`PHDEN`), `MAXPAR` went to **6000 final / 4000 preliminary**, matching the 5.2
+`R2S_FIN`/`R2S_GEN` panels read from gps2 on 09-29 (#262). Staging it found
+three ways a reference entry reads "NOT FOUND" without being absent (#263):
+
+- an ATL block must be headed with the station name **exactly as the `.CRD`
+  writes it** (`PTAG` failed for `PTAG 22006M005`);
+- BLQ blocks after `$$ END TABLE` are invisible, and `PHNAT.BLQ` had four there
+  from an unscripted merge;
+- a BLQ block indented one column left (known since PHNAT attempt 4).
+
+**PHREF reads PHNAT's BLQ and ATL**, so an edit made for PHNAT changes PHREF's
+inputs. That is why the MILA a-priori fix (97 m off, failing only on a weak-link
+day) went into `PHDEN.CRD` alone.
+
+Launching DOY 194–199 as a Claude Code background job killed the BPE at about 30
+minutes: the tool kills the process tree at its time limit. Relaunched with
+`setsid nohup`, it finished in 42.5 minutes. SETTLED §2 now says so.
+
+### 35.2 The result, after the comparison was corrected
+
+The first write-up (#264) claimed the matched network agreed with production
+far better than PHREF did: **2.20 vs 5.79 mm horizontal**. Review asked for the
+stations both networks share, and the answer reversed it (#270):
+
+```
+same 34 stations, Helmert on those 34      horizontal
+PHREF  (35-station network)                  2.58 mm
+PHDEN  (93-station network)                  2.06 mm
+```
+
+The old headline was mostly **LGYE**, 30 mm East, kept in one comparison and
+rejected in the other. The cause was in the comparison script, not the data:
+`helmert_robust` took the "horizontal" residual from **ECEF X and Y**, which at
+Philippine latitudes carry most of the vertical, so the rejection threshold was
+set by the Up scatter (#272 now rejects on local N/E). Re-running the 2025 PHREF
+comparison with the fix moved its medians from 1.29/2.37/7.09 to
+**1.26/2.28/6.99 mm N/E/U**.
+
+### 35.3 VADASE, measured against real events
+
+- **#244 (09-22):** the first real-data evidence. Across ten sites before the
+  2026-06-08 Mw 7.8 Sarangani event, the quiet-time noise floor is about
+  **0.9 mm/s**.
+- **#269 (10-06):** five captures, every event identified from the USGS
+  catalogue rather than the staff labels. The 15 mm/s threshold caught M7.6
+  (BOST, 74 km, peak 52.4) and M7.4 (DGOS, 159 km, 41.1); barely caught M6.7
+  (15.4, one reading); missed M6.0 at 79 km (6.9) and the whole January
+  M4.5–5.9 swarm at DGOS. A real **non-seismic** spike at TUA2 reached
+  **5,699 mm/s**. And the "quiet control day" was not quiet: the swarm was in
+  it. The note proposes no replacement threshold, deliberately.
+
+### 35.4 EPB vs earthquake, synthetic (#266, #273)
+
+Can a per-satellite residual test tell a plasma bubble from ground motion?
+Sessions 1–2 measured it with white noise. Session 3, with realistic noise,
+qualified the result:
+**the χ² threshold cannot be used as is.** Differenced (TDCP) noise false-alarms
+on 0.45% of quiet windows; fast multipath raises it to 3.4%, and at low receiver
+noise to 95%. At a threshold calibrated from quiet data most of the power
+survives, and removing 80% of the multipath restores it. Synthetic only; the
+open question is still whether real 1 Hz data can be labelled at all
+(SETTLED §6).
+
+---
+
+## 36. 2026-10-14: the queue cleared, the docs synced, and data that should not have been public
+
+### 36.1 Merge queue
+
+The weekend PRs went through `/code-review` (docs at low effort, code at medium)
+with fixes, then merged in order. #264, #265, #267, #269 and #270 are docs;
+#266, #268, #271, #272 and #273 are code. #239 was closed: its content was
+already on `main`.
+
+- **#268, the month driver:** `month_driver.run_days`, day-level resume for the
+  service. A day counts as banked only when its `FIN` is intact **and** carries a
+  `.done` marker the driver wrote, so days `scripts/` banked would be re-run.
+  Two consecutive failed days stop the run.
+- **#271:** a BPE timeout now kills the driver's whole process group. Before,
+  `subprocess.run(..., timeout=)` killed only the Perl child while the BPE
+  server and its `sh &` jobs kept running unsupervised.
+
+**Merging a base with `--delete-branch` closed its stacked child** (#266 closed
+#273). It happened once before, in August with #146. The recovery was to push
+the base's tip back to its branch, `gh pr reopen`, retarget, verify, and delete
+again. **Retarget the child first.**
+
+Findings deliberately not fixed are each recorded in the fix commit's "Not
+changed" paragraph. Two matter before production. A SIGHUP or SIGTERM to the
+Python process leaves the BPE group running (#271); decide before the service is
+run from ssh. And EPB session 3's calibrated window-test threshold rests on
+about six exceedances (60 seeds, 0.999 quantile), with no out-of-sample check
+(#273).
+
+### 36.2 A documentation sweep (#274–#281)
+
+Every living document was checked against the code: six PRs by area, plus #277
+and #279 below, each branched from `main`, none stacked, no two touching the
+same file. Dated
+records were left alone. The corrections that mattered beyond wording:
+
+- **SETTLED §4** said the service had no month driver; false since #268.
+- **`DEPLOY.md`** said field-ops migrations run automatically; the workflow has
+  never executed.
+- **The vadase docs** described a 10-epoch threshold, `$PTNL` parsers, and table
+  names that do not exist; three linked docs were empty files.
+- **The roadmap** listed the MATLAB, `RUNX_v2` and dislocation ports as still to
+  do; all three are done.
+- **drive-archaeologist's `CLAUDE.md`** said its implementation was "empty
+  placeholders"; it has 25 modules and 133 tests.
+- **`automation_stages.md`** had two different Stage 3 sections.
+
+New READMEs for the four components that lacked one (bernese-workflow,
+pogf-geodetic-suite, ingestion-pipeline, velocity-reviewer) and for `scripts/`. The
+maturity table was re-measured on `6f4ae62`: eight suites, **942 tests on
+gps3** (bernese-workflow 250, field-ops 131 + 273 frontend).
+
+### 36.3 What a public repository was publishing
+
+The sweep found, and #277 and #279 removed from the tip:
+
+- **48 raw VADASE `.rtl` captures** (two DGOS sets, 45 MiB), committed
+  2026-01-31. Two evidence notes said the captures were "not committed". `*.rtl`
+  is now ignored.
+- **Eleven raw chat-page HTML exports** in `docs/` (1.5–2.8 MB each). Besides
+  the conversation, each carried the chat sidebar's unrelated personal
+  conversation titles, and seven carried an account email. Condensed to
+  Markdown under `docs/chat-notes/`, including the November 2025 proposal that
+  named the project, POGF.
+
+**Both remain in git history and in GitHub's `refs/pull/*`.** Purging needs a
+history rewrite, a force-push of every branch, re-cloning on gps3 and the T420,
+and a GitHub Support request. That is Alfie's decision and has not been made.
+
+### 36.4 The plan to 3 November, and moving off the T420
+
+A three-week plan targets **one production run through
+`services/bernese-workflow` by 3 November**, giving the same results as
+`scripts/`:
+
+- **Week 1:** an error-signature scanner, a knowledge-base YAML the domain owner
+  can edit, and a circuit breaker.
+- **Week 2:** a run ledger, a plan and preflight phase, and parallel sessions.
+- **Week 3:** a parity month against `scripts/`, then the first production run.
+
+No AI runs in the processing path. The plan and a director's version are outside
+the repo. Decisions pending: the first production dataset (PHDEN 2025 or LUZON
+2026), the breaker's K, and whether the ledger keeps or retires the `.done`
+markers.
+
+The T420 is to be retired as the second machine. Agency data goes to gps3 and
+working context to a newer laptop. Two scripts are written and uncommitted on
+`chore/finch-migration`: `finch_inventory.sh` (read-only) and
+`finch_to_gps3.sh` (sha256 at source, rsync to
+`/srv/gnss-archive/legacy/finch_<date>/`, verify on gps3, refuses to run during
+a BPE). **They wait on the T420 coming back online** (§32.3).
+
+---
+
+## 37. The shape of this period's mistakes
+
+The earlier catalogues (§15.5, §22.12, §23.8, §24.7) were about checks looking
+in the wrong place. This period's were mostly about **evidence that was real and
+answered a different question**:
+
+| what was believed | what was actually true | § |
+|---|---|---|
+| a record-aligned truncation means no better copy exists | the alignment cannot tell a recording from a copy | 31.1 |
+| a same-name file on another drive is a better copy | Leica names carry no year | 31.1 |
+| `epoch_min/max` is when a site observed | it is when a solution was computed | 31.3 |
+| an empty pstore eliminates the failure | it eliminates a panic nobody proposed | 32.1 |
+| no boot-ID-confirmed crash since 09-17 means none happened | the witness lost the boot ID that day | 32.3 |
+| the matched network agrees 2.6× better | the comparison rejected outliers on ECEF X/Y | 35.2 |
+| a quiet control day | a 25-event swarm | 35.3 |
+| the docs say the captures are not committed | 48 were, since 2026-01-31, in a public repository | 36.3 |
+
+**What found them** was, every time, someone asking what the number could decide
+before relying on it, or looking directly instead of inferring, and several
+came from the other machine's review. Two machines arguing their own results
+down is the mechanism that works here; it is worth keeping when the T420 is
+replaced.
