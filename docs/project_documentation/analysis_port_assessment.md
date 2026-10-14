@@ -432,6 +432,15 @@ status should not have two answers to the same question.
 
 Ordered by value-per-effort, not by tier.
 
+> **Status, re-checked 2026-10-14.** Done: 1 (`msvcrt`, #142), 2
+> (`rinex-completeness`, #144), 3 (decimal year settled, `SETTLED.md` §3), 4
+> (`crd-to-plots`, #146), 5 (`_disloc` extension, #147; DC3D and `disloc3d`
+> followed in #153), 8 (`test_offsets_catalog_integrity.py` checks the committed
+> catalog on every suite run, and local CI runs the suite on every PR), 9
+> (`archive/analysis/`). Partly done: 6 (a recommendation awaits PHIVOLCS
+> sign-off, `inversion_method_decision.md`) and 7 (the grid search is ported as
+> `modeling/inversion.py`; bootstrap and MCMC are not). Open: 10.
+
 **Now — cheap, unblocking, each independently useful**
 
 1. **Delete `msvcrt` from four import lines.** Minutes. Unblocks all coseismic

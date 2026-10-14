@@ -1,8 +1,10 @@
 """
-RINEX Quality Control using teqc.
+RINEX Quality Control: teqc first, gfzrnx as the fallback.
 
-teqc is the UNAVCO standard QC tool for RINEX 2 observation files.
-Install: https://www.unavco.org/software/data-processing/teqc/teqc.html
+teqc is the UNAVCO standard QC tool for RINEX 2 observation files; it cannot
+read RINEX 3. gfzrnx is used when teqc refuses a file for being RINEX 3, or
+when teqc is not installed. See `RinexQC`.
+Install teqc: https://www.unavco.org/software/data-processing/teqc/teqc.html
 """
 from __future__ import annotations
 
@@ -178,9 +180,9 @@ class RinexQC:
     project uses is RINEX 3. Without a fallback the QC step is silently blind
     to exactly the stations that tie the network to the reference frame.
 
-    So: run teqc; if and only if it refuses the file for being RINEX 3, retry
-    with gfzrnx and record that it happened. Any other teqc failure still
-    raises, because "teqc broke" and "teqc cannot read this format" are
+    So: run teqc; if it refuses the file for being RINEX 3, or if teqc is not
+    installed at all, use gfzrnx and record why in `fallback_reason`. Any other
+    teqc failure still raises, because "teqc broke" and "teqc cannot read this format" are
     different problems and only one of them has a safe automatic answer.
 
     LICENCE/PROVENANCE: gfzrnx's free licence covers research use;

@@ -7,10 +7,11 @@ Pipeline order (via Celery chain in pipeline.py):
 Each task that feeds into the next returns the output file path so that
 Celery's chain mechanism can pass it as the first positional argument.
 
-teqc integration:
-  teqc is the primary QC backend (gfzrnx not yet acquired).
-  If teqc is not in PATH, validate_rinex logs a warning and continues —
-  the raw header check is still enforced.
+QC integration:
+  validate_rinex runs pogf_geodetic_suite.qc.rinex_qc.RinexQC: teqc first,
+  gfzrnx when teqc refuses a RINEX 3 file or is not installed. If neither tool
+  is available, or one times out, it logs a warning and continues with null QC
+  metrics; the raw header check is still enforced.
 """
 
 import gzip
@@ -186,8 +187,9 @@ def _validate_rinex(file_path: str) -> dict:
     Two-stage validation:
       1. Header scan — reads first 10 lines looking for 'RINEX VERSION' or
          'CRINEX VERS'. Fast, no external dependencies.
-      2. teqc QC — runs 'teqc +qc <file>' via RinexQC for deeper quality check.
-         If teqc is not in PATH or times out, logs a warning and skips (non-fatal).
+      2. QC via RinexQC (teqc, with the gfzrnx fallback) for a deeper check.
+         If no QC tool is available or it times out, logs a warning and skips
+         (non-fatal).
 
     Returns a dict with file_path and QC metrics for _load_to_postgres.
     Raises ValueError on invalid header (marks Celery task as FAILED).

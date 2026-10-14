@@ -3,7 +3,7 @@ Celery chain orchestration for the RINEX ingestion pipeline.
 
 The ingestion pipeline runs three tasks in sequence:
   1. standardize_format — decompress and convert to plain RINEX 3.x
-  2. validate_rinex     — check RINEX header + run teqc QC (stubbed)
+  2. validate_rinex     — check RINEX header + optional QC (teqc, gfzrnx fallback)
   3. load_to_postgres   — write RinexFile row + update IngestionLog
 
 Each task receives the output path of the previous task as its first argument
