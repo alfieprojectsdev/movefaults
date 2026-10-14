@@ -3,6 +3,14 @@
 *2026-08-29. Written during the PHREF 2025 year run, against the failure that
 run started with.*
 
+> **Status, 2026-10-14: the decision layer is not built.** No scanner, knowledge
+> base, circuit breaker, ledger or plan phase exists yet. Two related mechanical
+> pieces have shipped in `services/bernese-workflow`: `month_driver.run_days`
+> (#268), which resumes at day level using `.done` markers and stops after **two
+> consecutive failed days of any kind**, not after K identical error signatures;
+> and a timeout that kills the BPE's whole process group (#271). Whether the
+> ledger replaces the `.done` markers or sits beside them is an open decision.
+
 ## The constraint that shapes everything
 
 Claude Code's role here is **temporary and bounded**: running BSW processing

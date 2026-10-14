@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run_luzon_year.sh — process a full year in parallel, in blocks.
+# run_phref_year.sh — process a full PHREF year in parallel, in blocks (adapted from run_luzon_year.sh).
 #
 # WHY BLOCKS RATHER THAN ONE CALL
 # BSW's multi-session mode takes a first session and a count, and runs that
