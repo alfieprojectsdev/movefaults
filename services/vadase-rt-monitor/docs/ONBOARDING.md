@@ -6,7 +6,7 @@ Welcome! This guide will help you understand the VADASE Real-Time Monitor codeba
 
 The VADASE Real-Time Monitor is an earthquake detection system that:
 
-1. **Connects** to 35+ GNSS (GPS) stations across the Philippines
+1. **Connects** to GNSS (GPS) stations across the Philippines (PHIVOLCS operates ~35; `config/stations.yml` configures 4)
 2. **Receives** real-time position data in NMEA format
 3. **Processes** velocity and displacement measurements
 4. **Detects** earthquakes when ground motion exceeds thresholds
@@ -62,14 +62,16 @@ Variometric Approach for Displacement Analysis - converts GPS carrier phase meas
 
 **Key components:**
 - **Event Detection:** Compares velocity against thresholds to detect earthquakes
-- **Smart Integration:** Handles faulty GPS receivers that send velocity data as displacement
+- **Receiver mode (`ReceiverMode`):** Decides whether to use the receiver's displacement or integrate velocity itself
 - **Leaky Integrator:** Converts velocity to displacement when needed
 
-**The Smart Integration Problem:**
-Some GPS receivers have bugs where they send velocity values in displacement fields. The processor detects this by comparing velocity vs displacement values:
-- If `velocity == displacement` for several measurements → receiver is faulty
-- Switches to manual integration (calculating displacement from velocity)
-- Monitors for recovery and switches back when receiver fixes itself
+**Why receiver mode exists:**
+In quiet time, Leica receivers normally echo velocity values in the displacement fields; they send a real integrated displacement only once their own threshold is crossed. That is expected behaviour, not a fault, but it means the displacement field is useless most of the time. The processor compares the two:
+- `velocity == displacement` for 5 epochs → MANUAL mode (integrate velocity ourselves)
+- displacement different from velocity while velocity is low, for 3 epochs → MANUAL with integration frozen (treated as scintillation)
+- displacement different and velocity above the threshold, for 30 epochs → back to RECEIVER mode
+
+`DOMAIN_LOGIC.md` has the full table.
 
 ```python
 # Core processing loop
@@ -144,19 +146,25 @@ GPS Station → TCP Connection → NMEA Parser → Processor → Database
 ## Configuration Files
 
 ### `config/stations.yml`
-Defines all 35+ CORS stations:
+Defines the configured stations (4 today: PBIS, BOST, BTU2, PAPI):
 ```yaml
-- id: PBIS
-  name: Bislig City, Surigao del Sur
-  latitude: 8.1956
-  longitude: 126.3919
-  host: 192.168.1.101
-  port: 5017
-  threshold_mm_s: 15.0  # Earthquake detection threshold
+stations:
+  - id: PBIS
+    name: Bislig City, Surigao del Sur
+    latitude: 8.1956
+    longitude: 126.3919
+    elevation: 15.0
+    host: <LAN address>
+    port: 5017
+    threshold_mm_s: 15.0  # Earthquake detection threshold
+    fault_segment: Philippine Fault - Surigao Segment
+    filter:
+      enabled: true
+      decay: 0.99         # leaky-integrator factor; 1.0 when disabled
 ```
 
 ### `config/thresholds.yml`
-Global detection parameters (currently minimal).
+Empty (0 bytes). The threshold is per station, in `stations.yml`.
 
 ## Development and Testing Scripts
 
@@ -172,8 +180,10 @@ Main entry point. Loads station config and starts processing for all stations.
 ### `scripts/mock_ntrip_caster.py`
 Fake GPS server for testing network code without real stations.
 
-### `scripts/validate_parser.py`
-Unit tests for NMEA parsing functions.
+### `scripts/threshold_evidence.py`
+Measures the alarm threshold against real captures; produces the figures in the repo-root `docs/project_documentation/vadase_threshold_evidence.md`.
+
+Parser tests are in `tests/test_nmea_parser.py`, not in `scripts/`.
 
 ## Key Algorithms to Understand
 
@@ -206,19 +216,21 @@ if horizontal_velocity_mm_s > threshold_mm_s:
    - `tcp.py` (networking)
    - `run_ingestor.py` (system assembly)
 
-2. **Run offline tests:**
+2. **Replay a recorded event** (from this directory; no database needed):
    ```bash
-   uv run python scripts/replay_events.py path/to/earthquake.nmea
+   PYTHONPATH=. uv run python scripts/replay_events.py \
+     --file "data/NMEA_DGOS_10102025/NMEA_DGOS LDM_20251010_040000.rtl" \
+     --mode replay --base-date 2025-10-10 --dry-run
    ```
 
-3. **Test parsing:**
+3. **Run the tests** (from the repo root):
    ```bash
-   uv run python scripts/validate_parser.py
+   uv run pytest services/vadase-rt-monitor/tests
    ```
 
-4. **Explore data:**
+4. **Explore data** (from this directory):
    ```bash
-   uv run python -c "
+   PYTHONPATH=. uv run python -c "
    from src.parsers.nmea_parser import parse_lvm
    result = parse_lvm('$GNLVM,113805.50,030215,0.001,0.002,0.003,*47')
    print(result)

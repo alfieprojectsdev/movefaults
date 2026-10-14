@@ -26,6 +26,14 @@ $$d_{t} = (d_{t-1} \times \lambda) + (v_t \times \Delta t)$$
 
 This "leak" ensures that in the absence of new velocity input, the displacement asymptotically returns to zero.
 
+**In the code** (`IngestionCore.handle_velocity`, `services/vadase-rt-monitor/src/domain/processor.py`):
+`decay_factor` **defaults to 1.0**, pure integration. The leak is opt-in per
+station: `filter: {enabled: true, decay: 0.99}` in `config/stations.yml`, or
+`--decay` on `replay_events.py`. Integration is skipped when the gap between
+velocity epochs is outside `0 < Δt < 5 s`, so an outage cannot inject a step.
+Whether the integrated value is used at all is decided by the `ReceiverMode`
+state machine (see the service's `docs/DOMAIN_LOGIC.md`).
+
 ## 3. Vector Component Integration (Avoiding "Odometer Effect")
 A critical aspect of the physics engine is **Component-Based Integration**.
 
@@ -42,7 +50,9 @@ We must integrate each spatial component independently to allow positive and neg
     *   $d_{North} \leftarrow (d_{North} \times \lambda) + (v_{North} \times \Delta t)$
     *   $d_{Up} \leftarrow (d_{Up} \times \lambda) + (v_{Up} \times \Delta t)$
 3.  **Compute Magnitude**:
-    Only *after* integration do we calculate the scalar magnitude for event detection:
+    Only *after* integration do we calculate the scalar horizontal magnitude:
     $$D_{total} = \sqrt{d_{East}^2 + d_{North}^2}$$
+    It is stored (`d_horizontal`) and tracked as the event's peak displacement.
+    Event *detection* itself is on horizontal **velocity**, not displacement.
 
 This approach ensures that an oscillation (e.g., ground shaking East then West) results in a net displacement near zero, accurately representing the physical event physics.

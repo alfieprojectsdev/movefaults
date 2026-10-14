@@ -1,8 +1,14 @@
 # VADASE detection, measured against two real earthquakes and a quiet day
 
 *Measured 2026-09-22 on gps3 from captures held at
-`services/vadase-rt-monitor/data/`. The captures are PHIVOLCS field data and
-are deliberately not committed; every figure here is reproducible from them.*
+`services/vadase-rt-monitor/data/`. The captures are PHIVOLCS field data;
+every figure here is reproducible from them.*
+
+> **Corrected 2026-10-14:** this note said the captures are "deliberately not
+> committed". Two of the three were: `NMEA_DGOS_10102025/` and
+> `DGOS_NMEA_01282026/` (24 `.rtl` files each) were in the repository from
+> 2026-01-31 (`415ffb9`) until #277 removed them from the tip and ignored
+> `*.rtl`. They remain in git history. `NMEA_10SITE_20260607` never was.
 
 Until now the detector had only ever been exercised against synthetic
 fixtures. These three captures are the first evidence about how it behaves on

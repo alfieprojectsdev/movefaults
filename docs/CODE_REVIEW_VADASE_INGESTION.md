@@ -1,5 +1,14 @@
 # Code Review: VADASE RT Service & File Ingestion Deliverables
 
+> **HISTORICAL RECORD (review of the 2026-02-05 tree).** Most of the structure
+> reviewed here no longer exists: `src/stream/`, `src/sources/`,
+> `src/database/` and `filters/` were removed when the service was
+> consolidated onto `src/ports/` + `src/adapters/`, and persistence moved to
+> `src/adapters/outputs/timescaledb.py`. The one-way integration latch it
+> discusses was fixed and then replaced by the `ReceiverMode` state machine.
+> Read it for the reasoning at the time, not as a description of the code.
+> Current docs: `services/vadase-rt-monitor/docs/INDEX.md`.
+
 **Review Date:** 2026-02-05
 **Branch:** `claude/review-vadase-file-ingestion-8qspT`
 **Reviewer:** Claude (Automated Code Review)

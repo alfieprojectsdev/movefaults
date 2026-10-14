@@ -35,13 +35,20 @@ Simulates an NTRIP (Networked Transport of RTCM via Internet Protocol) stream.
 Launches multiple concurrent ingestion cores.
 - **Why**: If you are adding more CORS stations to the network, use this to determine the CPU and Memory ceiling of your server.
 
+### `threshold_evidence.py`: Threshold Measurement
+Measures horizontal speed against the alarm threshold on real captures, with event origins from the USGS catalogue.
+- **Why**: It produces every figure in `docs/project_documentation/vadase_threshold_evidence.md` (repo root). Run it again before arguing for a different threshold.
+- **Run**: `PYTHONPATH=. uv run python scripts/threshold_evidence.py --data data` from this directory.
+
 ## 3. Jupyter Notebooks (`notebooks/`)
 
-The repository includes two template notebooks for high-level research:
+The repository includes two template notebooks for high-level research. They are not run by any test:
 - `event_validation.ipynb`: Compare the monitor's detected peaks against official seismic catalogs (e.g., USGS or PHIVOLCS records).
 - `poster_reproduction.ipynb`: Replicates the time-series charts used in the GEOCON 2025 conference poster.
 
 ## 4. Coding Standards
 - **Type Hinting**: All new code should use Python type hints to ensure compatibility with `mypy`.
 - **Async Safety**: Since the system is highly concurrent, avoid blocking calls (like `time.sleep()`) in the core; always use `await asyncio.sleep()`.
-- **Logging**: Use the `self.logger` (powered by `structlog`) to emit structured JSON logs. This allows for easy log analysis using ELK stack or Grafana Loki.
+- **Logging**: Use the `self.logger` (powered by `structlog`) to emit structured logs.
+- **Imports**: Use the bare `src.` prefix (`from src.parsers.nmea_parser import parse_lvm`), and never add an `__init__.py` to `src/`: it is a namespace package shared with the repo-root `src/db/`. `CLAUDE.md` explains why.
+- **Tests**: `uv run pytest services/vadase-rt-monitor/tests` from the repo root.
