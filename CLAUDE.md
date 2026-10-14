@@ -89,6 +89,7 @@ services/                      # Long-running deployable services
 
 tools/
   drive-archaeologist/         # CLI for excavating legacy GNSS data from old drives
+  velocity-reviewer/           # Web replacement for the Windows-only velocity outlier GUI
 
 scripts/                       # THE PRODUCTION PATH TODAY — campaign staging, PCF
                                # derivation, BPE drivers, product fetch, QC, the
@@ -97,6 +98,10 @@ scripts/                       # THE PRODUCTION PATH TODAY — campaign staging,
                                #   (Claude Code has no tty; never pasted between shells)
 
 analysis/                      # Numbered research scripts (01-10): RINEX conversion, time series, dislocation models, bootstrapping
+  epb_discriminator/           #   Research: telling plasma-bubble artefacts from ground motion (synthetic data so far; has its own test suite)
+
+config/bernese/                # Captured Bernese panels and PCFs (gpsuser*/), ocean-loading requests (otl/)
+docs/                          # Runbooks, decision records, session logs; docs/SETTLED.md first
 ```
 
 ### How components connect
@@ -117,7 +122,7 @@ today. They are not the same, and conflating them has cost real time.**
 6. **vadase-rt-monitor** independently ingests real-time NMEA from CORS
    stations for rapid earthquake detection — **not** part of the chain above
 
-#### What actually runs today (as of 2026-08-12)
+#### What actually runs today (as of 2026-10-14)
 
 The production path is **`scripts/` + Bernese**, not the service chain. Steps 2
 and 3 above are aspirational: nothing currently writes solutions into
@@ -153,6 +158,14 @@ pogf_geodetic_suite.timeseries
 runs to date have gone through `scripts/`. Moving that logic into the service
 is the standing direction, not a completed migration.
 
+Since #268 and #271 the service has the two pieces of a multi-day run that only
+`scripts/` used to have: `month_driver.run_days` resumes at day level (a day is
+skipped when its `FIN_*.NQ0` is intact **and** carries a `.done` marker the
+driver wrote; two consecutive failed days stop the run), and a BPE timeout now
+kills the driver's whole process group instead of only the Perl child. Neither
+has run a production day. Parallel sessions (`REPR_MODE`, `MAXSESS`) are still
+only in the Perl drivers.
+
 #### Corrections to earlier versions of this section
 
 - **RINEX QC is `teqc`-first with a `gfzrnx` fallback.** `qc/rinex_qc.py` runs
@@ -163,8 +176,9 @@ is the standing direction, not a completed migration.
   `docs/project_documentation/gfzrnx_vs_teqc_rinex3_evidence.md`.
 
   So `gfzrnx` **is** wired in, on exactly two triggers: teqc refusing a file
-  for being RINEX 3, and teqc not being installed at all (the R740, as of
-  2026-08-13). Any *other* teqc failure still raises — "teqc broke" and "teqc
+  for being RINEX 3, and teqc not being installed at all (the R740's state on
+  2026-08-13; teqc has since been installed in `~/bin`, which is not on the
+  default `PATH`, so cron and scripts must add it). Any *other* teqc failure still raises — "teqc broke" and "teqc
   cannot read this format" are different problems and only one has a safe
   automatic answer. `allow_fallback` defaults to `True`; every result carries
   `tool` and `fallback_reason`, so which binary produced a number is
@@ -177,7 +191,8 @@ is the standing direction, not a completed migration.
 - **`src/ingestion/` no longer exists** — the duplicate local ingestion module
   is gone and that consolidation is done. Earlier versions of this file listed
   it in the tree with a "consolidation pending" note. What remains under the
-  **repo-root** `src/` is `src/db/` alone, four files; anything pointed at it
+  **repo-root** `src/` is `src/db/` alone, two tracked files (`__init__.py`
+  and `models.py`; "four" in earlier versions counted `__pycache__`); anything pointed at it
   (coverage, mypy) is therefore measuring near-nothing. Note that `src/` means
   something different inside vadase-rt-monitor, where it is the service's own
   package root — see *Import Paths* below.
@@ -188,11 +203,12 @@ is the standing direction, not a completed migration.
 
 ### Implementation maturity
 
-*Measured 2026-09-22 on `dfa1012`, not estimated. Re-measure when you update
+*Measured 2026-10-14 on `6f4ae62`, not estimated. Re-measure when you update
 this: on 2026-08-18 three of five rows had drifted from being carried forward
-by hand, and by 2026-09-22 three had drifted again — `pogf-geodetic-suite`'s
-tests had more than doubled and field-ops' frontend had gone from 69 tests to
-253 while the table still said 69.*
+by hand, by 2026-09-22 three had drifted again (`pogf-geodetic-suite`'s tests
+had more than doubled, field-ops' frontend had gone from 69 tests to 253), and
+by 2026-10-14 two more had (`bernese-workflow` 229 → 250, field-ops 102 + 253 →
+131 + 273).*
 
 *Size is `modules / LOC / test files`, and the definition is exact so the next
 measurement is comparable: **modules** = every tracked `.py` under the
@@ -213,11 +229,15 @@ uv run pytest $c/tests --collect-only -q | tail -1                # tests
 | Component | Size | Tests | Status |
 |---|---|---|---|
 | drive-archaeologist | 25 / 2998 / 15 | 133 | ~60% — Phase 1 scanner works, archive support partial |
-| **bernese-workflow** | 11 / 2627 / 11 | 229 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config all implemented. **Not yet** the path production runs take (see above). **BRN-001 done 2026-07-29** — Bernese 5.4 verified on the R740; LUZON reprocessed 30/30 days unattended 2026-08-06 (5m33s/day) *via `scripts/`*, not via this service |
+| **bernese-workflow** | 12 / 2893 / 12 | 250 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config, day-level resume driver (`month_driver.py`, #268) and process-group kill on timeout (#271) all implemented. **Not yet** the path production runs take (see above). **BRN-001 done 2026-07-29** — Bernese 5.4 verified on the R740; LUZON reprocessed 30/30 days unattended 2026-08-06 (5m33s/day) *via `scripts/`*, not via this service |
 | vadase-rt-monitor | 19 / 1387 / 7 | 51 | ~80% — parser, handler, core logic, leaky integrator, `ReceiverMode` state machine (replaced the old one-way integration latch) |
 | **pogf-geodetic-suite** | 18 / 3417 / 13 | 260 | ~75% — coordinates, IGS downloader, RINEX QC (teqc-first, gfzrnx fallback), and `timeseries/`: CRD→ENU, segmented velocities **verified against PHIVOLCS' production MATLAB output**, joint step+rate estimation, GMT velocity-field output |
-| **field-ops** | 13 / 3041 / 6 | 102 + 253 | ~90% — offline-first logsheet PWA, exercised on a real handset. 102 backend tests (5 of them `@pytest.mark.integration`, which skip without Postgres) plus **253 frontend (vitest)**, the only frontend tests that run — `packages/CORS-dashboard` carries one 2017 React test file that nothing executes. The frontend count is not in `uv run pytest`: see below |
+| **field-ops** | 14 / 3420 / 7 | 131 + 273 | ~90% — offline-first logsheet PWA, exercised on a real handset; `/health` refuses a deploy whose database schema is behind (`schema_check.py`, #249, #256). 131 backend tests (5 of them skip without Postgres) plus **273 frontend (vitest)**, the only frontend tests that run — `packages/CORS-dashboard` carries one 2017 React test file that nothing executes. The frontend count is not in `uv run pytest`: see below |
 | ingestion-pipeline | 7 / 632 / 3 | 36 | ~30% — architecture defined, not in the production loop |
+| velocity-reviewer | 6 / 424 / 0 | 0 | Working web tool, **no tests** and not in `testpaths` |
+
+Two suites are not components and are not in the table: `scripts/tests` (48)
+and `analysis/epb_discriminator/tests` (33).
 
 **The maturity that matters is not module count.** `bernese-workflow` was
 listed at ~10% for months while carrying 198 tests, and the genuinely
@@ -237,17 +257,19 @@ uv sync --extra dev                           # dev tools only
 uv sync --extra drive-archaeologist           # drive-arch deps
 uv sync --extra vadase-rt-monitor             # vadase deps
 
-# Run all tests -- all seven suites (the six components plus scripts/tests),
-# 830 passed / 6 skipped on dfa1012, 2026-09-22, ON A MACHINE WITHOUT POSTGRES
-# OR THE gps3 DATAPOOL. The 6 skips are exactly those: five tests need
-# Postgres at localhost:5433 and one needs gps3's real DATAPOOL. Where both
-# exist (gps3) all six run, so the same commit reports 836 run there -- a
-# different split, not drift. Compare the TOTAL, not the passed count.
+# Run all tests -- all eight suites (six components, scripts/tests and
+# analysis/epb_discriminator/tests): 942 passed / 0 skipped on 6f4ae62,
+# 2026-10-14, ON gps3, which has Postgres on 5433, the real DATAPOOL and teqc.
+# Elsewhere the same commit skips some: five field-ops tests need Postgres at
+# localhost:5433, and others skip when gps3-only files (real panels, the
+# production offsets catalog) or tools (teqc/gfzrnx, gzip, zcat) are absent.
+# Skips change the split, not the total. Compare the TOTAL, not the passed count.
 #
-# It was "six suites, 785 / 3" until scripts/tests was added to testpaths by
-# #233 and the line did not follow. The per-component counts in the maturity
-# table sum to the total (811 + scripts' 25 = 836 = 830 + 6); if they stop
-# summing, one is stale.
+# History: "six suites, 785 / 3" until scripts/tests joined testpaths (#233);
+# "seven suites, 836" until analysis/epb_discriminator/tests joined (#266).
+# The per-component counts in the maturity table plus the two non-component
+# suites sum to the total (133+250+51+260+131+36 + 48 + 33 = 942); if they
+# stop summing, one is stale.
 # Suite selection is `testpaths` in pyproject.toml, not discovery, so a new
 # suite has to be added there to be run.
 uv run pytest
@@ -288,8 +310,10 @@ docker compose up -d
 uv run drive-archaeologist scan <path>    # or drive-arch
 uv run rinex-qc <file>                    # RINEX quality check
 uv run igs-downloader                     # IGS product downloader
+uv run rinex-completeness                 # which days can be processed at all (preflight)
+uv run crd-to-plots                       # CRD -> XYZ -> ENU -> PLOT files (the RUNX_v2.py chain)
 uv run field-ops-api                      # field logsheet API ($PORT, default 8001)
-uv run velocity-reviewer                  # velocity review CLI
+uv run velocity-reviewer --plots-dir DIR  # web outlier reviewer for PLOT files
 ```
 
 **`vadase-ingestor` does not exist**, and this file used to list it. The
@@ -326,6 +350,10 @@ of a value nobody diffs is how every other stale claim in this file started.
 | BPE invocation (real) | `services/bernese-workflow/src/bernese_workflow/backends.py` |
 | PCF derivation | `scripts/derive_luzon_pcf.py` |
 | Month-long BPE driver | `scripts/run_luzon_month.sh` |
+| Day-level resume driver (service side) | `services/bernese-workflow/src/bernese_workflow/month_driver.py` |
+| Local CI (the merge gate while Actions is locked) | `scripts/local_ci.py` |
+| Deploy-time schema check (`/health`) | `services/field-ops/src/field_ops/schema_check.py` |
+| VADASE threshold evidence | `services/vadase-rt-monitor/scripts/threshold_evidence.py` → `docs/project_documentation/vadase_threshold_evidence.md` |
 | Segmented velocities | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/timeseries/analysis.py` |
 | CRD → ENU pipeline | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/timeseries/crd_pipeline.py` |
 | PHIVOLCS event catalog | `docs/bern52/phivolcs-scripts/event-catalog/offsets` |
@@ -459,6 +487,7 @@ All scripts live in `services/vadase-rt-monitor/scripts/`:
 - `replay_events.py` — replay historical earthquake `.rtl`/`.nmea` files at 1Hz
 - `stress_test_parallel.py` — simulate multi-station concurrent load
 - `run_ingestor.py` — main entry point for the real-time ingestor
+- `threshold_evidence.py` — measures the alarm threshold against real captures (not committed); produces every figure in `docs/project_documentation/vadase_threshold_evidence.md`
 
 Config files in `services/vadase-rt-monitor/config/`. Use `stations_local_test.yml` for local dev.
 
@@ -488,6 +517,15 @@ clone. Its guarantee: *everything on `main` arrived via a reviewed PR.*
 5. **Verify after every merge and retarget.** Confirm `origin/main` actually
    advanced, and confirm `baseRefName` really is `main`. Do not trust the
    command's exit code alone.
+6. **Merge through `scripts/merge_pr.sh`, which requires a `local-ci/gps3`
+   success on the PR's head commit.** GitHub Actions has run nothing since
+   2026-04-23 (the account is billing-locked), so the red `Tests` check on
+   every PR says nothing about its code. `scripts/local_ci.py` on gps3 is the
+   CI that actually runs (cron, every 10 minutes, at most two new commits
+   per run, main first). Check it with `scripts/local_ci.py status` on gps3.
+7. **Retarget a stacked PR to `main` before merging its base with
+   `--delete-branch`.** Deleting the base branch closes the child PR rather
+   than retargeting it (#146 in August, #273 in October).
 
 ### Why the one-week limit exists
 

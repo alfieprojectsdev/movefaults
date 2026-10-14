@@ -27,7 +27,7 @@ because the same facts kept getting re-established from scratch.
 
 ## 1. Ghosts — these do not exist; do not go looking
 
-Verified absent 2026-08-25 by direct check, not by memory.
+Verified absent 2026-08-25 by direct check, not by memory; re-verified 2026-10-14 (`git grep -w` over `*.py`: 0 hits for each symbol; none of the three directories exists).
 
 | thing | status |
 |---|---|
@@ -64,7 +64,7 @@ from `CLAUDE.md` because both duplicates were removed.
 | **GEONET V4 combines clusters top-down, each layer fixed before the next** — backbone → basic regional → additional regional. V3's pairwise merging gave **non-unique troposphere** at backbone stations | [NAK09] §2 |
 | **GEONET constrains the whole national network through ONE station (Tsukuba-1).** Under V3 its piecewise-linear coordinate model missed the vertical annual variation, producing an apparent annual signal at **every** GEONET station | [KOT09], §4b |
 | **~107 stations** have 2025 RINEX 2 in our local datapool. Not 76 (one day's count), not 439 (file-server catalogue) | measured 2026-08-25 |
-| **No production month has run through `services/bernese-workflow`.** The service has never created a campaign on the R740 | confirmed 2026-08-25 from run history: every 2025 solution came from a Perl driver in `$U/SCRIPT` launched by `scripts/run_luzon_year.sh`. The 2025 run made this *more* true — 358 days through `scripts/` while the service gained tests |
+| **No production month has run through `services/bernese-workflow`.** The service has never created a campaign on the R740 | confirmed 2026-08-25 from run history: every 2025 solution came from a Perl driver in `$U/SCRIPT` launched by `scripts/run_luzon_year.sh`. The 2025 run made this *more* true — 358 days through `scripts/` while the service gained tests. Still true 2026-10-14: the service gained a day-level driver (`month_driver.run_days`, #268) but nothing has run a production day through it |
 
 | **`MAXPAR` in `$U/OPT/R2S_FIN/ADDNEQ2.INP` was 1000, then 3000, and is 6000 since 2026-09-29** — raised to match the team's BSW 5.2 `R2S_FIN` panel on gps2 (read 2026-09-29) ahead of the ~91-station densification trial; backup `ADDNEQ2.INP.pre-maxpar6000-20260929`. The preliminary step's `$U/OPT/R2S_GEN/ADDNEQ2.INP` went 1000 → 4000 the same day, also matching gps2 (backup `.pre-maxpar4000-20260929`). For a 33–38 station day the requirement is bounded to `(1000, 3000)` and **is not known more precisely** — the "~30 parameters per station" in the first version of `bernese_maxpar_limit.md` was an inference from the overflow report and is **withdrawn** | 24/24 days failed at 1000; 309+ days clean at 3000. Measurement method in `bernese_maxpar_limit.md` |
 | **`neqckdim` reports the first request that OVERFLOWS, not the requirement.** Its number is the ceiling plus one and says nothing about how much headroom is needed | the figure was exactly 1001 on all 24 failed days while station counts varied 35–38 |
@@ -110,15 +110,18 @@ from `CLAUDE.md` because both duplicates were removed.
 
 ### Do not quote the "implementation maturity" table as current
 
-`CLAUDE.md`'s table was measured 2026-08-18 and is now **wrong by 31 and 20
-tests**: `bernese-workflow` collects **229** against the 198 recorded,
-`pogf-geodetic-suite` **144** against 124. Both figures were measured
-independently on the T420 and the R740, a day apart, and agreed exactly — so
-this is real drift, not a counting artefact.
+`CLAUDE.md`'s table has been re-measured three times (2026-08-18, 2026-09-22,
+2026-10-14), and **every time some rows had drifted** since the last: in the
+first gap `bernese-workflow` went 198 → 229 and `pogf-geodetic-suite` 124 → 144,
+measured independently on the T420 and the R740 and agreeing exactly; in the
+last, `bernese-workflow` 229 → 250 and field-ops 102 + 253 → 131 + 273. The
+table states its own measurement date and commit, and the commands that
+reproduce it.
 
-**Do not cite those numbers at all.** "Re-measure before citing" understates it;
-the recorded values are not stale-ish, they are wrong. What is settled is the *shape*: `bernese-workflow` is **~60% complete,
-not ~10%**, and that misreport stood for months.
+**Quote a count only with that date, or re-measure first.** The counts are
+correct for the commit named and wrong soon after. What is settled is the
+*shape*: `bernese-workflow` is **~60% complete, not ~10%**, and that misreport
+stood for months.
 
 ---
 
@@ -264,7 +267,7 @@ a header position good to ~100 m cannot distinguish a mark from another mark
 | **Decimal year is `year + DOY/365.25`** — DOY 1 is `year + 0.0027`, not `year.0000`. Do not "correct" it to `(DOY-1)/365.25` | the `offsets` catalog, every published PLOT file and every published velocity are written in it, and staff compute catalog entries by hand this way. The absolute epoch has no scientific meaning; agreement with the catalog does. Settled 2026-08-25, pinned by tests in `test_crd_pipeline.py` |
 | **Do not partition the PH network into clusters yet** | GSI partitioned at ~1,240 stations; we have ~107. Partitioning is a scaling remedy whose cost is paid at the combination step — V3's non-unique troposphere is what that cost looks like |
 | **Keep the multi-station minimum-constraint datum**; do not adopt GEONET's single fixed station | its failure mode is *global* — one station's unmodelled motion reached all ~1,240 GEONET stations — and it needs a daily wide-area solution to be safe |
-| **Never `--delete-branch` a PR that another open PR is stacked on** | GitHub **auto-closes** the dependent PR when its base branch disappears, and a closed PR can be neither reopened nor retargeted until the branch exists again. Merge the base without `--delete-branch`, retarget the child to `main`, merge it, then delete. Learned 2026-08-26: `merge_pr.sh 144 --merge --delete-branch` closed #146 |
+| **Never `--delete-branch` a PR that another open PR is stacked on** | GitHub **auto-closes** the dependent PR when its base branch disappears, and a closed PR can be neither reopened nor retargeted until the branch exists again. Retarget the child to `main` first (`scripts/gh_retarget.sh <child> main`), or merge the base without `--delete-branch`. Learned 2026-08-26: `merge_pr.sh 144 --merge --delete-branch` closed #146. **Repeated 2026-10-14**: merging #266 closed #273. Recovery: push the base's tip back to its branch, `gh pr reopen`, retarget, verify `baseRefName`, delete the branch again |
 | **Station proposals are reconciled by group-chat consensus on the code, promoted by whoever is at a laptop** | Answered by Alfie 2026-08-26, closing open question 2 of `field_ops_station_creation_design.md`. The hard half — agreeing the canonical code — happens socially and same-day, so collisions surface in hours rather than in a backlog. Promotion is the bookkeeping that follows, not the decision |
 | **`src` is a namespace package spanning `src/db/` and `services/vadase-rt-monitor/src/`; never add an `__init__.py` to either** | a regular package wins the path scan outright and hides the other portion, so the marker file made `src.db` unimportable whenever vadase was also on the path. It was also mapped to a top-level `__init__.py` at the wheel root. Removing it, plus `--import-mode=importlib` and explicit `testpaths`, is what makes a repo-root `uv run pytest` collect all six suites: **785 passed, 3 skipped**, where it previously aborted with 23 collection errors. Fixed 2026-09-03 |
 
@@ -379,7 +382,7 @@ Do not open these as findings.
   | `ruff ok (no Python changes)` | the commit changed **only** ruff's config; ruff never ran, and a malformed table would have read the same | 2026-09-25 (#253) | fixed in #254 |
   | `845 passed, 1 skipped` | cron's `PATH` lacked `~/bin`, so teqc was absent and the RINEX validator skipped on **every** unattended run | 2026-09-25 | crontab fixed 09:09; #254's preflight now fails a run that lacks it |
   | `changed_files` → nothing changed | a short SHA compared against `merge-base`'s full one made the diff a commit against itself | 2026-09-25 | fixed in #254 |
-  | `/health` → 200, deploy proceeds | a cold database is unreachable, which reads `unknown`, so the schema was never checked | 2026-09-25 09:34:56, in production | open; consecutive-unknowns fix planned |
+  | `/health` → 200, deploy proceeds | a cold database is unreachable, which reads `unknown`, so the schema was never checked | 2026-09-25 09:34:56, in production | fixed in #256: a process that has never completed a check answers 503 `unverified` until one succeeds (`schema_check.current_status`) |
 
   **The rule: never let an absence be the pass condition.** "No error", "no
   findings", "no changed files" and "nothing skipped" are all satisfied by a
@@ -542,15 +545,17 @@ Do not open these as findings.
   any day whose `FIN_*.NQ0` exists, so the cost is **one session**: about two
   hours for PAGENET, minutes for LUZON.
 
-  **That resume is a property of `scripts/`, not of the system.**
-  `services/bernese-workflow` exposes only per-session `run()` /
-  `run_continuous()` — there is no month driver and no skip-if-`FIN`-exists
-  anywhere in the package. **The service has no resume of its own: the cost of a
-  kill is set by whatever drives it, and today nothing does, so it is whatever
-  you re-invoke by hand.** The "just re-run it" reasoning above holds only under
-  a driver that skips banked days. Since moving production onto the service is
-  the standing direction, check which path you are on — and which driver, if
-  any — before pricing a restart.
+  **Resume is a property of the driver, not of the system.** Until #268
+  (merged 2026-10-14) `services/bernese-workflow` exposed only per-session
+  `run()` / `run_continuous()`, so under the service the cost of a kill was
+  whatever you re-invoked by hand. It now has `month_driver.run_days`, which
+  skips a day only when its `FIN_*.NQ0` is intact **and** carries a `.done`
+  marker the driver itself wrote, and stops after two consecutive failed days.
+  **Days banked by `scripts/` carry no marker and are re-run** under it, and it
+  runs one session at a time (no `REPR_MODE`/`MAXSESS`). So check which path
+  you are on — and which driver — before pricing a restart. Since #271 a
+  service-side timeout kills the BPE's whole process group, so a timed-out
+  session no longer leaves the server and its jobs running unsupervised.
 
   **Which means the advice inverts for short sessions, and that is not a
   quibble.** Waiting 45 minutes to be sure is obviously right when the session
@@ -579,7 +584,10 @@ Old documents and older memory still assert these. They are wrong.
 | `vel_line_v8.m` "remains to port" (`roadmap.md` Deliverable 2.4) | **done and verified** |
 | gfzrnx is "not wired into any module" | **wired**, on two triggers |
 | VADASE has a one-way integration latch bug | **fixed, then removed.** The `ReceiverMode` state machine moves both ways |
-| `automation_stages.md` Stage 3 | the file has **two `## Stage 3` sections** (lines 206 and 393), overlapping and non-identical. One is stale |
+| `automation_stages.md` Stage 3 | **merged into one section 2026-10-14.** It had two `## Stage 3` sections, overlapping and non-identical; the newer one's "Should we go further?" was a paste of Stage 2's. Its next-steps list now carries per-item status checked against the code |
+| `SETTLED.md` §6 until 2026-10-14: "`disloc3d` has no source in-tree" (open) | **no longer blocking.** `disloc3d.mexw64` still has no source, but `modeling/disloc3d.py` reimplements its calling convention on the Okada DC3D kernel (#153, 2026-08-26), checked against the independent `disloc` port to 1.5e-16 at the surface |
+| `SETTLED.md` §4 until 2026-10-14: the service has "no month driver and no skip-if-`FIN`-exists anywhere in the package" | **true until #268** (merged 2026-10-14), which added `month_driver.run_days`. See the slow-vs-hung entry in §4 |
+| `CLAUDE.md` maturity table at 229 (`bernese-workflow`) and 102 + 253 (field-ops) | **250 and 131 + 273** on `6f4ae62`, 2026-10-14 |
 | research brief: Nakagawa et al. (2009) is "in Japanese and **not reachable**" | **reachable** — it needed `pdftotext`, not a fetch. "Not reachable" meant "not tried hard enough" |
 | `CLAUDE.md`: repo-root `src/` is "`src/db/` alone, **four files**" (twice) | **two** tracked source files — `__init__.py` and `models.py`. The four counts `__pycache__/*.pyc`, which is not in the repository. Verified 2026-08-25 |
 | this file's own §6, until 2026-09-21: our BSW install has "none of its 7 published patches applied" | **applied and verified inert on 2026-09-02** — see §2. The §6 bullet was written 2026-08-29, three days before the patching, and outlived it. Re-verified on disk 2026-09-21: `IONOSP2.f90` carries IGRF14, `IGRF14SYN.f` is present, 12 `.pre-patch` copies remain in `SOURCE`, and all 88 executables in `SOURCE/PGM/EXE_GNU` are dated 2026-09-02 |
@@ -589,7 +597,8 @@ Old documents and older memory still assert these. They are wrong.
 ## 6. Still open — this list is not a gag
 
 A settled-list that suppresses live questions is worse than none. These are
-genuinely unresolved as of 2026-09-24 and *should* be worked on:
+genuinely unresolved as of 2026-09-24, re-checked 2026-10-14, and *should* be
+worked on:
 
 - **GitHub Actions is ENABLED and still runs nothing: the account is
   billing-locked.** Enabled 2026-09-24 (it had been disabled repo-wide since
@@ -620,6 +629,15 @@ genuinely unresolved as of 2026-09-24 and *should* be worked on:
   is Alfie's, and nothing in the repo can do it. Decide alongside
   `render.yaml`'s `autoDeployTrigger: commit`, which deploys `main` regardless.
 
+  **Re-checked 2026-10-14: still locked** (run `38556330712`, created that
+  day, executed 0 steps). **Mitigated, not fixed, since #251:**
+  `scripts/local_ci.py` runs the whole suite and the field-ops frontend on gps3
+  from cron and posts `local-ci/gps3` as a commit status, and
+  `scripts/merge_pr.sh` refuses a merge without that status at `success`. So a
+  PR's tests are no longer only the opening machine's claim. Two limits: it
+  covers what gps3 can run, and it reports nothing if its cron stops — check
+  `scripts/local_ci.py status`, which exits 1 when the heartbeat is stale.
+
 - **No production month has run through `services/bernese-workflow`.** Until one
   is compared byte-for-byte against `scripts/` output, its 229 tests are
   evidence about the service, not about the science.
@@ -629,11 +647,11 @@ genuinely unresolved as of 2026-09-24 and *should* be worked on:
 - **The field-ops server holds zero logsheets** while a handset holds three
   marked `synced`. Cheapest check: is the deployment still pointed at the same
   Neon DB as 2026-08-20, when the password was rotated?
-- **GitHub Actions is disabled at repo level**, so `tests.yml` has never run.
 - **The stage-1 `.exe`s are unverified** as builds of the Python we hold.
-- **`disloc3d` has no source in-tree**; `disloc.c` does. (PR #139, finding 1)
 - **Which of three inversion methods** — grid search, bootstrap, MCMC — is the
-  one to port. (PR #139, finding 5)
+  one to port. (PR #139, finding 5.) A recommendation exists,
+  `inversion_method_decision.md`, marked *awaiting sign-off*: the choice is
+  PHIVOLCS'. The grid search is already ported (`modeling/inversion.py`).
 - **The network size at which cluster partitioning becomes necessary.** GSI
   partitioned at ~1,240 and never states a threshold. Until it is known, "~107
   is well below 1,240" is an argument from distance, not from a limit. Lead:

@@ -19,9 +19,20 @@ movefaults_clean/
 ├── tools/
 │   ├── drive-archaeologist/     # CLI for excavating legacy GNSS data
 │   └── velocity-reviewer/       # Web UI for interactive time series outlier review
-├── analysis/                    # Legacy research scripts (to be ported)
-└── docs/                        # Project roadmap, tech specs, and ADRs
+├── scripts/                     # The production path today: staging, PCF derivation, BPE drivers, QC
+├── analysis/                    # Legacy research scripts (being ported) + epb_discriminator research
+├── config/bernese/              # Captured Bernese panels and PCFs, ocean-loading requests
+└── docs/                        # Roadmap, runbooks, decision records; start with docs/SETTLED.md
 ```
+
+### What actually runs in production
+
+Bernese processing in production runs through **`scripts/`** (shell and Perl
+drivers around BSW 5.4 on the gps3 server), not through `services/bernese-workflow`.
+The service invokes BSW for real and is tested, but no production month has
+run through it yet; moving production onto it is the current direction. Nothing
+writes solutions into the database yet, and the ingestion pipeline is not in
+the production loop. `CLAUDE.md` ("How components connect") has the detail.
 
 ## 🛠️ Technical Implementation Details
 
@@ -38,27 +49,31 @@ movefaults_clean/
   1. **Standardization:** Handles multiple compression formats (`.gz`, `.zip`, `.Z`) and Hatanaka decompression (`.crx`, `.??d` → `.rnx`, `.??o`) using `crx2rnx`.
   2. **Validation:** Multi-stage check including a fast header scan (RINEX version detection) and deep quality control via `teqc`.
   3. **Metadata Extraction:** Parses fixed-width RINEX headers to extract station codes, sampling intervals, receiver/antenna types, and observation windows.
-  4. **Persistence:** Idempotent loading into PostgreSQL with MD5-based deduplication.
+  4. **Persistence:** Idempotent loading into PostgreSQL with SHA-256-based deduplication.
+- **Status:** about 30%; not in the production loop.
 
 ### 📡 VADASE Real-Time Monitor (`services/vadase-rt-monitor`)
 - **Architecture:** Hexagonal (Ports & Adapters) for high testability and source/output flexibility.
 - **Core Logic:**
   - Consumes NMEA 0183 streams (via TCP or File).
   - Parsers for `$GNLVM` (Velocity) and `$GNLDM` (Displacement) sentences.
-  - **Smart Integration:** A "Leaky Integrator" (High-pass filter) that compensates for "Velocity-as-Displacement" artifacts found in some receiver firmwares.
+  - **Receiver mode:** A `ReceiverMode` state machine decides, in both directions, whether to trust the receiver's own displacement or integrate velocity itself, because quiet-time receivers echo velocity in the displacement field.
+  - **Leaky integrator:** `disp = disp * decay_factor + vel * dt`, a high-pass filter against drift. `decay_factor` defaults to 1.0 (no leak), so the leak is opt-in per station.
   - **Event Detection:** Real-time thresholding on horizontal velocity magnitude (mm/s) to trigger seismic event alerts.
 
 ### 🗺️ Digital Field Operations (`services/field-ops`)
 - **Stack:** FastAPI (Backend), React/Vite (Frontend PWA).
 - **Offline-First:** Uses **IndexedDB** for local storage and **Service Workers** for background synchronization.
 - **Idempotency:** Client-side UUID generation (`client_uuid`) ensures that logsheet submissions are idempotent even during flaky network conditions.
-- **Equipment Tracking:** QR-code based inventory system to link physical hardware to geodetic site visits.
+- **Equipment Tracking:** equipment records keyed by QR code, with a lookup API. The PWA has no QR scanner yet.
+- **Deploy safety:** `/health` answers 503 when the database schema is behind the deployed migrations, so the host refuses the deploy instead of serving errors.
 
 ### 📈 Bernese Workflow Orchestrator (`services/bernese-workflow`)
 - **Target:** Bernese GNSS Software v5.4 (Linux/Windows).
 - **Orchestration:** Python wrapper for the **Bernese Processing Engine (BPE)**.
 - **Templating:** Uses **Jinja2** to dynamically generate `.INP` (Input) and `.PCF` (Process Control) files based on PHIVOLCS-specific processing strategies.
-- **Automation:** Interfaces with `startBPE.pm` for non-interactive execution of multi-step processing campaigns.
+- **Automation:** Interfaces with `startBPE.pm` for non-interactive execution of multi-step processing campaigns; `month_driver.run_days` runs a range of days with day-level resume.
+- **Status:** about 60%. Not yet the path production runs take (see above).
 
 ### 🔍 Velocity Reviewer (`tools/velocity-reviewer`)
 - **Stack:** FastAPI, Uvicorn, Plotly.
@@ -78,14 +93,13 @@ movefaults_clean/
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/alfiepelicano/move-faults-monorepo.git
-   cd move-faults-monorepo
+   git clone https://github.com/alfieprojectsdev/movefaults.git
+   cd movefaults
    ```
 
 2. **Sync dependencies:**
-   Using `uv` (fastest):
    ```bash
-   uv sync
+   uv sync --all-extras     # every service's dependencies; plain `uv sync` is not enough to run all tests
    ```
 
 3. **Environment Setup:**
@@ -96,17 +110,23 @@ movefaults_clean/
 
 4. **Start Infrastructure:**
    ```bash
-   docker-compose up -d
+   docker compose up -d     # TimescaleDB on 5433, Redis on 6380
+   ```
+
+5. **Run the tests:**
+   ```bash
+   uv run pytest                                   # eight Python suites
+   cd services/field-ops/frontend && npm test      # field-ops frontend (vitest), not collected by pytest
    ```
 
 ## 🗺️ Roadmap
 
 The project is currently in a phased implementation:
 
-*   **Tier 1 (Foundational):** Geodetic Database and Documentation Portal. ✅
-*   **Tier 2 (Ingestion):** Field Ops, RINEX QC, and IGS Downloader. 🔄
-*   **Tier 3 (Processing):** Automated Bernese Workflow. 🔄 (Research Complete)
-*   **Tier 4 (Analysis):** Post-Processing Suite and Public Data Portal. 🔄
+*   **Tier 1 (Foundational):** Geodetic Database ✅ (nothing writes solutions into it yet); Documentation Portal ⏳ (not started).
+*   **Tier 2 (Ingestion):** Field Ops ✅ (deployed); RINEX QC ✅ in practice (teqc first, gfzrnx fallback); IGS Downloader 🔄; Ingestion Pipeline 🔄 (about 30%); drive-archaeologist 🔄 (about 60%).
+*   **Tier 3 (Processing):** Bernese Workflow 🔄 (the service is built and tested; production still runs through `scripts/`).
+*   **Tier 4 (Analysis):** Post-Processing Suite 🔄 (velocities verified against PHIVOLCS' MATLAB output; bootstrapping not ported); Public Data Portal and auto-docs ⏳ (not started).
 
 For a detailed breakdown, see [roadmap.md](./docs/project_documentation/roadmap.md).
 

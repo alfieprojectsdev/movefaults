@@ -183,8 +183,9 @@ the script port is downstream of it.**
 ### What is not done
 
 - **Production still runs through `scripts/`, not `services/bernese-workflow`.**
-  The service has 198 passing tests and genuinely invokes BSW — but no
-  month-long run has gone through it. Migration is the standing direction, not
+  The service has 250 passing tests (2026-10-14) and genuinely invokes BSW,
+  and since #268 it has a day-level resume driver (`month_driver.run_days`) —
+  but no month-long run has gone through it. Migration is the standing direction, not
   a completed one. This is the single most misreported fact in the project's
   history: the service sat listed at "~10% complete" for months while carrying
   those tests.
@@ -198,7 +199,7 @@ the script port is downstream of it.**
 **Yes, and the next step is specific: run one production month through
 `services/bernese-workflow` instead of `scripts/`.** Not a rewrite — a single
 run, compared byte-for-byte against the `scripts/` output using the tool we
-already have. Until that comparison exists, the service's 198 tests are
+already have. Until that comparison exists, the service's tests are
 evidence about the service, not about the science.
 
 ---
@@ -243,9 +244,10 @@ what it was actually doing.**
 
 ### Not done
 
-- **The 01–04 plumbing is not ported.** Reading CRDs, filtering the network,
-  writing per-site files. Individually trivial; collectively the reason a human
-  is still in the loop.
+- **The 01–04 plumbing is ported but not in production.** `crd-to-plots`
+  (#146) reads CRDs, filters the network and writes per-site PLOT files;
+  production still runs `RUNX_v2.py`. Until it switches, this is the reason a
+  human is still in the loop.
 - **The reference-station choice is an interactive prompt**, downstream of BSW
   entirely — not a BSW panel setting. This is what makes S01R→PIMO a
   one-parameter change to a script rather than a reprocessing decision.
@@ -367,7 +369,10 @@ measurement, and **ALBU shows the answer is not one-size-fits-all**: across the
 about +9 to +2 mm/yr. The site did not step and resume — the rate changed.
 
 So the model needs both a step and a rate change, fitted and *tested*, not
-assumed in either direction. That is `rate_changes=True` in PR #86.
+assumed in either direction: one rate across the whole record with a step per
+event, `d(t) = a + b·(t−t₀) + Σ cᵢ·H(t−tᵢ)`, plus a slope-change term where the
+data support one. "Epoch 0" never has to be declared. That is
+`estimate_velocity_joint` with `rate_changes=True`, PR #86.
 
 **But a changed slope after a large earthquake is usually post-seismic
 deformation** — afterslip and viscoelastic relaxation — which decays over
@@ -382,131 +387,22 @@ worth making before the 2025 run, not after.
 
 ### Should we go further?
 
-**Yes, and the next step is specific: run one production month through
-`services/bernese-workflow` instead of `scripts/`.** Not a rewrite — a single
-run, compared byte-for-byte against the `scripts/` output using the tool we
-already have. Until that comparison exists, the service's 198 tests are
-evidence about the service, not about the science.
+**Yes — this was the best remaining value per unit of effort in the project, and
+most of the list below has since been done.** Status re-checked against the
+code on 2026-10-14:
 
----
+| item | status |
+|---|---|
+| Port the 01–04 plumbing | ✅ **Done** — `crd-to-plots` (#146, `timeseries/cli.py` + `plots.py`). Production still runs `RUNX_v2.py`; the port has not replaced it |
+| Suppress velocities whose final segment is under ~1 year | ✅ **Done** — `MIN_SPAN_YEARS = 1.0` in `timeseries/gmt.py`; `make_velocity_field.py` withholds such sites as commented rows with the reason |
+| Sort and validate the `offsets` catalog on read | ✅ **Done** — `timeseries/offsets_catalog.py` (#111) |
+| Snapshot the *continuous* offsets catalog | ⏳ **Open.** `scripts/snapshot_phivolcs_scripts.py` reads only `TIME SERIES (BERN52)\Campaign\FINAL PLOT FILES`; ALBU, a continuous site, is in no file we hold |
+| Visualisation half of Cass's request | 🔄 **Partial** — `velocity-reviewer` draws catalogued offsets as event lines, and `analysis.py` returns the rate in force over each interval (the numbers a before/after view needs). Annotated step amplitudes and a before/after plot per site are not built |
+| Outlier detection on residuals from the fit | ⏳ **Open** — `_detect_outliers_iqr` still runs on raw ENU per segment |
+| Offset *detection* (unknown steps) | ⏳ **Open** — needs a population statistic (CUSUM, moving-window mean, or FODITS), not IQR |
 
-## Stage 3 — coordinates → velocities (§6)
-
-**Status: inverted, and this is the interesting one.** The part everyone
-assumed was hardest is finished and verified; the trivial plumbing around it is
-untouched.
-
-### The workflow as it stands
-
-```
-FNyyddd0.CRD  (filtered final coordinates)
-   -> 00_CRD_PIVS.bat        network filter
-   -> 01_GETXYZ.py           extract XYZ
-   -> 02_TRANSFORM.py        frame transform
-   -> 03_GETENU.py           XYZ -> ENU, relative to a reference station
-   -> 04_PLOTFILES.py        per-site series files
-                             (driven by RUN.py / RUNX_v*.py)
-   -> PLOTS/  +  the hand-maintained `offsets` catalog
-   -> vel_line_v8_newvelduetooffset_v4.m       MATLAB
-   -> per-site JPGs, an `outliers` file, and Velocity_rover(regress)_10
-```
-
-### Done
-
-**The MATLAB dependency is removed.**
-`pogf_geodetic_suite.timeseries.analysis` reproduces
-`vel_line_v8_newvelduetooffset_v4.m` — 161 of 165 velocity components agree to
-better than 5e-6 mm/yr with `exclude_outliers=False`, verified against
-PHIVOLCS' own published output. `crd_pipeline.py` covers CRD → ENU.
-
-That closes a licensed proprietary dependency sitting in the **final step of
-the scientific output**, which was a genuine succession risk.
-
-It also surfaced things nobody was looking for — see
-[`velocity_outlier_policy_delta.md`](velocity_outlier_policy_delta.md):
-six sites publishing velocities fitted to *days* of data, and a catalog edit
-that silently corrupted two more. **Porting a calculation is how you find out
-what it was actually doing.**
-
-### Not done
-
-- **The 01–04 plumbing is not ported.** Reading CRDs, filtering the network,
-  writing per-site files. Individually trivial; collectively the reason a human
-  is still in the loop.
-- **The reference-station choice is an interactive prompt**, downstream of BSW
-  entirely — not a BSW panel setting. This is what makes S01R→PIMO a
-  one-parameter change to a script rather than a reprocessing decision.
-- **Outlier flagging is still browser-based point selection** by an analyst.
-  The automatic IQR detection exists but the MATLAB never fed it to the fit,
-  which is *why* the manual step exists.
-- **`offsets` is hand-maintained**, unsorted, and has already caused real
-  damage. See the delta document.
-- **20 versions of `vel_line*.m` are snapshotted.** Only `v8_..._v4` is in
-  production. That sprawl is the argument for version control, made by the
-  filesystem.
-
-### What PHIVOLCS asked for (2026-08-13)
-
-Cass — who runs the manual processing side and set the de-facto standards this
-pipeline is encoding — was asked what she wanted automated. The answer was
-specific and it was **not** the file plumbing:
-
-> Delegating the **eyeballing of the gap/step amount** used to reconnect a
-> series across an earthquake — both algorithmically and in the plots:
-> automatic highlighting of when the event happened, and a before/after view
-> of the series for each site.
-
-This is a better-posed request than the question that prompted it. The original
-framing was *"do we continue the pre-event slope, or establish a new epoch 0 at
-the event, or both explicitly?"* — and the answer falls out of estimating the
-step properly rather than being a policy choice:
-
-**Fit one rate across the whole record with a step parameter per event**
-(`d(t) = a + b·(t−t₀) + Σ cᵢ·H(t−tᵢ)`). The slope continues, the jump is a
-separate fitted parameter with a formal uncertainty, and "epoch 0" never has to
-be declared. Where an event genuinely *did* change the rate, add a slope-change
-term and let the data say so — that converts the choice from an assumption into
-a testable claim. Implemented as `estimate_velocity_joint` (PR #86).
-
-**On IQR.** Cass adopted IQR over the years as a partial attempt at automating
-gap identification, and it earns its place — it is a sound *outlier* detector
-and it is why the flagged-epoch list exists at all. But it is worth being
-precise about what it cannot do: **a step is not an outlier.** An outlier is a
-point far from its neighbours; a step relocates every subsequent point, so the
-post-event population is perfectly self-consistent and IQR has no reason to
-flag any of it. IQR bounds the scatter; it cannot see a shift in the mean.
-Detecting *unknown* steps needs a different statistic — a moving-window mean
-test, CUSUM, or a model-selection approach like FODITS. Estimating *known*
-steps, which is what the catalog gives us, is the joint fit above.
-
-### Should we go further?
-
-**Yes — this is the best remaining value per unit of effort in the project.**
-
-The 01–04 port is small, has no external binary dependency, has no Windows
-dependency, and the hardest piece downstream of it is already verified against
-production. Nothing blocks it.
-
-Two things to decide before starting, both raised by the delta analysis:
-
-1. **Suppress velocities whose final segment is under ~1 year.** Six Luzon
-   sites currently publish rates fitted to days of scatter; TARL's published
-   East velocity is 2008 mm/yr. This should be a pipeline rule, not analyst
-   discretion.
-2. **Sort and validate the `offsets` catalog on read.** Out-of-order records
-   silently corrupt the MATLAB's fits. Our implementation sorts and is immune,
-   but anyone still running the MATLAB is exposed today.
-3. **Snapshot the *continuous* offsets catalog.** We rescued only the campaign
-   one. `scripts/snapshot_phivolcs_scripts.py` reads
-   `TIME SERIES (BERN52)\Campaign\FINAL PLOT FILES` and nothing else — ALBU is
-   a continuous site and appears in no file we hold. The succession argument
-   that justified rescuing the campaign catalog applies unchanged to the other
-   half, and we currently believe that risk is closed when it is not.
-4. **Build the visualisation half of the request**: event markers on the plot,
-   annotated step amplitudes, and a before/after view per site. The numbers now
-   exist to drive it; the plotting does not.
-5. **Work Cass's list in the order 4 → 1 → 2 → 3** — smallest and
-   unblocked first, largest and already-designed last.
+Cass's own list is worked in the order 4 → 1 → 2 → 3: item 4 is done, item 1
+is half done (the residual-based detection above), items 2 and 3 are open.
 
 **Whether to evaluate FODITS is a genuine open question, not a foregone one.**
 It would handle seasonal terms, discontinuity detection and outliers natively,
@@ -515,6 +411,12 @@ verified against production output and FODITS' results would not be, so
 adopting it means re-establishing trust from zero on numbers that feed public
 hazard products. Recommendation: evaluate it *alongside* the ported pipeline on
 the same data, and treat disagreement as information about both.
+
+> **This section was duplicated until 2026-10-14.** The file carried two
+> `## Stage 3` sections: a newer one (Cass's four-item list, the GMT output)
+> whose "Should we go further?" had been pasted from Stage 2 by mistake, and an
+> older one with the real next steps. They are merged here; nothing that was
+> only in the older copy was dropped except text the newer copy already said.
 
 ---
 

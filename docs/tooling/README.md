@@ -6,10 +6,20 @@ output quirks that have already cost debugging time.**
 
 | Tool | Path on gps3 | Version | Reads RINEX 3? |
 |---|---|---|---|
-| teqc | `/home/gps3/teqc/teqc` | 2019Feb25 (final) | **No — refuses on line 1** |
-| gfzrnx | `/home/gps3/gfzrnx/gfzrnx_2.2.0_lx64` | 2.2.0 | Yes |
+| teqc | `~/bin/teqc`, and the original install `/home/gps3/teqc/teqc` | 2019Feb25 (final) | **No — refuses on line 1** |
+| gfzrnx | `~/bin/gfzrnx`, a byte-identical copy of `/home/gps3/gfzrnx/gfzrnx_2.2.0_lx64` | 2.2.0 | Yes |
+| runpkr00 | `~/bin/runpkr00` | — | n/a (Trimble raw unpacker) |
 
-Neither is on `PATH`. `RinexQC` takes explicit paths, or reads `GFZRNX_BIN`.
+The `~/bin` copies date from 2026-09-02. `~/bin` is on `PATH` in login shells
+(Ubuntu's `~/.profile` adds it) but **not under cron**, so a crontab must set
+`PATH` itself; the local CI crontab does (see `scripts/local_ci.py`). The two
+teqc files are **different builds** (checked 2026-10-14: different checksums;
+`file` reports the `~/bin` one as built for GNU/Linux 2.6.18, the original for
+2.4.0). Both report version 2019Feb25, and the section below records that all
+four Linux builds produce byte-identical QC output.
+
+`RinexQC` takes explicit paths, or reads `GFZRNX_BIN`; without either it runs
+whatever `gfzrnx` is on `PATH`.
 
 ## Choosing the teqc build
 
