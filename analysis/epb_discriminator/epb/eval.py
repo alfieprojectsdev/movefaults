@@ -35,15 +35,29 @@ def reject_epoch(s, alpha: float) -> np.ndarray:
     return q > stats.chi2.ppf(1 - alpha, dof)
 
 
-def reject_window(s, window_s: float, alpha: float) -> np.ndarray:
-    """Trailing-window test. The first window-1 epochs cannot be tested: False."""
+def window_stat(s, window_s: float):
+    """Trailing-window sums of q, aligned so out[k] covers epochs k-w+1..k.
+
+    Returns (sums (T,), dof*w); the first w-1 entries are NaN (untestable).
+    """
     q, dof = _q(s)
     w = max(1, int(round(window_s * s.truth["config"]["rate_hz"])))
     csum = np.concatenate([[0.0], np.cumsum(q)])
-    out = np.zeros(len(q), dtype=bool)
-    sums = csum[w:] - csum[:-w]
-    out[w - 1 :] = sums > stats.chi2.ppf(1 - alpha, dof * w)
-    return out
+    out = np.full(len(q), np.nan)
+    out[w - 1 :] = csum[w:] - csum[:-w]
+    return out, dof * w
+
+
+def reject_window(s, window_s: float, alpha: float) -> np.ndarray:
+    """Trailing-window test. The first window-1 epochs cannot be tested: False."""
+    sums, df = window_stat(s, window_s)
+    return np.nan_to_num(sums, nan=-np.inf) > stats.chi2.ppf(1 - alpha, df)
+
+
+def reject_window_at(s, window_s: float, threshold: float) -> np.ndarray:
+    """The window test against a given threshold, e.g. one calibrated on quiet data."""
+    sums, _ = window_stat(s, window_s)
+    return np.nan_to_num(sums, nan=-np.inf) > threshold
 
 
 def station_alarm(s, threshold_mm_s: float = 15.0) -> np.ndarray:
@@ -56,13 +70,18 @@ def _core(s, cfg: Config, onset_key: str, dur: float) -> np.ndarray:
     return (s.t >= on + 0.1 * dur) & (s.t <= on + 0.9 * dur)
 
 
-def power_grid(amps, n_affected, seeds, *, alpha=0.001, window_s=30.0, base=Config()):
+def power_grid(
+    amps, n_affected, seeds, *, alpha=0.001, window_s=30.0, base=Config(), window_threshold=None
+):
     """Detection rate inside the bubble's core, per (amp, n_affected).
 
     Returns dict of arrays shaped (len(amps), len(n_affected)) for 'epoch',
     'window' and 'station' (the share of bubble epochs that trip the current
     detector, i.e. false quake alarms), plus 'window_given_station': of the
     epochs that trip the detector, the share the window test flags.
+
+    window_threshold, when given, replaces the nominal chi2 threshold of the
+    window test (e.g. one calibrated on quiet data); 'epoch' stays nominal.
     """
     keys = ("epoch", "window", "station", "window_given_station")
     out = {k: np.full((len(amps), len(n_affected)), np.nan) for k in keys}
@@ -75,7 +94,11 @@ def power_grid(amps, n_affected, seeds, *, alpha=0.001, window_s=30.0, base=Conf
                 core = _core(s, cfg, "epb_onset_s", cfg.epb_dur_s)
                 re, rw, st = (
                     reject_epoch(s, alpha)[core],
-                    reject_window(s, window_s, alpha)[core],
+                    (
+                        reject_window(s, window_s, alpha)
+                        if window_threshold is None
+                        else reject_window_at(s, window_s, window_threshold)
+                    )[core],
                     station_alarm(s)[core],
                 )
                 acc["epoch"].append(re.mean())
