@@ -1,6 +1,12 @@
 # Creating a station from inside the field app — design for review
 
-**Status: DRAFT 2026-08-23 — design for review. Nothing is built.**
+**Status: BUILT** (re-checked 2026-10-14). Drafted 2026-08-23 as a design for
+review. Since then: the API and table (`fo007` station proposals, #155), the
+review/promote/reject endpoints (#227), `fo008` collisions, the field form
+(`NewSiteForm.tsx`, #226, reached from "The site is not listed — add it" in the
+station picker) and the office review screen (`ReviewSitesView.tsx`, offered to
+`admin` and `data_processor`). Where this design and the code differ, the code
+is current; open question 2 was answered as recorded in `SETTLED.md` §3.
 **Source:** [issue #118](https://github.com/alfieprojectsdev/movefaults/issues/118),
 reported from the field-ops group.
 **Ticket:** FO-001 in [`ticket_backlog.md`](ticket_backlog.md).
