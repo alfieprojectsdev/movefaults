@@ -42,9 +42,11 @@ Perl drivers for now.
 
 from __future__ import annotations
 
+import calendar
 import gzip
 import logging
 import time
+import zlib
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,6 +71,8 @@ def session_for(doy: int, session_char: str = "0") -> str:
     """Bernese session name: three-digit day of year plus the session character."""
     if not 1 <= doy <= 366:
         raise ValueError(f"day of year out of range: {doy}")
+    if len(session_char) != 1:
+        raise ValueError(f"session character must be one character: {session_char!r}")
     return f"{doy:03d}{session_char}"
 
 
@@ -84,7 +88,8 @@ def _fin_path(sol_dir: Path, year: int, doy: int, session_char: str = "0") -> Pa
                 with gzip.open(p, "rb") as f:
                     while f.read(8192):
                         pass
-            except (gzip.BadGzipFile, EOFError, OSError):
+            # zlib.error (a corrupt deflate stream) is not an OSError.
+            except (EOFError, OSError, zlib.error):
                 continue
         return p
     return None
@@ -104,8 +109,23 @@ def fin_banked(sol_dir: Path, year: int, doy: int, session_char: str = "0") -> b
     fsync leaves a zero-byte FIN whose marker still exists. Re-checking the FIN
     here catches that; trusting the marker alone would not.
     """
-    fin = _fin_path(sol_dir, year, doy, session_char)
-    return fin is not None and _done_marker(sol_dir, year, doy, session_char).exists()
+    # Marker first: it is a stat, the FIN check may decompress the whole file.
+    if not _done_marker(sol_dir, year, doy, session_char).exists():
+        return False
+    return _fin_path(sol_dir, year, doy, session_char) is not None
+
+
+def _fin_mtimes(sol_dir: Path, year: int, doy: int, session_char: str) -> dict[Path, int]:
+    """mtime_ns of every FIN candidate present now, to tell a fresh FIN from a stale one."""
+    stem = f"FIN_{year}{session_for(doy, session_char)}.NQ0"
+    out: dict[Path, int] = {}
+    for name in (stem, f"{stem}.gz"):
+        p = sol_dir / name
+        try:
+            out[p] = p.stat().st_mtime_ns
+        except FileNotFoundError:
+            pass
+    return out
 
 
 def run_days(
@@ -119,6 +139,9 @@ def run_days(
 ) -> list[DayOutcome]:
     """Run each day in ascending order, skipping banked days. See module docstring."""
     days = sorted(set(doys))
+    last = 366 if calendar.isleap(year) else 365
+    if days and days[-1] > last:
+        raise ValueError(f"day of year {days[-1]} does not exist in {year}")
     out: list[DayOutcome] = []
     consecutive = 0
     for i, doy in enumerate(days):
@@ -128,19 +151,35 @@ def run_days(
             out.append(DayOutcome(doy, session, "banked"))
             continue
 
+        before = _fin_mtimes(sol_dir, year, doy, session_char)
         t0 = time.monotonic()
-        result = backend.run(campaign, year, session)
+        try:
+            result = backend.run(campaign, year, session)
+            error = None
+        except Exception as exc:  # noqa: BLE001 -- a day's error is that day's failure
+            # The real backend raises on timeout and on RINEX header validation.
+            # Those are per-day failures, not reasons to abandon the range and
+            # its report. KeyboardInterrupt is not an Exception and still stops.
+            result = None
+            error = f"{type(exc).__name__}: {exc}"
         seconds = time.monotonic() - t0
         fin = _fin_path(sol_dir, year, doy, session_char)
-        if result.success and fin is not None:
+        # A FIN left by an earlier failed attempt is not this run's output. mtime
+        # granularity (ms) is far below a BPE day (minutes), so equality means untouched.
+        stale = fin is not None and before.get(fin) == fin.stat().st_mtime_ns
+        if result is not None and result.success and fin is not None and not stale:
             _done_marker(sol_dir, year, doy, session_char).touch()
             out.append(DayOutcome(doy, session, "ok", seconds))
             consecutive = 0
             logger.info("DOY %03d ok in %.0f s", doy, seconds)
             continue
 
-        if not result.success:
+        if result is None:
+            note = f"backend raised {error}"
+        elif not result.success:
             note = "BPE reported failure"
+        elif stale:
+            note = "BPE reported success but the FIN file predates this run"
         else:
             note = "BPE reported success but no valid FIN file"
         out.append(DayOutcome(doy, session, "failed", seconds, note))

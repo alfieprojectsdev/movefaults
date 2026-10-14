@@ -11,6 +11,7 @@ resume only skips days with both a valid FIN and the marker.
 from __future__ import annotations
 
 import gzip
+import os
 from pathlib import Path
 
 import pytest
@@ -160,6 +161,10 @@ def test_failed_run_leaving_fin_is_rerun_on_resume(tmp_path):
     assert (tmp_path / "FIN_20250010.NQ0.gz").exists()
     assert not (tmp_path / "FIN_20250010.done").exists()
 
+    # A real BPE day takes minutes; backdate the leftovers so the rerun's FINs
+    # are distinguishable from them at filesystem mtime granularity.
+    for leftover in tmp_path.glob("FIN_*.NQ0.gz"):
+        os.utime(leftover, ns=(0, 0))
     be2 = FakeBackend(tmp_path)
     out2 = run_days(be2, "LUZON", 2025, [1, 2], sol_dir=tmp_path)
     assert be2.calls == ["0010", "0020"]
@@ -188,3 +193,51 @@ def test_truncated_gz_not_banked(tmp_path):
     p.write_bytes(truncated)
     (tmp_path / "FIN_20252000.done").touch()
     assert not fin_banked(tmp_path, 2025, 200)
+
+
+def test_backend_exception_is_a_failed_day_not_an_abort(tmp_path):
+    """The real backend raises on timeout and header validation; that is one day's failure."""
+
+    class RaisesOnDay2(FakeBackend):
+        def run(self, campaign_name, year, session):
+            if session == "0020":
+                self.calls.append(session)
+                raise RuntimeError("BPE timed out")
+            return super().run(campaign_name, year, session)
+
+    be = RaisesOnDay2(tmp_path)
+    out = run_days(be, "LUZON", 2025, [1, 2, 3], sol_dir=tmp_path)
+    assert [o.status for o in out] == ["ok", "failed", "ok"]
+    assert "RuntimeError" in out[1].note
+
+
+def test_corrupt_deflate_stream_not_banked_and_does_not_raise(tmp_path):
+    good = tmp_path / "good.NQ0.gz"
+    _write_valid_gz(good, b"SINEX data here" * 50)
+    raw = bytearray(good.read_bytes())
+    for i in range(12, len(raw) - 8):
+        raw[i] ^= 0xFF
+    (tmp_path / "FIN_20252000.NQ0.gz").write_bytes(bytes(raw))
+    (tmp_path / "FIN_20252000.done").touch()
+    assert not fin_banked(tmp_path, 2025, 200)
+
+
+def test_stale_fin_from_an_earlier_attempt_is_not_banked(tmp_path):
+    """Success without a new FIN must not bank a FIN left by a previous failed attempt."""
+    _write_valid_gz(tmp_path / "FIN_20250010.NQ0.gz")
+
+    class SaysOkWritesNothing(FakeBackend):
+        def run(self, campaign_name, year, session):
+            self.calls.append(session)
+            return BPEResult(True, None, None, False, False)
+
+    out = run_days(SaysOkWritesNothing(tmp_path), "LUZON", 2025, [1], sol_dir=tmp_path)
+    assert out[0].status == "failed"
+    assert "predates" in out[0].note
+    assert not (tmp_path / "FIN_20250010.done").exists()
+
+
+def test_doy_366_rejected_in_a_non_leap_year(tmp_path):
+    with pytest.raises(ValueError):
+        run_days(FakeBackend(tmp_path), "LUZON", 2025, [365, 366], sol_dir=tmp_path)
+    assert run_days(FakeBackend(tmp_path), "LUZON", 2024, [366], sol_dir=tmp_path)[0].status == "ok"
