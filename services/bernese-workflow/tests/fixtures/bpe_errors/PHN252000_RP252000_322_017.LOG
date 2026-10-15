@@ -1,0 +1,47 @@
+Perl version: 5.038002
+Perl path   : /usr/bin/perl
+LOGFILE_HEADER
+4: "" ""
+
+>>> CPU/Real time for pgm "GPSEST": 0:00:03.296 / 0:00:03.296
+
+Call to GPSEST failed:
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      BTUN BTUN        1980 01 06 00 00 00  2099 12 31 00 00 00 TRIMBLE 5700         TRM29659.00     NONE
+      BTUN BTUN        2016 08 26 00 00 00  2017 04 17 23 59 59 TRIMBLE 5700         TRM29659.00     NONE
+
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      SPAB SPAB        1980 01 06 00 00 00  2015 10 22 23 59 59 LEICA MC500          LEIAT504        NONE
+      SPAB SPAB        2015 05 22 00 00 00  2015 10 22 23 59 59 LEICA MC500          LEIAT504        NONE
+
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      URDT URDT        1980 01 06 00 00 00  2016 05 24 23 59 59 LEICA MC500          LEIAT504        NONE
+      URDT URDT        2016 05 24 00 00 00  2099 12 31 00 00 00 LEICA GRX1200+GNSS   LEIAT504        NONE
+
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      BTUN BTUN        1980 01 06 00 00 00  2099 12 31 00 00 00 TRIMBLE 5700         TRM29659.00     NONE
+      BTUN BTUN        2016 08 26 00 00 00  2017 04 17 23 59 59 TRIMBLE 5700         TRM29659.00     NONE
+
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      SPAB SPAB        1980 01 06 00 00 00  2015 10 22 23 59 59 LEICA MC500          LEIAT504        NONE
+      SPAB SPAB        2015 05 22 00 00 00  2015 10 22 23 59 59 LEICA MC500          LEIAT504        NONE
+
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      URDT URDT        1980 01 06 00 00 00  2016 05 24 23 59 59 LEICA MC500          LEIAT504        NONE
+      URDT URDT        2016 05 24 00 00 00  2099 12 31 00 00 00 LEICA GRX1200+GNSS   LEIAT504        NONE
+
+
+ ### SR HEDINF: No observations for requested satellite system found.
+                Satellite system: SBAS    not selected anymore.
+
+
+ This version of the IGRF-13 is intended for use up to 2025.0.
+ values for 2025.635 will be computed but may be of reduced accuracy
+
+
+ *** SR GTOCNL: OCEAN LOADING CORRECTION VALUES NOT FOUND
+                RETURN CODE  :  2
+                STATION NAME : PTTN PTTN       
+                FILE NAME    : ${P}/PHN252000/STA/PHNAT.BLQ    
+
+Test: 0, 1,  @ quit

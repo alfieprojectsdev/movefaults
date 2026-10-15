@@ -1,0 +1,14 @@
+Perl version: 5.038002
+Perl path   : /usr/bin/perl
+LOGFILE_HEADER
+4: "" ""
+
+>>> CPU/Real time for pgm "ADDNEQ2": 0:00:00.147 / 0:00:00.215
+
+Call to ADDNEQ2 failed:
+
+ *** SR neqckdim: DIMENSION TOO SMALL
+                  Requested num. of parameters:         101
+                  Maximum size of the array   :         100
+
+Test: 0, 1,  @ quit

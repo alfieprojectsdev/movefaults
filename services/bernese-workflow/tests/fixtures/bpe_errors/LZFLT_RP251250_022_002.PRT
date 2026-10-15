@@ -1,0 +1,36 @@
+
+
+ PROTOCOL FILE FOR BPE SCRIPT
+ ----------------------------
+ Campaign           : /home/gps3/GPSDATA/CAMPAIGN54/LUZON
+ Session            : 1250
+ Year               : 2025
+ User name          : gps3
+ PCF name           : LUZON_DLY.PCF
+ Script name        : CCRNXO_P
+ Option directory   : R2S_GEN
+ Path to user area  : /home/gps3/GPSUSER
+ Path to work area  : /home/gps3/GPSWORK//BPE_LUZON_DLY_45449_25_1250_022_002
+ Path to executables: /home/gps3/BERN54/SOURCE/PGM/EXE_GNU
+ Process ID         : 022
+ Sub-process ID     : 002
+ PARAM1             : /home/gps3/GPSDATA/CAMPAIGN54/LUZON/BPE/MRG_20251250_B.BPE
+ PARAM9             : ##
+ CPU name           : localhost
+ Server host        : gps3
+ Remote host        : gps3  (system pid: 1866354)
+
+ Date         Time      Run time  Pgm.time  Sta Program   Message
+ ----------------------------------------------------------------------------
+ 12-AUG-2026  11:59:10  00:00:00            MSG RUNBPE.pm SCRIPT  STARTED
+ 12-AUG-2026  11:59:10  00:00:00            MSG CCRNXO_P  PROCESSING FILE: /home/gps3/GPSDATA/CAMPAIGN54/LUZON/BPE/MRG 20251250 B.BPE for session 20251250
+ 12-AUG-2026  11:59:11  00:00:01            MSG CCRNXO_P  Unknown system character P ignored!
+ 12-AUG-2026  11:59:11  00:00:01            MSG CCRNXO_P  GNSS selection: GPS
+ 12-AUG-2026  11:59:11  00:00:01            MSG CCRNXO    PROGRAM STARTED
+
+ *** SR O_CCRNXO:concatenateOrMergeRinexFiles, PG CCRNXO
+        No input files
+
+ 12-AUG-2026  11:59:11  00:00:01  00:00:00  ERR CCRNXO    ERROR IN MAIN PROGRAM
+ 12-AUG-2026  11:59:11  00:00:01            MSG RUNBPE.pm SCRIPT  ENDED
+ ----------------------------------------------------------------------------

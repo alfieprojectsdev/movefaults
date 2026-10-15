@@ -1,0 +1,16 @@
+Perl version: 5.038002
+Perl path   : /usr/bin/perl
+LOGFILE_HEADER
+4: "" ""
+
+>>> CPU/Real time for pgm "ADDNEQ2": 0:00:00.056 / 0:00:00.056
+
+Call to ADDNEQ2 failed:
+
+ *** SR OPNERR: OPEN FAILED
+                FILE NAME : ${P}/MXP230100/STA/EXAMPLE.STA
+                PGM./SUBR.: D_TXTDATA:loadFromFile
+                IOSTAT    :      2
+                FILE UNIT :   1003
+
+Test: 0, 1,  @ quit
