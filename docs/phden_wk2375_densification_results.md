@@ -176,7 +176,7 @@ place.
   and weekly stacking does not reject a bad day.
 - Three reference-file traps, all reported by Bernese as NOT FOUND:
   `SETTLED.md` §2 (BLQ after `$$ END TABLE`; ATL header must equal the `.CRD`
-  name; BLQ column alignment). `scripts/check_ref_coverage.py` (PR pending)
+  name; BLQ column alignment). `scripts/check_ref_coverage.py`
   checks for all three before a run.
 - A long run launched as a Claude Code background Bash job was killed at that
   tool's time limit, orphaning the BPE workers. Long runs are now launched with
