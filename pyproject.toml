@@ -28,6 +28,10 @@ dependencies = [
     # Same story: igs_downloader imports requests at module level and
     # declares the igs-downloader entry point. It was never declared at all.
     "requests>=2.31.0",
+    # bernese_workflow.bpe_knowledge reads config/bernese/bpe_errors.yaml. Only
+    # the vadase and field-ops extras declared it before, and bernese-workflow
+    # has no extra of its own.
+    "pyyaml>=6.0.1",
 ]
 
 [project.scripts]

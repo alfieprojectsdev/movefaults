@@ -3,7 +3,9 @@
 The fixtures in ``fixtures/bpe_errors/`` are verbatim BPE step outputs captured
 on gps3, renamed ``<campaign>_<original name>``. Each failure exists twice: the
 ``.PRT`` protocol and the ``.LOG``, which carry the same message block in
-different surroundings, so both are checked.
+different surroundings, so both are checked. Captures from LZFLT were left
+out: that campaign was copied from LUZON with its BPE directory, so its
+failure files were byte-identical copies, not further failures.
 
 The 29 August MAXPAR log was not kept. ``MXPREP_*`` reproduces it: EXAMPLE
 2023/0100's final ADDNEQ2 (option dir R2S_FIN) run on a copy of the campaign
@@ -44,11 +46,7 @@ _GTOCNL = (
 _HELMR1 = ("HELMR1", ("HELMR1", "NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE"), {})
 
 EXPECTED = {
-    **{
-        f"{camp}_RP25{doy}0_022_002": _CCRNXO
-        for camp in ("LUZON", "LZFLT")
-        for doy in ("121", "122", "123", "125")
-    },
+    **{f"LUZON_RP25{doy}0_022_002": _CCRNXO for doy in ("121", "122", "123", "125")},
     "PHD252000_RP252000_322_015": _GTATML,
     "PHD252000_RP252000_322_016": _GTATML,
     "PHN252000_RP252000_322_017": _GTOCNL,
