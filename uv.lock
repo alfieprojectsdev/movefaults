@@ -2272,6 +2272,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pygeodesy" },
     { name = "pymap3d" },
+    { name = "pyyaml" },
     { name = "requests" },
     { name = "scipy" },
 ]
@@ -2413,6 +2414,7 @@ requires-dist = [
     { name = "python-jose", extras = ["cryptography"], marker = "extra == 'field-ops'", specifier = ">=3.3.0" },
     { name = "python-multipart", marker = "extra == 'field-ops'", specifier = ">=0.0.9" },
     { name = "python-telegram-bot", marker = "extra == 'vadase-rt-monitor'", specifier = ">=20.7" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "pyyaml", marker = "extra == 'field-ops'", specifier = ">=6.0.1" },
     { name = "pyyaml", marker = "extra == 'vadase-rt-monitor'", specifier = ">=6.0.1" },
     { name = "qrcode", extras = ["pil"], marker = "extra == 'field-ops'", specifier = ">=7.4.2" },

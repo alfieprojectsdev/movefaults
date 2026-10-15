@@ -1,0 +1,228 @@
+# Known Bernese BPE errors: what each one means here, and what to do about it.
+#
+# The BPE driver scans a failed step's output (bernese_workflow.bpe_scanner),
+# takes the last *** error before the step's ERR line, and looks it up here.
+# A failure with no matching row halts the run and shows the raw message.
+# Nothing here is applied automatically: a row only tells a person what to
+# check and change.
+#
+# HOW TO ADD A ROW
+#
+# Copy the error from the .PRT or .LOG. For
+#
+#    *** SR neqckdim: DIMENSION TOO SMALL
+#                     Requested num. of parameters:         101
+#
+#   emitter: neqckdim              the name after SR / PG / PGM / FN
+#   message: DIMENSION TOO SMALL   the text after the colon; if the header line
+#                                  has none, the first indented line below it
+#
+# Numbers, "double-quoted" text and (parenthesised) text in the message are
+# ignored when matching, so paste it as printed. Upper/lower case of the emitter
+# does not matter.
+#
+#   scope: configuration   the setup is wrong; every day will fail the same way.
+#                          The run stops at the first occurrence.
+#          session         this day's data is the problem. The day is skipped,
+#                          and the run stops only after 3 consecutive days fail
+#                          with the same error.
+#   status: established   diagnosed from a failure on our own runs, and the
+#                          remedy was confirmed by a run that then worked
+#           proposed      from AIUB's FAQ or reasoning; not yet seen here
+#   source: where the knowledge came from, so it can be checked
+#
+# Optional: confirm -- how to tell the remedy worked.
+#
+# YAML trap: a one-line value that contains ": " must be wrapped in single
+# quotes, e.g.  source: 'AIUB FAQ, "GETPOL: NO SUITABLE EPOCHS"'. So must a
+# value that is only a number, or a bare yes / no.
+#
+# `uv run python -m bernese_workflow.bpe_knowledge FILE.PRT` shows what this
+# table says about a step's output. `uv run pytest -k bpe_knowledge` checks the
+# file after an edit.
+
+entries:
+
+  # --- Resource limits -------------------------------------------------------
+
+  - emitter: neqckdim
+    message: DIMENSION TOO SMALL
+    scope: configuration
+    status: established
+    diagnosis: >
+      ADDNEQ2's parameter array (MAXPAR, "Maximum number of parameters in
+      combined NEQ", panel ADDNEQ2 3.1) is smaller than the combined normal
+      equation. The "Requested" number is the first request that overflowed,
+      always MAXPAR + 1. It is not how many parameters the solution needs.
+    remedy: >
+      Raise MAXPAR in ADDNEQ2.INP of the option directory used by the failing
+      ADDNEQ2 step (R2S_FIN for the daily final solution). Do not size it from
+      "Requested". Known points: PHREF 2025 (32-41 stations) failed on every day
+      at 1000 and ran all 360 days at 3000. R2S_FIN on gps3 is 6000, matching
+      the 5.2 production panel. Test the busiest day, not an arbitrary one.
+    confirm: the busiest day of the range completes and writes FIN_*.NQ0
+    source: >
+      session log 25.3-25.5 (29 August, 24 failed days); SETTLED.md MAXPAR row;
+      docs/bernese_maxpar_limit.md; reproduced 2026-10-15 on EXAMPLE; AIUB FAQ
+
+  - emitter: chkmax
+    message: 'Dimension for parameter "MAXzzz" exceeded'
+    scope: configuration
+    status: proposed
+    diagnosis: >
+      A program's array size, computed from the inputs and options, is more
+      than twice the limit compiled into BSW, so the program stopped. Below
+      twice the limit it only warns ("Unusual big number of parameter").
+    remedy: >
+      Review the options of the failing step, especially whether epoch-wise
+      parameters are pre-eliminated. If the network is simply too large, split
+      it into clusters. Do not raise the compiled limit without asking.
+    source: 'AIUB FAQ, "CHKMAX: Dimension for parameter MAXzzz exceeded"'
+
+  # --- Reference files -------------------------------------------------------
+
+  - emitter: GTOCNL
+    message: OCEAN LOADING CORRECTION VALUES NOT FOUND
+    scope: configuration
+    status: established
+    diagnosis: >
+      Bernese found no readable ocean loading block for STATION NAME in the
+      .BLQ named in FILE NAME. The station can be visibly present and still
+      "not found". Known causes: the block is indented one column left; the
+      block sits after the "$$ END TABLE" line; or the station is missing.
+    remedy: >
+      Run scripts/check_ref_coverage.py --pcf <PCF> --stations <station list>.
+      It reports which case it is. Fix the source file in $D/REF54 named by the
+      PCF's V_BLQINF, not only the campaign's STA copy: R2S_COP copies the
+      campaign's reference files from $D/REF54 at the start of every run.
+    confirm: check_ref_coverage.py exits 0, then the day completes
+    source: >
+      session log 25.2 attempt 4 (PTTN, CALU, URDT); SETTLED.md section 2, BLQ
+      rows
+
+  - emitter: GTATML
+    message: ATMOSPHERIC TIDAL LOADING CORRECTION VALUES NOT FOUND
+    scope: configuration
+    status: established
+    diagnosis: >
+      No atmospheric tidal loading block in the .ATL (FILE NAME) is headed with
+      STATION NAME exactly as the .CRD writes it. Two known causes: the block
+      is headed with the 4-character code only ("PTAG" for "PTAG 22006M005"),
+      or the station is missing. Fiducials are the usual missing ones, because
+      they are what a larger campaign adds.
+    remedy: >
+      Run scripts/check_ref_coverage.py --pcf <PCF> --stations <station list>,
+      fiducials included. Fix the .ATL in $D/REF54 named by V_ATLINF.
+    confirm: check_ref_coverage.py exits 0, then the day completes
+    source: >
+      session log 25.2 attempt 2 (six fiducials missing from PHNAT.ATL);
+      SETTLED.md ATL row (PHDEN DOY 200, PTAG)
+
+  - emitter: GTATML
+    message: ERROR READING ATMOSPHERIC TIDAL LOADING CORRECTION VALUES
+    scope: configuration
+    status: established
+    diagnosis: >
+      The .ATL file is malformed where Bernese reads it. Seen on the last block
+      of a merged file that had no trailing blank line to end it; the same
+      merge had also doubled the carriage returns (CRLF applied twice).
+    remedy: >
+      End the .ATL with a blank line after the last block, and check the line
+      endings (cat -A shows a doubled ^M). Fix the file in $D/REF54.
+    source: session log 25.2 attempt 3; SETTLED.md seven-reference-types row
+
+  - emitter: OPNERR
+    message: OPEN FAILED
+    scope: configuration
+    status: established
+    diagnosis: >
+      The file in FILE NAME does not exist or cannot be read. PGM./SUBR. says
+      which routine wanted it. Seen when a REPR_MODE campaign was started
+      without its STA files. AIUB's FAQ gives the other common case: a missing
+      ${MODEL}/DE421.EPH.
+    remedy: >
+      Check FILE NAME. For campaign STA/ files, the copy step takes them from
+      $D/REF54, which must hold all seven types (.CRD .VEL .ABB .STA .BLQ .ATL
+      .CLU) under the names the PCF variables give. For DE421.EPH, follow
+      README_JPL_EPH.TXT in ${DOC}.
+    source: >
+      reproduction 2026-10-15 (MXP230100, missing EXAMPLE.STA); SETTLED.md
+      seven-reference-types row; AIUB FAQ, "OPNERR: OPEN FAILED"
+
+  - emitter: GETSTAF
+    message: COORDINATES NOT FOUND
+    scope: configuration
+    status: proposed
+    diagnosis: >
+      STATION is in the observations but has no coordinates in the .CRD. AIUB
+      say the usual cause is that RXOBV3 did not rename the station using the
+      .STA, or the RINEX header does not match the .STA's search pattern.
+    remedy: >
+      Add the station to the .CRD (and .STA) under the name the observations
+      use. scripts/check_ref_coverage.py checks that every listed station has a
+      .CRD line.
+    source: 'AIUB FAQ, "GETSTAF: COORDINATES NOT FOUND"'
+
+  # --- Data staging ----------------------------------------------------------
+
+  - emitter: O_CCRNXO:concatenateOrMergeRinexFiles
+    message: No input files
+    scope: configuration
+    status: established
+    diagnosis: >
+      CCRNXO had no RINEX files to merge for this session. Seen once, and it
+      was a setup fault rather than missing data: sessions 1210-1250 run in
+      parallel in one campaign consumed each other's staged files (SUPERBPE
+      without REPR_MODE; 4 of 5 sessions failed).
+    remedy: >
+      For parallel sessions use REPR_MODE (one campaign per session). Check
+      that the day's RINEX files, fiducials included, are in the directory
+      V_RNXDIR names. If they are and the day really has no data, exclude the
+      day in the plan rather than letting the run find out.
+    source: >
+      session log 21.4 and 22.1 (LUZON 1210-1250, 12 August)
+
+  - emitter: HELMR1
+    message: NO REDUNDANCY. NO VERIFICATION OF SITES POSSIBLE
+    scope: session
+    status: established
+    diagnosis: >
+      HELMR1's reference-site check found nothing to compare: no reference
+      (IGS20) station is in the solution. Either the fiducials were never
+      staged, or the day has too few of them.
+    remedy: >
+      Check the day's fiducial RINEX files are staged into V_RNXDIR. If they
+      are and the day has fewer than 3 reference stations, exclude it in the
+      plan (scripts/check_ref_coverage.py and the year driver's exclusions).
+      If every day fails this way, it is staging, not data.
+    source: >
+      bernese54_luzon_reprocessing_runbook.md (24-station run, RINEX 3
+      fiducials never staged); captured LZY250360, 2026-08-25
+
+  - emitter: HELMTR
+    message: TOO MANY PARAMETERS TO ESTIMATE
+    scope: session
+    status: proposed
+    diagnosis: >
+      A Helmert transformation had fewer stations than parameters; NUMBER OF
+      STATIONS 0 means no reference station. AIUB give two causes: no station
+      with known ITRF coordinates in the network, or HELMR1's outlier rejection
+      removed them all because one station's coordinate was badly wrong.
+    remedy: >
+      Check the day's reference stations as for HELMR1 NO REDUNDANCY. If they
+      are present, read the HELMR1 output for one station with a large
+      residual, take it out of the datum definition and rerun.
+    source: 'AIUB FAQ, "HELMTR: TOO MANY PARAMETERS TO ESTIMATE"'
+
+  - emitter: GETPOL
+    message: NO SUITABLE EPOCHS IN POLE FILE
+    scope: session
+    status: proposed
+    diagnosis: >
+      The pole (ERP) file does not cover the time span the orbit needs. AIUB
+      say this is a wrong pole file, one that is too short, or an unintended
+      processing interval.
+    remedy: >
+      Check that the day's ERP file was fetched (scripts/fetch_igs_products.sh)
+      and covers the day either side of the session.
+    source: 'AIUB FAQ, "GETPOL: NO SUITABLE EPOCHS IN POLE FILE"'

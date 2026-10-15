@@ -4,9 +4,11 @@
 run started with.*
 
 > **Status, 2026-10-15: the decision layer is being built.** The scanner exists:
-> `bernese_workflow.bpe_scanner`, tested against 14 captured failures (each as
-> `.PRT` and `.LOG`), including a reproduced `neqckdim` MAXPAR failure. No
-> knowledge base, circuit breaker, ledger or plan phase exists yet. Two related mechanical
+> `bernese_workflow.bpe_scanner`, tested against 10 captured failures (each as
+> `.PRT` and `.LOG`), including a reproduced `neqckdim` MAXPAR failure. So does
+> the knowledge base, `config/bernese/bpe_errors.yaml`, read by
+> `bernese_workflow.bpe_knowledge`. No circuit breaker, ledger or plan phase
+> exists yet. Two related mechanical
 > pieces have shipped in `services/bernese-workflow`: `month_driver.run_days`
 > (#268), which resumes at day level using `.done` markers and stops after **two
 > consecutive failed days of any kind**, not after K identical error signatures;
