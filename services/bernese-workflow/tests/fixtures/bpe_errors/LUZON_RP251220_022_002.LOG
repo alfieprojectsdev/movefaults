@@ -1,0 +1,13 @@
+Perl version: 5.038002
+Perl path   : /usr/bin/perl
+LOGFILE_HEADER
+4: "" ""
+
+>>> CPU/Real time for pgm "CCRNXO": 0:00:00.006 / 0:00:00.006
+
+Call to CCRNXO failed:
+
+ *** SR O_CCRNXO:concatenateOrMergeRinexFiles, PG CCRNXO
+        No input files
+
+Test: 0, 1,  @ quit

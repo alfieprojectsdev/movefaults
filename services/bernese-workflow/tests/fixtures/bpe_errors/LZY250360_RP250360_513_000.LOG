@@ -1,0 +1,12 @@
+Perl version: 5.038002
+Perl path   : /usr/bin/perl
+LOGFILE_HEADER
+4: "" ""
+
+>>> CPU/Real time for pgm "HELMR1": 0:00:00.006 / 0:00:00.006
+
+Call to HELMR1 failed:
+
+ *** PGM HELMR1: NO REDUNDANCY. NO VERIFICATION OF SITES POSSIBLE
+
+Test: 0, 1,  @ quit

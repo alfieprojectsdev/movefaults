@@ -1,0 +1,34 @@
+
+
+ PROTOCOL FILE FOR BPE SCRIPT
+ ----------------------------
+ Campaign           : /home/gps3/GPSDATA/CAMPAIGN54/MXP230100
+ Session            : 0100
+ Year               : 2023
+ User name          : gps3
+ PCF name           : MXP_REP.PCF
+ Script name        : ADDNEQ2
+ Option directory   : MXP_REP
+ Path to user area  : /home/gps3/GPSUSER
+ Path to work area  : /home/gps3/GPSWORK//BPE_MXP_REP_34531_23_0100_511_000
+ Path to executables: /home/gps3/BERN54/SOURCE/PGM/EXE_GNU
+ Process ID         : 511
+ Sub-process ID     : 000
+ CPU name           : localhost
+ Server host        : gps3
+ Remote host        : gps3  (system pid: 2363673)
+
+ Date         Time      Run time  Pgm.time  Sta Program   Message
+ ----------------------------------------------------------------------------
+ 15-OCT-2026  11:00:07  00:00:00            MSG RUNBPE.pm SCRIPT  STARTED
+ 15-OCT-2026  11:00:07  00:00:00            MSG ADDNEQ2   PROGRAM STARTED
+
+ *** SR OPNERR: OPEN FAILED
+                FILE NAME : ${P}/MXP230100/STA/EXAMPLE.STA
+                PGM./SUBR.: D_TXTDATA:loadFromFile
+                IOSTAT    :      2
+                FILE UNIT :   1003
+
+ 15-OCT-2026  11:00:08  00:00:01  00:00:01  ERR ADDNEQ2   ERROR IN MAIN PROGRAM
+ 15-OCT-2026  11:00:08  00:00:01            MSG RUNBPE.pm SCRIPT  ENDED
+ ----------------------------------------------------------------------------

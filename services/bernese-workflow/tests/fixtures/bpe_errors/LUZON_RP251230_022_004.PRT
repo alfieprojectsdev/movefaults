@@ -1,0 +1,72 @@
+
+
+ PROTOCOL FILE FOR BPE SCRIPT
+ ----------------------------
+ Campaign           : /home/gps3/GPSDATA/CAMPAIGN54/LUZON
+ Session            : 1230
+ Year               : 2025
+ User name          : gps3
+ PCF name           : LUZON_DLY.PCF
+ Script name        : CCRNXO_P
+ Option directory   : R2S_GEN
+ Path to user area  : /home/gps3/GPSUSER
+ Path to work area  : /home/gps3/GPSWORK//BPE_LUZON_DLY_40569_25_1230_022_004
+ Path to executables: /home/gps3/BERN54/SOURCE/PGM/EXE_GNU
+ Process ID         : 022
+ Sub-process ID     : 004
+ PARAM1             : /home/gps3/GPSDATA/CAMPAIGN54/LUZON/BPE/MRG_20251230_D.BPE
+ PARAM9             : ##
+ CPU name           : localhost
+ Server host        : gps3
+ Remote host        : gps3  (system pid: 1867718)
+
+ Date         Time      Run time  Pgm.time  Sta Program   Message
+ ----------------------------------------------------------------------------
+ 12-AUG-2026  11:59:11  00:00:00            MSG RUNBPE.pm SCRIPT  STARTED
+ 12-AUG-2026  11:59:11  00:00:00            MSG CCRNXO_P  PROCESSING FILE: /home/gps3/GPSDATA/CAMPAIGN54/LUZON/BPE/MRG 20251230 D.BPE for session 20251230
+ 12-AUG-2026  11:59:11  00:00:00            MSG CCRNXO_P  Unknown system character P ignored!
+ 12-AUG-2026  11:59:11  00:00:00            MSG CCRNXO_P  GNSS selection: GPS
+ 12-AUG-2026  11:59:11  00:00:00            MSG CCRNXO    PROGRAM STARTED
+
+ *** FN O_RNXBASE:rdHdrLine, PG CCRNXO
+        Empty RINEX file.
+        Processing will be stopped for this file.
+        RINEX file name: ${P}/LUZON/ORX/DARW00AUS_20251210.RXO
+        Line number    : 1
+        Line           :
+
+
+ *** FN O_RNXBASE:rdHdrLine, PG CCRNXO
+        Empty RINEX file.
+        Processing will be stopped for this file.
+        RINEX file name: ${P}/LUZON/ORX/DARW00AUS_20251220.RXO
+        Line number    : 1
+        Line           :
+
+
+ *** FN O_RNXBASE:rdHdrLine, PG CCRNXO
+        Empty RINEX file.
+        Processing will be stopped for this file.
+        RINEX file name: ${P}/LUZON/ORX/DARW00AUS_20251230.RXO
+        Line number    : 1
+        Line           :
+
+
+ *** FN O_RNXBASE:rdHdrLine, PG CCRNXO
+        Empty RINEX file.
+        Processing will be stopped for this file.
+        RINEX file name: ${P}/LUZON/ORX/DARW00AUS_20251240.RXO
+        Line number    : 1
+        Line           :
+
+
+ *** FN O_RNXBASE:rdHdrLine, PG CCRNXO
+        Empty RINEX file.
+        Processing will be stopped for this file.
+        RINEX file name: ${P}/LUZON/ORX/DARW00AUS_20251250.RXO
+        Line number    : 1
+        Line           :
+
+ 12-AUG-2026  11:59:14  00:00:03  00:00:03  MSG CCRNXO    PROGRAM ENDED
+ 12-AUG-2026  11:59:14  00:00:03            MSG RUNBPE.pm SCRIPT  ENDED
+ ----------------------------------------------------------------------------

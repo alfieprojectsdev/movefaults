@@ -1,0 +1,32 @@
+
+
+ PROTOCOL FILE FOR BPE SCRIPT
+ ----------------------------
+ Campaign           : /home/gps3/GPSDATA/CAMPAIGN54/LZY250360
+ Session            : 0360
+ Year               : 2025
+ User name          : gps3
+ PCF name           : LUZON_DLY.PCF
+ Script name        : HELMCHK
+ Option directory   : R2S_FIN
+ Path to user area  : /home/gps3/GPSUSER
+ Path to work area  : /home/gps3/GPSWORK//BPE_LUZON_DLY_37355_25_0360_513_000
+ Path to executables: /home/gps3/BERN54/SOURCE/PGM/EXE_GNU
+ Process ID         : 513
+ Sub-process ID     : 000
+ PARAM1             : NEXTJOB
+ PARAM2             : 511
+ CPU name           : localhost
+ Server host        : gps3
+ Remote host        : gps3  (system pid: 2688296)
+
+ Date         Time      Run time  Pgm.time  Sta Program   Message
+ ----------------------------------------------------------------------------
+ 25-AUG-2026  07:45:53  00:00:00            MSG RUNBPE.pm SCRIPT  STARTED
+ 25-AUG-2026  07:45:54  00:00:01            MSG HELMR1    PROGRAM STARTED
+
+ *** PGM HELMR1: NO REDUNDANCY. NO VERIFICATION OF SITES POSSIBLE
+
+ 25-AUG-2026  07:45:54  00:00:01  00:00:00  ERR HELMR1    ERROR IN MAIN PROGRAM
+ 25-AUG-2026  07:45:54  00:00:01            MSG RUNBPE.pm SCRIPT  ENDED
+ ----------------------------------------------------------------------------

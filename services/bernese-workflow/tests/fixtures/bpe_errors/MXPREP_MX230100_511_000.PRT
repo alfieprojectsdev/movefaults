@@ -1,0 +1,32 @@
+
+
+ PROTOCOL FILE FOR BPE SCRIPT
+ ----------------------------
+ Campaign           : /home/gps3/GPSDATA/CAMPAIGN54/MXPREP
+ Session            : 0100
+ Year               : 2023
+ User name          : gps3
+ PCF name           : MXP_REP.PCF
+ Script name        : ADDNEQ2
+ Option directory   : MXP_REP
+ Path to user area  : /home/gps3/GPSUSER
+ Path to work area  : /home/gps3/GPSWORK//BPE_MXP_REP_46575_23_0100_511_000
+ Path to executables: /home/gps3/BERN54/SOURCE/PGM/EXE_GNU
+ Process ID         : 511
+ Sub-process ID     : 000
+ CPU name           : localhost
+ Server host        : gps3
+ Remote host        : gps3  (system pid: 2364341)
+
+ Date         Time      Run time  Pgm.time  Sta Program   Message
+ ----------------------------------------------------------------------------
+ 15-OCT-2026  11:00:43  00:00:00            MSG RUNBPE.pm SCRIPT  STARTED
+ 15-OCT-2026  11:00:44  00:00:01            MSG ADDNEQ2   PROGRAM STARTED
+
+ *** SR neqckdim: DIMENSION TOO SMALL
+                  Requested num. of parameters:         101
+                  Maximum size of the array   :         100
+
+ 15-OCT-2026  11:00:44  00:00:01  00:00:00  ERR ADDNEQ2   ERROR IN MAIN PROGRAM
+ 15-OCT-2026  11:00:44  00:00:01            MSG RUNBPE.pm SCRIPT  ENDED
+ ----------------------------------------------------------------------------

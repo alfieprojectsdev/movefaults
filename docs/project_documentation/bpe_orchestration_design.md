@@ -3,8 +3,10 @@
 *2026-08-29. Written during the PHREF 2025 year run, against the failure that
 run started with.*
 
-> **Status, 2026-10-14: the decision layer is not built.** No scanner, knowledge
-> base, circuit breaker, ledger or plan phase exists yet. Two related mechanical
+> **Status, 2026-10-15: the decision layer is being built.** The scanner exists:
+> `bernese_workflow.bpe_scanner`, tested against 14 captured failures (each as
+> `.PRT` and `.LOG`), including a reproduced `neqckdim` MAXPAR failure. No
+> knowledge base, circuit breaker, ledger or plan phase exists yet. Two related mechanical
 > pieces have shipped in `services/bernese-workflow`: `month_driver.run_days`
 > (#268), which resumes at day level using `.done` markers and stops after **two
 > consecutive failed days of any kind**, not after K identical error signatures;

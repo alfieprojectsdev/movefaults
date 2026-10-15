@@ -1,0 +1,73 @@
+
+
+ PROTOCOL FILE FOR BPE SCRIPT
+ ----------------------------
+ Campaign           : /home/gps3/GPSDATA/CAMPAIGN54/PHN252000
+ Session            : 2000
+ Year               : 2025
+ User name          : gps3
+ PCF name           : PHNAT_DLY.PCF
+ Script name        : GPSEDT_P
+ Option directory   : R2S_EDT
+ Path to user area  : /home/gps3/GPSUSER
+ Path to work area  : /home/gps3/GPSWORK//BPE_PHNAT_DLY_37451_25_2000_322_017
+ Path to executables: /home/gps3/BERN54/SOURCE/PGM/EXE_GNU
+ Process ID         : 322
+ Sub-process ID     : 017
+ PARAM1             : /home/gps3/GPSDATA/CAMPAIGN54/PHN252000/BPE/EDT_20252000_017.BPE
+ PARAM2             : 5
+ PARAM9             : ##
+ CPU name           : localhost
+ Server host        : gps3
+ Remote host        : gps3  (system pid: 1959710)
+
+ Date         Time      Run time  Pgm.time  Sta Program   Message
+ ----------------------------------------------------------------------------
+ 28-AUG-2026  21:22:51  00:00:00            MSG RUNBPE.pm SCRIPT  STARTED
+ 28-AUG-2026  21:22:51  00:00:00            MSG GPSEDT_P  PROCESSING CLUSTER: 017 for session 20252000
+ 28-AUG-2026  21:22:51  00:00:00            MSG GPSEDT_P  Unknown system character P ignored!
+ 28-AUG-2026  21:22:51  00:00:00            MSG GPSEDT_P  GNSS selection: GPS
+ 28-AUG-2026  21:22:51  00:00:00            MSG GPSEDT_P  SCREENING LOOP 1
+ 28-AUG-2026  21:22:51  00:00:00            MSG GPSEDT_P  LEVEL: 400 400
+ 28-AUG-2026  21:22:51  00:00:00            MSG GPSEST    PROGRAM STARTED
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      BTUN BTUN        1980 01 06 00 00 00  2099 12 31 00 00 00 TRIMBLE 5700         TRM29659.00     NONE
+      BTUN BTUN        2016 08 26 00 00 00  2017 04 17 23 59 59 TRIMBLE 5700         TRM29659.00     NONE
+
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      SPAB SPAB        1980 01 06 00 00 00  2015 10 22 23 59 59 LEICA MC500          LEIAT504        NONE
+      SPAB SPAB        2015 05 22 00 00 00  2015 10 22 23 59 59 LEICA MC500          LEIAT504        NONE
+
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      URDT URDT        1980 01 06 00 00 00  2016 05 24 23 59 59 LEICA MC500          LEIAT504        NONE
+      URDT URDT        2016 05 24 00 00 00  2099 12 31 00 00 00 LEICA GRX1200+GNSS   LEIAT504        NONE
+
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      BTUN BTUN        1980 01 06 00 00 00  2099 12 31 00 00 00 TRIMBLE 5700         TRM29659.00     NONE
+      BTUN BTUN        2016 08 26 00 00 00  2017 04 17 23 59 59 TRIMBLE 5700         TRM29659.00     NONE
+
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      SPAB SPAB        1980 01 06 00 00 00  2015 10 22 23 59 59 LEICA MC500          LEIAT504        NONE
+      SPAB SPAB        2015 05 22 00 00 00  2015 10 22 23 59 59 LEICA MC500          LEIAT504        NONE
+
+ ### SR D_STACRX:chkType002: Overlapping intervals in TYPE 002, file: ${P}/PHN252000/STA/PHNAT.STA    
+      URDT URDT        1980 01 06 00 00 00  2016 05 24 23 59 59 LEICA MC500          LEIAT504        NONE
+      URDT URDT        2016 05 24 00 00 00  2099 12 31 00 00 00 LEICA GRX1200+GNSS   LEIAT504        NONE
+
+
+ ### SR HEDINF: No observations for requested satellite system found.
+                Satellite system: SBAS    not selected anymore.
+
+
+ This version of the IGRF-13 is intended for use up to 2025.0.
+ values for 2025.635 will be computed but may be of reduced accuracy
+
+
+ *** SR GTOCNL: OCEAN LOADING CORRECTION VALUES NOT FOUND
+                RETURN CODE  :  2
+                STATION NAME : PTTN PTTN       
+                FILE NAME    : ${P}/PHN252000/STA/PHNAT.BLQ    
+
+ 28-AUG-2026  21:22:55  00:00:04  00:00:04  ERR GPSEST    ERROR IN MAIN PROGRAM
+ 28-AUG-2026  21:22:55  00:00:04            MSG RUNBPE.pm SCRIPT  ENDED
+ ----------------------------------------------------------------------------
