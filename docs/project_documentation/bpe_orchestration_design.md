@@ -3,17 +3,20 @@
 *2026-08-29. Written during the PHREF 2025 year run, against the failure that
 run started with.*
 
-> **Status, 2026-10-15: the decision layer is being built.** The scanner exists:
+> **Status, 2026-10-19: the decision layer is being built.** The scanner exists:
 > `bernese_workflow.bpe_scanner`, tested against 10 captured failures (each as
 > `.PRT` and `.LOG`), including a reproduced `neqckdim` MAXPAR failure. So does
 > the knowledge base, `config/bernese/bpe_errors.yaml`, read by
-> `bernese_workflow.bpe_knowledge`. No circuit breaker, ledger or plan phase
-> exists yet. Two related mechanical
-> pieces have shipped in `services/bernese-workflow`: `month_driver.run_days`
-> (#268), which resumes at day level using `.done` markers and stops after **two
-> consecutive failed days of any kind**, not after K identical error signatures;
-> and a timeout that kills the BPE's whole process group (#271). Whether the
-> ledger replaces the `.done` markers or sits beside them is an open decision.
+> `bernese_workflow.bpe_knowledge`. So does the circuit breaker,
+> `bernese_workflow.circuit_breaker`, wired into `month_driver.run_days` (#268)
+> in place of its old stop after two consecutive failed days of any kind. An
+> unknown error or a `scope: configuration` error stops the run at once; a
+> `scope: session` error stops it after K = 3 consecutive days with the same
+> signature. So the 29 August replay (24 `neqckdim` failures) stops after
+> **one** day, not three: K applies only to session errors, and MAXPAR is
+> configuration. No ledger or plan phase exists yet. A timeout kills the BPE's
+> whole process group (#271). Whether the ledger replaces the `.done` markers or
+> sits beside them is an open decision.
 
 ## The constraint that shapes everything
 

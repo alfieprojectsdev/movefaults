@@ -161,7 +161,8 @@ is the standing direction, not a completed migration.
 Since #268 and #271 the service has the two pieces of a multi-day run that only
 `scripts/` used to have: `month_driver.run_days` resumes at day level (a day is
 skipped when its `FIN_*.NQ0` is intact **and** carries a `.done` marker the
-driver wrote; two consecutive failed days stop the run), and a BPE timeout now
+driver wrote; failures stop the run through the circuit breaker, see
+`bpe_orchestration_design.md`), and a BPE timeout now
 kills the driver's whole process group instead of only the Perl child. Neither
 has run a production day. Parallel sessions (`REPR_MODE`, `MAXSESS`) are still
 only in the Perl drivers.

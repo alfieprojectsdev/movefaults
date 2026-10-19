@@ -30,11 +30,16 @@ rerun. This is acceptable for fresh campaigns run through the service. To adopt
 a scripts/-started range, write the markers beforehand.
 
 WHEN IT STOPS
-Two consecutive failed days stop the run; the remaining days are reported as
-not_run. That is the weekend plan's stop condition ("a BPE fails twice"), made
-mechanical. An isolated failure is reported and the run continues. Nothing is
-ever deleted or retried here: a failed day is rerun by running the range again,
-which skips everything already banked.
+After each failed day the driver scans the BPE output for the failed step,
+looks its error up in config/bernese/bpe_errors.yaml, and asks the circuit
+breaker (circuit_breaker.py) whether to go on. An unknown error or a
+configuration error stops the run at once; a session error stops it only after
+k consecutive days fail with the same one (k = 3). The remaining days are
+reported as not_run, and the failed day's outcome carries the diagnosis and
+remedy. Nothing is ever deleted or retried here: a failed day is rerun by
+running the range again, which skips everything already banked.
+
+This replaced a stop after two consecutive failed days of any kind (#268).
 
 Single-session runs only. Parallel sessions (REPR_MODE, MAXSESS) stay in the
 Perl drivers for now.
@@ -52,10 +57,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .backends import BPEBackend
+from .bpe_knowledge import DEFAULT_PATH, KnowledgeBase, load
+from .circuit_breaker import K_DEFAULT, CircuitBreaker, diagnose_day
 
 logger = logging.getLogger(__name__)
-
-STOP_AFTER_CONSECUTIVE_FAILURES = 2
 
 
 @dataclass
@@ -65,6 +70,8 @@ class DayOutcome:
     status: str  # ok | banked | failed | not_run
     seconds: float = 0.0
     note: str = ""
+    error: str = ""  # the failure's signature, as "emitter: KIND"
+    explanation: str = ""  # what the knowledge base says about it, for a person
 
 
 def session_for(doy: int, session_char: str = "0") -> str:
@@ -135,15 +142,25 @@ def run_days(
     doys: Iterable[int],
     *,
     sol_dir: Path,
+    bpe_dir: Path,
+    kb: KnowledgeBase | None = None,
+    k: int = K_DEFAULT,
     session_char: str = "0",
 ) -> list[DayOutcome]:
-    """Run each day in ascending order, skipping banked days. See module docstring."""
+    """Run each day in ascending order, skipping banked days. See module docstring.
+
+    ``bpe_dir`` is the campaign's BPE/ directory, where a failed step's output
+    is found. ``kb`` defaults to config/bernese/bpe_errors.yaml, loaded before
+    the first day so that a broken file stops the run before Bernese starts.
+    """
     days = sorted(set(doys))
     last = 366 if calendar.isleap(year) else 365
     if days and days[-1] > last:
         raise ValueError(f"day of year {days[-1]} does not exist in {year}")
+    if kb is None:
+        kb = load(DEFAULT_PATH)
+    breaker = CircuitBreaker(k)
     out: list[DayOutcome] = []
-    consecutive = 0
     for i, doy in enumerate(days):
         session = session_for(doy, session_char)
         if fin_banked(sol_dir, year, doy, session_char):
@@ -152,14 +169,16 @@ def run_days(
             continue
 
         before = _fin_mtimes(sol_dir, year, doy, session_char)
+        started = time.time()
         t0 = time.monotonic()
         try:
             result = backend.run(campaign, year, session)
             error = None
         except Exception as exc:  # noqa: BLE001 -- a day's error is that day's failure
             # The real backend raises on timeout and on RINEX header validation.
-            # Those are per-day failures, not reasons to abandon the range and
-            # its report. KeyboardInterrupt is not an Exception and still stops.
+            # The day is recorded and the report still returned. No BPE step
+            # failed, so the breaker treats it as unknown and the run stops.
+            # KeyboardInterrupt is not an Exception and propagates.
             result = None
             error = f"{type(exc).__name__}: {exc}"
         seconds = time.monotonic() - t0
@@ -170,7 +189,7 @@ def run_days(
         if result is not None and result.success and fin is not None and not stale:
             _done_marker(sol_dir, year, doy, session_char).touch()
             out.append(DayOutcome(doy, session, "ok", seconds))
-            consecutive = 0
+            breaker.success()
             logger.info("DOY %03d ok in %.0f s", doy, seconds)
             continue
 
@@ -182,13 +201,16 @@ def run_days(
             note = "BPE reported success but the FIN file predates this run"
         else:
             note = "BPE reported success but no valid FIN file"
-        out.append(DayOutcome(doy, session, "failed", seconds, note))
-        consecutive += 1
-        logger.warning("DOY %03d failed: %s", doy, note)
-        if consecutive >= STOP_AFTER_CONSECUTIVE_FAILURES:
-            logger.error("stopping: %d consecutive failures", consecutive)
+        diagnosis = diagnose_day(bpe_dir, year, session, started, kb)
+        explanation = diagnosis.explanation(kb)
+        out.append(DayOutcome(doy, session, "failed", seconds, note, diagnosis.label, explanation))
+        logger.warning("DOY %03d failed: %s; %s", doy, note, diagnosis.label)
+        halt = breaker.failure(diagnosis)
+        if halt is not None:
+            logger.error("stopping: %s\n%s", halt, explanation)
             out.extend(
-                DayOutcome(d, session_for(d, session_char), "not_run") for d in days[i + 1 :]
+                DayOutcome(d, session_for(d, session_char), "not_run", note=f"stopped: {halt}")
+                for d in days[i + 1 :]
             )
             break
     return out
