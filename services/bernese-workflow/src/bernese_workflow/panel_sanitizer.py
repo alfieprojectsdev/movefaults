@@ -227,6 +227,66 @@ def find_dangling_waits(pcf_text: str) -> list[DanglingWait]:
     return dangling
 
 
+# Jump targets, in both dialects.
+#   5.4 keyword:  `011  RNX_COP  R2S_GEN  CPU=ANY; WAIT=001;  NEXTJOB= 099 999`
+#                 `022  CCRNXO_P R2S_GEN  CPU=ANY; WAIT=021;  PARALLEL=021`
+#   5.2 special-actions table, after the process table:
+#                 `331                       NEXTJOB  301`
+#                 `211                       PARALLEL $201`   ($201: PID 201's file list)
+_PCF_JUMP_KEYWORD_RE = re.compile(r"\b(NEXTJOB|PARALLEL)=\s*([\d ]+)")
+_PCF_JUMP_SPECIAL_RE = re.compile(r"^\d{3}\s+(NEXTJOB|PARALLEL)\s+(.*)$")
+# A three-digit PID anywhere in the target list; `$201` reads as 201.
+_PID_TOKEN_RE = re.compile(r"(?<!\d)(\d{3})(?!\d)")
+
+
+@dataclass
+class DanglingJump:
+    line: int          # 1-indexed line of the reference
+    keyword: str       # NEXTJOB or PARALLEL
+    pid: str           # referenced PID with no matching process definition
+
+
+@dataclass
+class JumpCheck:
+    checked: int                 # references inspected; see find_dangling_jumps
+    dangling: list[DanglingJump]
+
+
+def find_dangling_jumps(pcf_text: str) -> JumpCheck:
+    """Return NEXTJOB and PARALLEL references to an undefined PID.
+
+    The companion to ``find_dangling_waits``, for the plan-phase check "finds
+    dangling WAIT= and NEXTJOB= in the PCF". NEXTJOB names the processes a script
+    may jump to; PARALLEL names the process whose file list a job is split over.
+    Either one naming a PID that does not exist breaks the BPE when the jump is
+    taken, which can be hours into a run. Both dialects are read: the 5.4
+    keywords on the process line, and the 5.2 special-actions table.
+
+    ``checked`` comes back with the result for the reason recorded on
+    ``find_dangling_waits``: an empty list from a function that matched nothing
+    is not a clean bill. A PCF that uses NEXTJOB or PARALLEL and gives
+    ``checked == 0`` was not understood.
+    """
+    lines = pcf_text.splitlines()
+    defined = {m.group(1) for raw in lines if (m := _PCF_PID_RE.match(raw.strip()))}
+
+    checked = 0
+    dangling: list[DanglingJump] = []
+    for i, raw in enumerate(lines, start=1):
+        stripped = raw.strip()
+        if _is_comment(stripped):
+            continue
+        refs = [(m.group(1), m.group(2)) for m in _PCF_JUMP_KEYWORD_RE.finditer(stripped)]
+        if not refs and (sm := _PCF_JUMP_SPECIAL_RE.match(stripped)):
+            refs = [(sm.group(1), sm.group(2))]
+        for keyword, targets in refs:
+            for pid in _PID_TOKEN_RE.findall(targets):
+                checked += 1
+                if pid not in defined:
+                    dangling.append(DanglingJump(i, keyword, pid))
+    return JumpCheck(checked, dangling)
+
+
 # The ADDNEQ2 MAXPAR value line: `MAXPAR 1  "5000"`. Anchored to the line start so
 # it never matches `MSG_MAXPAR ...`. Group 2 is the current integer value.
 _MAXPAR_RE = re.compile(r'^(MAXPAR\s+\d+\s+")(\d+)(")', re.MULTILINE)

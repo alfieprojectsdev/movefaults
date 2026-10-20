@@ -1,8 +1,11 @@
 """Tests for panel_sanitizer — fixtures are verbatim PGN_WK panel lines (RH-004)."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from bernese_workflow.panel_sanitizer import (
+    find_dangling_jumps,
     find_dangling_waits,
     provision_opt_dir,
     sanitize_panel_text,
@@ -339,3 +342,60 @@ V_CLU    Maximum number of stations per cluster    10
 """
     pids = sorted(x.pid for x in find_dangling_waits(with_tables))
     assert pids == ["000", "111", "522"], pids
+
+
+# --- find_dangling_jumps: NEXTJOB and PARALLEL targets, both dialects -------
+
+_REPO = Path(__file__).resolve().parents[3]
+
+
+def test_dangling_jumps_in_keyword_dialect():
+    pcf = """# PID  SCRIPT    OPT_DIR   PARAMETERS
+011  RNX_COP   R2S_GEN   CPU=ANY; WAIT=001;  NEXTJOB= 099 999
+021  CCRNXOAP  R2S_GEN   CPU=ANY; WAIT=011
+022  CCRNXO_P  R2S_GEN   CPU=ANY; WAIT=021;  PARALLEL=020
+099  DUMMY     R2S_GEN   CPU=ANY; WAIT=022
+"""
+    r = find_dangling_jumps(pcf)
+    assert r.checked == 3
+    assert [(d.line, d.keyword, d.pid) for d in r.dangling] == [
+        (2, "NEXTJOB", "999"),
+        (4, "PARALLEL", "020"),
+    ]
+
+
+def test_dangling_jumps_in_the_52_special_actions_table():
+    """5.2 keeps jumps in a second table; PARALLEL names its source as $PID."""
+    pcf = _PCF_COLUMNAR + """
+PID USER         PASSWORD PARAM1   PARAM2
+113                       PARALLEL $111
+599                       NEXTJOB  101 700
+"""
+    r = find_dangling_jumps(pcf)
+    assert r.checked == 3
+    assert [(d.keyword, d.pid) for d in r.dangling] == [("PARALLEL", "111"), ("NEXTJOB", "700")]
+
+
+def test_jump_check_reports_what_it_inspected():
+    """No jumps at all is checked == 0, which a caller must not read as clean."""
+    r = find_dangling_jumps(_PCF_KEYWORD)
+    assert r.checked == 0 and r.dangling == []
+
+
+def test_commented_jumps_are_ignored():
+    pcf = "# 011  RNX_COP  R2S_GEN  CPU=ANY; NEXTJOB= 999\n001  R2S_COP  NO_OPT  CPU=ANY\n"
+    assert find_dangling_jumps(pcf).checked == 0
+
+
+@pytest.mark.parametrize(
+    ("pcf", "references"),
+    [
+        ("config/bernese/gpsuser52-luzon/PCF/PHIVOL_REL.PCF", 12),
+        ("config/bernese/gpsuser/PCF/PAGENET_DLY.PCF", 12),
+    ],
+)
+def test_real_pcfs_have_no_dangling_jumps(pcf, references):
+    """The production 5.2 PCF and a 5.4 PCF: every reference read, none dangling."""
+    r = find_dangling_jumps((_REPO / pcf).read_text(errors="replace"))
+    assert r.checked == references
+    assert r.dangling == []
