@@ -552,8 +552,8 @@ Do not open these as findings.
   whatever you re-invoked by hand. It now has `month_driver.run_days`, which
   skips a day only when its `FIN_*.NQ0` is intact **and** carries a `.done`
   marker the driver itself wrote. It stops on an unknown or configuration
-  error at once, and after 3 consecutive days with the same session error (the
-  circuit breaker; until 2026-10-19 it stopped after any two failed days).
+  error at once, after 3 consecutive days with the same session error, and after
+  5 consecutive failed days of any kind (the circuit breaker; until 2026-10-19 it stopped after any two failed days).
   **Days banked by `scripts/` carry no marker and are re-run** under it, and it
   runs one session at a time (no `REPR_MODE`/`MAXSESS`). So check which path
   you are on — and which driver — before pricing a restart. Since #271 a

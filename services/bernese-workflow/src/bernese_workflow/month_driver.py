@@ -34,7 +34,8 @@ After each failed day the driver scans the BPE output for the failed step,
 looks its error up in config/bernese/bpe_errors.yaml, and asks the circuit
 breaker (circuit_breaker.py) whether to go on. An unknown error or a
 configuration error stops the run at once; a session error stops it only after
-k consecutive days fail with the same one (k = 3). The remaining days are
+k consecutive days fail with the same one (k = 3), or after 5 consecutive
+failed days whatever their errors. The remaining days are
 reported as not_run, and the failed day's outcome carries the diagnosis and
 remedy. Nothing is ever deleted or retried here: a failed day is rerun by
 running the range again, which skips everything already banked.
@@ -58,7 +59,13 @@ from pathlib import Path
 
 from .backends import BPEBackend
 from .bpe_knowledge import DEFAULT_PATH, KnowledgeBase, load
-from .circuit_breaker import K_DEFAULT, CircuitBreaker, diagnose_day
+from .circuit_breaker import (
+    K_DEFAULT,
+    MAX_FAILURES_DEFAULT,
+    CircuitBreaker,
+    Diagnosis,
+    diagnose_day,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +152,7 @@ def run_days(
     bpe_dir: Path,
     kb: KnowledgeBase | None = None,
     k: int = K_DEFAULT,
+    max_failures: int = MAX_FAILURES_DEFAULT,
     session_char: str = "0",
 ) -> list[DayOutcome]:
     """Run each day in ascending order, skipping banked days. See module docstring.
@@ -157,9 +165,13 @@ def run_days(
     last = 366 if calendar.isleap(year) else 365
     if days and days[-1] > last:
         raise ValueError(f"day of year {days[-1]} does not exist in {year}")
+    if not bpe_dir.is_dir():
+        # A wrong path would make every failure "no failed BPE step" and stop
+        # the run with a misleading diagnosis; say so before Bernese starts.
+        raise ValueError(f"BPE directory does not exist: {bpe_dir}")
     if kb is None:
         kb = load(DEFAULT_PATH)
-    breaker = CircuitBreaker(k)
+    breaker = CircuitBreaker(k, max_failures)
     out: list[DayOutcome] = []
     for i, doy in enumerate(days):
         session = session_for(doy, session_char)
@@ -201,7 +213,12 @@ def run_days(
             note = "BPE reported success but the FIN file predates this run"
         else:
             note = "BPE reported success but no valid FIN file"
-        diagnosis = diagnose_day(bpe_dir, year, session, started, kb)
+        try:
+            diagnosis = diagnose_day(bpe_dir, year, session, started, kb)
+        except OSError as exc:
+            # Reading BPE/ must not cost the report: diagnose as unknown, which halts.
+            logger.error("DOY %03d: could not read %s: %s", doy, bpe_dir, exc)
+            diagnosis = Diagnosis(None, None, None)
         explanation = diagnosis.explanation(kb)
         out.append(DayOutcome(doy, session, "failed", seconds, note, diagnosis.label, explanation))
         logger.warning("DOY %03d failed: %s; %s", doy, note, diagnosis.label)

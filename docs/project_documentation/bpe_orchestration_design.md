@@ -12,7 +12,7 @@ run started with.*
 > in place of its old stop after two consecutive failed days of any kind. An
 > unknown error or a `scope: configuration` error stops the run at once; a
 > `scope: session` error stops it after K = 3 consecutive days with the same
-> signature. So the 29 August replay (24 `neqckdim` failures) stops after
+> signature, and any 5 consecutive failed days stop it whatever their errors. So the 29 August replay (24 `neqckdim` failures) stops after
 > **one** day, not three: K applies only to session errors, and MAXPAR is
 > configuration. No ledger or plan phase exists yet. A timeout kills the BPE's
 > whole process group (#271). Whether the ledger replaces the `.done` markers or

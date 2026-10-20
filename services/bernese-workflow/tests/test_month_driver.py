@@ -30,6 +30,12 @@ def _write_failed_step(sol_dir: Path, year: int, session: str, source: Path = HE
     (bpe / f"RP{year % 100:02d}{session}_513_000.PRT").write_bytes(source.read_bytes())
 
 
+@pytest.fixture(autouse=True)
+def _bpe_dir(tmp_path: Path) -> None:
+    """run_days refuses a BPE directory that does not exist, as a campaign's always does."""
+    (tmp_path / "BPE").mkdir(exist_ok=True)
+
+
 class FakeBackend:
     """Succeeds by writing FIN_<year><doy>0.NQ0.gz into sol_dir, unless told not to.
 
@@ -294,3 +300,23 @@ def test_doy_366_rejected_in_a_non_leap_year(tmp_path):
         )[0].status
         == "ok"
     )
+
+
+def test_missing_bpe_dir_is_refused_before_any_day_runs(tmp_path):
+    be = FakeBackend(tmp_path)
+    with pytest.raises(ValueError, match="BPE directory"):
+        run_days(be, "LUZON", 2025, [1], sol_dir=tmp_path, bpe_dir=tmp_path / "NOPE")
+    assert be.calls == []
+
+
+def test_unreadable_bpe_output_still_returns_the_report(tmp_path, monkeypatch):
+    import bernese_workflow.month_driver as md
+
+    def boom(*_a, **_k):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(md, "diagnose_day", boom)
+    be = FakeBackend(tmp_path, fail_doys={1})
+    out = run_days(be, "LUZON", 2025, [1, 2], sol_dir=tmp_path, bpe_dir=tmp_path / "BPE")
+    assert [o.status for o in out] == ["failed", "not_run"]
+    assert "unknown failure" in out[1].note

@@ -15,7 +15,7 @@ Status as of 2026-10-14: about 60%, 12 modules, 250 tests.
 |---|---|
 | `backends.py` | `BPEBackend` protocol (`prepare_campaign`, `run`, `collect_outputs`). `LinuxBPEBackend` runs a headless Perl driver against `$X`/`$U`/`$P`, with injectable PCF, CPU file and driver script, `MAXPAR` sized from the campaign's station count unless overridden, a pre-flight RINEX header check, and a timeout (default 7200 s) that kills the driver's **whole process group** (#271). `WindowsBPEBackend` is a stub that raises |
 | `month_driver.py` | `run_days`: runs a range of days with day-level resume. A day counts as done only when its `FIN_*.NQ0` is intact **and** carries a `.done` marker this driver wrote; the circuit breaker stops it (#268). Single session at a time |
-| `circuit_breaker.py` | Decides after each failed day whether the run goes on: finds the failed step in the campaign's `BPE/`, looks it up in `bpe_errors.yaml`, and stops at once on an unknown or `configuration` error, or after 3 consecutive days with the same `session` error |
+| `circuit_breaker.py` | Decides after each failed day whether the run goes on: finds the failed step in the campaign's `BPE/`, looks it up in `bpe_errors.yaml`, and stops at once on an unknown or `configuration` error, after 3 consecutive days with the same `session` error, or after 5 consecutive failed days whatever their errors |
 | `orchestrator.py` | `BerneseOrchestrator`: renders a Jinja2 PCF template, runs the BPE through a backend, and runs the post-BPE `RUNX_v2.py` velocity step headlessly |
 | `campaign_builder.py`, `campaign_models.py` | generate the campaign's station files (STA, CRD, ABB, …) as text |
 | `pcf_context.py` | PCF template context, including the troposphere settings per GPSEST panel and drift detection between panels (GEO-003) |
@@ -41,7 +41,8 @@ backend = LinuxBPEBackend(
     pcf_file="LUZON_DLY", driver_script="~/GPSUSER/SCRIPT/luzon_pcs.pl",
 )
 outcomes = run_days(backend, "LUZON", 2025, range(1, 32),
-                    sol_dir=Path("~/GPSDATA/SAVEDISK/LUZON/2025/SOL").expanduser())
+                    sol_dir=Path("~/GPSDATA/SAVEDISK/LUZON/2025/SOL").expanduser(),
+                    bpe_dir=Path("~/GPSDATA/CAMPAIGN54/LUZON/BPE").expanduser())
 ```
 
 **Do not point this at a range `scripts/` already solved.** Those days have

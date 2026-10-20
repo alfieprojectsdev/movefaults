@@ -21,8 +21,12 @@ The rules, in order:
    until ``k`` consecutive failed days share one signature. A success, or a
    different signature, restarts the count. Banked (skipped) days are not
    attempts and do not touch it.
+4. **A cap on any run of failures.** ``max_failures`` consecutive failed days
+   halt the run whatever their signatures. Without it, session errors that
+   alternate (HELMR1, GETPOL, HELMR1, ...) restart the count every day and the
+   run never stops. Only a success resets this count.
 
-``k`` = 3 was approved on 2026-10-15.
+``k`` = 3 was approved on 2026-10-15, and the cap of 5 on 2026-10-20.
 
 Finding the failed step
 -----------------------
@@ -47,6 +51,7 @@ from bernese_workflow.bpe_knowledge import Entry, KnowledgeBase, explain
 from bernese_workflow.bpe_scanner import StepReport, scan_file
 
 K_DEFAULT = 3
+MAX_FAILURES_DEFAULT = 5
 
 # Filesystem mtimes can sit slightly behind time.time(); a BPE day takes minutes,
 # so a second of slack cannot let an earlier attempt's file in.
@@ -121,15 +126,19 @@ def diagnose_day(
 class CircuitBreaker:
     """Counts failed days by signature. ``failure`` returns why to halt, or None."""
 
-    def __init__(self, k: int = K_DEFAULT) -> None:
+    def __init__(self, k: int = K_DEFAULT, max_failures: int = MAX_FAILURES_DEFAULT) -> None:
         if k < 1:
             raise ValueError(f"k must be at least 1, not {k}")
+        if max_failures < k:
+            raise ValueError(f"max_failures ({max_failures}) must be at least k ({k})")
         self.k = k
+        self.max_failures = max_failures
         self._key: tuple[str, str] | None = None
-        self._count = 0
+        self._count = 0  # consecutive failures with self._key
+        self._failures = 0  # consecutive failures of any kind
 
     def success(self) -> None:
-        self._key, self._count = None, 0
+        self._key, self._count, self._failures = None, 0, 0
 
     def failure(self, diagnosis: Diagnosis) -> str | None:
         key = diagnosis.key
@@ -141,6 +150,9 @@ class CircuitBreaker:
             return f"configuration error ({diagnosis.label}); every day would fail the same way"
         self._count = self._count + 1 if key == self._key else 1
         self._key = key
+        self._failures += 1
         if self._count >= self.k:
             return f"{self._count} consecutive days failed with {diagnosis.label}"
+        if self._failures >= self.max_failures:
+            return f"{self._failures} consecutive days failed, with different errors"
         return None

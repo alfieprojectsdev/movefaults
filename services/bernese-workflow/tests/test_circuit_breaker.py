@@ -57,6 +57,7 @@ class ReplayBackend:
 
 
 def _replay(tmp_path: Path, failures: dict[int, str | Path], doys, kb=None):
+    (tmp_path / "BPE").mkdir(exist_ok=True)
     be = ReplayBackend(tmp_path / "BPE", tmp_path, failures)
     kb = kb if kb is not None else load(DEFAULT_PATH)
     out = run_days(be, "PHREF", 2025, doys, sol_dir=tmp_path, bpe_dir=tmp_path / "BPE", kb=kb)
@@ -111,11 +112,27 @@ def test_failure_without_any_failed_step_stops_at_once(tmp_path):
     assert "unknown failure" in out[1].note
 
 
-def test_different_session_errors_do_not_add_up(tmp_path):
-    failures = {1: HELMR1_PRT, 2: GETPOL, 3: HELMR1_PRT, 4: GETPOL, 5: HELMR1_PRT}
+def test_different_session_errors_do_not_trip_k(tmp_path):
+    failures = {1: HELMR1_PRT, 2: GETPOL, 3: HELMR1_PRT, 4: GETPOL}
     be, out = _replay(tmp_path, failures, [1, 2, 3, 4, 5])
     assert len(be.calls) == 5
-    assert all(o.status == "failed" for o in out)
+    assert [o.status for o in out] == ["failed"] * 4 + ["ok"]
+
+
+def test_five_failures_in_a_row_stop_the_run_whatever_the_errors(tmp_path):
+    """Review finding: alternating session errors restart K every day and never stop."""
+    failures = {d: (HELMR1_PRT if d % 2 else GETPOL) for d in range(1, 8)}
+    be, out = _replay(tmp_path, failures, range(1, 8))
+    assert len(be.calls) == 5
+    assert [o.status for o in out] == ["failed"] * 5 + ["not_run"] * 2
+    assert "5 consecutive days failed, with different errors" in out[5].note
+
+
+def test_only_a_success_resets_the_cap(tmp_path):
+    failures = {d: (HELMR1_PRT if d % 2 else GETPOL) for d in (1, 2, 3, 4, 6, 7, 8, 9)}
+    be, out = _replay(tmp_path, failures, range(1, 10))
+    assert len(be.calls) == 9
+    assert out[4].status == "ok"
 
 
 def test_a_success_restarts_the_count(tmp_path):
@@ -167,6 +184,11 @@ def test_diagnosis_prefers_the_prt_of_a_pair(tmp_path):
 def test_breaker_rejects_k_below_one():
     with pytest.raises(ValueError):
         CircuitBreaker(0)
+
+
+def test_breaker_rejects_a_cap_below_k():
+    with pytest.raises(ValueError, match="max_failures"):
+        CircuitBreaker(k=3, max_failures=2)
 
 
 def test_breaker_with_k_one_stops_on_the_first_session_error(tmp_path):
