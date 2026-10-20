@@ -1,8 +1,11 @@
 """Tests for panel_sanitizer — fixtures are verbatim PGN_WK panel lines (RH-004)."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from bernese_workflow.panel_sanitizer import (
+    find_dangling_jumps,
     find_dangling_waits,
     provision_opt_dir,
     sanitize_panel_text,
@@ -339,3 +342,117 @@ V_CLU    Maximum number of stations per cluster    10
 """
     pids = sorted(x.pid for x in find_dangling_waits(with_tables))
     assert pids == ["000", "111", "522"], pids
+
+
+# --- find_dangling_jumps: NEXTJOB and PARALLEL targets, both dialects -------
+
+_REPO = Path(__file__).resolve().parents[3]
+
+
+def test_dangling_jumps_in_keyword_dialect():
+    pcf = """# PID  SCRIPT    OPT_DIR   PARAMETERS
+011  RNX_COP   R2S_GEN   CPU=ANY; WAIT=001;  NEXTJOB= 099 999
+021  CCRNXOAP  R2S_GEN   CPU=ANY; WAIT=011
+022  CCRNXO_P  R2S_GEN   CPU=ANY; WAIT=021;  PARALLEL=020
+099  DUMMY     R2S_GEN   CPU=ANY; WAIT=022
+"""
+    r = find_dangling_jumps(pcf)
+    assert r.checked == 3
+    assert [(d.line, d.keyword, d.pid) for d in r.dangling] == [
+        (2, "NEXTJOB", "999"),
+        (4, "PARALLEL", "020"),
+    ]
+
+
+def test_dangling_jumps_in_the_52_special_actions_table():
+    """5.2 keeps jumps in a second table; PARALLEL names its source as $PID."""
+    pcf = _PCF_COLUMNAR + """
+PID USER         PASSWORD PARAM1   PARAM2
+113                       PARALLEL $111
+599                       NEXTJOB  101 700
+"""
+    r = find_dangling_jumps(pcf)
+    assert r.checked == 5          # 3 targets + the 2 rows' own PIDs (113, 599)
+    assert [(d.keyword, d.pid) for d in r.dangling] == [("PARALLEL", "111"), ("NEXTJOB", "700")]
+
+
+def test_special_actions_rows_do_not_define_processes():
+    """`111  $111` in the special-actions table is not process 111.
+
+    If process 111 is deleted but its parameter row is left behind, a jump to
+    it must still be reported -- and so must the WAIT on it.
+    """
+    pcf = _PCF_COLUMNAR + """
+PID USER         PASSWORD PARAM1   PARAM2
+111                       $111
+113                       PARALLEL $111
+"""
+    assert [d.pid for d in find_dangling_jumps(pcf).dangling] == ["111"]
+    assert "111" in {d.pid for d in find_dangling_waits(pcf)}
+
+
+def test_special_action_on_an_undefined_process_is_dangling():
+    pcf = _PCF_COLUMNAR + """
+PID USER         PASSWORD PARAM1   PARAM2
+514                       NEXTJOB  101
+"""
+    r = find_dangling_jumps(pcf)
+    assert [(d.keyword, d.pid) for d in r.dangling] == [("NEXTJOB", "514")]
+
+
+@pytest.mark.parametrize("target", ["31", "3011", "$V_X"])
+def test_malformed_jump_targets_are_reported_not_skipped(target):
+    """A target that is not a three-digit PID is a broken jump, not a non-reference."""
+    pcf = f"001  R2S_COP  NO_OPT  CPU=ANY; NEXTJOB={target}\n"
+    r = find_dangling_jumps(pcf)
+    assert r.checked == 1
+    assert [d.pid for d in r.dangling] == [target.removeprefix("$")]
+
+
+def test_placeholder_and_empty_jump_lists_are_not_references():
+    """Stock 5.4 PCFs use `NEXTJOB= _ 901` and a bare `NEXTJOB=` (GOTO rows).
+
+    BSW skips `_` as an empty slot and accepts an empty list, so neither may be
+    reported; 901 is still checked.
+    """
+    pcf = (
+        "901  DUMMY    NO_OPT  CPU=ANY\n"
+        "283  MPRXTR   PPP_GE2 CPU=ANY; WAIT=901;  NEXTJOB= _ 901\n"
+        "429  GOTO     NO_OPT  CPU=ANY; WAIT=901;  NEXTJOB=\n"
+    )
+    r = find_dangling_jumps(pcf)
+    assert r.checked == 1
+    assert r.dangling == []
+
+
+def test_special_action_with_user_column_filled_is_read():
+    pcf = _PCF_COLUMNAR + """
+PID USER         PASSWORD PARAM1   PARAM2
+113 someone      secret   PARALLEL $700
+"""
+    assert [d.pid for d in find_dangling_jumps(pcf).dangling] == ["700"]
+
+
+def test_jump_check_reports_what_it_inspected():
+    """No jumps at all is checked == 0, which a caller must not read as clean."""
+    r = find_dangling_jumps(_PCF_KEYWORD)
+    assert r.checked == 0 and r.dangling == []
+
+
+def test_commented_jumps_are_ignored():
+    pcf = "# 011  RNX_COP  R2S_GEN  CPU=ANY; NEXTJOB= 999\n001  R2S_COP  NO_OPT  CPU=ANY\n"
+    assert find_dangling_jumps(pcf).checked == 0
+
+
+@pytest.mark.parametrize(
+    ("pcf", "references"),
+    [
+        ("config/bernese/gpsuser52-luzon/PCF/PHIVOL_REL.PCF", 24),  # 12 rows + 12 targets
+        ("config/bernese/gpsuser/PCF/PAGENET_DLY.PCF", 12),
+    ],
+)
+def test_real_pcfs_have_no_dangling_jumps(pcf, references):
+    """The production 5.2 PCF and a 5.4 PCF: every reference read, none dangling."""
+    r = find_dangling_jumps((_REPO / pcf).read_text(errors="replace"))
+    assert r.checked == references
+    assert r.dangling == []

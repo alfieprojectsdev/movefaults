@@ -60,6 +60,11 @@ _HARDCODED_CAMPAIGN_RE = re.compile(r"\$\{?P\}?/([A-Za-z_][A-Za-z0-9_]*)")
 
 # PCF process line: a 3-digit PID at the start of the line.
 _PCF_PID_RE = re.compile(r"^(\d{3})\s+\S+")
+# Where the process table ends: 5.2's special-actions header, or the variable
+# table header (both dialects). Rows below it can start with a PID-shaped column
+# (`201                       $201`) but they define no process, and reading them
+# as definitions would let a reference to a deleted process pass as defined.
+_PCF_PROCESS_TABLE_END_RE = re.compile(r"^(PID\s+USER\b|VARIABLE\b)")
 # WAIT dependency list, terminated by ';' or end of line.
 _PCF_WAIT_RE = re.compile(r"WAIT=([\d ]+)")
 
@@ -174,6 +179,19 @@ _PCF_ROW_COLUMNAR_RE = re.compile(
 )
 
 
+def _defined_pids(lines: list[str]) -> set[str]:
+    """PIDs defined in the process table, and only there."""
+    defined: set[str] = set()
+    for raw in lines:
+        stripped = raw.strip()
+        if _PCF_PROCESS_TABLE_END_RE.match(stripped):
+            break
+        m = _PCF_PID_RE.match(stripped)
+        if m:
+            defined.add(m.group(1))
+    return defined
+
+
 def find_dangling_waits(pcf_text: str) -> list[DanglingWait]:
     """Return WAIT dependencies that reference an undefined PID.
 
@@ -196,15 +214,14 @@ def find_dangling_waits(pcf_text: str) -> list[DanglingWait]:
     A checker that silently does not understand its input is worse than no
     checker, because it converts "unverified" into "verified".
     """
-    defined: set[str] = set()
-    for raw in pcf_text.splitlines():
-        m = _PCF_PID_RE.match(raw.strip())
-        if m:
-            defined.add(m.group(1))
+    lines = pcf_text.splitlines()
+    defined = _defined_pids(lines)
 
     dangling: list[DanglingWait] = []
-    for i, raw in enumerate(pcf_text.splitlines(), start=1):
+    for i, raw in enumerate(lines, start=1):
         stripped = raw.strip()
+        if _PCF_PROCESS_TABLE_END_RE.match(stripped):
+            break                       # no WAIT lists below the process table
         if _is_comment(stripped):
             continue
 
@@ -225,6 +242,82 @@ def find_dangling_waits(pcf_text: str) -> list[DanglingWait]:
                 if pid not in defined:
                     dangling.append(DanglingWait(i, pid))
     return dangling
+
+
+# Jump targets, in both dialects.
+#   5.4 keyword:  `011  RNX_COP  R2S_GEN  CPU=ANY; WAIT=001;  NEXTJOB= 099 999`
+#                 `022  CCRNXO_P R2S_GEN  CPU=ANY; WAIT=021;  PARALLEL=021`
+#   5.2 special-actions table, after the process table:
+#                 `331                       NEXTJOB  301`
+#                 `211                       PARALLEL $201`   ($201: PID 201's file list)
+# The target list runs to the next `;`. Every whitespace-separated token in it
+# is a reference, `$201` reading as 201; a token that is not a defined PID (`31`,
+# `3011`, a variable) is reported, never skipped, so a typo cannot pass as clean.
+_PCF_JUMP_KEYWORD_RE = re.compile(r"\b(NEXTJOB|PARALLEL)=([^;]*)")
+# Group 1 is the row's own PID: the process the special action belongs to. The
+# USER/PASSWORD columns between it and the keyword are normally blank, not always.
+_PCF_JUMP_SPECIAL_RE = re.compile(r"^(\d{3})\s.*?\b(NEXTJOB|PARALLEL)\b(?!=)(.*)$")
+
+
+@dataclass
+class DanglingJump:
+    line: int          # 1-indexed line of the reference
+    keyword: str       # NEXTJOB or PARALLEL
+    pid: str           # referenced PID (or a 5.2 special-action row's own PID)
+                       # with no process definition; may be a malformed token
+
+
+@dataclass
+class JumpCheck:
+    checked: int                 # references inspected; see find_dangling_jumps
+    dangling: list[DanglingJump]
+
+
+def find_dangling_jumps(pcf_text: str) -> JumpCheck:
+    """Return NEXTJOB and PARALLEL references to an undefined PID.
+
+    The companion to ``find_dangling_waits``, for the plan-phase check "finds
+    dangling WAIT= and NEXTJOB= in the PCF". NEXTJOB names the processes a script
+    may jump to; PARALLEL names the process whose file list a job is split over.
+    Either one naming a PID that does not exist breaks the BPE when the jump is
+    taken, which can be hours into a run. Both dialects are read: the 5.4
+    keywords on the process line, and the 5.2 special-actions table.
+
+    ``checked`` comes back with the result for the reason recorded on
+    ``find_dangling_waits``: an empty list from a function that matched nothing
+    is not a clean bill. A PCF that uses NEXTJOB or PARALLEL and gives
+    ``checked == 0`` was not understood.
+    """
+    lines = pcf_text.splitlines()
+    defined = _defined_pids(lines)
+
+    checked = 0
+    dangling: list[DanglingJump] = []
+    for i, raw in enumerate(lines, start=1):
+        stripped = raw.strip()
+        if _is_comment(stripped):
+            continue
+        refs = [(m.group(1), m.group(2)) for m in _PCF_JUMP_KEYWORD_RE.finditer(stripped)]
+        if not refs and (sm := _PCF_JUMP_SPECIAL_RE.match(stripped)):
+            owner, keyword, targets = sm.groups()
+            # A special action attaches to the process in its first column; one
+            # left behind for a deleted process is as broken as a bad target.
+            checked += 1
+            if owner not in defined:
+                dangling.append(DanglingJump(i, keyword, owner))
+            refs = [(keyword, targets)]
+        for keyword, targets in refs:
+            # As BSW 5.4 reads it (P_BPE.f90): `_` is a placeholder slot, and an
+            # empty list is no jump at all (stock CLKDET's GOTO rows). Neither is
+            # a reference.
+            for token in targets.split():
+                if token == "_":
+                    continue
+                pid = token.removeprefix("$")
+                checked += 1
+                if pid not in defined:
+                    dangling.append(DanglingJump(i, keyword, pid))
+    return JumpCheck(checked, dangling)
 
 
 # The ADDNEQ2 MAXPAR value line: `MAXPAR 1  "5000"`. Anchored to the line start so
