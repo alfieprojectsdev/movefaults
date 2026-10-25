@@ -43,6 +43,7 @@ import numpy as np
 
 A_WGS84 = 6378137.0
 F_WGS84 = 1.0 / 298.257223563
+E2_WGS84 = 2 * F_WGS84 - F_WGS84**2
 
 
 def read_sinex(path: Path) -> tuple[dict[str, np.ndarray], str]:
@@ -50,10 +51,13 @@ def read_sinex(path: Path) -> tuple[dict[str, np.ndarray], str]:
 
     Only STAX/STAY/STAZ are taken. A station is kept only if all three
     components are present -- a partial station would silently bias the fit.
+    A station with more than one solution number (a discontinuity) raises
+    ValueError: keyed on the code alone, the later one would replace the first.
     """
     txt = path.read_text(errors="replace").splitlines()
     header = txt[0] if txt else ""
     comp: dict[str, dict[str, float]] = {}
+    solns: dict[str, set[str]] = {}
     inblk = False
     for line in txt:
         if line.startswith("+SOLUTION/ESTIMATE"):
@@ -71,6 +75,10 @@ def read_sinex(path: Path) -> tuple[dict[str, np.ndarray], str]:
             comp.setdefault(f[2].upper(), {})[f[1]] = float(f[8])
         except ValueError:
             continue
+        solns.setdefault(f[2].upper(), set()).add(f[4])
+    multi = sorted(s for s, n in solns.items() if len(n) > 1)
+    if multi:
+        raise ValueError(f"{path}: more than one SOLN for {', '.join(multi)}")
     out = {
         s: np.array([v["STAX"], v["STAY"], v["STAZ"]])
         for s, v in comp.items()
@@ -84,11 +92,10 @@ def xyz_to_neu_rotation(xyz: np.ndarray) -> np.ndarray:
     x, y, z = xyz
     lon = math.atan2(y, x)
     p = math.hypot(x, y)
-    lat = math.atan2(z, p * (1 - (2 * F_WGS84 - F_WGS84**2)))
+    lat = math.atan2(z, p * (1 - E2_WGS84))
     for _ in range(5):  # iterate the geodetic latitude
-        e2 = 2 * F_WGS84 - F_WGS84**2
-        n = A_WGS84 / math.sqrt(1 - e2 * math.sin(lat) ** 2)
-        lat = math.atan2(z + e2 * n * math.sin(lat), p)
+        n = A_WGS84 / math.sqrt(1 - E2_WGS84 * math.sin(lat) ** 2)
+        lat = math.atan2(z + E2_WGS84 * n * math.sin(lat), p)
     sla, cla, slo, clo = (
         math.sin(lat), math.cos(lat), math.sin(lon), math.cos(lon),
     )
@@ -115,11 +122,13 @@ def helmert(ours: np.ndarray, theirs: np.ndarray) -> tuple[np.ndarray, np.ndarra
     Returns (params, residuals). params = [Tx,Ty,Tz (m), s (unitless),
     Rx,Ry,Rz (rad)]. Residuals are theirs - transformed(ours), in metres.
     """
-    A = _design(ours)
-    L = (theirs - ours).reshape(-1)
-    p, *_ = np.linalg.lstsq(A, L, rcond=None)
-    res = (L - A @ p).reshape(-1, 3)
-    return p, res
+    p, *_ = np.linalg.lstsq(_design(ours), (theirs - ours).reshape(-1), rcond=None)
+    return p, _residuals(ours, theirs, p)
+
+
+def _residuals(ours: np.ndarray, theirs: np.ndarray, p: np.ndarray) -> np.ndarray:
+    """theirs - transformed(ours) for every site under parameters `p`, (n, 3) m."""
+    return ((theirs - ours).reshape(-1) - _design(ours) @ p).reshape(-1, 3)
 
 
 def helmert_robust(ours, theirs, sites, max_iter=10, k=4.0, floor_mm=15.0):
@@ -145,8 +154,7 @@ def helmert_robust(ours, theirs, sites, max_iter=10, k=4.0, floor_mm=15.0):
     rejected: list[str] = []
     for _ in range(max_iter):
         p, _ = helmert(ours[keep], theirs[keep])
-        full = ((theirs - ours).reshape(-1) - _design(ours) @ p).reshape(-1, 3)
-        neu = to_neu(rot, full)
+        neu = to_neu(rot, _residuals(ours, theirs, p))
         h = np.hypot(neu[:, 0], neu[:, 1]) * 1000.0
         sigma = float(np.sqrt(np.mean(h[keep] ** 2)))
         thr = max(k * sigma, floor_mm)
@@ -156,8 +164,7 @@ def helmert_robust(ours, theirs, sites, max_iter=10, k=4.0, floor_mm=15.0):
         rejected += [sites[i] for i in range(len(sites)) if keep[i] and not new[i]]
         keep = new
     p, _ = helmert(ours[keep], theirs[keep])
-    res_all = ((theirs - ours).reshape(-1) - _design(ours) @ p).reshape(-1, 3)
-    return p, res_all, keep, rejected
+    return p, _residuals(ours, theirs, p), keep, rejected
 
 
 def _design(xyz: np.ndarray) -> np.ndarray:
@@ -190,7 +197,6 @@ def main() -> int:
     xyz_o = np.array([ours[s] for s in common])
     xyz_t = np.array([theirs[s] for s in common])
     p, res, keep, rejected = helmert_robust(xyz_o, xyz_t, common)
-    res = res.reshape(len(common), 3)
 
     neu = to_neu(neu_rotations(xyz_o), res)
     neu_mm = neu * 1000.0

@@ -78,3 +78,38 @@ def test_a_clean_network_rejects_nothing():
     _, _, keep, rejected = cws.helmert_robust(ours, theirs, sites)
     assert rejected == []
     assert keep.all()
+
+
+def test_the_rotation_matches_the_geodetic_frame_it_was_built_from():
+    # The tests above shift stations with `xyz_to_neu_rotation` itself, so a
+    # wrong rotation (geocentric latitude, swapped rows, flipped sign) would
+    # move the synthetic outlier and the detector together and still pass.
+    # Check it against the geodetic latitude/longitude `_xyz` started from.
+    for lat_deg, lon_deg, h in ((6.0, 119.0, 0.0), (12.3, 123.4, 500.0), (18.9, 126.9, 2400.0)):
+        lat, lon = math.radians(lat_deg), math.radians(lon_deg)
+        north = [-math.sin(lat) * math.cos(lon), -math.sin(lat) * math.sin(lon), math.cos(lat)]
+        east = [-math.sin(lon), math.cos(lon), 0.0]
+        up = [math.cos(lat) * math.cos(lon), math.cos(lat) * math.sin(lon), math.sin(lat)]
+        rot = cws.xyz_to_neu_rotation(_xyz(lat_deg, lon_deg, h))
+        np.testing.assert_allclose(rot, [north, east, up], atol=1e-12)
+
+
+def test_a_station_with_two_solution_numbers_is_refused_not_overwritten(tmp_path):
+    """A discontinuity (an earthquake offset, an antenna change) gives a station a
+    second SOLN. Keyed on the site code alone, the second would silently replace the
+    first for the whole week. No weekly file on gps3 has one yet (all 7,002 rows are
+    SOLN 1, checked 2026-10-26), so refuse rather than guess which one is meant."""
+    rows = []
+    for k, (soln, x) in enumerate([("1", -3.0e6), ("2", -3.1e6)]):
+        for j, (t, v) in enumerate([("STAX", x), ("STAY", 5.0e6), ("STAZ", 1.5e6)]):
+            rows.append(
+                f" {3 * k + j + 1:5d} {t}   LGYE  A {soln:>4} 25:001:43200 m    2 {v: .14E} 1.0E-03"
+            )
+    snx = tmp_path / "two_soln.snx"
+    snx.write_text("%=SNX 2.02\n+SOLUTION/ESTIMATE\n" + "\n".join(rows) + "\n-SOLUTION/ESTIMATE\n")
+    try:
+        cws.read_sinex(snx)
+    except ValueError as e:
+        assert "LGYE" in str(e)
+    else:
+        raise AssertionError("a second SOLN for LGYE was accepted silently")
