@@ -244,19 +244,36 @@ def find_dangling_waits(pcf_text: str) -> list[DanglingWait]:
     return dangling
 
 
-# Jump targets, in both dialects.
+# Jump targets, in both dialects, read as BSW 5.4 reads them (P_BPE.f90).
 #   5.4 keyword:  `011  RNX_COP  R2S_GEN  CPU=ANY; WAIT=001;  NEXTJOB= 099 999`
 #                 `022  CCRNXO_P R2S_GEN  CPU=ANY; WAIT=021;  PARALLEL=021`
+#     The value runs to the next `;` and every token is looked up verbatim as a
+#     PID (job_findPID): `$301` is not PID 301. NEXTJOB takes a list, `_` being
+#     an empty slot; PARALLEL takes exactly one PID.
 #   5.2 special-actions table, after the process table:
 #                 `331                       NEXTJOB  301`
-#                 `211                       PARALLEL $201`   ($201: PID 201's file list)
-# The target list runs to the next `;`. Every whitespace-separated token in it
-# is a reference, `$201` reading as 201; a token that is not a defined PID (`31`,
-# `3011`, a variable) is reported, never skipped, so a typo cannot pass as clean.
+#                 `201                       $201`
+#                 `211                       PARALLEL $201`
+#     Fixed width, `(I3,1X,A12,1X,A8,9(1X,A8))`, and a keyword only counts in
+#     PARAM1. `PARALLEL $201` names no PID: BSW finds the job whose PARAM1 is
+#     the label `$201` among the rows it has already read, and uses that job
+#     (pcf_updateParalleJob_V0). Only PARAM2 is read after PARALLEL.
+# A token that is not a defined PID (`31`, `3011`, a variable) is reported,
+# never skipped, so a typo cannot pass as clean.
 _PCF_JUMP_KEYWORD_RE = re.compile(r"\b(NEXTJOB|PARALLEL)=([^;]*)")
-# Group 1 is the row's own PID: the process the special action belongs to. The
-# USER/PASSWORD columns between it and the keyword are normally blank, not always.
-_PCF_JUMP_SPECIAL_RE = re.compile(r"^(\d{3})\s.*?\b(NEXTJOB|PARALLEL)\b(?!=)(.*)$")
+_PCF_JUMP_KEYWORDS = ("NEXTJOB", "PARALLEL")
+_PCF_JUMP_WORD_RE = re.compile(r"\b(NEXTJOB|PARALLEL)\b(?!=)")
+_PCF_SPECIAL_TABLE_RE = re.compile(r"^PID\s+USER\b")
+_PCF_VARIABLE_TABLE_RE = re.compile(r"^VARIABLE\b")
+_PCF_SPECIAL_ROW_RE = re.compile(r"^(\d{3})\s")
+# 5.2 parameter-row special actions that are not jumps and carry no label.
+_PCF_52_NON_LABEL = ("SKIP", "CONT_ERR")
+
+
+def _special_row_params(raw: str) -> list[str]:
+    """PARAM1..PARAM9 of a 5.2 special-actions row, by BSW's column layout."""
+    line = raw.rstrip("\r\n")
+    return [line[26 + 9 * k: 34 + 9 * k].strip() for k in range(9)]
 
 
 @dataclass
@@ -264,7 +281,9 @@ class DanglingJump:
     line: int          # 1-indexed line of the reference
     keyword: str       # NEXTJOB or PARALLEL
     pid: str           # referenced PID (or a 5.2 special-action row's own PID)
-                       # with no process definition; may be a malformed token
+                       # with no process definition; may be a malformed token,
+                       # verbatim. A 5.2 PARALLEL label is reported without `$`;
+                       # a 5.2 keyword outside PARAM1 reports what PARAM1 holds
 
 
 @dataclass
@@ -293,30 +312,70 @@ def find_dangling_jumps(pcf_text: str) -> JumpCheck:
 
     checked = 0
     dangling: list[DanglingJump] = []
+    in_special = False
+    labels: dict[str, list[str]] = {}   # 5.2 PARAM1 label -> owners, read so far
+
+    def check(i: int, keyword: str, pid: str) -> None:
+        nonlocal checked
+        checked += 1
+        if pid not in defined:
+            dangling.append(DanglingJump(i, keyword, pid))
+
     for i, raw in enumerate(lines, start=1):
         stripped = raw.strip()
+        if _PCF_VARIABLE_TABLE_RE.match(stripped):
+            break                       # no jumps in the variable table
+        if _PCF_SPECIAL_TABLE_RE.match(stripped):
+            in_special = True
+            continue
         if _is_comment(stripped):
             continue
-        refs = [(m.group(1), m.group(2)) for m in _PCF_JUMP_KEYWORD_RE.finditer(stripped)]
-        if not refs and (sm := _PCF_JUMP_SPECIAL_RE.match(stripped)):
-            owner, keyword, targets = sm.groups()
+
+        if in_special:
+            sm = _PCF_SPECIAL_ROW_RE.match(raw)
+            if not sm:
+                continue
+            owner = sm.group(1)
+            params = _special_row_params(raw)
+            keyword = params[0]
+            if keyword not in _PCF_JUMP_KEYWORDS:
+                if (wm := _PCF_JUMP_WORD_RE.search(raw[4:])):
+                    # BSW reads a jump only from PARAM1; one anywhere else is a
+                    # broken jump, not an absent one.
+                    checked += 1
+                    dangling.append(DanglingJump(i, wm.group(1), keyword))
+                elif keyword and keyword not in _PCF_52_NON_LABEL and owner in defined:
+                    labels.setdefault(keyword, []).append(owner)
+                continue
             # A special action attaches to the process in its first column; one
             # left behind for a deleted process is as broken as a bad target.
-            checked += 1
-            if owner not in defined:
-                dangling.append(DanglingJump(i, keyword, owner))
-            refs = [(keyword, targets)]
-        for keyword, targets in refs:
-            # As BSW 5.4 reads it (P_BPE.f90): `_` is a placeholder slot, and an
-            # empty list is no jump at all (stock CLKDET's GOTO rows). Neither is
-            # a reference.
-            for token in targets.split():
-                if token == "_":
-                    continue
-                pid = token.removeprefix("$")
+            check(i, keyword, owner)
+            if keyword == "NEXTJOB":
+                for token in " ".join(params[1:]).split():
+                    if token != "_":
+                        check(i, keyword, token)
+            elif params[1]:
+                owners = labels.get(params[1])
                 checked += 1
-                if pid not in defined:
-                    dangling.append(DanglingJump(i, keyword, pid))
+                if owners:
+                    owners.pop(0)       # BSW consumes the label when it matches
+                else:
+                    dangling.append(DanglingJump(i, keyword, params[1].removeprefix("$")))
+            continue
+
+        for keyword, targets in (m.groups() for m in _PCF_JUMP_KEYWORD_RE.finditer(stripped)):
+            tokens = targets.split()
+            if keyword == "PARALLEL":
+                # An empty PARALLEL= is no special action at all; anything else
+                # is looked up as one PID, spaces included.
+                if tokens:
+                    check(i, keyword, " ".join(tokens))
+                continue
+            # `_` is a placeholder slot, and an empty list is no jump at all
+            # (stock CLKDET's GOTO rows). Neither is a reference.
+            for token in tokens:
+                if token != "_":
+                    check(i, keyword, token)
     return JumpCheck(checked, dangling)
 
 
