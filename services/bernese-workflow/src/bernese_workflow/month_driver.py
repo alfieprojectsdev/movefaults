@@ -188,8 +188,8 @@ def run_days(
             error = None
         except Exception as exc:  # noqa: BLE001 -- a day's error is that day's failure
             # The real backend raises on timeout and on RINEX header validation.
-            # The day is recorded and the report still returned. No BPE step
-            # failed, so the breaker treats it as unknown and the run stops.
+            # The day is recorded and the report still returned, and the run
+            # stops as unknown whatever BPE/ shows (see the halt below).
             # KeyboardInterrupt is not an Exception and propagates.
             result = None
             error = f"{type(exc).__name__}: {exc}"
@@ -218,11 +218,16 @@ def run_days(
         except OSError as exc:
             # Reading BPE/ must not cost the report: diagnose as unknown, which halts.
             logger.error("DOY %03d: could not read %s: %s", doy, bpe_dir, exc)
-            diagnosis = Diagnosis(None, None, None)
+            diagnosis = Diagnosis(None, None, None, unreadable=f"{type(exc).__name__}: {exc}")
         explanation = diagnosis.explanation(kb)
         out.append(DayOutcome(doy, session, "failed", seconds, note, diagnosis.label, explanation))
         logger.warning("DOY %03d failed: %s; %s", doy, note, diagnosis.label)
         halt = breaker.failure(diagnosis)
+        if halt is None and result is None:
+            # A backend that raised (timeout, refused pre-flight) is unknown even
+            # when a step left a known session error: that error does not explain
+            # the raise, and another day would cost another timeout.
+            halt = f"unknown failure (backend raised {error}); no remedy on file"
         if halt is not None:
             logger.error("stopping: %s\n%s", halt, explanation)
             out.extend(

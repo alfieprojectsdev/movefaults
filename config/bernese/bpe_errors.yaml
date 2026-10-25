@@ -1,7 +1,7 @@
 # Known Bernese BPE errors: what each one means here, and what to do about it.
 #
 # The BPE driver scans a failed step's output (bernese_workflow.bpe_scanner),
-# takes the last *** error before the step's ERR line, and looks it up here.
+# takes the last *** error the failed program printed, and looks it up here.
 # A failure with no matching row halts the run and shows the raw message.
 # Nothing here is applied automatically: a row only tells a person what to
 # check and change.

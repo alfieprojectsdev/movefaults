@@ -13,8 +13,10 @@ The rules, in order:
 
 1. **Unknown halts at once.** A failed step with no ``***`` message, an error
    with no row in the knowledge base, or a failed day whose BPE left no failed
-   step at all (a timeout, a backend exception, success without a FIN). There
-   is no default remedy, so there is nothing to gain from another day.
+   step at all (success without a FIN). A day the backend raised on (a
+   timeout, a refused pre-flight) halts too, whatever BPE/ shows; that rule is
+   applied in ``month_driver.run_days``. There is no default remedy, so there
+   is nothing to gain from another day.
 2. **``scope: configuration`` halts at once.** The setup is wrong and every day
    will fail the same way.
 3. **``scope: session`` is counted.** The day is reported and the run goes on,
@@ -47,7 +49,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from bernese_workflow.bpe_knowledge import Entry, KnowledgeBase, explain
+from bernese_workflow.bpe_knowledge import Entry, KnowledgeBase, explain, match_key
 from bernese_workflow.bpe_scanner import StepReport, scan_file
 
 K_DEFAULT = 3
@@ -65,17 +67,19 @@ class Diagnosis:
     step: Path | None  # the failed step's file, None when no step failed
     report: StepReport | None
     entry: Entry | None
+    unreadable: str | None = None  # why BPE/ could not be read, when it could not
 
     @property
     def key(self) -> tuple[str, str] | None:
         """The signature the breaker counts, matched as the knowledge base matches."""
         if self.report is None or self.report.cause is None:
             return None
-        cause = self.report.cause
-        return (cause.emitter.lower(), cause.kind)
+        return match_key(self.report.cause)
 
     @property
     def label(self) -> str:
+        if self.unreadable is not None:
+            return f"BPE output unreadable ({self.unreadable})"
         if self.report is None:
             return "no failed BPE step"
         cause = self.report.cause
@@ -84,6 +88,11 @@ class Diagnosis:
         return f"{cause.emitter}: {cause.kind}"
 
     def explanation(self, kb: KnowledgeBase) -> str:
+        if self.unreadable is not None:
+            return (
+                f"Could not read the BPE output: {self.unreadable}. "
+                "UNKNOWN: read the BPE output and the driver's log."
+            )
         if self.step is None or self.report is None:
             return (
                 "No BPE step reported a failure. UNKNOWN: read the BPE output and the driver's log."

@@ -142,6 +142,29 @@ def test_a_success_restarts_the_count(tmp_path):
     assert [o.status for o in out] == ["failed", "failed", "ok", "failed", "failed"]
 
 
+def test_a_timeout_stops_even_when_a_step_left_a_session_error(tmp_path):
+    """A known session error in BPE/ does not explain a backend that raised.
+
+    Counting it as that session error would let the run go on, and each further
+    day could cost another full timeout.
+    """
+    import subprocess
+
+    class TimesOut(ReplayBackend):
+        def run(self, campaign_name, year, session):
+            self.calls.append(session)
+            _step(self.bpe_dir, year, session, HELMR1_PRT)
+            raise subprocess.TimeoutExpired("startBPE", 7200)
+
+    (tmp_path / "BPE").mkdir()
+    be = TimesOut(tmp_path / "BPE", tmp_path, {})
+    out = run_days(be, "PHREF", 2025, [1, 2, 3], sol_dir=tmp_path, bpe_dir=tmp_path / "BPE")
+    assert be.calls == ["0010"]
+    assert [o.status for o in out] == ["failed", "not_run", "not_run"]
+    assert out[0].error.startswith("HELMR1")
+    assert "unknown failure (backend raised TimeoutExpired" in out[1].note
+
+
 # --- finding the failed step -------------------------------------------------
 
 
