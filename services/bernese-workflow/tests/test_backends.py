@@ -369,7 +369,7 @@ def test_run_reports_a_killed_group_as_a_timeout(tmp_path, monkeypatch):
         campaign_dir=tmp_path / "GPSDATA",
         timeout_sec=5,
     )
-    with pytest.raises(RuntimeError, match="timed out after 5s.*process group was killed"):
+    with pytest.raises(RuntimeError, match="timed out after 5s.*process group was sent SIGTERM"):
         backend.run("CAMP", 2023, "0100")
 
 
@@ -383,3 +383,110 @@ def test_timeout_keeps_the_partial_bpe_log(monkeypatch):
             timeout=1,
         )
     assert "PCF started" in info.value.stdout
+
+
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"), reason="process groups; _alive reads /proc"
+)
+def test_a_driver_that_exits_early_does_not_leave_its_jobs_running(tmp_path, monkeypatch):
+    """A job that does not hold the output pipe lets communicate() return as soon
+    as the driver exits. It is still in the driver's group and must not outlive
+    the drain."""
+    monkeypatch.setattr(backends, "_KILL_GRACE_SEC", 1)
+    monkeypatch.setattr(backends, "_DRAIN_SEC", 1)
+    pidfile = tmp_path / "job.pid"
+    driver = tmp_path / "driver.sh"
+    driver.write_text(
+        "#!/bin/sh\n"
+        f"echo 'echo $$ > {pidfile}; exec sleep 300' | sh >/dev/null 2>&1 &\n"
+        f"while [ ! -s {pidfile} ]; do sleep 0.05; done\n"
+        "exit 0\n"
+    )
+    out = _run_bpe_process(["sh", str(driver)], env=dict(os.environ), timeout=10)
+
+    assert out.returncode == 0
+    job_pid = int(pidfile.read_text())
+    assert _gone_within(job_pid, 5), "a BPE job outlived its driver"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="process groups are POSIX")
+def test_a_kill_that_is_refused_does_not_hide_the_timeout(monkeypatch):
+    """EPERM from killpg must not replace the TimeoutExpired that run() turns
+    into its 'BPE timed out' RuntimeError."""
+    monkeypatch.setattr(backends, "_KILL_GRACE_SEC", 1)
+    real_killpg = os.killpg
+    started: list[int] = []
+
+    def refuse(pgid, sig):
+        started.append(pgid)
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(backends.os, "killpg", refuse)
+    try:
+        with pytest.raises(subprocess.TimeoutExpired):
+            _run_bpe_process(
+                ["sh", "-c", "exec sleep 30"], env=dict(os.environ), timeout=1
+            )
+    finally:
+        for pgid in started[:1]:
+            try:
+                real_killpg(pgid, 9)
+            except ProcessLookupError:
+                pass
+
+
+def test_kill_group_reports_a_group_that_survives_sigkill(monkeypatch, caplog):
+    """A member in uninterruptible sleep can outlive SIGKILL's grace. Say so,
+    rather than returning as though the group were gone."""
+    monkeypatch.setattr(backends, "_KILL_GRACE_SEC", 0.2)
+    monkeypatch.setattr(backends.os, "killpg", lambda pgid, sig: None)
+
+    class _Proc:
+        pid = 4242
+
+        def poll(self):
+            return None
+
+    with caplog.at_level("ERROR", logger="bernese_workflow.backends"):
+        assert backends._kill_group(_Proc()) is False
+    assert "4242" in caplog.text
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="reads /proc")
+def test_bpe_does_not_inherit_the_callers_stdin():
+    """A detached BPE must not read (or block on) whatever the caller's fd 0 is.
+    fd 0 is swapped for a pipe first: under cron or pytest it is often already
+    /dev/null, and then this test could not fail."""
+    r, w = os.pipe()
+    saved = os.dup(0)
+    try:
+        os.dup2(r, 0)
+        out = _run_bpe_process(
+            ["readlink", "/proc/self/fd/0"], env=dict(os.environ), timeout=10
+        )
+    finally:
+        os.dup2(saved, 0)
+        for fd in (saved, r, w):
+            os.close(fd)
+    assert out.stdout.strip() == "/dev/null"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="process groups are POSIX")
+def test_a_job_still_finishing_when_the_driver_exits_is_not_killed(tmp_path, caplog):
+    """BSW 5.4's server writes QUIT to a client and exits without waiting for it
+    (t_script::stopClient), so the last RUNBPE client can still be removing its
+    temp user area and writing its PRT tail after the driver returns. The sweep
+    must let it finish, and must not warn about it."""
+    marker = tmp_path / "prt_tail_written"
+    driver = tmp_path / "driver.sh"
+    driver.write_text(
+        "#!/bin/sh\n"
+        f"echo 'sleep 1; echo SCRIPT__ENDED > {marker}' | sh >/dev/null 2>&1 &\n"
+        "exit 0\n"
+    )
+    with caplog.at_level("WARNING", logger="bernese_workflow.backends"):
+        out = _run_bpe_process(["sh", str(driver)], env=dict(os.environ), timeout=10)
+
+    assert out.returncode == 0
+    assert marker.read_text().strip() == "SCRIPT__ENDED", "the sweep killed a finishing job"
+    assert caplog.text == ""
