@@ -25,9 +25,21 @@ A BPE that fails but leaves a FIN file is not banked, because no marker is
 written. A zero-byte FIN from a crash mid-write is not banked because the
 re-validation catches it. A truncated .gz is detected by reading it to the end.
 
+A day that is attempted loses its marker before the BPE starts, so a marker
+always belongs to the FIN its own attempt produced. Without that, a redo that
+failed after saving a FIN would be banked on the marker of the success it was
+meant to replace. The marker is written only after the FIN and then the marker
+itself are fsynced, so a marker on disk implies its FIN is on disk: the
+re-validation below cannot catch a truncated plain .NQ0, which has no checksum.
+
 Days banked by scripts/ (which write FIN files without .done markers) will be
 rerun. This is acceptable for fresh campaigns run through the service. To adopt
 a scripts/-started range, write the markers beforehand.
+
+TO REDO A BANKED DAY, delete its .done marker (deleting the FIN works too) and
+run the range again. Only the FIN is checked: RED/CRD and other products the
+earlier attempt left in the campaign are not removed, so a redo that fails part
+way can leave a newer FIN beside older station products.
 
 WHEN IT STOPS
 After each failed day the driver scans the BPE output for the failed step,
@@ -51,6 +63,7 @@ from __future__ import annotations
 import calendar
 import gzip
 import logging
+import os
 import time
 import zlib
 from collections.abc import Iterable
@@ -90,23 +103,30 @@ def session_for(doy: int, session_char: str = "0") -> str:
     return f"{doy:03d}{session_char}"
 
 
+def _fin_candidates(sol_dir: Path, year: int, doy: int, session_char: str) -> tuple[Path, Path]:
+    """The two names a day's FIN may have: plain, then compressed."""
+    stem = f"FIN_{year}{session_for(doy, session_char)}.NQ0"
+    return sol_dir / stem, sol_dir / f"{stem}.gz"
+
+
+def _intact(p: Path) -> bool:
+    """Exists, non-zero, and (for .gz) decompresses to the end."""
+    if not p.exists() or p.stat().st_size == 0:
+        return False
+    if p.suffix == ".gz":
+        try:
+            with gzip.open(p, "rb") as f:
+                while f.read(8192):
+                    pass
+        # zlib.error (a corrupt deflate stream) is not an OSError.
+        except (EOFError, OSError, zlib.error):
+            return False
+    return True
+
+
 def _fin_path(sol_dir: Path, year: int, doy: int, session_char: str = "0") -> Path | None:
     """Return the FIN path if it exists, is non-zero and intact, else None."""
-    stem = f"FIN_{year}{session_for(doy, session_char)}.NQ0"
-    for name in (stem, f"{stem}.gz"):
-        p = sol_dir / name
-        if not p.exists() or p.stat().st_size == 0:
-            continue
-        if name.endswith(".gz"):
-            try:
-                with gzip.open(p, "rb") as f:
-                    while f.read(8192):
-                        pass
-            # zlib.error (a corrupt deflate stream) is not an OSError.
-            except (EOFError, OSError, zlib.error):
-                continue
-        return p
-    return None
+    return next((p for p in _fin_candidates(sol_dir, year, doy, session_char) if _intact(p)), None)
 
 
 def _done_marker(sol_dir: Path, year: int, doy: int, session_char: str = "0") -> Path:
@@ -131,15 +151,43 @@ def fin_banked(sol_dir: Path, year: int, doy: int, session_char: str = "0") -> b
 
 def _fin_mtimes(sol_dir: Path, year: int, doy: int, session_char: str) -> dict[Path, int]:
     """mtime_ns of every FIN candidate present now, to tell a fresh FIN from a stale one."""
-    stem = f"FIN_{year}{session_for(doy, session_char)}.NQ0"
     out: dict[Path, int] = {}
-    for name in (stem, f"{stem}.gz"):
-        p = sol_dir / name
+    for p in _fin_candidates(sol_dir, year, doy, session_char):
         try:
             out[p] = p.stat().st_mtime_ns
         except FileNotFoundError:
             pass
     return out
+
+
+def _fresh_fin(
+    sol_dir: Path, year: int, doy: int, session_char: str, before: dict[Path, int]
+) -> Path | None:
+    """The first intact FIN candidate this attempt wrote or changed, else None.
+
+    Every candidate is checked, not only the one _fin_path prefers: a stale plain
+    FIN left beside a fresh .gz must not make the fresh one look stale.
+    """
+    for p in _fin_candidates(sol_dir, year, doy, session_char):
+        if _intact(p) and before.get(p) != p.stat().st_mtime_ns:
+            return p
+    return None
+
+
+def _fsync(path: Path) -> None:
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _write_marker(marker: Path, fin: Path) -> None:
+    """FIN, then marker, then directory to disk, so a marker on disk implies its FIN is."""
+    _fsync(fin)
+    marker.touch()
+    _fsync(marker)
+    _fsync(marker.parent)
 
 
 def run_days(
@@ -169,6 +217,10 @@ def run_days(
         # A wrong path would make every failure "no failed BPE step" and stop
         # the run with a misleading diagnosis; say so before Bernese starts.
         raise ValueError(f"BPE directory does not exist: {bpe_dir}")
+    if not sol_dir.is_dir():
+        # Same reasoning: every FIN would look missing, so the first day would be
+        # run in full and then reported as "no valid FIN", and the run stopped.
+        raise ValueError(f"SOL directory does not exist: {sol_dir}")
     if kb is None:
         kb = load(DEFAULT_PATH)
     breaker = CircuitBreaker(k, max_failures)
@@ -180,6 +232,8 @@ def run_days(
             out.append(DayOutcome(doy, session, "banked"))
             continue
 
+        # This attempt replaces whatever the marker vouched for (see module docstring).
+        _done_marker(sol_dir, year, doy, session_char).unlink(missing_ok=True)
         before = _fin_mtimes(sol_dir, year, doy, session_char)
         started = time.time()
         t0 = time.monotonic()
@@ -194,12 +248,12 @@ def run_days(
             result = None
             error = f"{type(exc).__name__}: {exc}"
         seconds = time.monotonic() - t0
-        fin = _fin_path(sol_dir, year, doy, session_char)
         # A FIN left by an earlier failed attempt is not this run's output. mtime
         # granularity (ms) is far below a BPE day (minutes), so equality means untouched.
-        stale = fin is not None and before.get(fin) == fin.stat().st_mtime_ns
-        if result is not None and result.success and fin is not None and not stale:
-            _done_marker(sol_dir, year, doy, session_char).touch()
+        fin = _fresh_fin(sol_dir, year, doy, session_char, before)
+        stale = fin is None and _fin_path(sol_dir, year, doy, session_char) is not None
+        if result is not None and result.success and fin is not None:
+            _write_marker(_done_marker(sol_dir, year, doy, session_char), fin)
             out.append(DayOutcome(doy, session, "ok", seconds))
             breaker.success()
             logger.info("DOY %03d ok in %.0f s", doy, seconds)

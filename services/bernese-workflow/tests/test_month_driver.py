@@ -167,6 +167,75 @@ def test_outcome_carries_timing(tmp_path):
     assert out[0].seconds >= 0
 
 
+# --- review of #268: redo, freshness, durability ------------------------------
+
+
+class _FailsButWritesFin(FakeBackend):
+    """A BPE that saves the FIN and then fails at a later step (e.g. COMPARF)."""
+
+    def run(self, campaign_name, year, session):
+        self.calls.append(session)
+        _write_valid_gz(self.sol_dir / f"FIN_{year}{session}.NQ0.gz", b"from the failed redo")
+        _write_failed_step(self.sol_dir, year, session)
+        return BPEResult(False, None, None, False, False)
+
+
+def test_a_failed_redo_does_not_inherit_the_old_marker(tmp_path):
+    """Redo by deleting the FIN (the scripts/ habit); the redo fails after saving a FIN.
+
+    The .done from the earlier success must not bank the failed redo's FIN.
+    """
+    _bank(tmp_path, 2025, 1)
+    (tmp_path / "FIN_20250010.NQ0.gz").unlink()  # the operator asks for a redo
+    out = run_days(
+        _FailsButWritesFin(tmp_path), "LUZON", 2025, [1], sol_dir=tmp_path, bpe_dir=tmp_path / "BPE"
+    )
+    assert out[0].status == "failed"
+    assert not fin_banked(tmp_path, 2025, 1)
+    be = FakeBackend(tmp_path)
+    run_days(be, "LUZON", 2025, [1], sol_dir=tmp_path, bpe_dir=tmp_path / "BPE")
+    assert be.calls == ["0010"]
+
+
+def test_missing_sol_dir_is_refused_before_any_day_runs(tmp_path):
+    be = FakeBackend(tmp_path)
+    with pytest.raises(ValueError, match="SOL directory"):
+        run_days(be, "LUZON", 2025, [1], sol_dir=tmp_path / "NOPE", bpe_dir=tmp_path / "BPE")
+    assert be.calls == []
+
+
+def test_fresh_gz_is_banked_even_when_a_stale_plain_fin_sits_beside_it(tmp_path):
+    """_fin_path prefers the plain name; a stale plain FIN must not mask a fresh .gz."""
+    stale = tmp_path / "FIN_20250010.NQ0"
+    stale.write_bytes(b"left by an earlier attempt")
+    os.utime(stale, ns=(0, 0))
+    out = run_days(
+        FakeBackend(tmp_path), "LUZON", 2025, [1], sol_dir=tmp_path, bpe_dir=tmp_path / "BPE"
+    )
+    assert out[0].status == "ok", out[0].note
+    assert fin_banked(tmp_path, 2025, 1)
+
+
+def test_fin_is_fsynced_before_the_marker_exists(tmp_path, monkeypatch):
+    """Re-validation cannot catch a truncated plain NQ0, so the marker must imply the FIN is on disk."""
+    events: list[str] = []
+    real_fsync = os.fsync
+
+    def spy(fd):
+        target = os.readlink(f"/proc/self/fd/{fd}")
+        marker_seen = (tmp_path / "FIN_20250010.done").exists()
+        events.append(f"{Path(target).name}:{'marker' if marker_seen else 'nomarker'}")
+        real_fsync(fd)
+
+    monkeypatch.setattr(os, "fsync", spy)
+    out = run_days(
+        FakeBackend(tmp_path), "LUZON", 2025, [1], sol_dir=tmp_path, bpe_dir=tmp_path / "BPE"
+    )
+    assert out[0].status == "ok"
+    assert "FIN_20250010.NQ0.gz:nomarker" in events
+    assert any(e.startswith("FIN_20250010.done") for e in events)
+
+
 # --- finch review: three failure-path tests that must each catch a mutant ---
 
 
