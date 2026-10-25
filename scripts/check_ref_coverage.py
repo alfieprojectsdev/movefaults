@@ -61,23 +61,34 @@ def _lines(text: str) -> list[str]:
     return [line.rstrip("\r") for line in text.split("\n")]
 
 
-def crd_names(text: str) -> dict[str, str]:
-    """Code -> full station name (columns 6-21, trailing blanks dropped)."""
-    names = {}
+def crd_names(text: str) -> dict[str, list[str]]:
+    """Code -> every full station name with that code (columns 6-21, blanks dropped).
+
+    A code is not unique: LUZON.CRD carries both `BILI 12363M001` (the IGS
+    fiducial) and `BILI BILI` (the PHIVOLCS site). Keeping only one would make
+    CRD line order decide which station gets checked.
+    """
+    names: dict[str, list[str]] = {}
     for line in _lines(text):
         m = _CRD_LINE.match(line)
         if m:
             full = m[1].rstrip()
-            names[full[:4]] = full
+            names.setdefault(full[:4], []).append(full)
     return names
 
 
 def name_listed(text: str, full_name: str) -> bool:
-    """True if some line starts with the full name followed by a blank or end."""
-    return any(
-        line.startswith(full_name) and line[len(full_name) : len(full_name) + 1] in ("", " ")
-        for line in _lines(text)
-    )
+    """True if some line starts with the full name and its name field ends there.
+
+    The name field is 16 wide and followed by at least two blanks in both STA
+    and ABB, while a name holds at most single blanks. So `PTAG 22006M005`
+    does not list the bare name `PTAG`, which is a different key to Bernese.
+    """
+    for line in _lines(text):
+        rest = line[len(full_name) :]
+        if line.startswith(full_name) and (not rest.strip() or rest.startswith("  ")):
+            return True
+    return False
 
 
 def blq_status(text: str, code: str) -> str:
@@ -90,11 +101,17 @@ def blq_status(text: str, code: str) -> str:
             continue
         if line.startswith("$$"):
             continue
-        if line[2:6] == code and line[:2] == "  ":
+        if line[2:6] == code and line[:2] == "  " and line[6:7] in ("", " "):
             if not seen_end:
                 return "ok"
             found_after = True
-        elif line[1:5] == code and line[:1] == " " and line[1:2] != " " and not seen_end:
+        elif (
+            line[1:5] == code
+            and line[:1] == " "
+            and line[1:2] != " "
+            and line[5:6] in ("", " ")
+            and not seen_end
+        ):
             misindented = True
     if found_after:
         return "after END TABLE"
@@ -125,10 +142,19 @@ def check(codes: list[str], files: dict[str, str]) -> list[tuple[str, str, str]]
     names = crd_names(files["CRD"])
     problems = []
     for code in codes:
-        full = names.get(code)
-        if full is None:
+        candidates = names.get(code, [])
+        if len(candidates) > 1:
+            # Bernese reaches the name through the STA renaming, so the STA
+            # file is what decides which of the CRD's names this station is
+            candidates = [n for n in candidates if name_listed(files["STA"], n)] or candidates
+        if not candidates:
             problems.append((code, "CRD", "absent"))
             continue
+        if len(candidates) > 1:
+            listed = ", ".join(f"'{n}'" for n in candidates)
+            problems.append((code, "CRD", f"ambiguous: {listed} all in CRD and STA"))
+            continue
+        full = candidates[0]
         for kind in ("STA", "ABB"):
             if not name_listed(files[kind], full):
                 problems.append((code, kind, "absent"))
@@ -191,6 +217,11 @@ def main() -> int:
         except KeyError as e:
             print(f"{pcf}: no {e.args[0]} variable", file=sys.stderr)
             return 2
+        for kind in ("CRD", "ABB", "STA"):
+            if not sets[kind]:
+                # R2S_COP copies these unconditionally; only BLQ/ATL may be blank
+                print(f"{pcf}: {_PCF_VAR[kind]} is empty", file=sys.stderr)
+                return 2
         label = args.pcf
     else:
         sets = dict.fromkeys(KINDS, args.set)
@@ -207,7 +238,12 @@ def main() -> int:
             return 2
         files[kind] = path.read_text(encoding="latin-1")
 
-    codes = [c.strip().upper() for c in args.stations.read_text().split() if c.strip()]
+    try:
+        station_text = args.stations.read_text()
+    except OSError as e:
+        print(f"cannot read station list: {e}", file=sys.stderr)
+        return 2
+    codes = [c.strip().upper() for c in station_text.split() if c.strip()]
     problems = check(codes, files)
     used = [f"{sets[k]}.{k}" for k in KINDS if files[k] is not None]
     print(f"{label}: {len(codes)} stations against {', '.join(used)}: {len(problems)} problem(s)")

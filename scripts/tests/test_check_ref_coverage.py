@@ -50,7 +50,7 @@ END = "$$ END TABLE\r\n"
 
 
 def test_crd_names_keep_the_full_sixteen_character_name():
-    assert cov.crd_names(CRD) == {"AGUS": "AGUS AGUS", "PTAG": "PTAG 22006M005"}
+    assert cov.crd_names(CRD) == {"AGUS": ["AGUS AGUS"], "PTAG": ["PTAG 22006M005"]}
 
 
 def test_blq_block_before_end_table_is_found():
@@ -155,3 +155,100 @@ def test_a_file_the_pcf_leaves_blank_is_not_checked():
         "ATL": None,
     }
     assert cov.check(["AGUS"], files) == []
+
+
+# --- review of #283 -------------------------------------------------------
+
+
+def test_name_listed_bare_name_is_not_satisfied_by_a_longer_name():
+    # PGN.CRD writes PTAG bare; an STA line for "PTAG 22006M005" is a different
+    # 16-character key and must not count as listing "PTAG"
+    sta = "PTAG 22006M005        001  2008 09 23 00 00 00   PTAG*   IGS.SNX\r\n"
+    assert not cov.name_listed(sta, "PTAG")
+    assert cov.name_listed("PTAG                  001\r\n", "PTAG")
+
+
+def test_blq_header_for_a_longer_name_is_not_the_code():
+    assert cov.blq_status(blq(block("AGUSX"), END), "AGUS") == "absent"
+
+
+# LUZON.CRD carries BILI twice: the IGS fiducial and the PHIVOLCS site
+CRD_DUP = (
+    "NUM  STATION NAME           X (M)          Y (M)          Z (M)     FLAG\r\n"
+    "\r\n"
+    " 44  BILI BILI        -3538708.71944  5153833.93735  1259526.87920\r\n"
+    " 43  BILI 12363M001   -2321893.42497   560096.77934  5894691.66481\r\n"
+)
+
+
+def test_duplicate_crd_code_resolves_through_the_sta_file():
+    files = {
+        "CRD": CRD_DUP,
+        "STA": "BILI BILI             001\r\n",
+        "ABB": "BILI BILI                BILI     BI\r\n",
+        "BLQ": blq(block("BILI"), END),
+        "ATL": "BILI BILI\r\n 0 0 0 0\r\n \r\n",
+    }
+    # order in the CRD must not decide which name is checked
+    assert cov.check(["BILI"], files) == []
+
+
+def test_duplicate_crd_code_that_sta_cannot_resolve_is_reported():
+    files = {
+        "CRD": CRD_DUP,
+        "STA": "BILI BILI             001\r\nBILI 12363M001        001\r\n",
+        "ABB": "BILI BILI                BILI     BI\r\n",
+        "BLQ": blq(block("BILI"), END),
+        "ATL": None,
+    }
+    problems = cov.check(["BILI"], files)
+    assert [p[:2] for p in problems] == [("BILI", "CRD")]
+    assert "ambiguous" in problems[0][2]
+
+
+def _run_main(monkeypatch, tmp_path, argv):
+    monkeypatch.setattr(sys, "argv", ["check_ref_coverage.py", *argv])
+    return cov.main()
+
+
+def test_pcf_with_empty_stainf_is_an_error_not_a_crash(monkeypatch, tmp_path, capsys):
+    pcf_dir = tmp_path / "PCF"
+    pcf_dir.mkdir()
+    (pcf_dir / "X_DLY.PCF").write_text(
+        "V_CRDINF = PHNAT;\nV_STAINF = ;\nV_BLQINF = ;\nV_ATLINF = ;\n"
+    )
+    ref = tmp_path / "REF54"
+    ref.mkdir()
+    for kind in ("CRD", "ABB"):
+        (ref / f"PHNAT.{kind}").write_text(CRD)
+    sites = tmp_path / "sites.txt"
+    sites.write_text("AGUS\n")
+    rc = _run_main(
+        monkeypatch,
+        tmp_path,
+        [
+            "--pcf",
+            "X_DLY",
+            "--pcf-dir",
+            str(pcf_dir),
+            "--ref-dir",
+            str(ref),
+            "--stations",
+            str(sites),
+        ],
+    )
+    assert rc == 2
+    assert "V_STAINF" in capsys.readouterr().err
+
+
+def test_missing_station_list_exits_2_not_1(monkeypatch, tmp_path):
+    ref = tmp_path / "REF54"
+    ref.mkdir()
+    for kind in cov.KINDS:
+        (ref / f"S.{kind}").write_text("")
+    rc = _run_main(
+        monkeypatch,
+        tmp_path,
+        ["--set", "S", "--ref-dir", str(ref), "--stations", str(tmp_path / "nope.txt")],
+    )
+    assert rc == 2
