@@ -17,6 +17,13 @@
 #   PHIVOLCS.VEL   velocities             13,090 B
 #   WK_2405.CRD    439-station a priori   30,489 B   <- the "439 catalogued"
 #
+# Those are sizes AS FETCHED, and a fresh fetch should match them. gps3's
+# working copy of PHIVOLCS.BLQ is 119,951 B since 2026-08-28: the seven
+# fiducials' blocks (Onsala reply, config/bernese/otl/) and BURN (an Onsala
+# FES2004 block carried over from LUZON.BLQ) were merged in,
+# and CALU/PTTN/URDT re-indented (see SETTLED, "BLQ is column-sensitive"). The
+# as-fetched file is kept beside it as PHIVOLCS.BLQ.orig.
+#
 # Together they cover 101/101 stations with 2025 data. The blocker was never
 # the metadata's absence; it was that nobody had looked.
 #
@@ -79,14 +86,26 @@ done
 # observations", so the list cannot drift from what is actually processable.
 # EXCLUDED, and why. These five sit in the datapool but are IGS regional
 # fiducials rather than PH network sites -- Bitung, Guam, Manila-PTAG,
-# Shanghai, Taiwan -- and none has ocean-loading coefficients in any BLQ file
-# we hold. Including them would either fail the metadata guard below or, worse,
-# process them without tidal loading and quietly degrade their coordinates.
+# Shanghai, Taiwan. The file that decides whether they can be processed HERE is
+# the one this script installs: $NAT_META/PHIVOLCS.BLQ (copied to the campaign
+# below, and checked by the metadata guard). If that file has no block for a
+# station, including it would either fail the guard or, worse, process it
+# without tidal loading and quietly degrade its coordinates.
+#
+# All five are ABSENT from PHIVOLCS.BLQ: checked 2026-10-01 on gps3 against
+# ~/phivolcs-meta/PHIVOLCS.BLQ (119,951 B), not even in a comment. That is why
+# they are excluded.
+#
+# An earlier version said none had coefficients "in any BLQ file we hold". That
+# stopped being true: on gps3, $D/REF54/PHNAT.BLQ covers GUUG and PTAG, and
+# $D/REF54/PHDEN.BLQ covers all five (an Onsala FES2004 reply merged with
+# scripts/merge_blq.py). Neither is the file this script reads, so they do not
+# change what can be processed here.
 #
 # The seven fiducials this pipeline actually uses come from
 # scripts/fetch_fiducial_obs.sh and DO have coefficients. If these five are
-# ever wanted, get their BLQ blocks from the Onsala service and merge with
-# scripts/merge_blq.py -- do not simply delete this list.
+# wanted, merge their blocks into PHIVOLCS.BLQ with scripts/merge_blq.py (the
+# PHDEN.BLQ blocks are the source to hand) -- do not simply delete this list.
 NAT_EXCLUDE="${NAT_EXCLUDE:-BTNG GUUG PTAG SHAO TNML}"
 
 # Codes are UPPERCASED, and the -o branches are grouped. Some IGS sites are
