@@ -147,10 +147,34 @@ def test_killed_driver_is_dead_not_slow(sol: Path):
             ledger=led,
         )
     entries = read_entries(sol / "l.jsonl")[0]
-    assert "run_end" not in [e["event"] for e in entries]
-    st = run_status(entries, alive=lambda host, pid: False)
+    # A SIGKILL runs no handler, so it leaves no run_end: drop the one that the
+    # interrupt wrote to get what a killed driver leaves behind.
+    killed = [e for e in entries if e["event"] != "run_end"]
+    st = run_status(killed, alive=lambda host, pid: False)
     assert (st.state, st.exit_code) == ("dead", 3)
     assert "during DOY 002" in "\n".join(st.lines)
+
+
+def test_an_interrupted_run_says_so_rather_than_looking_dead(sol: Path):
+    """Ctrl-C, or the SIGTERM a service stop becomes, is a deliberate stop. It
+    must close the run, or status reports it running until the pid goes and
+    dead after."""
+    led = Ledger(sol / "l.jsonl")
+    with pytest.raises(KeyboardInterrupt):
+        run_days(
+            Backend(sol, kill=2),
+            "LUZON",
+            2025,
+            [1, 2, 3],
+            sol_dir=sol,
+            bpe_dir=sol / "BPE",
+            ledger=led,
+        )
+    entries = read_entries(sol / "l.jsonl")[0]
+    ends = [e for e in entries if e["event"] == "run_end"]
+    assert len(ends) == 1 and ends[0]["halt"] == "interrupted: KeyboardInterrupt"
+    st = run_status(entries, alive=lambda host, pid: False)
+    assert (st.state, st.exit_code) == ("halted", 4)
 
 
 def _synthetic(now: float, *, typical_s: float, current_s: float) -> list[dict]:
@@ -179,6 +203,65 @@ def _synthetic(now: float, *, typical_s: float, current_s: float) -> list[dict]:
         )
     e.append({"event": "attempt_start", "run": "r1", "ts": now - current_s, "doy": 4})
     return e
+
+
+def test_days_run_in_parallel_are_compared_with_parallel_runs():
+    """A block of days in flight is judged against earlier blocks, not against
+    single days, or every block looks slow."""
+    now = 1_000_000.0
+    e = [
+        {
+            "event": "run_start",
+            "run": "r1",
+            "ts": now - 99999,
+            "host": HOST,
+            "pid": 1,
+            "doys": list(range(1, 11)),
+            "banked": [],
+        }
+    ]
+    for d in range(1, 6):  # five single days of 300 s
+        e.append(
+            {
+                "event": "attempt_end",
+                "run": "r1",
+                "ts": now - 90000 + d,
+                "doy": d,
+                "outcome": "ok",
+                "seconds": 300,
+            }
+        )
+    for d in (6, 7):  # two days that ran in a block that took 1800 s
+        e.append(
+            {
+                "event": "attempt_end",
+                "run": "r1",
+                "ts": now - 80000 + d,
+                "doy": d,
+                "outcome": "ok",
+                "seconds": 1800,
+                "mode": "block",
+            }
+        )
+    for d in (8, 9, 10):  # a block in flight for 2000 s
+        e.append(
+            {"event": "attempt_start", "run": "r1", "ts": now - 2000, "doy": d, "mode": "block"}
+        )
+    st = run_status(e, now=now, alive=lambda h, p: True)
+    text = "\n".join(st.lines)
+    assert (st.state, st.exit_code) == ("running", 0), text
+    assert "3 days in progress (DOY 008-010)" in text
+
+
+def test_config_hash_tells_option_directories_apart(tmp_path: Path):
+    """R2S_GEN/ADDNEQ2.INP and R2S_FIN/ADDNEQ2.INP share a name."""
+    gen, fin = tmp_path / "R2S_GEN", tmp_path / "R2S_FIN"
+    gen.mkdir()
+    fin.mkdir()
+    (gen / "ADDNEQ2.INP").write_text("MAXPAR 6000")
+    h = config_hash([gen / "ADDNEQ2.INP"])
+    (gen / "ADDNEQ2.INP").rename(fin / "ADDNEQ2.INP")
+    assert config_hash([fin / "ADDNEQ2.INP"]) != h
 
 
 def test_slow_day_is_slow_not_dead():

@@ -242,90 +242,99 @@ def run_days(
     counts = station_counts or {}
     halt: str | None = None
     out: list[DayOutcome] = []
-    for i, doy in enumerate(days):
-        session = session_for(doy, session_char)
-        if doy in banked:
-            logger.info("DOY %03d banked, skipping", doy)
-            out.append(DayOutcome(doy, session, "banked"))
-            continue
+    try:
+        for i, doy in enumerate(days):
+            session = session_for(doy, session_char)
+            if doy in banked:
+                logger.info("DOY %03d banked, skipping", doy)
+                out.append(DayOutcome(doy, session, "banked"))
+                continue
 
-        # This attempt replaces whatever the marker vouched for (see module docstring).
-        _done_marker(sol_dir, year, doy, session_char).unlink(missing_ok=True)
-        before = _fin_mtimes(sol_dir, year, doy, session_char)
-        started = time.time()
-        t0 = time.monotonic()
-        if ledger is not None:
-            ledger.attempt_start(doy=doy, session=session)
-        try:
-            result = backend.run(campaign, year, session)
-            error = None
-        except Exception as exc:  # noqa: BLE001 -- a day's error is that day's failure
-            # The real backend raises on timeout and on RINEX header validation.
-            # The day is recorded and the report still returned, and the run
-            # stops as unknown whatever BPE/ shows (see the halt below).
-            # KeyboardInterrupt is not an Exception and propagates.
-            result = None
-            error = f"{type(exc).__name__}: {exc}"
-        seconds = time.monotonic() - t0
-        # A FIN left by an earlier failed attempt is not this run's output. mtime
-        # granularity (ms) is far below a BPE day (minutes), so equality means untouched.
-        fin = _fresh_fin(sol_dir, year, doy, session_char, before)
-        stale = fin is None and _fin_path(sol_dir, year, doy, session_char) is not None
-        if result is not None and result.success and fin is not None:
-            _write_marker(_done_marker(sol_dir, year, doy, session_char), fin)
+            # This attempt replaces whatever the marker vouched for (see module docstring).
+            _done_marker(sol_dir, year, doy, session_char).unlink(missing_ok=True)
+            before = _fin_mtimes(sol_dir, year, doy, session_char)
+            started = time.time()
+            t0 = time.monotonic()
+            if ledger is not None:
+                ledger.attempt_start(doy=doy, session=session)
+            try:
+                result = backend.run(campaign, year, session)
+                error = None
+            except Exception as exc:  # noqa: BLE001 -- a day's error is that day's failure
+                # The real backend raises on timeout and on RINEX header validation.
+                # The day is recorded and the report still returned, and the run
+                # stops as unknown whatever BPE/ shows (see the halt below).
+                # KeyboardInterrupt is not an Exception and propagates.
+                result = None
+                error = f"{type(exc).__name__}: {exc}"
+            seconds = time.monotonic() - t0
+            # A FIN left by an earlier failed attempt is not this run's output. mtime
+            # granularity (ms) is far below a BPE day (minutes), so equality means untouched.
+            fin = _fresh_fin(sol_dir, year, doy, session_char, before)
+            stale = fin is None and _fin_path(sol_dir, year, doy, session_char) is not None
+            if result is not None and result.success and fin is not None:
+                _write_marker(_done_marker(sol_dir, year, doy, session_char), fin)
+                if ledger is not None:
+                    ledger.attempt_end(
+                        doy=doy,
+                        session=session,
+                        outcome="ok",
+                        seconds=seconds,
+                        stations=counts.get(doy),
+                    )
+                out.append(DayOutcome(doy, session, "ok", seconds))
+                breaker.success()
+                logger.info("DOY %03d ok in %.0f s", doy, seconds)
+                continue
+
+            if result is None:
+                note = f"backend raised {error}"
+            elif not result.success:
+                note = "BPE reported failure"
+            elif stale:
+                note = "BPE reported success but the FIN file predates this run"
+            else:
+                note = "BPE reported success but no valid FIN file"
+            try:
+                diagnosis = diagnose_day(bpe_dir, year, session, started, kb)
+            except OSError as exc:
+                # Reading BPE/ must not cost the report: diagnose as unknown, which halts.
+                logger.error("DOY %03d: could not read %s: %s", doy, bpe_dir, exc)
+                diagnosis = Diagnosis(None, None, None, unreadable=f"{type(exc).__name__}: {exc}")
+            explanation = diagnosis.explanation(kb)
+            out.append(
+                DayOutcome(doy, session, "failed", seconds, note, diagnosis.label, explanation)
+            )
             if ledger is not None:
                 ledger.attempt_end(
                     doy=doy,
                     session=session,
-                    outcome="ok",
+                    outcome="failed",
                     seconds=seconds,
+                    error=diagnosis.label,
+                    note=note,
                     stations=counts.get(doy),
                 )
-            out.append(DayOutcome(doy, session, "ok", seconds))
-            breaker.success()
-            logger.info("DOY %03d ok in %.0f s", doy, seconds)
-            continue
-
-        if result is None:
-            note = f"backend raised {error}"
-        elif not result.success:
-            note = "BPE reported failure"
-        elif stale:
-            note = "BPE reported success but the FIN file predates this run"
-        else:
-            note = "BPE reported success but no valid FIN file"
-        try:
-            diagnosis = diagnose_day(bpe_dir, year, session, started, kb)
-        except OSError as exc:
-            # Reading BPE/ must not cost the report: diagnose as unknown, which halts.
-            logger.error("DOY %03d: could not read %s: %s", doy, bpe_dir, exc)
-            diagnosis = Diagnosis(None, None, None, unreadable=f"{type(exc).__name__}: {exc}")
-        explanation = diagnosis.explanation(kb)
-        out.append(DayOutcome(doy, session, "failed", seconds, note, diagnosis.label, explanation))
+            logger.warning("DOY %03d failed: %s; %s", doy, note, diagnosis.label)
+            halt = breaker.failure(diagnosis)
+            if halt is None and result is None:
+                # A backend that raised (timeout, refused pre-flight) is unknown even
+                # when a step left a known session error: that error does not explain
+                # the raise, and another day would cost another timeout.
+                halt = f"unknown failure (backend raised {error}); no remedy on file"
+            if halt is not None:
+                logger.error("stopping: %s\n%s", halt, explanation)
+                out.extend(
+                    DayOutcome(d, session_for(d, session_char), "not_run", note=f"stopped: {halt}")
+                    for d in days[i + 1 :]
+                )
+                break
+    except BaseException as exc:
+        # Ctrl-C, or the SIGTERM a service stop becomes, is a deliberate stop:
+        # close the run in the ledger, or status calls it running, then dead.
         if ledger is not None:
-            ledger.attempt_end(
-                doy=doy,
-                session=session,
-                outcome="failed",
-                seconds=seconds,
-                error=diagnosis.label,
-                note=note,
-                stations=counts.get(doy),
-            )
-        logger.warning("DOY %03d failed: %s; %s", doy, note, diagnosis.label)
-        halt = breaker.failure(diagnosis)
-        if halt is None and result is None:
-            # A backend that raised (timeout, refused pre-flight) is unknown even
-            # when a step left a known session error: that error does not explain
-            # the raise, and another day would cost another timeout.
-            halt = f"unknown failure (backend raised {error}); no remedy on file"
-        if halt is not None:
-            logger.error("stopping: %s\n%s", halt, explanation)
-            out.extend(
-                DayOutcome(d, session_for(d, session_char), "not_run", note=f"stopped: {halt}")
-                for d in days[i + 1 :]
-            )
-            break
+            ledger.run_end(halt=f"interrupted: {type(exc).__name__}")
+        raise
     if ledger is not None:
         ledger.run_end(halt=halt)
     return out

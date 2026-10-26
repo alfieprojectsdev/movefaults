@@ -54,10 +54,13 @@ def config_hash(paths: Iterable[Path]) -> str:
     Pass the PCF and the option-directory panels. Two attempts with the same
     hash ran the same configuration; a changed hash between two attempts at one
     day is the first thing to look at when their outcomes differ.
+
+    Each file is named by its directory and name (R2S_FIN/ADDNEQ2.INP): option
+    directories reuse panel names, and the absolute path would differ by host.
     """
     h = hashlib.sha256()
     for p in sorted(Path(p) for p in paths):
-        h.update(p.name.encode() + b"\0")
+        h.update(f"{p.parent.name}/{p.name}".encode() + b"\0")
         h.update(p.read_bytes())
         h.update(b"\0")
     return h.hexdigest()[:12]
@@ -175,6 +178,16 @@ def _pid_alive(host: str, pid: int) -> bool | None:
     return True
 
 
+def _doys(attempts: list[dict]) -> str:
+    """'DOY 004', or 'DOY 008-010' for a span, or a comma list when not contiguous."""
+    ds = sorted({e["doy"] for e in attempts})
+    if len(ds) == 1:
+        return f"DOY {ds[0]:03d}"
+    if ds == list(range(ds[0], ds[-1] + 1)):
+        return f"DOY {ds[0]:03d}-{ds[-1]:03d}"
+    return "DOY " + ", ".join(f"{d:03d}" for d in ds)
+
+
 @dataclass
 class RunStatus:
     state: str  # none | running | slow | finished | halted | dead | unknown
@@ -225,12 +238,19 @@ def run_status(
     for e in failed[-5:]:
         lines.append(f"  failed DOY {e['doy']:03d}: {e.get('error') or e.get('note')}")
 
+    open_attempts = [e for e in mine if e["event"] == "attempt_start" and e["doy"] not in done_doys]
+    # Days run one at a time and days run as a parallel block take different
+    # wall times; judge the attempts in flight against earlier ones run the same way.
+    mode = open_attempts[-1].get("mode", "day") if open_attempts else "day"
     durations = [
-        e["seconds"] for e in entries if e["event"] == "attempt_end" and e.get("outcome") == "ok"
+        e["seconds"]
+        for e in entries
+        if e["event"] == "attempt_end" and e.get("outcome") == "ok" and e.get("mode", "day") == mode
     ]
     typical = statistics.median(durations) if durations else None
     if typical is not None:
-        lines.append(f"  typical day: {typical / 60:.1f} min (median of {len(durations)})")
+        what = "day" if mode == "day" else f"{mode} run"
+        lines.append(f"  typical {what}: {typical / 60:.1f} min (median of {len(durations)})")
 
     end = next((e for e in mine if e["event"] == "run_end"), None)
     if end is not None:
@@ -240,10 +260,9 @@ def run_status(
         lines.append("  finished")
         return RunStatus("finished", EXIT["finished"], lines)
 
-    open_attempts = [e for e in mine if e["event"] == "attempt_start" and e["doy"] not in done_doys]
     living = alive(start.get("host", ""), int(start.get("pid", -1)))
     if living is False:
-        where = f" during DOY {open_attempts[-1]['doy']:03d}" if open_attempts else ""
+        where = f" during {_doys(open_attempts)}" if open_attempts else ""
         lines.append(f"  DEAD: the driver is gone{where}, with {len(left)} days outstanding")
         return RunStatus("dead", EXIT["dead"], lines)
     if not open_attempts:
@@ -251,9 +270,14 @@ def run_status(
         return RunStatus(
             "running" if living else "unknown", EXIT["running" if living else "unknown"], lines
         )
-    cur = open_attempts[-1]
-    elapsed = now - cur["ts"]
-    lines.append(f"  DOY {cur['doy']:03d} in progress for {elapsed / 60:.1f} min")
+    elapsed = now - min(e["ts"] for e in open_attempts)
+    if len(open_attempts) == 1:
+        lines.append(f"  {_doys(open_attempts)} in progress for {elapsed / 60:.1f} min")
+    else:
+        lines.append(
+            f"  {len(open_attempts)} days in progress ({_doys(open_attempts)}), "
+            f"the oldest for {elapsed / 60:.1f} min"
+        )
     if living is None:
         lines.append("  (run is on another host: cannot tell running from dead)")
         return RunStatus("unknown", EXIT["unknown"], lines)
