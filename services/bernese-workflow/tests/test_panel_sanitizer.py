@@ -406,7 +406,7 @@ def test_malformed_jump_targets_are_reported_not_skipped(target):
     pcf = f"001  R2S_COP  NO_OPT  CPU=ANY; NEXTJOB={target}\n"
     r = find_dangling_jumps(pcf)
     assert r.checked == 1
-    assert [d.pid for d in r.dangling] == [target.removeprefix("$")]
+    assert [d.pid for d in r.dangling] == [target]   # verbatim, as findPID reads it
 
 
 def test_placeholder_and_empty_jump_lists_are_not_references():
@@ -456,3 +456,81 @@ def test_real_pcfs_have_no_dangling_jumps(pcf, references):
     r = find_dangling_jumps((_REPO / pcf).read_text(errors="replace"))
     assert r.checked == references
     assert r.dangling == []
+
+
+# --- find_dangling_jumps: as BSW 5.4 reads them (P_BPE.f90) -----------------
+#
+# 5.2 special-action rows are fixed width, `(I3,1X,A12,1X,A8,9(1X,A8))`: the
+# keyword is only a keyword in PARAM1 (columns 27-34). A 5.2 `PARALLEL $201`
+# does not name PID 201: BSW looks for the job whose PARAM1 is the label `$201`
+# (pcf_updateParalleJob_V0), among the parameter rows it has already read.
+
+_PCF_52_PROCS = """PID SCRIPT   OPT_DIR  CAMPAIGN CPU      F WAIT FOR....
+201 RNXSMTAP R2S_GEN           ANY      1
+211 RNXSMT_H R2S_GEN           ANY      1 201
+PID USER         PASSWORD PARAM1   PARAM2
+"""
+
+
+def test_52_parallel_without_its_label_row_is_dangling():
+    """PID 201 exists, but no row gives it PARAM1 `$201`: BSW stops at load."""
+    pcf = _PCF_52_PROCS + "211                       PARALLEL $201\n"
+    assert [(d.keyword, d.pid) for d in find_dangling_jumps(pcf).dangling] == [("PARALLEL", "201")]
+
+
+def test_52_parallel_before_its_label_row_is_dangling():
+    """The label is matched against rows already read, so order matters."""
+    pcf = _PCF_52_PROCS + (
+        "211                       PARALLEL $201\n"
+        "201                       $201\n"
+    )
+    assert [(d.keyword, d.pid) for d in find_dangling_jumps(pcf).dangling] == [("PARALLEL", "201")]
+
+
+def test_52_parallel_reads_param2_only():
+    """BSW stops reading a PARALLEL row after PARAM2; later columns are not targets."""
+    pcf = _PCF_52_PROCS + (
+        "201                       $201\n"
+        "211                       PARALLEL $201     V_X\n"
+    )
+    r = find_dangling_jumps(pcf)
+    assert r.dangling == [] and r.checked == 2
+
+
+def test_52_keyword_outside_param1_is_reported_not_skipped():
+    """A misaligned row is not a jump to BSW; it must not pass as a clean one."""
+    pcf = _PCF_52_PROCS + (
+        "201                       $201\n"
+        "211 PARALLEL $201\n"
+    )
+    assert [d.keyword for d in find_dangling_jumps(pcf).dangling] == ["PARALLEL"]
+
+
+@pytest.mark.parametrize("line", [
+    "331  RES_SUM   R2S_GEN   CPU=ANY; NEXTJOB=$301",
+    "322  GPSEDT_P  R2S_EDT   CPU=ANY; PARALLEL=$301",
+])
+def test_keyword_dollar_target_is_not_a_pid(line):
+    """findPID compares the token verbatim: `$301` is not PID 301."""
+    pcf = "301  INIT_BSL  NO_OPT    CPU=ANY\n" + line + "\n"
+    assert [d.pid for d in find_dangling_jumps(pcf).dangling] == ["$301"]
+
+
+def test_keyword_parallel_takes_exactly_one_pid():
+    """`PARALLEL=301 302` is looked up as the single PID '301 302' and fails."""
+    pcf = (
+        "301  INIT_BSL  NO_OPT    CPU=ANY\n"
+        "302  SNGDIF    R2S_GEN   CPU=ANY\n"
+        "322  GPSEDT_P  R2S_EDT   CPU=ANY; PARALLEL=301 302\n"
+    )
+    assert [d.pid for d in find_dangling_jumps(pcf).dangling] == ["301 302"]
+
+
+def test_variable_table_is_not_read_for_jumps():
+    pcf = (
+        "001  R2S_COP   NO_OPT    CPU=ANY\n"
+        "VARIABLE         DEFAULT           PARAMETERS\n"
+        "V_X            = ;                 DESCRIPTION=was NEXTJOB=999\n"
+    )
+    r = find_dangling_jumps(pcf)
+    assert r.dangling == [] and r.checked == 0
