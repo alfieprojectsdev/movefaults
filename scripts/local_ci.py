@@ -117,7 +117,19 @@ class Outcome:
 # the tests guarded by it would skip rather than fail, which reads as green.
 # Kept honest by test_preflight_covers_every_tool_the_tests_check, which
 # greps the test tree and fails if a which() target is missing here.
-PREFLIGHT_TOOLS = ("git", "uv", "gh", "npm", "node", "teqc", "gfzrnx", "gzip", "zcat")
+PREFLIGHT_TOOLS = (
+    "git",
+    "uv",
+    "gh",
+    "npm",
+    "node",
+    "teqc",
+    "gfzrnx",
+    "gzip",
+    "zcat",
+    "bash",
+    "perl",
+)
 
 
 def pg_test_address(environ=os.environ) -> tuple[str, int]:
