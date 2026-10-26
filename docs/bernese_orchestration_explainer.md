@@ -18,8 +18,10 @@
 > control as of 2026-08-12. More on that in "What We Need From You".
 >
 > **Since August (2026-10-26).** A failed BPE step is now read and looked up
-> in a list of known errors that the processing lead keeps, and a run stops
-> itself instead of failing day after day ("When a Run Fails", below). A design
+> in a list of known errors that the processing lead is asked to keep and
+> confirm, and a run stops itself instead of failing day after day. That part
+> is built into the processing service, which production does not run through
+> yet ("When a Run Fails", below). A design
 > for a browser console, so staff can follow and later start runs from their
 > own PCs, is with the processing team for comments. Where this document
 > described something that has since turned out differently, it now says so.
@@ -139,12 +141,12 @@ because the two runs are **not the same job**:
 
 - That run processed the national network (**~52 stations a day**); ours
   processed LUZON (**30**).
-- Hers used the full production PCF including `FTP_DWLD`, which fetches IGS
+- That run used the full production PCF including `FTP_DWLD`, which fetches IGS
   products over the network for every session; ours had products pre-staged
   locally.
-- Hers produced weekly and monthly combinations (`ADD_WK`, `ADD_MON`); ours did
+- That run produced weekly and monthly combinations (`ADD_WK`, `ADD_MON`); ours did
   not.
-- Hers ran attended, in working hours, on Windows; ours ran overnight on Linux.
+- That run was attended, in working hours, on Windows; ours ran overnight on Linux.
 
 So the right conclusion today is **"this looks very promising and we should
 measure it properly"**, not "we are twenty times faster". A like-for-like run —
@@ -226,9 +228,16 @@ verified identical afterward — all 30 solutions, byte for byte.)*
 
 ---
 
-## When a Run Fails  **[now real]**
+## When a Run Fails  **[built; not yet how production runs]**
 
 *Added 2026-10-26.*
+
+*Where this applies today:* everything below is built into the processing
+service, which has not yet run a production day. Production still runs through
+the month scripts, which carry on past a failed day. Since 26 October they do
+name the failed step and its message, but they don't look it up and don't
+stop. Looking up and stopping take effect when runs move to the service (the
+cutover planned for 3 November).
 
 On 29 August a year-long run produced nothing for nine hours: 24 days in a row
 failed on the same message, because one setting (`MAXPAR`, the largest number of
@@ -243,8 +252,9 @@ Three things now stand between a failure and a lost night:
   program and the `***` message that failed. A rerun of the same day appends to
   those files, so only the last attempt is read.
 - **The message is looked up in a list of known errors.** The list is a plain
-  file (`config/bernese/bpe_errors.yaml`) that the processing lead keeps, from
-  the same notebook of errors and fixes the team already uses. Each entry says
+  file (`config/bernese/bpe_errors.yaml`) that the processing lead is asked to
+  keep and confirm, drawing on the same notebook of errors and fixes the team
+  already uses. Today the entries were written by the developers. Each entry says
   what the error means here, what to check and change, and where that
   knowledge came from. An entry starts as *proposed* and becomes *established*
   once the processing lead confirms it.
@@ -256,9 +266,9 @@ Three things now stand between a failure and a lost night:
   days of any kind.
 
 **Nothing is fixed automatically.** The list tells a person what to check; it
-never changes a setting or re-runs a day by itself. Had this existed on
-29 August, the run would have stopped after its first failed day, with the
-`MAXPAR` remedy on screen.
+never changes a setting or re-runs a day by itself. Had the 29 August run gone
+through the service, it would have stopped after its first failed day, with
+the `MAXPAR` remedy on screen.
 
 **If an entry is wrong, or missing, say so.** The list is only as good as the
 experience behind it, and most of that experience is yours.
@@ -314,7 +324,7 @@ Orchestration automates the mechanical steps. The judgment steps remain human:
 | Daily ENU coordinate storage | Offset event classification (EQ, equipment change, unknown) |
 | Run status report generation | Final QC sign-off before results enter the velocity product |
 | **Outlier detection** (statistical, already automatic) | **Confirming or overriding** which epochs to actually remove |
-| Looking a failed step up in the known-errors list | **Writing and confirming** the entries in that list (the processing lead) |
+| Looking a failed step up in the known-errors list | **Writing and confirming** the entries in that list (the processing lead is asked to) |
 | Stopping a run: after 3 identical failures in a row, or at once on a configuration error or an error with no entry | **Deciding what to change** before the run is started again |
 
 The orchestrator flags — it does not decide. Every exception it surfaces is a question that requires your domain knowledge to answer.
@@ -438,7 +448,7 @@ Your production settings are preserved exactly; nothing is silently reinterprete
 | Reproducibility | Settings not recorded | Every run logged and version-controlled | settings done; per-run record written, not yet in use |
 | Velocity calculation | MATLAB (licensed) | **Python, verified identical** | **done, 2026-08-12** |
 | Your scripts + `offsets` | One share, some laptops | **In version control, mirrored** | **done, 2026-08-12** |
-| Error detection | After BPE runs, by reading log files | Diagnosed on failure, and checked before BPE runs | **diagnosis and stop rule done, October**; pre-flight checks in progress |
+| Error detection | After BPE runs, by reading log files | Diagnosed on failure, and checked before BPE runs | diagnosis and stop rule built (October), in use once runs go through the service; failed step named in today's runs; pre-flight checks in progress |
 | Scale | ~1 session per person-day | Parallel sessions overnight | **not yet — see "A Test That Failed"** |
 | Knowledge transfer | Person-to-person | Readable, runnable code | in progress |
 
@@ -450,8 +460,10 @@ server and has processed a real month; the velocity step no longer needs MATLAB
 and gives identical numbers; and the scripts and event catalog are backed up
 where they cannot be lost with a hard drive.
 
-**Done since, as of 2026-10-26:** a failed step is diagnosed from the known-errors
-list, and a run stops itself on the stop rule ("When a Run Fails").
+**Done since, as of 2026-10-26:** today's runs name the failed step and its
+message. The service also diagnoses it from the known-errors list and stops a
+run on the stop rule; that takes effect when production moves to the service
+("When a Run Fails").
 
 **What is not:** parallel processing across a year ("A Test That Failed" above — tested, failed,
 understood, fixable); the per-run provenance record in use; and the browser
