@@ -54,6 +54,10 @@ running the range again, which skips everything already banked.
 
 This replaced a stop after two consecutive failed days of any kind (#268).
 
+WHAT IT RECORDS
+Given a Ledger, every attempt is appended to it (ledger.py), so status is read
+from what happened rather than inferred from which files exist.
+
 Single-session runs only. Parallel sessions (REPR_MODE, MAXSESS) stay in the
 Perl drivers for now.
 """
@@ -66,7 +70,7 @@ import logging
 import os
 import time
 import zlib
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -79,6 +83,7 @@ from .circuit_breaker import (
     Diagnosis,
     diagnose_day,
 )
+from .ledger import Ledger
 
 logger = logging.getLogger(__name__)
 
@@ -202,12 +207,19 @@ def run_days(
     k: int = K_DEFAULT,
     max_failures: int = MAX_FAILURES_DEFAULT,
     session_char: str = "0",
+    ledger: Ledger | None = None,
+    config: str | None = None,
+    station_counts: Mapping[int, int] | None = None,
 ) -> list[DayOutcome]:
     """Run each day in ascending order, skipping banked days. See module docstring.
 
     ``bpe_dir`` is the campaign's BPE/ directory, where a failed step's output
     is found. ``kb`` defaults to config/bernese/bpe_errors.yaml, loaded before
     the first day so that a broken file stops the run before Bernese starts.
+
+    With a ``ledger``, every attempt is recorded there (ledger.py), with
+    ``config`` (see ledger.config_hash) and the day's station count from
+    ``station_counts`` when given. Without one, nothing is recorded.
     """
     days = sorted(set(doys))
     last = 366 if calendar.isleap(year) else 365
@@ -224,10 +236,15 @@ def run_days(
     if kb is None:
         kb = load(DEFAULT_PATH)
     breaker = CircuitBreaker(k, max_failures)
+    banked = [d for d in days if fin_banked(sol_dir, year, d, session_char)]
+    if ledger is not None:
+        ledger.run_start(campaign=campaign, year=year, doys=days, banked=banked, config=config)
+    counts = station_counts or {}
+    halt: str | None = None
     out: list[DayOutcome] = []
     for i, doy in enumerate(days):
         session = session_for(doy, session_char)
-        if fin_banked(sol_dir, year, doy, session_char):
+        if doy in banked:
             logger.info("DOY %03d banked, skipping", doy)
             out.append(DayOutcome(doy, session, "banked"))
             continue
@@ -237,6 +254,8 @@ def run_days(
         before = _fin_mtimes(sol_dir, year, doy, session_char)
         started = time.time()
         t0 = time.monotonic()
+        if ledger is not None:
+            ledger.attempt_start(doy=doy, session=session)
         try:
             result = backend.run(campaign, year, session)
             error = None
@@ -254,6 +273,14 @@ def run_days(
         stale = fin is None and _fin_path(sol_dir, year, doy, session_char) is not None
         if result is not None and result.success and fin is not None:
             _write_marker(_done_marker(sol_dir, year, doy, session_char), fin)
+            if ledger is not None:
+                ledger.attempt_end(
+                    doy=doy,
+                    session=session,
+                    outcome="ok",
+                    seconds=seconds,
+                    stations=counts.get(doy),
+                )
             out.append(DayOutcome(doy, session, "ok", seconds))
             breaker.success()
             logger.info("DOY %03d ok in %.0f s", doy, seconds)
@@ -275,6 +302,16 @@ def run_days(
             diagnosis = Diagnosis(None, None, None, unreadable=f"{type(exc).__name__}: {exc}")
         explanation = diagnosis.explanation(kb)
         out.append(DayOutcome(doy, session, "failed", seconds, note, diagnosis.label, explanation))
+        if ledger is not None:
+            ledger.attempt_end(
+                doy=doy,
+                session=session,
+                outcome="failed",
+                seconds=seconds,
+                error=diagnosis.label,
+                note=note,
+                stations=counts.get(doy),
+            )
         logger.warning("DOY %03d failed: %s; %s", doy, note, diagnosis.label)
         halt = breaker.failure(diagnosis)
         if halt is None and result is None:
@@ -289,4 +326,6 @@ def run_days(
                 for d in days[i + 1 :]
             )
             break
+    if ledger is not None:
+        ledger.run_end(halt=halt)
     return out
