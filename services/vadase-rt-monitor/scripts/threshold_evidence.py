@@ -9,7 +9,9 @@ Run from services/vadase-rt-monitor:
     PYTHONPATH=. uv run python scripts/threshold_evidence.py --data data
 
 Horizontal speed is sqrt(vE^2 + vN^2) from $GNLVM, parsed by the service's own
-parser, so the numbers are what the detector would see. Event origins are from
+parser and compared with ``>`` as check_event_threshold does, so a crossing here
+is a reading that would alarm. It is not run through IngestionCore, so the
+min_completeness gate does not apply. Event origins are from
 the USGS catalogue (earthquake.usgs.gov/fdsnws/event/1), not from staff labels.
 """
 
@@ -27,6 +29,11 @@ from pathlib import Path
 from src.parsers.nmea_parser import NMEAChecksumError, parse_lvm
 
 THRESHOLD_MM_S = 15.0  # config/stations.yml, threshold_mm_s for PBIS and BOST
+
+
+def crosses(h: float) -> bool:
+    """Strictly above, as check_event_threshold alarms; 15.00 exactly does not."""
+    return h > THRESHOLD_MM_S
 
 
 @dataclass
@@ -121,7 +128,10 @@ def load(data: Path, pattern: str) -> tuple[list[tuple[datetime, float, float]],
                 continue
             try:
                 r = parse_lvm(line)
-            except NMEAChecksumError:  # parse_lvm raises on a bad checksum
+            # parse_lvm raises NMEAChecksumError on a bad checksum, and the
+            # checksum check raises ValueError when a truncated line has no hex
+            # digits after the '*'. Either way the line is rejected, not fatal.
+            except (NMEAChecksumError, ValueError):
                 rejected += 1
                 continue
             if r is None:
@@ -133,11 +143,15 @@ def load(data: Path, pattern: str) -> tuple[list[tuple[datetime, float, float]],
 
 
 def longest_run(rows: list[tuple[datetime, float, float]]) -> int:
-    """Longest run of consecutive (1 s apart) readings at or above the threshold."""
+    """Longest run of consecutive (1 s apart) readings above the threshold.
+
+    Any gap over 1.5 s ends a run, so on a gapped stream (TUA2) this is capped
+    by the sampling as well as by the signal.
+    """
     best = run = 0
     prev = None
     for t, h, _ in rows:
-        if h >= THRESHOLD_MM_S:
+        if crosses(h):
             run = run + 1 if prev is not None and run and (t - prev).total_seconds() <= 1.5 else 1
         else:
             run = 0
@@ -159,7 +173,7 @@ def main() -> None:
         vh = [h for _, h, _ in rows]
         cq = [c for _, _, c in rows]
         gaps = [(b[0] - a[0]).total_seconds() for a, b in pairwise(rows)]
-        over = [r for r in rows if r[1] >= THRESHOLD_MM_S]
+        over = [r for r in rows if crosses(r[1])]
         peak = max(rows, key=lambda r: r[1])
         print(f"\n== {cap.name}  (staff label: {cap.staff_label})")
         print(
@@ -173,7 +187,7 @@ def main() -> None:
         )
         print(f"   cq mm/s: median {st.median(cq):.1f}  max {max(cq):.1f}")
         print(
-            f"   readings >= {THRESHOLD_MM_S:g}: {len(over)}   longest consecutive run: {longest_run(rows)}"
+            f"   readings > {THRESHOLD_MM_S:g}: {len(over)}   longest consecutive run: {longest_run(rows)}"
         )
         if over:
             print(
@@ -181,25 +195,28 @@ def main() -> None:
                 f"max {max(c for _, _, c in over):.1f}  min {min(c for _, _, c in over):.1f}"
             )
 
-        accounted = 0
+        # Indices, not a count: two events' windows can overlap (a swarm), and a
+        # reading in both must be explained once, not twice.
+        explained: set[int] = set()
         for ev in cap.events:
             o = datetime.fromisoformat(ev.origin).replace(tzinfo=UTC)
             pre = [h for t, h, _ in rows if o - timedelta(minutes=30) <= t < o]
-            win = [r for r in rows if o <= r[0] <= o + timedelta(minutes=10)]
-            hits = [r for r in win if r[1] >= THRESHOLD_MM_S]
-            accounted += len(hits)
+            idx = [i for i, r in enumerate(rows) if o <= r[0] <= o + timedelta(minutes=10)]
+            win = [rows[i] for i in idx]
+            hits = [i for i in idx if crosses(rows[i][1])]
+            explained.update(hits)
             km = haversine_km(cap.station_lat, cap.station_lon, ev.lat, ev.lon)
             pk = max(win, key=lambda r: r[1]) if win else None
             pre_s = f"pre-event max {max(pre):.2f}" if pre else "no pre-event window"
             pk_s = f"peak {pk[1]:.2f} at +{(pk[0] - o).total_seconds():.0f} s" if pk else "no data"
             print(
                 f"   M{ev.mag} {ev.origin}Z, {km:.0f} km, depth {ev.depth_km:g} km: "
-                f"{pk_s}, {pre_s}, readings >= {THRESHOLD_MM_S:g} within 10 min: {len(hits)}"
+                f"{pk_s}, {pre_s}, readings > {THRESHOLD_MM_S:g} within 10 min: {len(hits)}"
             )
         if cap.events and over:
             print(
-                f"   readings >= {THRESHOLD_MM_S:g} not within 10 min of a listed event: "
-                f"{len(over) - accounted}"
+                f"   readings > {THRESHOLD_MM_S:g} not within 10 min of a listed event: "
+                f"{len(over) - len(explained)}"
             )
 
 

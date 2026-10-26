@@ -24,8 +24,14 @@ The labels were written when the files were uploaded ("EQ-related spikes",
 great-circle, station to epicentre, computed here — not taken from the
 catalogue's place descriptions.
 
-Every figure below is reproduced by
-`services/vadase-rt-monitor/scripts/threshold_evidence.py`. The captures are
+The two results tables and the cross-checks beside them (readings, peaks,
+percentiles, crossings, longest runs, `cq`) are printed by
+`services/vadase-rt-monitor/scripts/threshold_evidence.py`. Some figures in the
+text are not: first-crossing times, the PBIS S-arrival window and its
+neighbours, the split of TUA2's crossings into moderate readings and blunders,
+the vertical reading, the breakdown of TUA2's gaps, and the USGS checks (the
+4,000 km null and the 25-event swarm count; the script lists only three swarm
+events). Those were read from the same captures and the catalogue by hand. The captures are
 PHIVOLCS field data and are not in the repository. (Corrected 2026-10-14: the
 two DGOS captures were committed from 2026-01-31 until #277 removed them; they
 remain in git history.)
@@ -46,7 +52,7 @@ earth: the same query widened to 4,000 km returns four events, the nearest
 
 ## The results
 
-| capture | readings | ≥ 15 mm/s | longest run | peak (mm/s) | p99.9 | median |
+| capture | readings | > 15 mm/s | longest run | peak (mm/s) | p99.9 | median |
 |---|---:|---:|---:|---:|---:|---:|
 | TUA2 (no earthquake) | 680 | **35** | 2 | **5,698.8** | 3,353.7 | 3.51 |
 | BOST (M7.6, 74 km) | 3,598 | 16 | 3 | 52.4 | 32.5 | 2.21 |
@@ -56,7 +62,7 @@ earth: the same query widened to 4,000 km returns four events, the nearest
 
 Per earthquake, measured over the 10 minutes after origin:
 
-| event | km | peak | peak at | ≥ 15 | 30 min before: max |
+| event | km | peak | peak at | > 15 | 30 min before: max |
 |---|---:|---:|---:|---:|---:|
 | M7.6, BOST | 74 | 52.4 | +26 s | 16 | 12.2 |
 | M7.4, DGOS | 159 | 41.1 | +71 s | 30 | 9.5 |
@@ -75,7 +81,7 @@ wave covers the 84 km from a 40 km-deep source. M7.4 at
 
 **It barely catches an M6.7 at 153 km.** One reading, 15.37 mm/s: 0.37 above the
 threshold. #266's notes record it as crossing for two epochs; the count here, at
-`>= 15`, is one.
+`> 15` as the alarm compares, is one.
 
 **It does not see an M6.0 at 79 km, or M5.4–5.9 at 169–191 km, at all.** Not a
 missed alarm on a recorded signal — no signal distinguishable from the noise. At
@@ -87,7 +93,7 @@ arrival (+202 to +529 s), and all sit below the day's own maximum — 10.9 mm/s 
 18:18, when nothing is catalogued.
 
 **It does not fire on background.** On BOST, PBIS and both DGOS days, every
-reading at or above 15 mm/s falls within 10 minutes of a catalogued earthquake:
+reading above 15 mm/s falls within 10 minutes of a catalogued earthquake:
 zero unexplained. The closest background came is BOST's 12.2 mm/s before the
 M7.6, 82% of the threshold — consistent with the companion note's 13.2 mm/s at
 MAGU, 88%.
@@ -110,10 +116,13 @@ anomalies are inside the earthquake range and the blunders are above it, so no
 single threshold rejects TUA2 while keeping the M7.4.
 
 **By run length, no.** TUA2's longest run is 2. BOST's is 3, and the M6.7's is 1.
+TUA2's figure is a lower bound: a run ends at any gap over 1.5 s, and 266 of
+TUA2's 679 intervals are 11–12 s (item 4 below), so the comparison with BOST's
+clean 1 Hz stream is weaker than the numbers suggest.
 
 **By `cq`, partly — and only for the blunders across stations.**
 
-| | `cq` on readings ≥ 15 mm/s | `cq` overall, median |
+| | `cq` on readings > 15 mm/s | `cq` overall, median |
 |---|---|---|
 | BOST M7.6 | max **28.5** | 24.9 |
 | DGOS M7.4 | max **28.1** | 24.2 |
@@ -173,7 +182,9 @@ None of these captures can supply a number. A defensible one would need:
 - **The alarm and the classifier disagree at exactly 15.0.**
   `_classify_signal` uses `>=`, `check_event_threshold` uses `>`. A reading of
   exactly 15.00 mm/s is classed high-velocity and does not alarm. No reading
-  here lands on it.
+  here lands on it. The script counts with `>`, the alarm's comparison
+  (changed 2026-10-25 from `>=`; with no reading at 15.00 the counts are the
+  same).
 
 ## What this does not establish
 
