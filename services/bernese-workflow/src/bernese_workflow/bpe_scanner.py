@@ -26,7 +26,10 @@ Two things the obvious approach gets wrong, both seen in captured output:
   O_RNXBASE:rdHdrLine`` for each empty RINEX file it skips and then ends
   normally. Whether the step failed comes from the failure marker -- the PRT's
   ``ERR <program>`` line, or the LOG's ``Call to <program> failed:`` -- and the
-  cause is the last error before the ERR line.
+  cause is the last error the failed program printed: in a PRT, after its
+  ``MSG <program> PROGRAM STARTED`` line and before its ERR line; in a LOG,
+  after the marker. A step can run several programs, and an error an earlier
+  one printed and survived is not the failure.
 - **Data belongs in params, not in the signature.** neqckdim reports the
   first parameter request that overflowed; the same misconfiguration gives a
   different number on every day, and many warnings name a station or baseline
@@ -47,11 +50,12 @@ from typing import Literal
 
 Severity = Literal["error", "warning"]
 
-# " *** SR GTATML: TEXT", " ### PG ORBGEN (date)", " *** FN O_RNXBASE:rdHdrLine, PG CCRNXO".
 # The emitter may be "MODULE:routine"; a colon followed by a space starts the text.
+EMITTER = r"[A-Za-z0-9_]+(?::[A-Za-z0-9_]+)*"
+# " *** SR GTATML: TEXT", " ### PG ORBGEN (date)", " *** FN O_RNXBASE:rdHdrLine, PG CCRNXO".
 _HEADER = re.compile(
     r"^ ?(?P<mark>\*\*\*|###)\s+(?P<etype>SR|PGM|PG|FN)\s+"
-    r"(?P<emitter>[A-Za-z0-9_]+(?::[A-Za-z0-9_]+)*)(?P<rest>.*)$"
+    rf"(?P<emitter>{EMITTER})(?P<rest>.*)$"
 )
 _PROGRAM_SUFFIX = re.compile(r"^,\s*PG\s+(?P<program>[A-Za-z0-9_]+)")
 # Continuation lines are indented; the protocol's own MSG/ERR lines have one space.
@@ -59,6 +63,18 @@ _DETAIL = re.compile(r"^\s{2,}\S")
 # " 30-SEP-2026  16:22:37  00:00:03  00:00:02  ERR GPSEST    ERROR IN MAIN PROGRAM"
 _PRT_ERR = re.compile(r"^\s*\d{2}-[A-Z]{3}-\d{4}(?:\s+\d{2}:\d{2}:\d{2})+\s+ERR\s+(\S+)")
 _LOG_ERR = re.compile(r"^Call to (\S+) failed:")
+# " 30-SEP-2026  16:22:35  00:00:01            MSG GPSEST    PROGRAM STARTED"
+_PRT_START = re.compile(
+    r"^\s*\d{2}-[A-Z]{3}-\d{4}(?:\s+\d{2}:\d{2}:\d{2})+\s+MSG\s+(\S+)\s+PROGRAM STARTED"
+)
+# Where an attempt starts. Nothing removes a step's PRT or LOG between attempts:
+# writePrtFileHeader appends (``>>``), and so does USER.CPU's ``>> <LOG>``. A rerun
+# of the same session in the same campaign leaves every earlier attempt above the
+# current one. The PRT header opens each attempt's PRT. RUNBPE.pm prints
+# ``Perl version:`` at top level, before START, so it opens each attempt's LOG even
+# when the script fails to compile; LOGFILE_HEADER (START only) is the fallback.
+_ATTEMPT = re.compile(r"^(?:\s*PROTOCOL FILE FOR BPE SCRIPT\s*|Perl version:.*)$")
+_LOG_HEADER = re.compile(r"^LOGFILE_HEADER\s*$")
 _NUMBER = re.compile(r"(?<![A-Za-z0-9_.])[-+]?\d+(?:\.\d+)?(?![A-Za-z0-9_])")
 # Where messages put data rather than words: "ALAB ALAB", (HERT-WSRT), (G049).
 _QUOTED = re.compile(r'"[^"]*"')
@@ -141,14 +157,24 @@ def _message(m: re.Match[str], detail: list[str], line: int) -> BernMessage:
     )
 
 
+def _last(lines: list[str], pattern: re.Pattern[str]) -> int | None:
+    return max((n for n, line in enumerate(lines) if pattern.match(line)), default=None)
+
+
 def scan(text: str) -> StepReport:
     """Scan one step's PRT or LOG text."""
     lines = text.splitlines()
     messages: list[BernMessage] = []
     failed_program: str | None = None
     err_line: int | None = None
+    # Messages at or before this line belong to an earlier program, not the failed one.
+    start_line = 0
+    starts: list[tuple[int, str]] = []
 
-    i = 0
+    # Only the last attempt counts. Line numbers stay those of the whole file.
+    i = _last(lines, _ATTEMPT)
+    if i is None:
+        i = _last(lines, _LOG_HEADER) or 0
     while i < len(lines):
         if m := _HEADER.match(lines[i]):
             start = i
@@ -162,19 +188,24 @@ def scan(text: str) -> StepReport:
         if failed_program is None:
             if e := _PRT_ERR.match(lines[i]):
                 failed_program, err_line = e[1], i + 1
+                start_line = max((n for n, p in starts if p == failed_program), default=0)
             elif e := _LOG_ERR.match(lines[i]):
-                # The LOG prints this marker before the messages, so it bounds nothing.
-                failed_program = e[1]
+                # The LOG prints this marker before the failed program's messages.
+                failed_program, start_line = e[1], i + 1
+            elif s := _PRT_START.match(lines[i]):
+                starts.append((i + 1, s[1]))
         i += 1
 
     cause = None
     if failed_program is not None:
-        before = [
+        own = [
             msg
             for msg in messages
-            if msg.severity == "error" and (err_line is None or msg.line < err_line)
+            if msg.severity == "error"
+            and msg.line > start_line
+            and (err_line is None or msg.line < err_line)
         ]
-        cause = before[-1] if before else None
+        cause = own[-1] if own else None
     return StepReport(tuple(messages), failed_program, cause)
 
 

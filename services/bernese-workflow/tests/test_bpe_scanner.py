@@ -149,6 +149,38 @@ def test_cause_is_the_last_error_before_err() -> None:
     assert report.cause.kind == "NO_INPUT_FILES"
 
 
+def test_an_earlier_programs_error_is_not_the_cause() -> None:
+    """A step can run several programs. CCRNXO's ``***`` was survivable (it
+    ended normally); the program that failed printed nothing, so the cause is
+    unknown, not CCRNXO's message."""
+    text = (
+        " 12-AUG-2026  11:59:11  00:00:00            MSG CCRNXO    PROGRAM STARTED\n"
+        "\n"
+        " *** SR OPNERR: OPEN FAILED\n"
+        "                FILE NAME : ${P}/X/STA/X.STA\n"
+        "\n"
+        " 12-AUG-2026  11:59:14  00:00:03  00:00:03  MSG CCRNXO    PROGRAM ENDED\n"
+        " 12-AUG-2026  11:59:14  00:00:03            MSG GPSEST    PROGRAM STARTED\n"
+        " 12-AUG-2026  11:59:15  00:00:04  00:00:01  ERR GPSEST    ERROR IN MAIN PROGRAM\n"
+    )
+    report = scan(text)
+    assert report.failed_program == "GPSEST"
+    assert report.cause is None
+
+
+def test_log_cause_comes_after_the_failure_marker() -> None:
+    text = (
+        " *** FN O_RNXBASE:rdHdrLine, PG CCRNXO\n"
+        "        Empty RINEX file.\n"
+        "\n"
+        "Call to GPSEST failed:\n"
+        "Test: 0, 1,  @ quit\n"
+    )
+    report = scan(text)
+    assert report.failed_program == "GPSEST"
+    assert report.cause is None
+
+
 def test_failure_without_an_error_message_has_no_cause() -> None:
     """A Perl-level failure has an ERR line and no ``***``. Unknown, not guessed."""
     report = scan(" 01-JAN-2026  00:00:00  00:00:00  ERR RUNBPE.pm  Script failed\n")
@@ -209,3 +241,45 @@ def test_header_variants() -> None:
 )
 def test_kind_of(text: str, kind: str) -> None:
     assert kind_of(text) == kind
+
+
+def _rerun(first: str, second_body: str) -> str:
+    """A PRT that BPE appended a second attempt to: writePrtFileHeader opens
+    with ``>>`` and nothing removes the PRT between attempts."""
+    return (
+        first + "\n\n PROTOCOL FILE FOR BPE SCRIPT\n ----------------------------\n" + second_body
+    )
+
+
+def test_an_earlier_attempts_failure_in_an_appended_prt_is_not_the_cause() -> None:
+    first = (FIXTURES / "LUZON_RP251210_022_002.PRT").read_text()
+    assert scan(first).cause is not None  # the first attempt failed with a known cause
+    report = scan(_rerun(first, " 01-JAN-2026  00:00:00  00:00:00  ERR RUNBPE.pm  Script failed\n"))
+    assert report.failed_program == "RUNBPE.pm"
+    assert report.cause is None
+
+
+def test_a_rerun_that_succeeded_is_not_failed_by_its_first_attempt() -> None:
+    first = (FIXTURES / "LUZON_RP251210_022_002.PRT").read_text()
+    report = scan(
+        _rerun(first, " 01-JAN-2026  00:00:00  00:00:01  MSG CCRNXO    PROGRAM ENDED NORMALLY\n")
+    )
+    assert not report.failed
+    assert report.cause is None
+
+
+def test_an_earlier_attempts_failure_in_an_appended_log_is_not_the_cause() -> None:
+    """USER.CPU appends each client's output to the LOG (``>> <LOG>``), and every
+    client prints ``Perl version:`` first, before START, so it marks an attempt
+    even when the script fails to compile and never writes LOGFILE_HEADER."""
+    first = (FIXTURES / "LUZON_RP251210_022_002.LOG").read_text()
+    assert scan(first).failed
+    report = scan(first + "\nPerl version: 5.038002\nPerl path   : /usr/bin/perl\n")
+    assert not report.failed
+
+
+def test_a_log_without_perl_lines_is_bounded_by_its_last_header() -> None:
+    first = (FIXTURES / "LUZON_RP251210_022_002.LOG").read_text()
+    first = "\n".join(line for line in first.splitlines() if not line.startswith("Perl "))
+    assert scan(first).failed
+    assert not scan(first + "\nLOGFILE_HEADER\n").failed

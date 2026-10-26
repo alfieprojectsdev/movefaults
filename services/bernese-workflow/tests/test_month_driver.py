@@ -320,3 +320,6 @@ def test_unreadable_bpe_output_still_returns_the_report(tmp_path, monkeypatch):
     out = run_days(be, "LUZON", 2025, [1, 2], sol_dir=tmp_path, bpe_dir=tmp_path / "BPE")
     assert [o.status for o in out] == ["failed", "not_run"]
     assert "unknown failure" in out[1].note
+    # Not "no failed BPE step": nobody looked, because BPE/ could not be read.
+    assert out[0].error == "BPE output unreadable (PermissionError: denied)"
+    assert "Could not read the BPE output" in out[0].explanation

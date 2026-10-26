@@ -31,6 +31,7 @@ when one does not, 2 when the knowledge base itself is invalid.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import textwrap
 from dataclasses import dataclass
@@ -38,7 +39,7 @@ from pathlib import Path
 
 import yaml
 
-from bernese_workflow.bpe_scanner import BernMessage, StepReport, kind_of, scan_file
+from bernese_workflow.bpe_scanner import EMITTER, BernMessage, StepReport, kind_of, scan_file
 
 # src/bernese_workflow/ -> src -> bernese-workflow -> services -> repo root
 DEFAULT_PATH = Path(__file__).resolve().parents[4] / "config" / "bernese" / "bpe_errors.yaml"
@@ -51,6 +52,36 @@ _OPTIONAL = ("confirm",)
 
 class KnowledgeBaseError(ValueError):
     """The knowledge base file is invalid. The message says where and why."""
+
+
+def match_key(message: BernMessage) -> tuple[str, str]:
+    """What a row matches on: the emitter in any case, and the message's kind."""
+    return (message.emitter.lower(), message.kind)
+
+
+class _Loader(yaml.SafeLoader):
+    """safe_load, except that a field given twice in one entry is an error.
+
+    Plain YAML keeps the last of the two and drops the first without a word.
+    """
+
+
+def _mapping(loader: _Loader, node: yaml.MappingNode, deep: bool = False) -> dict:
+    # Compared as written: as values, 1 and `yes` (True) would collide.
+    seen: set[str] = set()
+    for key_node, _ in node.value:
+        if not isinstance(key_node, yaml.ScalarNode):
+            continue
+        if key_node.value in seen:
+            raise KnowledgeBaseError(
+                f"line {key_node.start_mark.line + 1}: '{key_node.value}' is given twice "
+                "in one entry; keep one"
+            )
+        seen.add(key_node.value)
+    return loader.construct_mapping(node, deep=deep)
+
+
+_Loader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _mapping)
 
 
 @dataclass(frozen=True)
@@ -76,7 +107,7 @@ class KnowledgeBase:
     entries: tuple[Entry, ...]
 
     def lookup(self, message: BernMessage) -> Entry | None:
-        key = (message.emitter.lower(), message.kind)
+        key = match_key(message)
         return next((e for e in self.entries if e.key == key), None)
 
 
@@ -84,9 +115,9 @@ def _entry(raw: object, number: int) -> Entry:
     if not isinstance(raw, dict):
         raise KnowledgeBaseError(f"entry {number}: expected 'emitter:', 'message:' ... lines")
     label = f"entry {number} ({raw.get('emitter', '?')})"
-    unknown = sorted(set(raw) - set(_REQUIRED) - set(_OPTIONAL))
+    unknown = sorted(map(str, set(raw) - set(_REQUIRED) - set(_OPTIONAL)))
     if unknown:
-        raise KnowledgeBaseError(f"{label}: unknown field: {', '.join(map(str, unknown))}")
+        raise KnowledgeBaseError(f"{label}: unknown field: {', '.join(unknown)}")
     missing = [f for f in _REQUIRED if f not in raw]
     if missing:
         raise KnowledgeBaseError(f"{label}: missing: {', '.join(missing)}")
@@ -101,6 +132,11 @@ def _entry(raw: object, number: int) -> Entry:
     if raw["status"] not in STATUSES:
         raise KnowledgeBaseError(
             f"{label}: status must be one of {STATUSES}, not {raw['status']!r}"
+        )
+    if not re.fullmatch(EMITTER, raw["emitter"].strip()):
+        raise KnowledgeBaseError(
+            f"{label}: emitter {raw['emitter']!r} is not a name as Bernese prints one; "
+            "give only the name after SR / PG / PGM / FN, e.g. GTOCNL"
         )
     kind = kind_of(raw["message"])
     if not kind:
@@ -117,14 +153,14 @@ def _entry(raw: object, number: int) -> Entry:
         diagnosis=" ".join(raw["diagnosis"].split()),
         remedy=" ".join(raw["remedy"].split()),
         source=" ".join(raw["source"].split()),
-        confirm=raw.get("confirm"),
+        confirm=" ".join(raw["confirm"].split()) if "confirm" in raw else None,
         number=number,
     )
 
 
 def loads(text: str) -> KnowledgeBase:
     try:
-        data = yaml.safe_load(text)
+        data = yaml.load(text, Loader=_Loader)  # a SafeLoader subclass: still safe
     except yaml.YAMLError as exc:
         raise KnowledgeBaseError(
             f"not valid YAML: {exc}\n"
@@ -152,6 +188,8 @@ def loads(text: str) -> KnowledgeBase:
 def load(path: Path = DEFAULT_PATH) -> KnowledgeBase:
     try:
         return loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise KnowledgeBaseError(f"{path}: cannot read: {exc}") from exc
     except KnowledgeBaseError as exc:
         raise KnowledgeBaseError(f"{path}: {exc}") from exc
 

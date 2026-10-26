@@ -111,6 +111,10 @@ def test_unknown_error_has_no_row() -> None:
             "nothing left to match",
         ),
         (_ROW.replace("    diagnosis: d\n", "    diagnosis:\n"), "diagnosis must be text"),
+        (
+            _ROW.replace("    remedy: r\n", "    remedy: r\n    1: x\n    extra: y\n"),
+            "unknown field",
+        ),
     ],
 )
 def test_editing_mistakes_are_named(row: str, complaint: str) -> None:
@@ -118,6 +122,29 @@ def test_editing_mistakes_are_named(row: str, complaint: str) -> None:
         loads("entries:\n" + row)
     assert complaint in str(exc.value)
     assert "entry 1 (neqckdim)" in str(exc.value)
+
+
+@pytest.mark.parametrize("emitter", ["SR neqckdim", "neqckdim:", "*** SR neqckdim"])
+def test_an_emitter_that_could_never_match_is_refused(emitter: str) -> None:
+    """Pasting more than the name loads fine and then never matches anything."""
+    with pytest.raises(KnowledgeBaseError, match="not a name as Bernese prints one"):
+        loads("entries:\n" + _ROW.replace("emitter: neqckdim", f"emitter: '{emitter}'"))
+
+
+def test_a_field_given_twice_is_refused() -> None:
+    """Plain YAML would keep the second remedy and drop the first silently."""
+    row = _ROW.replace("    remedy: r\n", "    remedy: r\n    remedy: r2\n")
+    with pytest.raises(KnowledgeBaseError, match="'remedy' is given twice"):
+        loads("entries:\n" + row)
+
+
+def test_an_unreadable_file_is_a_knowledge_base_error(tmp_path: Path) -> None:
+    with pytest.raises(KnowledgeBaseError, match="cannot read"):
+        load(tmp_path / "missing.yaml")
+    assert (
+        main(["--kb", str(tmp_path / "missing.yaml"), str(FIXTURES / "LUZON_RP251230_022_004.PRT")])
+        == 2
+    )
 
 
 def test_duplicate_rows_are_refused() -> None:
