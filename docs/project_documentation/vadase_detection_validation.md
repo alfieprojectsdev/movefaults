@@ -159,7 +159,12 @@ false crossing is the only evidence here that it is not too low.
   [`vadase_threshold_evidence.md`](vadase_threshold_evidence.md).)*
 - **Nothing about lowering the threshold, beyond one data point.** At 10 mm/s
   the Sarangani hour would have produced a false crossing at MAGU before the
-  earthquake arrived, and the January day would have come within 1 mm/s of one.
+  earthquake arrived, and the January DGOS day would have crossed it too: 8
+  readings above 10 mm/s, the highest 10.9 mm/s at 18:18 UTC, when nothing is
+  catalogued (see [`vadase_threshold_evidence.md`](vadase_threshold_evidence.md)).
+  Whether the other 7 fall near one of that day's 25 swarm events has not been
+  checked. (Corrected 2026-10-25: this said the January day came "within 1 mm/s
+  of one".)
   That case rests on a single sample: MAGU's 13.2 mm/s at **23:03:37**, 33
   minutes before the origin time and so not an early arrival. It is an isolated
   spike, the largest of 11 samples above 5 sd in that station's quiet window.
