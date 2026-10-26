@@ -1,6 +1,7 @@
 """Tests for the pre-BPE RINEX header validator (BRN-006)."""
 from __future__ import annotations
 
+import datetime as dt
 import gzip as _gzip
 import shutil
 import subprocess
@@ -86,8 +87,9 @@ def _make_sta_content(stations: list[dict]) -> str:
         ant = f"{s.get('antenna', 'LEIAR20'):<20}"
         # Build a line that puts receiver at [69:89] and antenna at [121:141]
         # sname (16) + 6sp + 001 + 2sp + from(19) + 2sp + to(19) + 2sp + receiver(20) + 2sp + serial(20) + 2sp + 999999 + 2sp + antenna(20)
-        from_s = "1980  1  1  0  0  0"
-        to_s = "2099 12 31  0  0  0"
+        from_s = s.get("from", "1980  1  1  0  0  0")
+        to_s = s.get("to", "2099 12 31  0  0  0")
+        assert len(from_s) == len(to_s) == 19
         row = (
             f"{sname:<16}      001  {from_s}  {to_s}  "
             f"{rec}  {'':20}  999999  "
@@ -999,3 +1001,116 @@ def test_ordinary_subdirectories_are_still_scanned(tmp_path):
 
     headers = _parse_rinex_headers(src, year=2026, session="0860")
     assert "PGOO" in headers
+
+
+# ---------------------------------------------------------------------------
+# Equipment history: the STA entry that applies is the one valid on the day
+# ---------------------------------------------------------------------------
+# EXAMPLE.STA's WSRT changed antenna on 2023-12-07 12:00 (AOAD/M_T -> LEIAR25.R4).
+# Validating 2023 day 010 against the LATEST entry refused a correct file, which
+# stopped a real EXAMPLE run on finch (2026-10-27).
+
+_WSRT_HISTORY = [
+    {"name": "WSRT", "receiver": "SEPT POLARX5", "antenna": "AOAD/M_T",
+     "from": "2018 12 17 00 00 00", "to": "2023 12 07 11 59 59"},
+    {"name": "WSRT", "receiver": "SEPT POLARX5", "antenna": "LEIAR25.R4",
+     "from": "2023 12 07 12 00 00", "to": " " * 19},
+]  # fmt: skip
+
+
+def _wsrt(tmp_path, antenna, year2):
+    raw_dir = tmp_path / "RAW"
+    raw_dir.mkdir()
+    _write_rinex(raw_dir, f"WSRT001a.{year2}o", _rinex2_obs("WSRT", "SEPT POLARX5", antenna))
+    sta = tmp_path / "TEST.STA"
+    sta.write_text(_make_sta_content(_WSRT_HISTORY), encoding="ascii")
+    return raw_dir, sta
+
+
+def test_a_day_before_an_equipment_change_is_checked_against_the_old_entry(tmp_path):
+    raw_dir, sta = _wsrt(tmp_path, "AOAD/M_T        DUTD", "23")
+    report = validate_rinex_headers(raw_dir, sta, day=dt.date(2023, 1, 10))
+    assert report.ok, report.mismatches
+
+
+def test_a_day_after_the_change_rejects_the_old_antenna(tmp_path):
+    raw_dir, sta = _wsrt(tmp_path, "AOAD/M_T        DUTD", "24")
+    report = validate_rinex_headers(raw_dir, sta, day=dt.date(2024, 1, 10))
+    assert not report.ok
+    assert report.mismatches[0].sta_value.startswith("LEIAR25.R4")
+
+
+def test_on_the_day_of_a_change_either_entry_is_accepted(tmp_path):
+    for antenna in ("AOAD/M_T        DUTD", "LEIAR25.R4      LEIT"):
+        sub = tmp_path / antenna[:4].replace("/", "_")
+        sub.mkdir()
+        raw_dir, sta = _wsrt(sub, antenna, "23")
+        assert validate_rinex_headers(raw_dir, sta, day=dt.date(2023, 12, 7)).ok, antenna
+
+
+def test_a_day_no_entry_covers_is_reported_missing(tmp_path):
+    raw_dir, sta = _wsrt(tmp_path, "AOAD/M_T        DUTD", "17")
+    report = validate_rinex_headers(raw_dir, sta, day=dt.date(2017, 1, 10))
+    assert report.missing_from_sta == ["WSRT"]
+
+
+def test_the_session_sets_the_day_when_files_are_filtered_by_session(tmp_path):
+    raw_dir = tmp_path / "RAW"
+    raw_dir.mkdir()
+    _write_rinex(
+        raw_dir, "WSRT0100.23o", _rinex2_obs("WSRT", "SEPT POLARX5", "AOAD/M_T        DUTD")
+    )
+    sta = tmp_path / "TEST.STA"
+    sta.write_text(_make_sta_content(_WSRT_HISTORY), encoding="ascii")
+    assert validate_rinex_headers(raw_dir, sta, year=2023, session="0100").ok
+
+
+def test_without_a_day_the_latest_entry_is_used_as_before(tmp_path):
+    raw_dir, sta = _wsrt(tmp_path, "AOAD/M_T        DUTD", "23")
+    assert not validate_rinex_headers(raw_dir, sta).ok
+
+
+def test_the_backend_preflight_uses_the_sessions_date_for_raw(tmp_path):
+    """run() validates the campaign RAW/ unfiltered when no source dir is set; it
+    must still judge each file by the session's STA entry, not the latest."""
+    from bernese_workflow.backends import LinuxBPEBackend
+
+    camp = tmp_path / "P" / "EXAMPLE"
+    (camp / "STA").mkdir(parents=True)
+    (camp / "RAW").mkdir()
+    _write_rinex(
+        camp / "RAW", "WSRT0100.23o", _rinex2_obs("WSRT", "SEPT POLARX5", "AOAD/M_T        DUTD")
+    )
+    (camp / "STA" / "EXAMPLE.STA").write_text(_make_sta_content(_WSRT_HISTORY), encoding="ascii")
+    be = LinuxBPEBackend(tmp_path, tmp_path, tmp_path / "P")
+    be._preflight_rinex("EXAMPLE", 2023, "0100")  # raises ValidationError on a mismatch
+
+
+def test_overlapping_windows_are_accepted_but_reported(tmp_path):
+    """LUZON.STA (gps3, 2026-10-27) has S01R entries whose windows overlap each
+    other, not just meet at a change. Either entry may match, but the overlap is
+    a data error in the STA and must be said, not resolved silently."""
+    raw_dir = tmp_path / "RAW"
+    raw_dir.mkdir()
+    _write_rinex(raw_dir, "S01R0100.25o", _rinex2_obs("S01R", "TRIMBLE ALLOY", "LEIAR25.R4      LEIT"))
+    sta = tmp_path / "TEST.STA"
+    sta.write_text(
+        _make_sta_content(
+            [
+                {"name": "S01R", "receiver": "TRIMBLE NETR9", "antenna": "LEIAR25.R4",
+                 "from": "2024 01 01 00 00 00", "to": "2025 12 31 23 59 59"},
+                {"name": "S01R", "receiver": "TRIMBLE ALLOY", "antenna": "LEIAR25.R4",
+                 "from": "2025 04 15 00 00 00", "to": " " * 19},
+            ]
+        ),
+        encoding="ascii",
+    )  # fmt: skip
+    report = validate_rinex_headers(raw_dir, sta, day=dt.date(2025, 6, 1))
+    assert report.ok
+    assert any("S01R" in w and "overlap" in w for w in report.warnings), report.warnings
+
+
+def test_a_change_day_is_not_reported_as_an_overlap(tmp_path):
+    raw_dir, sta = _wsrt(tmp_path, "AOAD/M_T        DUTD", "23")
+    report = validate_rinex_headers(raw_dir, sta, day=dt.date(2023, 12, 7))
+    assert report.ok and report.warnings == []

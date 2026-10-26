@@ -6,6 +6,7 @@ interface is accepted without inheritance.
 """
 from __future__ import annotations
 
+import datetime
 import logging
 import os
 import re
@@ -35,6 +36,11 @@ class BPEResult:
     comparf_failed: bool                   # PID 514 daily repeatability
     output_files: dict[str, Path] = field(default_factory=dict)
     raw_log: str = ""
+
+
+def _session_date(year: int, session: str) -> datetime.date:
+    """The calendar day of a Bernese session (DOY in its first three characters)."""
+    return datetime.date(year, 1, 1) + datetime.timedelta(days=int(session[:3]) - 1)
 
 
 class BPEBackend(Protocol):
@@ -409,7 +415,8 @@ class LinuxBPEBackend:
 
         logger.info("Campaign files generated in %s", sta_dir)
 
-    def run(self, campaign_name: str, year: int, session: str) -> BPEResult:
+    def _preflight_rinex(self, campaign_name: str, year: int, session: str) -> None:
+        """Validate a session's RINEX headers against the STA; raise ValidationError."""
         from .rinex_header_validator import ValidationError, validate_rinex_headers
 
         campaign_path = self.campaign_dir / campaign_name
@@ -464,6 +471,10 @@ class LinuxBPEBackend:
                 year=filter_year,
                 session=filter_session,
                 require_stations=require_stations,
+                # The session's date picks each station's STA entry, also when
+                # RAW/ is validated unfiltered: an equipment change is otherwise
+                # judged against the latest entry and a correct file refused.
+                day=_session_date(year, session),
             )
             if not report.ok:
                 raise ValidationError(report)
@@ -473,6 +484,10 @@ class LinuxBPEBackend:
                 campaign_name,
                 validate_dir,
             )
+
+    def run(self, campaign_name: str, year: int, session: str) -> BPEResult:
+        self._preflight_rinex(campaign_name, year, session)
+        campaign_path = self.campaign_dir / campaign_name
 
         script = self.driver_script or (self.user_dir / "SCRIPT" / "rnx2snx_pcs.pl")
 
