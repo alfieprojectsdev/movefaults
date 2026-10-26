@@ -1,6 +1,6 @@
 # GNSS Pipeline Orchestration: What We're Building for Our Processing Workflow
 
-**Drafted:** 2026-02-27  **Revised:** 2026-08-03, **2026-08-12**
+**Drafted:** 2026-02-27  **Revised:** 2026-08-03, 2026-08-12, **2026-10-26**
 
 > **What has changed since this was written.** In February this described a plan.
 > Since then: a June training week proved a full pipeline could run unattended
@@ -16,6 +16,15 @@
 > **Your work is now backed up.** The scripts and the `offsets` catalog that
 > lived only on the file server and on individual machines are in version
 > control as of 2026-08-12. More on that in "What We Need From You".
+>
+> **Since August (2026-10-26).** A failed BPE step is now read and looked up
+> in a list of known errors that the processing lead is asked to keep and
+> confirm, and a run stops itself instead of failing day after day. That part
+> is built into the processing service, which production does not run through
+> yet ("When a Run Fails", below). A design
+> for a browser console, so staff can follow and later start runs from their
+> own PCs, is with the processing team for comments. Where this document
+> described something that has since turned out differently, it now says so.
 
 ---
 
@@ -51,17 +60,17 @@ For our workflow, one orchestrated processing run looks like this:
 You specify:  Campaign = LUZON, Year = 2025, Session = 1210
 
 Orchestrator:
-  1. Downloads IGS precise orbits + clocks from CDDIS (with automatic fallback to IGN/BKG)
+  1. Downloads CODE precise orbits, clocks and related products (from the SWITCH S3 mirror; the AIUB FTP is firewalled from the server)
   2. Stages the HOI model file and Earth rotation parameters
   3. Validates RINEX files against the station info (.STA) — flags mismatches BEFORE Bernese
   4. Decompresses Hatanaka files (CRX2RNX) and copies to RAW/
   5. Renders the RUNBPE.INP and OPT_DIR panel files for this specific campaign
   6. Calls Bernese non-interactively: runs every BPE step in the PCF
   7. Checks the output: station count after RXOBV3, ambiguity fixing rate, HELMCHK residuals
-  8. Extracts SINEX coordinates, converts to ENU, stores in the database
+  8. Archives the results to SAVEDISK and records the attempt (a database for the coordinates is planned, not built)
   9. Sends a summary report: what ran, what succeeded, what needs attention
 
-You receive:  A report. Processed results in the database. Any exceptions flagged for your review.
+You receive:  A report. Processed results in SAVEDISK. Any exceptions flagged for your review.
 ```
 
 Every BPE step — RNXGRA, RXOBV3, MAUPRP, GNSQIF, HELMCHK, all of them — runs exactly as it does today, with exactly the same Bernese software, the same PCF, the same INP file settings. **The science does not change.** What changes is who carries the files.
@@ -87,8 +96,10 @@ use internally.
 **Where this stands:** the settings side is now version-controlled — panels, PCFs
 and drivers live in the repository and are applied to the server by one command,
 so "which settings were active" is answerable from the commit history rather than
-from memory. The per-run record of *outcomes* (which stations survived, what the
-residuals were) is still to come.
+from memory. The per-run record of *outcomes* is written but not yet in use
+(October): one entry per attempt at a day, with its outcome, error, duration and
+configuration. Which stations survived and what the residuals were are still to
+come.
 
 **A real example of why this matters, found in our own files.** While rewriting
 the velocity script (see "Your Velocity Script Now Runs Without MATLAB"), the new version was checked against the existing
@@ -120,7 +131,7 @@ An orchestrated pipeline processes all stations in parallel, overnight, every ni
 33 seconds** on the R740 and uses about **4 of its 24 cores**. A full month —
 30 days — ran unattended in **2 hours 47 minutes, 30 of 30 days successful**.
 
-**The comparison that matters, and the honesty it needs.** Cass reprocessed the
+**The comparison that matters, and the honesty it needs.** The processing lead reprocessed the
 full 2025 PH network a few weeks ago on one of the Windows R740 servers, and it
 took **several weeks**. Our measured LUZON rate — 5m33s a day — would put a year
 at roughly a day and a half of machine time.
@@ -128,14 +139,14 @@ at roughly a day and a half of machine time.
 That gap is large enough to be worth understanding rather than celebrating,
 because the two runs are **not the same job**:
 
-- Cass's run processed the national network (**~52 stations a day**); ours
+- That run processed the national network (**~52 stations a day**); ours
   processed LUZON (**30**).
-- Hers used the full production PCF including `FTP_DWLD`, which fetches IGS
+- That run used the full production PCF including `FTP_DWLD`, which fetches IGS
   products over the network for every session; ours had products pre-staged
   locally.
-- Hers produced weekly and monthly combinations (`ADD_WK`, `ADD_MON`); ours did
+- That run produced weekly and monthly combinations (`ADD_WK`, `ADD_MON`); ours did
   not.
-- Hers ran attended, in working hours, on Windows; ours ran overnight on Linux.
+- That run was attended, in working hours, on Windows; ours ran overnight on Linux.
 
 So the right conclusion today is **"this looks very promising and we should
 measure it properly"**, not "we are twenty times faster". A like-for-like run —
@@ -169,6 +180,11 @@ The orchestrated pipeline runs on the dedicated Dell server (R740). You submit a
 processing job from your desk, and your workstation is immediately free. The server
 handles the computation; you receive the results. Your desktop is no longer a
 processing node.
+
+*(2026-10-26: the server half of this is real; the "from your desk" half is not
+yet. Today runs are started on the server from the command line by the 5.4
+maintainer. Submitting from a desk is the third stage of the browser console,
+after personal accounts on the server and a network route from the office.)*
 
 **This part now exists.** Bernese 5.4 was installed on the R740 on 2026-07-29 and
 verified against the reference solution to **0.0000 mm** — the same numbers as the
@@ -209,6 +225,53 @@ of this project is that results come with evidence attached.
 
 *(Nothing was lost. The 30-day results were copied aside before the test and
 verified identical afterward — all 30 solutions, byte for byte.)*
+
+---
+
+## When a Run Fails  **[built; not yet how production runs]**
+
+*Added 2026-10-26.*
+
+*Where this applies today:* everything below is built into the processing
+service, which has not yet run a production day. Production still runs through
+the month and year scripts, which carry on past a failed day. Since 26 October
+the month script names the failed step and its message (the year scripts don't
+yet), but none of them looks it up or stops. Looking up and stopping take effect when runs move to the service (the
+cutover planned for 3 November).
+
+On 29 August a year-long run produced nothing for nine hours: 24 days in a row
+failed on the same message, because one setting (`MAXPAR`, the largest number of
+parameters ADDNEQ2 may combine) was too small. The fix had been written down
+since March. Nothing in the processing could look it up, so a person found it
+again by hand.
+
+Three things now stand between a failure and a lost night:
+
+- **The failed step is read, not guessed.** When a day fails, the step's own
+  protocol and log files are read, and the run names the PID, the script, the
+  program and the `***` message that failed. A rerun of the same day appends to
+  those files, so only the last attempt is read.
+- **The message is looked up in a list of known errors.** The list is a plain
+  file (`config/bernese/bpe_errors.yaml`) that the processing lead is asked to
+  keep and confirm, drawing on the same notebook of errors and fixes the team
+  already uses. Today the entries were written by the developers. Each entry says
+  what the error means here, what to check and change, and where that
+  knowledge came from. An entry starts as *proposed* and becomes *established*
+  once the processing lead confirms it.
+- **The run stops itself.** An error marked as a configuration problem (like
+  `MAXPAR`) stops the run at once, because every remaining day would fail the
+  same way. An error with no entry also stops it at once: there is no
+  remedy on file, so a person has to look. An error that belongs to one day
+  only is counted, and 3 identical ones in a row stop the run, as do 5 failed
+  days of any kind.
+
+**Nothing is fixed automatically.** The list tells a person what to check; it
+never changes a setting or re-runs a day by itself. Had the 29 August run gone
+through the service, it would have stopped after its first failed day, with
+the `MAXPAR` remedy on screen.
+
+**If an entry is wrong, or missing, say so.** The list is only as good as the
+experience behind it, and most of that experience is yours.
 
 ---
 
@@ -261,10 +324,12 @@ Orchestration automates the mechanical steps. The judgment steps remain human:
 | Daily ENU coordinate storage | Offset event classification (EQ, equipment change, unknown) |
 | Run status report generation | Final QC sign-off before results enter the velocity product |
 | **Outlier detection** (statistical, already automatic) | **Confirming or overriding** which epochs to actually remove |
+| Looking a failed step up in the known-errors list | **Writing and confirming** the entries in that list (the processing lead is asked to) |
+| Stopping a run: after 3 identical failures in a row, or at once on a configuration error or an error with no entry | **Deciding what to change** before the run is started again |
 
 The orchestrator flags — it does not decide. Every exception it surfaces is a question that requires your domain knowledge to answer.
 
-One step in particular deserves a direct explanation: **manual outlier removal stays human**. After BPE completes and daily coordinates are extracted, the velocity calculation requires a visual inspection of each station's time series to identify and remove bad epochs. Today this is done via a Windows-only interactive plot (right-click to flag). In the new pipeline, the same step happens through a browser-based tool — you still look at the time series, you still decide which points to remove, and the result is written to the same file the MATLAB velocity script reads. The judgment is identical; the tool is better and works on any machine.
+One step in particular deserves a direct explanation: **manual outlier removal stays human**. After BPE completes and daily coordinates are extracted, the velocity calculation requires a visual inspection of each station's time series to identify and remove bad epochs. Today this is done via a Windows-only interactive plot (right-click to flag). In the new pipeline, the same step happens through a browser-based tool — you still look at the time series and you still decide which points are outliers, and the decision is recorded with your name rather than by editing the PLOT files. Whether a confirmed outlier is then excluded from the velocity fit, or only recorded, is the team decision described in "Your Velocity Script Now Runs Without MATLAB". The judgment is identical; the tool works on any machine. *(Not built yet: it is a later stage of the browser console.)*
 
 What the browser tool adds that the current script does not: automatic
 pre-flagging of statistical outliers so that obvious bad epochs are already
@@ -294,7 +359,7 @@ measure. That distinction needs someone who knows the site.
 
 **After orchestration:**
 
-> Staff member submits a processing job (campaign, year, session). Orchestrator handles all pre-processing and runs BPE overnight. The next morning, a report shows: 12 stations processed, 11 OK, 1 flagged (RXOBV3 header mismatch at XBOG — likely antenna info update needed). Staff member investigates the flag, corrects the `.STA` entry, re-queues that station. Then opens the browser-based outlier reviewer: statistical outliers are already pre-highlighted across all 12 stations. Staff member reviews, confirms or adjusts, clicks Export. MATLAB velocity script runs on the cleaned data. Total active time: 30–40 minutes.
+> Staff member submits a processing job (campaign, year, session). Orchestrator handles all pre-processing and runs BPE overnight. The next morning, a report shows: 12 stations processed, 11 OK, 1 flagged (RXOBV3 header mismatch at XBOG — likely antenna info update needed). Staff member investigates the flag, corrects the `.STA` entry, and redoes that day: a daily solution is one network, so the whole day is re-run, and the day's earlier results are moved aside first so old and new are never mixed. Then opens the browser-based outlier reviewer: statistical outliers are already pre-highlighted across all 12 stations. Staff member reviews, confirms or adjusts. The velocity step (now Python) runs on the result. Total active time: 30–40 minutes.
 
 ---
 
@@ -306,7 +371,8 @@ The orchestration layer we are building is not a replacement for Bernese — it 
 - **Data staging**: downloads and organises IGS products, RINEX files, reference data
 - **INP provisioning**: renders the OPT_DIR panel files with the correct per-run parameters
 - **Execution**: calls Bernese non-interactively; monitors for completion or crash
-- **Harvest**: parses the BPE log, extracts SINEX, converts to ENU, writes to database
+- **Harvest**: reads the BPE output, checks the day's results are complete, archives them to SAVEDISK and records the attempt
+- **Diagnosis**: on a failure, names the step and program that failed, looks the message up in the known-errors list, and decides whether the run stops
 - **Reporting**: surfaces quality metrics (ambiguity fixing rate, HELMCHK residuals, daily repeatability)
 
 The INP file settings — the GPSEST ionosphere configuration, the MAUPRP cycle slip thresholds, the HELMR1 reference station list, the ADDNEQ2 outlier thresholds — are all encoded from your existing production configuration. They do not change unless you deliberately change them, and any change is version-controlled and auditable.
@@ -319,7 +385,7 @@ The INP file settings — the GPSEST ionosphere configuration, the MAUPRP cycle 
 no longer needed.*
 
 **First: your work is backed up.** On 2026-08-12 the scripts on
-`\\192.168.48.99\GPS Data\Scripts` were copied into version control — 142
+the Scripts share on gps2, the Windows file server, were copied into version control — 142
 files, including every `vel_line` version, the RINEX conversion scripts, the
 RINEX checkers, and the per-region site lists. Most importantly, the **`offsets`
 catalog**: 88 records across 70 sites, from 2003 to 2026, classifying every
@@ -379,10 +445,10 @@ Your production settings are preserved exactly; nothing is silently reinterprete
 | Time per session (staff) | 3–4 hours | 20 minutes (exception review only) | in progress |
 | Machine time per day | ~2 h attended (T420) | **5 min 33 s unattended (R740)** | **measured** |
 | A month of processing | weeks of attended work | **2 h 47 min, 30/30 days** | **done, 2026-08-06** |
-| Reproducibility | Settings not recorded | Every run logged and version-controlled | settings done; per-run record to come |
+| Reproducibility | Settings not recorded | Every run logged and version-controlled | settings done; per-run record written, not yet in use |
 | Velocity calculation | MATLAB (licensed) | **Python, verified identical** | **done, 2026-08-12** |
 | Your scripts + `offsets` | One share, some laptops | **In version control, mirrored** | **done, 2026-08-12** |
-| Error detection | After BPE runs | Before BPE runs (pre-flight validation) | in progress |
+| Error detection | After BPE runs, by reading log files | Diagnosed on failure, and checked before BPE runs | diagnosis and stop rule built (October), in use once runs go through the service; failed step named by today's month script; pre-flight checks in progress |
 | Scale | ~1 session per person-day | Parallel sessions overnight | **not yet — see "A Test That Failed"** |
 | Knowledge transfer | Person-to-person | Readable, runnable code | in progress |
 
@@ -394,9 +460,14 @@ server and has processed a real month; the velocity step no longer needs MATLAB
 and gives identical numbers; and the scripts and event catalog are backed up
 where they cannot be lost with a hard drive.
 
+**Done since, as of 2026-10-26:** today's month script names the failed step and
+its message. The service also diagnoses it from the known-errors list and stops a
+run on the stop rule; that takes effect when production moves to the service
+("When a Run Fails").
+
 **What is not:** parallel processing across a year ("A Test That Failed" above — tested, failed,
-understood, fixable); the per-run provenance record; and the browser-based
-outlier reviewer.
+understood, fixable); the per-run provenance record in use; and the browser
+console, including the outlier reviewer, which is at the design stage.
 
 ---
 
