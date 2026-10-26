@@ -55,7 +55,20 @@ done
 name=$(basename "$best" .PRT)
 pid=${name%_*}; pid=${pid##*_}
 script=$(sed -nE 's/^[[:space:]]*Script name[[:space:]]*:[[:space:]]*([^[:space:]]+).*/\1/p' <<<"$best_text" | head -1)
-msg=$(grep -E '^[[:space:]]?(\*\*\*|###)' <<<"$best_text" | tail -1 | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+# The cause is the last *** (error) block; ### is a warning, used only when no
+# *** exists, so a warning printed after the error cannot stand in for it. A
+# block's header names the routine and its first indented line often says what
+# went wrong (CCRNXO: "No input files"), so both are shown.
+message_block() {
+    awk -v mark="$1" '
+        function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
+        $0 ~ "^[[:space:]]?" mark { hdr = trim($0); detail = ""; want = 1; next }
+        want && /^[[:space:]][[:space:]]+[^[:space:]]/ { detail = trim($0); want = 0; next }
+        { want = 0 }
+        END { if (hdr != "") print (detail != "" ? hdr ": " detail : hdr) }'
+}
+msg=$(message_block '[*][*][*]' <<<"$best_text")
+[ -n "$msg" ] || msg=$(message_block '###' <<<"$best_text")
 
 printf 'PID %s %s' "$pid" "${script:-?}"
 [ -n "$msg" ] && printf ' — %s' "$msg"

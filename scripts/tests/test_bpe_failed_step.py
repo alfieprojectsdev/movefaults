@@ -102,6 +102,32 @@ def test_a_step_that_ran_cleanly_is_not_reported(tmp_path: Path) -> None:
     assert run(tmp_path, "251220", now - 60).returncode == 1
 
 
+def test_the_error_text_under_the_header_is_shown(tmp_path: Path) -> None:
+    """CCRNXO's header names the routine; what went wrong is on the indented line
+    under it ("No input files"). Showing only the header names no problem."""
+    now = time.time()
+    place(tmp_path, "LUZON_RP251210_022_002.PRT", "RS251210_022_002.PRT", now)
+    r = run(tmp_path, "251210", now - 60)
+    assert "O_CCRNXO:concatenateOrMergeRinexFiles" in r.stdout
+    assert "No input files" in r.stdout
+
+
+def test_a_warning_after_the_error_does_not_replace_it(tmp_path: Path) -> None:
+    """### is a warning. One printed after the *** error must not be shown as the cause."""
+    now = time.time()
+    prt = tmp_path / "RS251220_513_000.PRT"
+    text = (FIXTURES / "LZY250360_RP250360_513_000.PRT").read_text()
+    err_at = text.index(" *** PGM HELMR1")
+    text = text[:err_at] + text[err_at:].replace(
+        "\n\n", "\n\n ### PG HELMR1: SOME LATER WARNING\n\n", 1
+    )
+    prt.write_text(text)
+    os.utime(prt, (now, now))
+    r = run(tmp_path, "251220", now - 60)
+    assert "NO REDUNDANCY" in r.stdout
+    assert "LATER WARNING" not in r.stdout
+
+
 # ---------------------------------------------------------------------------
 # run_luzon_month.sh end to end, against a fake Bernese environment
 # ---------------------------------------------------------------------------
