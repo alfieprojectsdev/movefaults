@@ -315,3 +315,29 @@ def test_entries_are_one_json_object_per_line(sol: Path):
     run_days(Backend(sol), "LUZON", 2025, [1], sol_dir=sol, bpe_dir=sol / "BPE", ledger=led)
     for line in (sol / "l.jsonl").read_text().splitlines():
         assert isinstance(json.loads(line), dict)
+
+
+def test_extra_fields_pass_through_and_not_run_counts_as_ended(tmp_path: Path):
+    """Step F tags parallel attempts (mode, block) and closes days it never
+    started as not_run; neither may leave a day looking in progress."""
+    led = Ledger(tmp_path / "l.jsonl")
+    led.run_start(campaign="PHREF", year=2025, doys=[1, 2, 3], banked=[])
+    for d in (1, 2, 3):
+        led.attempt_start(doy=d, session=f"{d:03d}0", mode="block", block=[1, 3])
+    led.attempt_end(doy=1, session="0010", outcome="ok", seconds=900.0, mode="block", block=[1, 3])
+    led.attempt_end(doy=2, session="0020", outcome="failed", seconds=900.0, mode="block")
+    led.attempt_end(
+        doy=3,
+        session="0030",
+        outcome="not_run",
+        seconds=0.0,
+        mode="block",
+        note="not started: queue stopped at DOY 002",
+    )
+    entries = read_entries(tmp_path / "l.jsonl")[0]
+    starts = [e for e in entries if e["event"] == "attempt_start"]
+    assert starts[0]["mode"] == "block" and starts[0]["block"] == [1, 3]
+    st = run_status(entries, alive=lambda h, p: True)
+    text = "\n".join(st.lines)
+    assert "in progress" not in text, text
+    assert "ok 1   failed 1   not run 1   not yet attempted 0" in text, text

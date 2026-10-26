@@ -109,8 +109,9 @@ class Ledger:
         )
         return self.run_id
 
-    def attempt_start(self, *, doy: int, session: str) -> None:
-        self._append("attempt_start", doy=doy, session=session)
+    def attempt_start(self, *, doy: int, session: str, **extra: object) -> None:
+        """``extra`` is written as is: step F tags parallel runs mode="block", block=[a, b]."""
+        self._append("attempt_start", doy=doy, session=session, **extra)
 
     def attempt_end(
         self,
@@ -122,7 +123,9 @@ class Ledger:
         error: str = "",
         note: str = "",
         stations: int | None = None,
+        **extra: object,
     ) -> None:
+        """``outcome`` is ok, failed or not_run (a day a stopped queue never started)."""
         self._append(
             "attempt_end",
             doy=doy,
@@ -132,6 +135,7 @@ class Ledger:
             error=error,
             note=note,
             stations=stations,
+            **extra,
         )
 
     def run_end(self, *, halt: str | None) -> None:
@@ -223,6 +227,7 @@ def run_status(
     ends = [e for e in mine if e["event"] == "attempt_end"]
     ok = [e for e in ends if e.get("outcome") == "ok"]
     failed = [e for e in ends if e.get("outcome") == "failed"]
+    not_run = [e for e in ends if e.get("outcome") == "not_run"]
     asked = start.get("doys") or []
     banked = start.get("banked") or []
     done_doys = {e["doy"] for e in ends}
@@ -233,7 +238,8 @@ def run_status(
         f"pid {start.get('pid')}  config {start.get('config') or '-'}",
         f"  started {time.strftime('%Y-%m-%d %H:%M', time.localtime(start['ts']))}; "
         f"{len(asked)} days asked, {len(banked)} already banked",
-        f"  ok {len(ok)}   failed {len(failed)}   not yet attempted {len(left)}",
+        f"  ok {len(ok)}   failed {len(failed)}   not run {len(not_run)}   "
+        f"not yet attempted {len(left)}",
     ]
     for e in failed[-5:]:
         lines.append(f"  failed DOY {e['doy']:03d}: {e.get('error') or e.get('note')}")
