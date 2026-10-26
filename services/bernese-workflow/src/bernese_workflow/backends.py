@@ -159,7 +159,16 @@ def _run_bpe_process(
         raise
     # communicate() has reaped the leader, so the pgid cannot have been recycled
     # while any member is left. A member that outlasts the drain is orphaned.
-    if not _group_drains(proc.pid, _DRAIN_SEC):
+    # The run still returns its result: the driver itself finished, and the
+    # warning is the record that something outlived it.
+    try:
+        drained = _group_drains(proc.pid, _DRAIN_SEC)
+    except BaseException:
+        # Interrupted while waiting (Ctrl-C, a signal turned into an exception):
+        # do not leave the jobs running just because the wait was cut short.
+        _kill_group(proc)
+        raise
+    if not drained:
         logger.warning(
             "BPE driver %s exited but jobs in its process group were still running "
             "after %ss; killing them",

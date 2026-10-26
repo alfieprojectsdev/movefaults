@@ -490,3 +490,30 @@ def test_a_job_still_finishing_when_the_driver_exits_is_not_killed(tmp_path, cap
     assert out.returncode == 0
     assert marker.read_text().strip() == "SCRIPT__ENDED", "the sweep killed a finishing job"
     assert caplog.text == ""
+
+
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"), reason="process groups; _alive reads /proc"
+)
+def test_an_interrupt_during_the_drain_still_sweeps_the_group(tmp_path, monkeypatch):
+    """The drain can last _DRAIN_SEC. A Ctrl-C (or any exception) while waiting
+    must not leave the orphaned jobs running: sweep, then let it propagate."""
+    monkeypatch.setattr(backends, "_KILL_GRACE_SEC", 1)
+
+    def interrupted(pgid, seconds):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(backends, "_group_drains", interrupted)
+    pidfile = tmp_path / "job.pid"
+    driver = tmp_path / "driver.sh"
+    driver.write_text(
+        "#!/bin/sh\n"
+        f"echo 'echo $$ > {pidfile}; exec sleep 300' | sh >/dev/null 2>&1 &\n"
+        f"while [ ! -s {pidfile} ]; do sleep 0.05; done\n"
+        "exit 0\n"
+    )
+    with pytest.raises(KeyboardInterrupt):
+        _run_bpe_process(["sh", str(driver)], env=dict(os.environ), timeout=10)
+
+    job_pid = int(pidfile.read_text())
+    assert _gone_within(job_pid, 5), "an interrupt during the drain left the job running"
