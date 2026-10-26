@@ -57,17 +57,18 @@ LUZON_PCF="${LUZON_PCF:-LUZON_DLY}"
 LUZON_SKIP_DOYS="${LUZON_SKIP_DOYS:-139 58 59 60 61 79 345}"
 LUZON_LOG_DIR="$HOME/luzon-month-logs"
 LUZON_SUMMARY="$LUZON_LOG_DIR/summary.txt"
+LUZON_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
 
 # Snapshot the config so the source below cannot change it unnoticed. This
 # catches the whole collision class rather than the one name that bit us.
-_snap="$LUZON_YEAR|$LUZON_DOY_FROM|$LUZON_DOY_TO|$LUZON_PCF|$LUZON_SKIP_DOYS|$LUZON_LOG_DIR"
+_snap="$LUZON_YEAR|$LUZON_DOY_FROM|$LUZON_DOY_TO|$LUZON_PCF|$LUZON_SKIP_DOYS|$LUZON_LOG_DIR|$LUZON_SCRIPT_DIR"
 
 # shellcheck disable=SC1090
 source "$HOME/BERN54/LOADGPS.setvar" >/dev/null 2>&1 || die "cannot source LOADGPS.setvar"
 
-if [ "$_snap" != "$LUZON_YEAR|$LUZON_DOY_FROM|$LUZON_DOY_TO|$LUZON_PCF|$LUZON_SKIP_DOYS|$LUZON_LOG_DIR" ]; then
+if [ "$_snap" != "$LUZON_YEAR|$LUZON_DOY_FROM|$LUZON_DOY_TO|$LUZON_PCF|$LUZON_SKIP_DOYS|$LUZON_LOG_DIR|$LUZON_SCRIPT_DIR" ]; then
     die "LOADGPS.setvar overwrote a config variable — rename it with a LUZON_ prefix"
 fi
 if [ -z "${P:-}" ] || [ -z "${U:-}" ] || [ -z "${S:-}" ]; then
@@ -75,6 +76,7 @@ if [ -z "${P:-}" ] || [ -z "${U:-}" ] || [ -z "${S:-}" ]; then
 fi
 [ -f "$U/PCF/$LUZON_PCF.PCF" ]      || die "$U/PCF/$LUZON_PCF.PCF not found"
 [ -x "$U/SCRIPT/luzon_pcs.pl" ] || die "driver missing: $U/SCRIPT/luzon_pcs.pl"
+[ -x "$LUZON_SCRIPT_DIR/bpe_failed_step.sh" ] || die "helper missing: $LUZON_SCRIPT_DIR/bpe_failed_step.sh"
 
 mkdir -p "$LUZON_LOG_DIR"
 
@@ -153,10 +155,15 @@ for doy in $(seq "$LUZON_DOY_FROM" "$LUZON_DOY_TO"); do
         printf 'OK   (%02d:%02d)\n' $((dt / 60)) $((dt % 60)) | tee -a "$LUZON_SUMMARY"
         ok=$((ok + 1))
     else
-        err=$(grep -oE "[0-9]{3}_[0-9]{3} +\S+" "$out" 2>/dev/null \
-              | tail -1 | awk '{print $2}')
+        # Name the failed step from its own PRT, not from the summary: the
+        # summary's last NNN_NNN match is a job-table row, which reported every
+        # failure "at 0". The PRT also outlives the summary, which the next
+        # day's BPE rewrites within minutes.
+        err=$("$LUZON_SCRIPT_DIR/bpe_failed_step.sh" "$P/LUZON/BPE" "${LUZON_YEAR: -2}$sess" "$t0")
         printf 'FAIL (%02d:%02d) at %s — see %s\n' \
-          $((dt / 60)) $((dt % 60)) "${err:-unknown}" "$(basename "$log")" | tee -a "$LUZON_SUMMARY"
+          $((dt / 60)) $((dt % 60)) \
+          "${err:-an unnamed step (no PRT of this attempt has an ERR line; read $out)}" \
+          "$(basename "$log")" | tee -a "$LUZON_SUMMARY"
         failed=$((failed + 1)); failed_days="$failed_days $d3"
     fi
 done
