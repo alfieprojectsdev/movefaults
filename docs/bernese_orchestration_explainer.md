@@ -234,9 +234,9 @@ verified identical afterward — all 30 solutions, byte for byte.)*
 
 *Where this applies today:* everything below is built into the processing
 service, which has not yet run a production day. Production still runs through
-the month scripts, which carry on past a failed day. Since 26 October they do
-name the failed step and its message, but they don't look it up and don't
-stop. Looking up and stopping take effect when runs move to the service (the
+the month and year scripts, which carry on past a failed day. Since 26 October
+the month script names the failed step and its message (the year scripts don't
+yet), but none of them looks it up or stops. Looking up and stopping take effect when runs move to the service (the
 cutover planned for 3 November).
 
 On 29 August a year-long run produced nothing for nine hours: 24 days in a row
@@ -448,7 +448,7 @@ Your production settings are preserved exactly; nothing is silently reinterprete
 | Reproducibility | Settings not recorded | Every run logged and version-controlled | settings done; per-run record written, not yet in use |
 | Velocity calculation | MATLAB (licensed) | **Python, verified identical** | **done, 2026-08-12** |
 | Your scripts + `offsets` | One share, some laptops | **In version control, mirrored** | **done, 2026-08-12** |
-| Error detection | After BPE runs, by reading log files | Diagnosed on failure, and checked before BPE runs | diagnosis and stop rule built (October), in use once runs go through the service; failed step named in today's runs; pre-flight checks in progress |
+| Error detection | After BPE runs, by reading log files | Diagnosed on failure, and checked before BPE runs | diagnosis and stop rule built (October), in use once runs go through the service; failed step named by today's month script; pre-flight checks in progress |
 | Scale | ~1 session per person-day | Parallel sessions overnight | **not yet — see "A Test That Failed"** |
 | Knowledge transfer | Person-to-person | Readable, runnable code | in progress |
 
@@ -460,8 +460,8 @@ server and has processed a real month; the velocity step no longer needs MATLAB
 and gives identical numbers; and the scripts and event catalog are backed up
 where they cannot be lost with a hard drive.
 
-**Done since, as of 2026-10-26:** today's runs name the failed step and its
-message. The service also diagnoses it from the known-errors list and stops a
+**Done since, as of 2026-10-26:** today's month script names the failed step and
+its message. The service also diagnoses it from the known-errors list and stops a
 run on the stop rule; that takes effect when production moves to the service
 ("When a Run Fails").
 
