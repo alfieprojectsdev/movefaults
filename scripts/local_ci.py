@@ -202,6 +202,30 @@ def select_targets(
     return (main + rest)[:limit]
 
 
+def unposted(targets: list[Target], state: dict, exclude: set[str] | None = None) -> list[Target]:
+    """
+    Targets whose verdict was recorded but never reached GitHub: the final
+    status POST failed (posted: false), so GitHub still shows the "pending" the
+    run started with. select_targets skips them because they have a record, so
+    without this they stay pending forever (2026-10-26, a GitHub API outage).
+
+    The recorded verdict is re-sent; the suite is not re-run. Only SHAs that are
+    still a target count, and a record with no "posted" key predates the field
+    and is taken as sent. `exclude` holds SHAs this run is about to re-test.
+    """
+    exclude = exclude or set()
+    out: list[Target] = []
+    seen: set[str] = set()
+    for t in targets:
+        if t.sha in seen or t.sha in exclude:
+            continue
+        seen.add(t.sha)
+        rec = state.get(t.sha)
+        if rec is not None and rec.get("posted", True) is False:
+            out.append(t)
+    return out
+
+
 def _pr_number(label: str) -> int:
     return int(label[1:]) if label.startswith("#") and label[1:].isdigit() else 0
 
@@ -664,6 +688,19 @@ def cmd_run(args) -> int:
             f"{len(targets)} targets, {len(todo)} to test: "
             + ", ".join(f"{t.label}@{t.sha[:7]}" for t in todo)
         )
+        # Verdicts that never reached GitHub. Cheap (one POST each, no suite), so
+        # they don't count against --limit, and they go first so a merge waiting on
+        # one isn't held behind two full test runs.
+        for t in unposted(targets, state, exclude={t.sha for t in todo}):
+            rec = state[t.sha]
+            log(f"  re-posting {t.label}@{t.sha[:7]}: {rec['state']} (earlier post failed)")
+            if args.dry_run:
+                continue
+            if post_status(t.sha, rec["state"], rec.get("description", "")):
+                rec["posted"] = True
+                rec["reposted"] = dt.datetime.now().isoformat(timespec="seconds")
+                save(HOME / "state.json", state)
+                beat["ran"].append(f"{t.label}@{t.sha[:7]}={rec['state']} (re-posted)")
         problems = preflight() if todo else []
         if problems:
             beat["note"] = "preflight failed: " + "; ".join(problems)

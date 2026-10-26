@@ -188,3 +188,71 @@ def test_ties_in_arrival_go_to_the_older_pr():
     seen = ci.record_first_seen({}, targets, now=100)
     picked = ci.select_targets(targets, {}, limit=3, first_seen=seen)
     assert [t.label for t in picked] == ["#249", "#257", "#1000"]
+
+
+# --- results that were tested but never reached GitHub ------------------------------
+
+
+def test_a_result_that_could_not_be_posted_is_reposted_not_retested():
+    """2026-10-26: two PRs passed on gps3, but the final status POST timed out in a
+    GitHub API outage. The record said posted: false; select_targets skips any SHA
+    with a record, so the result was never sent again and GitHub showed pending
+    for hours. The recorded verdict must be re-sent, without re-running the suite."""
+    a = T("a" * 40, "#295")
+    state = {a.sha: {"state": "success", "description": "pytest ok", "posted": False}}
+    assert ci.select_targets([a], state, limit=2) == []
+    assert ci.unposted([a], state) == [a]
+
+
+def test_posted_results_and_untargeted_shas_are_not_reposted():
+    a, b = T("a" * 40, "#1"), T("b" * 40, "#2")
+    state = {
+        a.sha: {"state": "success", "posted": True},
+        "c" * 40: {"state": "failure", "posted": False},  # no longer any PR's head
+    }
+    assert ci.unposted([a, b], state) == []
+
+
+def test_a_record_from_before_the_posted_field_counts_as_posted():
+    """Old records have no "posted" key. Re-sending all of them on upgrade would
+    rewrite every status the runner ever posted; treat a missing key as sent."""
+    a = T("a" * 40, "#1")
+    assert ci.unposted([a], {a.sha: {"state": "success"}}) == []
+
+
+def test_an_error_about_to_be_retested_is_not_also_reposted():
+    """An error with attempts left is re-tested this run; posting its old
+    verdict first would flash a stale result."""
+    a = T("a" * 40, "#1")
+    state = {a.sha: {"state": "error", "attempts": 1, "posted": False}}
+    assert ci.select_targets([a], state, limit=2) == [a]
+    assert ci.unposted([a], state, exclude={a.sha}) == []
+
+
+def test_a_run_reposts_the_recorded_verdict_and_tests_nothing(tmp_path, monkeypatch):
+    """cmd_run end to end, with GitHub and the suite stubbed: the unposted success
+    is sent as recorded, the record is marked posted, and no suite runs."""
+    import argparse
+    import json
+
+    sha = "a" * 40
+    (tmp_path / "state.json").write_text(
+        json.dumps(
+            {sha: {"label": "#295", "state": "success", "description": "ok", "posted": False}}
+        )
+    )
+    posts: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(ci, "HOME", tmp_path)
+    monkeypatch.setattr(ci, "gh_targets", lambda: [T(sha, "#295")])
+    monkeypatch.setattr(ci, "bpe_running", lambda: False)
+    monkeypatch.setattr(ci, "runner_version", lambda: "test")
+    monkeypatch.setattr(ci, "post_status", lambda s, st, d: posts.append((s, st, d)) or True)
+
+    def no_suite(*_a, **_k):
+        raise AssertionError("re-posting must not re-run the suite")
+
+    monkeypatch.setattr(ci, "test_sha", no_suite)
+    args = argparse.Namespace(limit=2, dry_run=False, ignore_bpe=False)
+    assert ci.cmd_run(args) == 0
+    assert posts == [(sha, "success", "ok")]
+    assert json.loads((tmp_path / "state.json").read_text())[sha]["posted"] is True
