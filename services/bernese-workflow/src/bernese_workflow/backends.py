@@ -44,10 +44,40 @@ class BPEBackend(Protocol):
 
 
 _KILL_GRACE_SEC = 10
+# How long a driver's group may take to empty on its own after a normal exit.
+# BSW 5.4's server sends QUIT and exits without waiting for the client, which
+# then removes its temp user area and writes the PRT tail; that takes seconds.
+_DRAIN_SEC = 30
 
 
-def _kill_group(proc: subprocess.Popen[str]) -> None:
+def _group_exists(pgid: int) -> bool:
+    """Does any process still belong to group *pgid*? EPERM means one does."""
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _group_drains(pgid: int, seconds: float) -> bool:
+    """Wait up to *seconds* for group *pgid* to empty without being signalled."""
+    deadline = time.monotonic() + seconds
+    while _group_exists(pgid):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.1)
+    return True
+
+
+def _kill_group(proc: subprocess.Popen[str]) -> bool:
     """SIGTERM the process's whole group, then SIGKILL whatever is left.
+
+    Returns True once the group is empty. Returns False, and logs an error, if
+    a member survived SIGKILL's grace (uninterruptible sleep, e.g. a hung NFS
+    read) or the group could not be signalled at all. Never raises: it runs
+    while another exception is propagating, and must not replace it.
 
     The driver was started with start_new_session=True, so its pid *is* the
     group id. Using proc.pid directly (rather than os.getpgid) still reaches the
@@ -62,17 +92,20 @@ def _kill_group(proc: subprocess.Popen[str]) -> None:
         try:
             os.killpg(pgid, sig)
         except ProcessLookupError:
-            return
+            return True
+        except PermissionError:
+            logger.error("Not permitted to signal BPE process group %s", pgid)
+            return False
         deadline = time.monotonic() + _KILL_GRACE_SEC
         while True:
             proc.poll()  # reap the leader, or it answers killpg(0) as a zombie
-            try:
-                os.killpg(pgid, 0)
-            except ProcessLookupError:
-                return
+            if not _group_exists(pgid):
+                return True
             if time.monotonic() >= deadline:
                 break
             time.sleep(0.1)
+    logger.error("BPE process group %s still has members after SIGKILL", pgid)
+    return False
 
 
 def _run_bpe_process(
@@ -85,9 +118,20 @@ def _run_bpe_process(
     kills only the direct child on timeout, which leaves the BPE server and its
     jobs running unsupervised. A new session gives the driver a group of its
     own, so one killpg reaches all of them, and the caller's group is untouched.
+
+    The group is also cleared after a normal return: a job that does not hold
+    the output pipe lets communicate() return as soon as the driver exits, and
+    would otherwise keep running into the next session. It is given
+    _DRAIN_SEC to exit on its own first, because the last BPE client is
+    normally still finishing (temp-area cleanup, PRT tail) when the driver
+    returns; only a job still there after that is warned about and killed.
+
+    stdin is /dev/null: a headless BPE has nothing to read, and must not block
+    on, or consume, whatever the caller's fd 0 happens to be.
     """
     proc = subprocess.Popen(
         cmd,
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -109,8 +153,29 @@ def _run_bpe_process(
         else:
             # Keep the partial BPE log for diagnosis, as subprocess.run does.
             if isinstance(exc, subprocess.TimeoutExpired):
-                exc.stdout, exc.stderr = stdout, stderr
+                # Decoded text replaces communicate()'s partial bytes, which
+                # typeshed's `bytes | None` does not allow for.
+                exc.stdout, exc.stderr = stdout, stderr  # type: ignore[assignment]
         raise
+    # communicate() has reaped the leader, so the pgid cannot have been recycled
+    # while any member is left. A member that outlasts the drain is orphaned.
+    # The run still returns its result: the driver itself finished, and the
+    # warning is the record that something outlived it.
+    try:
+        drained = _group_drains(proc.pid, _DRAIN_SEC)
+    except BaseException:
+        # Interrupted while waiting (Ctrl-C, a signal turned into an exception):
+        # do not leave the jobs running just because the wait was cut short.
+        _kill_group(proc)
+        raise
+    if not drained:
+        logger.warning(
+            "BPE driver %s exited but jobs in its process group were still running "
+            "after %ss; killing them",
+            proc.pid,
+            _DRAIN_SEC,
+        )
+        _kill_group(proc)
     return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
 
 
@@ -454,7 +519,8 @@ class LinuxBPEBackend:
         except subprocess.TimeoutExpired as exc:
             raise RuntimeError(
                 f"BPE timed out after {self.timeout_sec}s for campaign {campaign_name}; "
-                "its process group was killed"
+                "its process group was sent SIGTERM, then SIGKILL "
+                "(any member that survived is logged)"
             ) from exc
 
         combined = proc.stdout + "\n" + proc.stderr
