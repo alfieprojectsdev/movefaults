@@ -132,6 +132,51 @@ def pcf_variable(pcf_text: str, name: str) -> str | None:
     return None
 
 
+_BSW_ENV_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+def expand_bsw_path(value: str, env: Mapping[str, str], year: int) -> str | None:
+    """Expand a PCF path the way the BPE does for the parts this needs.
+
+    ${X} comes from ``env``; $Y+0 is the four-digit year. Anything else
+    left with a $ (another offset, an unset variable) gives None rather than a
+    guessed path.
+    """
+    out = value.replace("$Y+0", f"{year:04d}")
+    out = _BSW_ENV_RE.sub(lambda m: env.get(m.group(1), m.group(0)), out)
+    return None if "$" in out else out
+
+
+def _pcf_dir(
+    pcf_text: str, name: str, env: Mapping[str, str], year: int, fallback: Path
+) -> tuple[Path, str]:
+    value = pcf_variable(pcf_text, name)
+    if value is None:
+        return fallback, f"fallback ({name} not in the PCF)"
+    expanded = expand_bsw_path(value, env, year)
+    if expanded is None:
+        return fallback, f"fallback ({name} = {value} could not be expanded)"
+    return Path(expanded), f"from {name} = {value}"
+
+
+def rinex_dir(pcf_text: str, env: Mapping[str, str], year: int, fallback: Path) -> tuple[Path, str]:
+    """The datapool directory the PCF reads RINEX from (V_RNXDIR), and where that came from.
+
+    Not $D/<campaign>: LZFLT reads LUZON's data, and RNX2SNX reads ${D}/RINEX.
+    """
+    return _pcf_dir(pcf_text, "V_RNXDIR", env, year, fallback)
+
+
+def result_dir(
+    pcf_text: str, env: Mapping[str, str], year: int, fallback: Path
+) -> tuple[Path, str]:
+    """The SAVEDISK directory the PCF archives to (V_RESULT, year expanded); SOL/ is under it.
+
+    Not $S/<campaign>/<year>: EXAMPLE's RNX2SNX.PCF archives to ${S}/RNX2SNX/$Y+0.
+    """
+    return _pcf_dir(pcf_text, "V_RESULT", env, year, fallback)
+
+
 def fix_stations(fix_text: str) -> set[str]:
     """Station codes in a Bernese .FIX file (the reference set)."""
     return {m.group(1) for line in fix_text.splitlines() if (m := _FIX_LINE_RE.match(line))}
@@ -175,7 +220,11 @@ def check_pcf(pcf_text: str) -> list[str]:
 
 
 def fin_present(sol_dir: Path, year: int, doy: int, session_char: str = "0") -> bool:
-    """scripts/' test for a solved day: any FIN_<year><session>.* file."""
+    """scripts/' test for a solved day: any FIN_<year><session>.* file.
+
+    Deliberately as broad as scripts/' `ls FIN_*`: it also matches a reference
+    copy such as FIN_20230110.SNX.gz_REF, so --done fin keeps parity with them.
+    """
     return any(sol_dir.glob(f"FIN_{year}{session_for(doy, session_char)}.*"))
 
 
@@ -244,10 +293,11 @@ def format_plan(plan: RunPlan, *, label: str = "") -> str:
     lines.append(f"  already solved and kept: {len(by_reason.get('solved', []))}")
     for e in by_reason.get("short", []) + by_reason.get("listed", []):
         lines.append(f"  excluded DOY {e.doy:03d}  {e.reason}: {e.detail}")
-    b = plan.busiest
-    if b is not None:
+    first = plan.busiest
+    if first is not None:
         lines.append(
-            f"  preflight: DOY {b:03d} first, the busiest day ({plan.station_counts[b]} stations)"
+            f"  preflight: DOY {first:03d} first, the busiest day "
+            f"({plan.station_counts[first]} stations)"
         )
     for d, v in plan.maxpar.items():
         lines.append(f"  ADDNEQ2 MAXPAR {d}: {v if v is not None else 'no MAXPAR line'}")
@@ -308,12 +358,18 @@ def main(argv: list[str] | None = None) -> int:
         except OSError as exc:
             problems.append(f"cannot read the reference set {fix}: {exc}")
 
-    datadir = d / args.campaign
+    env = {**os.environ, "D": str(d), "S": str(s), "U": str(u)}
+    datadir, data_from = rinex_dir(pcf_text, env, args.year, fallback=d / args.campaign)
+    print(f"datapool: {datadir}  ({data_from})")
     coverage = scan(datadir, args.year) if datadir.is_dir() else None
     if coverage is None:
         problems.append(f"no datapool directory {datadir}")
 
-    sol = s / args.campaign / str(args.year) / "SOL"
+    resdir, res_from = result_dir(
+        pcf_text, env, args.year, fallback=s / args.campaign / str(args.year)
+    )
+    sol = resdir / "SOL"
+    print(f"results:  {sol}  ({res_from})")
     sc = args.session_char
     done = (
         (lambda doy: fin_banked(sol, args.year, doy, sc))

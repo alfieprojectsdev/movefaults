@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from bernese_workflow import run_plan
 from bernese_workflow.run_plan import (
     addneq2_maxpar,
     build_plan,
@@ -205,3 +206,30 @@ def test_phref_2025_matches_run_phref_year_sh():
     assert plan.blocks == [(1, 57), (62, 344), (346, 365)]
     # docs/bernese_maxpar_limit.md: "The busiest days of the year carry 41."
     assert plan.station_counts[plan.busiest] == 41
+
+
+# --- where the data and the results are: the PCF says, not the campaign name ---
+
+_ENV = {"D": "/data/DATAPOOL", "S": "/data/SAVEDISK", "P": "/data/CAMPAIGN54"}
+
+
+def test_the_datapool_dir_comes_from_v_rnxdir_not_the_campaign_name():
+    """LZFLT reads LUZON's RINEX: its V_RNXDIR is ${D}/LUZON."""
+    pcf = "V_RNXDIR = ${D}/LUZON;       DESCRIPTION=Directory with the RINEX files\n"
+    path, source = run_plan.rinex_dir(pcf, _ENV, 2025, fallback=Path("/data/DATAPOOL/LZFLT"))
+    assert path == Path("/data/DATAPOOL/LUZON") and "V_RNXDIR" in source
+
+
+def test_the_result_dir_comes_from_v_result_with_the_year_expanded():
+    """EXAMPLE archives to ${S}/RNX2SNX/$Y+0, not ${S}/EXAMPLE."""
+    pcf = "V_RESULT = ${S}/RNX2SNX/$Y+0;  DESCRIPTION=Directory name for the RNX2SNX results\n"
+    path, source = run_plan.result_dir(pcf, _ENV, 2023, fallback=Path("/x"))
+    assert path == Path("/data/SAVEDISK/RNX2SNX/2023") and "V_RESULT" in source
+
+
+def test_a_variable_it_cannot_expand_falls_back_and_says_so():
+    pcf = "V_RESULT = ${S}/PHREF/$Y-1;  DESCRIPTION=x\n"
+    path, source = run_plan.result_dir(pcf, _ENV, 2025, fallback=Path("/data/SAVEDISK/PHREF/2025"))
+    assert path == Path("/data/SAVEDISK/PHREF/2025") and "fallback" in source
+    path, source = run_plan.rinex_dir("", _ENV, 2025, fallback=Path("/data/DATAPOOL/PHREF"))
+    assert path == Path("/data/DATAPOOL/PHREF") and "fallback" in source
