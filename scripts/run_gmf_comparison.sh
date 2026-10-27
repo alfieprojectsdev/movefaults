@@ -254,6 +254,8 @@ compare() {
     if [ "$rc" -eq 0 ]; then
         say "VERDICT: solutions are identical. The GMF/Niell split does not affect"
         say "         the result at all. Resolve GEO-002 on style grounds and launch 2025."
+    elif [ "$rc" -eq 2 ]; then
+        say "NO VERDICT: a solution file could not be read, or was empty. Fix that first."
     else
         say "The solutions differ, so the magnitude decides. Per-station coordinate"
         say "differences follow -- read these in mm, against a ~3 mm daily"
