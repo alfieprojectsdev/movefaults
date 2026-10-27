@@ -38,6 +38,8 @@ class FakeBSW:
     outcomes: dict[int, str] = field(default_factory=dict)  # doy -> ok | helmr1 | maxpar
     calls: list[tuple[int, int, int]] = field(default_factory=list)
     raise_on: int | None = None  # first doy of a call that raises (a timeout)
+    waiting_status: bool = True  # report queued sessions as "waiting", as .RUN lists them
+    out_of_order: int | None = None  # a doy BSW skips while still running a later one
 
     def run_sessions(self, campaign, year, first_session, n_sessions, *, maxsess, repr_prefix):
         first = int(first_session[:3])
@@ -45,11 +47,15 @@ class FakeBSW:
         statuses: dict[str, str] = {}
         stop_at: int | None = None
         for i, doy in enumerate(range(first, first + n_sessions)):
-            if stop_at is not None and i >= stop_at + maxsess:
-                break  # queued behind the error: never started
             session = f"{doy:03d}0"
             tag = f"{year % 100:02d}{session}"
+            if (stop_at is not None and i >= stop_at + maxsess) or doy == self.out_of_order:
+                if self.waiting_status:
+                    statuses[tag] = "waiting"  # queued behind the error: never started
+                continue
             camp = self.campaign_dir / repr_campaign_name(repr_prefix, year, session)
+            # The server removes a campaign of that name and builds it afresh.
+            shutil.rmtree(camp, ignore_errors=True)
             (camp / "BPE").mkdir(parents=True)
             kind = self.outcomes.get(doy, "ok")
             if kind == "ok":
@@ -263,10 +269,10 @@ def test_only_a_private_session_campaign_can_be_deleted(tmp_path: Path) -> None:
     (tmp_path / "PHREF").mkdir()
     (tmp_path / "PHR251520").mkdir()
     with pytest.raises(RuntimeError, match="refusing"):
-        _remove_private_campaign(tmp_path, "PHREF", "PHREF")
+        _remove_private_campaign(tmp_path, "PHREF", "PHREF", "PHR")
     with pytest.raises(RuntimeError, match="refusing"):
-        _remove_private_campaign(tmp_path, "../elsewhere", "PHREF")
-    _remove_private_campaign(tmp_path, "PHR251520", "PHREF")
+        _remove_private_campaign(tmp_path, "../elsewhere", "PHREF", "PHR")
+    _remove_private_campaign(tmp_path, "PHR251520", "PHREF", "PHR")
     assert (tmp_path / "PHREF").is_dir() and not (tmp_path / "PHR251520").exists()
 
 
@@ -366,3 +372,59 @@ def test_a_second_run_is_refused_while_one_holds_the_lock(cli_env, monkeypatch, 
     with BPELock(purpose="PHREF 2025 the other run"):
         assert ry.main(ARGS) == 3
     assert "the other run" in capsys.readouterr().err
+
+
+# --- review of #302: what counts as "this run started that day" ------------------------
+
+
+def test_queued_sessions_reported_waiting_are_not_failures(env) -> None:
+    """After NEXTSESS=0 stops the queue, .RUN lists the queued sessions as
+    "waiting". They never started: resume, do not diagnose them as failed."""
+    camp, sol = env
+    bsw = FakeBSW(camp, sol, outcomes={153: "helmr1"})
+    out = go(bsw, SimplePlan(YEAR, list(range(152, 160))), maxsess=1, chunk_days=8)
+    st = by_doy(out)
+    assert st[153] == "failed"
+    assert all(st[d] == "ok" for d in range(154, 160)), st
+    assert len(bsw.calls) == 2 and bsw.calls[1][0] == 154
+
+
+def test_a_campaign_left_by_an_earlier_run_is_not_this_runs_evidence(env) -> None:
+    """A failed day keeps its private campaign. On a rerun, that old campaign
+    must not make the day look started (and failed) before this run reaches it."""
+    import os
+
+    camp, sol = env
+    old = camp / "PHR251560" / "BPE"
+    old.mkdir(parents=True)
+    os.utime(old.parent, (1_600_000_000, 1_600_000_000))
+    bsw = FakeBSW(camp, sol, outcomes={153: "helmr1"}, waiting_status=False)
+    out = go(bsw, SimplePlan(YEAR, list(range(152, 160))), maxsess=1, chunk_days=8)
+    st = by_doy(out)
+    assert st[156] == "ok", st
+    assert st[153] == "failed"
+
+
+def test_sessions_finished_out_of_order_halt_instead_of_resuming(env) -> None:
+    """Resume re-runs from the first day not started. If a later day finished,
+    re-queuing would unbank it; that must stop the run, not redo the day."""
+    camp, sol = env
+    bsw = FakeBSW(camp, sol, out_of_order=154)
+    out = go(bsw, SimplePlan(YEAR, [152, 153, 154, 155, 156]), maxsess=3, chunk_days=5)
+    st = by_doy(out)
+    assert st[155] == "ok" and st[156] == "ok", "days that finished stay banked"
+    assert (sol / f"FIN_{YEAR}1550.done").exists()
+    assert st[154] == "not_run"
+    assert len(bsw.calls) == 1
+    assert "out of order" in next(o for o in out if o.doy == 154).note
+
+
+def test_the_deletion_guard_requires_the_private_campaign_prefix(tmp_path: Path) -> None:
+    from bernese_workflow.run_year import _remove_private_campaign
+
+    (tmp_path / "LUZON").mkdir()
+    with pytest.raises(RuntimeError, match="refusing"):
+        _remove_private_campaign(tmp_path, "LUZON", "PHREF", "PHR")
+    (tmp_path / "PHR251520").mkdir()
+    _remove_private_campaign(tmp_path, "PHR251520", "PHREF", "PHR")
+    assert not (tmp_path / "PHR251520").exists() and (tmp_path / "LUZON").is_dir()

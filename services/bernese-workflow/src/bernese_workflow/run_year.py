@@ -186,13 +186,29 @@ def _segments(plan: PlanLike, todo: list[int], preflight: bool) -> list[tuple[in
     return [(first, first), *rest]
 
 
-_REPR_SUFFIX = re.compile(r"^\d{6}[A-Za-z0-9]$")
+# <yy><ddd><session char>, e.g. 251520 in PHR251520
+_REPR_SUFFIX = re.compile(r"^\d{5}[A-Za-z0-9]$")
 
 
-def _remove_private_campaign(campaign_dir: Path, name: str, base: str) -> None:
-    """Delete one session's private campaign, refusing anything that is not one."""
+def _built_since(path: Path, since: float) -> bool:
+    """A directory created (or rebuilt) at or after ``since``."""
+    try:
+        return path.stat().st_mtime >= since - 1
+    except FileNotFoundError:
+        return False
+
+
+def _remove_private_campaign(campaign_dir: Path, name: str, base: str, prefix: str) -> None:
+    """Delete one session's private campaign, refusing anything that is not one:
+    it must be <prefix><yy><ssss>, directly under the campaign directory, and not
+    the base campaign."""
     path = campaign_dir / name
-    if name == base or path.resolve().parent != campaign_dir.resolve():
+    if (
+        name == base
+        or not name.startswith(prefix)
+        or not _REPR_SUFFIX.match(name[len(prefix) :])
+        or path.resolve().parent != campaign_dir.resolve()
+    ):
         raise RuntimeError(f"refusing to delete {path}: not a private session campaign")
     if path.is_dir():
         shutil.rmtree(path)
@@ -321,9 +337,15 @@ def _run_chunk(
         fin = _fresh_fin(sol_dir, year, d, session_char, before[d])
         if fin is not None:
             _write_marker(_done_marker(sol_dir, year, d, session_char), fin)
-            _remove_private_campaign(campaign_dir, name, campaign)
+            _remove_private_campaign(campaign_dir, name, campaign, repr_prefix)
             judged.append((d, "ok", None, ""))
-        elif state is not None or (campaign_dir / name).is_dir():
+        elif state in ("error", "finished") or (
+            # A session the server did not report on (or reported "running" when the
+            # BPE was killed) started if its campaign was built during this call.
+            # The server rebuilds the campaign when a session starts, so an older
+            # one is left from an earlier run, and "waiting" means never started.
+            state != "waiting" and _built_since(campaign_dir / name, started)
+        ):
             note = (
                 f"backend raised {raised}"
                 if raised
@@ -336,6 +358,19 @@ def _run_chunk(
             judged.append((d, "failed", diag, note))
         else:
             judged.append((d, "not_started", None, ""))
+
+    # BSW starts sessions in order, so the days that did not start are a suffix of
+    # the chunk. Resuming re-runs from the first of them; if a later day ran,
+    # re-queuing would unbank it, so stop instead.
+    order = [v for _, v, _, _ in judged]
+    out_of_order = next(
+        (
+            judged[i][0]
+            for i in range(len(order))
+            if order[i] != "not_started" and "not_started" in order[:i]
+        ),
+        None,
+    )
 
     halt: str | None = None
     first_not_started: int | None = None
@@ -372,8 +407,11 @@ def _run_chunk(
         # A raise (timeout, refused pre-flight) is unknown whatever a step left
         # behind, as in month_driver: another block would cost another timeout.
         halt = f"unknown failure (backend raised {raised}); no remedy on file"
-    if halt is None and first_not_started is None and result is not None and not judged:
-        halt = "the BPE ran no session"
+    if halt is None and out_of_order is not None:
+        halt = (
+            f"sessions finished out of order: DOY {first_not_started:03d} did not start but "
+            f"DOY {out_of_order:03d} ran; not resuming, so nothing banked is re-run"
+        )
     if halt is not None or first_not_started is None:
         if halt is not None and ledger is not None:
             for d, verdict, _, _ in judged:
