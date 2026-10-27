@@ -613,6 +613,7 @@ Old documents and older memory still assert these. They are wrong.
 | still says | actually |
 |---|---|
 | headless BPE on the T420 hangs under concurrent `uv sync`/pytest I/O; keep the machine quiet | the hang was the hostname `t420` resolving through the office DNS wildcard to CloudFront; fixed in `/etc/hosts` 2026-10-27 (§4, "The cause, measured") |
+| `scripts/compare_solutions.sh` said "identical" (any verdict before 2026-10-27): the parallel-session test, LZP251210–LZP251250 "byte-identical to the sequential baseline" (session log §21), and the LUZON baseline restore "30 identical" | **those verdicts compared covariances and statistics, not coordinates.** The strip pattern for run timestamps (`YY:DDD:SSSSS`) also matched every SOLUTION/ESTIMATE line's reference epoch, deleting the estimates (10,983 of 11,331 lines of a real SINEX); and plain files (`.CRD`) went through `zcat 2>/dev/null` and compared empty. Fixed 2026-10-27, with tests. Identical covariance matrices make identical estimates likely, not certain. GEO-002 is unaffected: it rests on a full unstripped diff of four timestamp lines |
 | `bernese-workflow` is "~10% complete" | **~60%**, 229 tests, invokes BSW. The real gap is that production still runs through `scripts/` |
 | `vel_line_v8.m` "remains to port" (`roadmap.md` Deliverable 2.4) | **done and verified** |
 | gfzrnx is "not wired into any module" | **wired**, on two triggers |
@@ -632,6 +633,11 @@ Old documents and older memory still assert these. They are wrong.
 A settled-list that suppresses live questions is worse than none. These are
 genuinely unresolved as of 2026-09-24, re-checked 2026-10-14, and *should* be
 worked on:
+
+- **Re-run the two comparisons that relied on `compare_solutions.sh` before its
+  2026-10-27 fix** (§5): the parallel-session SUPERBPE test (DOY 121–125) and the
+  LUZON baseline restore. Until they are re-run, "parallel sessions are
+  byte-identical" rests on covariance matrices only. On gps3, where the files are.
 
 - **GitHub Actions is ENABLED and still runs nothing: the account is
   billing-locked.** Enabled 2026-09-24 (it had been disabled repo-wide since

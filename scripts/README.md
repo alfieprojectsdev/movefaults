@@ -47,7 +47,7 @@ Launch long runs with `setsid nohup`, never as a Claude Code background job
 |---|---|
 | `coord_repeatability.py` | day-to-day repeatability from a run's `FIN_*.SNX` |
 | `network_coherence_scan.py` | coherent multi-station motion that single-station thresholds miss |
-| `compare_solutions.sh` | bit-for-bit diff of two solution sets |
+| `compare_solutions.sh` | diff of two solution sets after stripping run timestamps; reads plain and compressed files, and exits 2 on an unreadable or empty one |
 | `compare_weekly_solutions.py`, `compare_all_weeks.sh` | weekly Helmert comparison against production |
 | `atmospheric_anomaly.py` | confirm or eliminate an ionospheric cause for a bad day |
 | `plot_series_overlay.py` | overlay ENU series from two or more runs |
