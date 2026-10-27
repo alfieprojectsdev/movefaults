@@ -341,3 +341,49 @@ def test_extra_fields_pass_through_and_not_run_counts_as_ended(tmp_path: Path):
     text = "\n".join(st.lines)
     assert "in progress" not in text, text
     assert "ok 1   failed 1   not run 1   not yet attempted 0" in text, text
+
+
+def test_a_day_restarted_after_not_run_is_in_progress_again():
+    """Step F resumes a block: a day closed not_run is started again later. The
+    latest event for a day decides, so it shows as in progress, not as ended."""
+    now = 1_000_000.0
+    e = [
+        {
+            "event": "run_start",
+            "run": "r1",
+            "ts": now - 5000,
+            "host": HOST,
+            "pid": 1,
+            "doys": [1, 2],
+            "banked": [],
+        }
+    ]
+    e.append({"event": "attempt_start", "run": "r1", "ts": now - 4000, "doy": 1, "mode": "block"})
+    e.append({"event": "attempt_start", "run": "r1", "ts": now - 4000, "doy": 2, "mode": "block"})
+    e.append(
+        {
+            "event": "attempt_end",
+            "run": "r1",
+            "ts": now - 3000,
+            "doy": 1,
+            "outcome": "failed",
+            "seconds": 1000,
+            "mode": "block",
+        }
+    )
+    e.append(
+        {
+            "event": "attempt_end",
+            "run": "r1",
+            "ts": now - 3000,
+            "doy": 2,
+            "outcome": "not_run",
+            "seconds": 0.0,
+            "mode": "block",
+        }
+    )
+    e.append({"event": "attempt_start", "run": "r1", "ts": now - 100, "doy": 2, "mode": "block"})
+    st = run_status(e, now=now, alive=lambda h, p: True)
+    text = "\n".join(st.lines)
+    assert "DOY 002 in progress" in text, text
+    assert "not run 0" in text, text

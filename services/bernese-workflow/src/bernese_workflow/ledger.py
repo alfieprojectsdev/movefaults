@@ -224,7 +224,13 @@ def run_status(
     start = starts[-1]
     run = start.get("run")
     mine = [e for e in entries if e.get("run") == run]
-    ends = [e for e in mine if e["event"] == "attempt_end"]
+    # A day's latest event decides its state: step F closes a day not_run when a
+    # queue stops, then may start it again when the block resumes.
+    latest: dict[int, dict] = {}
+    for e in mine:
+        if e["event"] in ("attempt_start", "attempt_end"):
+            latest[e["doy"]] = e
+    ends = [e for e in latest.values() if e["event"] == "attempt_end"]
     ok = [e for e in ends if e.get("outcome") == "ok"]
     failed = [e for e in ends if e.get("outcome") == "failed"]
     not_run = [e for e in ends if e.get("outcome") == "not_run"]
@@ -244,7 +250,7 @@ def run_status(
     for e in failed[-5:]:
         lines.append(f"  failed DOY {e['doy']:03d}: {e.get('error') or e.get('note')}")
 
-    open_attempts = [e for e in mine if e["event"] == "attempt_start" and e["doy"] not in done_doys]
+    open_attempts = [e for e in latest.values() if e["event"] == "attempt_start"]
     # Days run one at a time and days run as a parallel block take different
     # wall times; judge the attempts in flight against earlier ones run the same way.
     mode = open_attempts[-1].get("mode", "day") if open_attempts else "day"
