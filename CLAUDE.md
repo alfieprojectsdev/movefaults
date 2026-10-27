@@ -164,8 +164,12 @@ skipped when its `FIN_*.NQ0` is intact **and** carries a `.done` marker the
 driver wrote; failures stop the run through the circuit breaker, see
 `bpe_orchestration_design.md`), and a BPE timeout now
 kills the driver's whole process group instead of only the Perl child. Neither
-has run a production day. Parallel sessions (`REPR_MODE`, `MAXSESS`) are still
-only in the Perl drivers.
+has run a production day. Parallel sessions (`REPR_MODE`, `MAXSESS`) are in
+the service since step F: `run_year.py` (`bernese-run-year`) runs blocks of
+consecutive days, each session in its own campaign, on run_days' banking and
+breaker rules, under a machine-wide BPE lock (`bpe_lock.py`). It has run
+EXAMPLE end to end (finch, 2026-10-27, 0.0000 mm against the reference), not
+yet a production range.
 
 #### Corrections to earlier versions of this section
 
@@ -315,6 +319,8 @@ uv run rinex-completeness                 # which days can be processed at all (
 uv run crd-to-plots                       # CRD -> XYZ -> ENU -> PLOT files (the RUNX_v2.py chain)
 uv run field-ops-api                      # field logsheet API ($PORT, default 8001)
 uv run velocity-reviewer --plots-dir DIR  # web outlier reviewer for PLOT files
+uv run bernese-run-year --campaign PHREF --repr-prefix PHR --year 2025 \
+    --from 152 --to 181 --pcf PHREF_DLY --plan   # or --run; source LOADGPS.setvar first
 ```
 
 **`vadase-ingestor` does not exist**, and this file used to list it. The
@@ -352,6 +358,8 @@ of a value nobody diffs is how every other stale claim in this file started.
 | PCF derivation | `scripts/derive_luzon_pcf.py` |
 | Month-long BPE driver | `scripts/run_luzon_month.sh` |
 | Day-level resume driver (service side) | `services/bernese-workflow/src/bernese_workflow/month_driver.py` |
+| Parallel multi-day driver (service side, step F) | `services/bernese-workflow/src/bernese_workflow/run_year.py` → `config/bernese/gpsuser/SCRIPT/sessions_pcs.pl` |
+| Machine-wide BPE lock | `services/bernese-workflow/src/bernese_workflow/bpe_lock.py` (`$BPE_LOCK`) |
 | Local CI (the merge gate while Actions is locked) | `scripts/local_ci.py` |
 | Deploy-time schema check (`/health`) | `services/field-ops/src/field_ops/schema_check.py` |
 | VADASE threshold evidence | `services/vadase-rt-monitor/scripts/threshold_evidence.py` → `docs/project_documentation/vadase_threshold_evidence.md` |

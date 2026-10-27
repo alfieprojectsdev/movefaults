@@ -54,8 +54,8 @@ running the range again, which skips everything already banked.
 
 This replaced a stop after two consecutive failed days of any kind (#268).
 
-Single-session runs only. Parallel sessions (REPR_MODE, MAXSESS) stay in the
-Perl drivers for now.
+Single-session runs. For parallel sessions in private campaigns (REPR_MODE,
+MAXSESS) see run_year.py, which builds on the helpers here.
 """
 
 from __future__ import annotations
