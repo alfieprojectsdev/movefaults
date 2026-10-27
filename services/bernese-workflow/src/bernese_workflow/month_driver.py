@@ -58,8 +58,8 @@ WHAT IT RECORDS
 Given a Ledger, every attempt is appended to it (ledger.py), so status is read
 from what happened rather than inferred from which files exist.
 
-Single-session runs only. Parallel sessions (REPR_MODE, MAXSESS) stay in the
-Perl drivers for now.
+Single-session runs. For parallel sessions in private campaigns (REPR_MODE,
+MAXSESS) see run_year.py, which builds on the helpers here.
 """
 
 from __future__ import annotations

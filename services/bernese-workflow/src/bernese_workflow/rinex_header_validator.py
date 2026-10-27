@@ -9,8 +9,10 @@ REC TYPE and ANT TYPE per station, then cross-checks against:
 Raises ValidationError — never silently passes — if any station would be
 dropped by RXOBV3 (PID 221/222) due to header/STA discrepancies.
 """
+
 from __future__ import annotations
 
+import datetime as dt
 import gzip
 import logging
 import subprocess
@@ -24,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 # Fixed-column slices in STA TYPE 002 data lines (0-indexed)
 _STA_NAME_SLICE = slice(0, 4)
+# FROM / TO: "YYYY MM DD HH MM SS", blank for an open end
+_STA_FROM_SLICE = slice(27, 46)
+_STA_TO_SLICE = slice(48, 67)
 _STA_REC_SLICE = slice(69, 89)
 _STA_ANT_SLICE = slice(121, 141)
 
@@ -40,19 +45,23 @@ _RNX_TYPE_SLICE = slice(20, 40)
 @dataclass(frozen=True)
 class Mismatch:
     station: str
-    field: str          # "receiver" or "antenna"
-    header_value: str   # what the RINEX file says
-    sta_value: str      # what the .STA TYPE 002 says
+    field: str  # "receiver" or "antenna"
+    header_value: str  # what the RINEX file says
+    sta_value: str  # what the .STA TYPE 002 says
 
 
 @dataclass
 class ValidationReport:
     mismatches: list[Mismatch] = field(default_factory=list)
-    missing_from_sta: list[str] = field(default_factory=list)   # RINEX present, no STA entry
-    missing_from_raw: list[str] = field(default_factory=list)   # in STA, no RINEX found (warning only)
-    atx_missing: list[str] = field(default_factory=list)        # antenna type absent from ATX
+    missing_from_sta: list[str] = field(default_factory=list)  # RINEX present, no STA entry
+    missing_from_raw: list[str] = field(
+        default_factory=list
+    )  # in STA, no RINEX found (warning only)
+    atx_missing: list[str] = field(default_factory=list)  # antenna type absent from ATX
     warnings: list[str] = field(default_factory=list)
-    no_rinex_found: bool = False   # source dir yielded zero RINEX for the session (vacuous-pass guard)
+    no_rinex_found: bool = (
+        False  # source dir yielded zero RINEX for the session (vacuous-pass guard)
+    )
 
     @property
     def ok(self) -> bool:
@@ -314,7 +323,9 @@ def _resolve_station_code(
     if chosen != filename_code:
         logger.info(
             "Station code %s from headers differs from filename code %s (%s)",
-            chosen, filename_code, source,
+            chosen,
+            filename_code,
+            source,
         )
     return chosen
 
@@ -417,17 +428,53 @@ def _parse_rinex_headers(
 # ---------------------------------------------------------------------------
 
 
-def _parse_sta_type002(sta_path: Path) -> dict[str, dict[str, str]]:
-    """Parse a Bernese .STA file; return TYPE 002 receiver/antenna info.
+@dataclass(frozen=True)
+class _StaEntry:
+    receiver: str
+    antenna: str
+    start: dt.datetime | None  # None: open (valid from the beginning)
+    end: dt.datetime | None  # None: open (still valid)
 
-    Returns dict keyed by 4-char station code.
+    def overlaps(self, day: dt.date) -> bool:
+        """Valid at any moment of ``day``: an equipment change on the day itself
+        means either entry can describe that day's file."""
+        lo = dt.datetime.combine(day, dt.time.min)
+        hi = lo + dt.timedelta(days=1)
+        return (self.start is None or self.start < hi) and (self.end is None or self.end >= lo)
+
+
+def _overlapping(entries: list[_StaEntry]) -> list[_StaEntry]:
+    """The entries whose windows cover a common moment (meeting at a change is fine)."""
+    lo = dt.datetime.min
+    ordered = sorted(entries, key=lambda e: e.start or lo)
+    for a, b in zip(ordered, ordered[1:], strict=False):
+        if a.end is None or (b.start or lo) <= a.end:
+            return [a, b]
+    return []
+
+
+def _sta_time(field: str) -> dt.datetime | None:
+    parts = field.split()
+    if not parts:
+        return None
+    try:
+        return dt.datetime(*(int(x) for x in parts[:6]))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _sta_entries(sta_path: Path) -> dict[str, list[_StaEntry]]:
+    """Every TYPE 002 entry per 4-char station code, in file order.
+
+    A station's equipment history is several entries with FROM/TO windows; which
+    one describes a file depends on the file's date (validate_rinex_headers).
     """
     try:
         content = sta_path.read_text(encoding="ascii", errors="replace")
     except OSError as exc:
         raise FileNotFoundError(f"STA file not found: {sta_path}") from exc
 
-    result: dict[str, dict[str, str]] = {}
+    result: dict[str, list[_StaEntry]] = {}
     in_type002 = False
     past_header = False
 
@@ -453,11 +500,29 @@ def _parse_sta_type002(sta_path: Path) -> dict[str, dict[str, str]]:
         station_code = line[_STA_NAME_SLICE].strip()
         if not station_code:
             continue
-        receiver = line[_STA_REC_SLICE].strip()
-        antenna = line[_STA_ANT_SLICE].strip()
-        result[station_code] = {"receiver": receiver, "antenna": antenna}
-
+        result.setdefault(station_code, []).append(
+            _StaEntry(
+                receiver=line[_STA_REC_SLICE].strip(),
+                antenna=line[_STA_ANT_SLICE].strip(),
+                start=_sta_time(line[_STA_FROM_SLICE]),
+                end=_sta_time(line[_STA_TO_SLICE]),
+            )
+        )
     return result
+
+
+def _parse_sta_type002(sta_path: Path) -> dict[str, dict[str, str]]:
+    """Parse a Bernese .STA file; return TYPE 002 receiver/antenna info.
+
+    Returns dict keyed by 4-char station code. Where a station has several
+    entries this is the LAST one in the file, which is right only for a file
+    from after the station's most recent equipment change; validation with a
+    date uses _sta_entries instead.
+    """
+    return {
+        code: {"receiver": entries[-1].receiver, "antenna": entries[-1].antenna}
+        for code, entries in _sta_entries(sta_path).items()
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -521,6 +586,7 @@ def validate_rinex_headers(
     year: int | None = None,
     session: str | None = None,
     require_stations: bool = True,
+    day: dt.date | None = None,
 ) -> ValidationReport:
     """Cross-check RINEX OBS headers in raw_dir against the campaign STA file.
 
@@ -543,6 +609,10 @@ def validate_rinex_headers(
                    read nothing. Fixing `_is_rinex_obs` removed that day's
                    instance; defaulting this to True removes the failure mode.
                    Pass False deliberately where an empty source is legitimate.
+        day:       The files' date, to pick each station's STA entry by its
+                   FROM/TO window. Taken from ``year`` and ``session`` when
+                   those are given. Without either, the latest entry is used,
+                   which wrongly rejects any day before an equipment change.
 
     Returns:
         ValidationReport.  Call .ok to see if validation passed.
@@ -561,7 +631,16 @@ def validate_rinex_headers(
             session,
         )
         return report
-    sta_info = _parse_sta_type002(sta_path)
+    if day is None and year is not None and session is not None:
+        day = dt.date(year, 1, 1) + dt.timedelta(days=int(session[:3]) - 1)
+    entries = _sta_entries(sta_path)
+    # Which entries describe these files: those valid on ``day``, or without a
+    # date the latest (the behaviour before dates were read).
+    sta_info: dict[str, list[_StaEntry]] = {
+        code: [e for e in es if e.overlaps(day)] if day is not None else es[-1:]
+        for code, es in entries.items()
+    }
+    sta_info = {code: es for code, es in sta_info.items() if es}
     atx_types: frozenset[str] | None = None
     if atx_path is not None and atx_path.exists():
         atx_types = _parse_atx_antenna_types(atx_path)
@@ -577,20 +656,40 @@ def validate_rinex_headers(
             )
             continue
 
-        sta = sta_info[station]
+        candidates = sta_info[station]
+        overlap = _overlapping(candidates)
+        if overlap:
+            # Two windows that cover the same moment are an error in the STA, not
+            # an equipment change. Either may match, but which one Bernese uses is
+            # not ours to guess, so say so.
+            report.warnings.append(
+                f"{station}: STA TYPE 002 entries overlap on {day}: "
+                + " / ".join(f"{e.receiver} + {e.antenna}" for e in overlap)
+            )
+            logger.warning("%s", report.warnings[-1])
 
+        # On a day with an equipment change two entries apply; either may
+        # describe the file, so a match against any of them passes.
         hdr_rec = hdr.get("receiver", "")
-        sta_rec = sta.get("receiver", "")
-        if hdr_rec != sta_rec:
+        if not any(hdr_rec == e.receiver for e in candidates):
             report.mismatches.append(
-                Mismatch(station=station, field="receiver", header_value=hdr_rec, sta_value=sta_rec)
+                Mismatch(
+                    station=station,
+                    field="receiver",
+                    header_value=hdr_rec,
+                    sta_value=" | ".join(e.receiver for e in candidates),
+                )
             )
 
         hdr_ant = hdr.get("antenna", "")
-        sta_ant = sta.get("antenna", "")
-        if not _ant_types_match(hdr_ant, sta_ant):
+        if not any(_ant_types_match(hdr_ant, e.antenna) for e in candidates):
             report.mismatches.append(
-                Mismatch(station=station, field="antenna", header_value=hdr_ant, sta_value=sta_ant)
+                Mismatch(
+                    station=station,
+                    field="antenna",
+                    header_value=hdr_ant,
+                    sta_value=" | ".join(e.antenna for e in candidates),
+                )
             )
 
         # ATX coverage: check that the antenna type appears in the calibration file.
