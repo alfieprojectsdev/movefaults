@@ -62,7 +62,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "services" / "bernese-workflow" / "src"))
 
-from bernese_workflow.panel_sanitizer import find_dangling_waits  # noqa: E402
+from bernese_workflow.panel_sanitizer import (  # noqa: E402
+    find_dangling_jumps,
+    find_dangling_waits,
+)
 
 DROP = {
     "000": "FTP_DWLD — products already staged",
@@ -154,6 +157,16 @@ def main() -> int:
         print(f"  L{d.line} WAIT={d.pid}")
     if dangling:
         print("\nREFUSING: a WAIT on an undefined PID makes the BPE hang forever.")
+        return 1
+
+    # Dropping a PID can also orphan a NEXTJOB/PARALLEL that names it, or a
+    # special-action row that belongs to it.
+    jumps = find_dangling_jumps(text)
+    print(f"dangling jumps in the result: {len(jumps.dangling)} of {jumps.checked} checked")
+    for j in jumps.dangling[:8]:
+        print(f"  L{j.line} {j.keyword} {j.pid or '(empty)'}")
+    if jumps.dangling:
+        print("\nREFUSING: a jump to an undefined PID breaks the BPE when it is taken.")
         return 1
 
     n_pids = len(re.findall(r"^\d{3} ", text, re.M))
