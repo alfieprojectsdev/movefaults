@@ -307,6 +307,7 @@ def test_validate_missing_from_sta(tmp_path):
     report = validate_rinex_headers(raw_dir, sta)
     assert not report.ok
     assert "BOST" in report.missing_from_sta
+    assert not any("valid on" in w for w in report.warnings), "absent, not a window gap"
 
 
 def test_validate_missing_from_raw_is_warning_not_error(tmp_path):
@@ -1052,6 +1053,8 @@ def test_a_day_no_entry_covers_is_reported_missing(tmp_path):
     raw_dir, sta = _wsrt(tmp_path, "AOAD/M_T        DUTD", "17")
     report = validate_rinex_headers(raw_dir, sta, day=dt.date(2017, 1, 10))
     assert report.missing_from_sta == ["WSRT"]
+    # Known to the STA, so the report says it is a gap, not an unknown station.
+    assert any("WSRT: no STA TYPE 002 entry valid on 2017-01-10" in w for w in report.warnings)
 
 
 def test_the_session_sets_the_day_when_files_are_filtered_by_session(tmp_path):

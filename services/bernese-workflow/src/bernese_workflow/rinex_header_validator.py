@@ -44,24 +44,24 @@ _RNX_TYPE_SLICE = slice(20, 40)
 
 @dataclass(frozen=True)
 class Mismatch:
+    # fmt: off
     station: str
-    field: str  # "receiver" or "antenna"
-    header_value: str  # what the RINEX file says
-    sta_value: str  # what the .STA TYPE 002 says
+    field: str          # "receiver" or "antenna"
+    header_value: str   # what the RINEX file says
+    sta_value: str      # what the .STA TYPE 002 says
+    # fmt: on
 
 
 @dataclass
 class ValidationReport:
+    # fmt: off
     mismatches: list[Mismatch] = field(default_factory=list)
-    missing_from_sta: list[str] = field(default_factory=list)  # RINEX present, no STA entry
-    missing_from_raw: list[str] = field(
-        default_factory=list
-    )  # in STA, no RINEX found (warning only)
-    atx_missing: list[str] = field(default_factory=list)  # antenna type absent from ATX
+    missing_from_sta: list[str] = field(default_factory=list)   # RINEX present, no STA entry
+    missing_from_raw: list[str] = field(default_factory=list)   # in STA, no RINEX found (warning only)
+    atx_missing: list[str] = field(default_factory=list)        # antenna type absent from ATX
     warnings: list[str] = field(default_factory=list)
-    no_rinex_found: bool = (
-        False  # source dir yielded zero RINEX for the session (vacuous-pass guard)
-    )
+    no_rinex_found: bool = False   # source dir yielded zero RINEX for the session (vacuous-pass guard)
+    # fmt: on
 
     @property
     def ok(self) -> bool:
@@ -649,11 +649,22 @@ def validate_rinex_headers(
     for station, hdr in rinex_headers.items():
         if station not in sta_info:
             report.missing_from_sta.append(station)
-            logger.warning(
-                "Station %s has RINEX data in RAW/ but no STA TYPE 002 entry — "
-                "RXOBV3 will drop it silently",
-                station,
-            )
+            if station in entries:
+                # Known to the STA, but every window ends before or starts after
+                # this day: a gap between entries, not a missing station.
+                windows = "; ".join(
+                    f"{e.start or 'open'} to {e.end or 'open'}" for e in entries[station]
+                )
+                report.warnings.append(
+                    f"{station}: no STA TYPE 002 entry valid on {day} (entries: {windows})"
+                )
+                logger.warning("%s — RXOBV3 will drop it silently", report.warnings[-1])
+            else:
+                logger.warning(
+                    "Station %s has RINEX data in RAW/ but no STA TYPE 002 entry — "
+                    "RXOBV3 will drop it silently",
+                    station,
+                )
             continue
 
         candidates = sta_info[station]
@@ -669,7 +680,11 @@ def validate_rinex_headers(
             logger.warning("%s", report.warnings[-1])
 
         # On a day with an equipment change two entries apply; either may
-        # describe the file, so a match against any of them passes.
+        # describe the file, so a match against any of them passes. Receiver
+        # and antenna are matched separately, so on that day the receiver may
+        # match one entry and the antenna the other: a file that mixes the old
+        # and the new equipment passes. Accepted, since the change day is the
+        # one day either is plausible.
         hdr_rec = hdr.get("receiver", "")
         if not any(hdr_rec == e.receiver for e in candidates):
             report.mismatches.append(
