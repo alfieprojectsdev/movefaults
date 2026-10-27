@@ -18,6 +18,8 @@ Status as of 2026-10-14: about 60%, 12 modules, 250 tests.
 | `circuit_breaker.py` | Decides after each failed day whether the run goes on: finds the failed step in the campaign's `BPE/`, looks it up in `bpe_errors.yaml`, and stops at once on an unknown or `configuration` error, after 3 consecutive days with the same `session` error, or after 5 consecutive failed days whatever their errors |
 | `run_plan.py` | Plans a run and runs nothing: `python -m bernese_workflow.run_plan --campaign PHREF --year 2025 --pcf PHREF_DLY`. Excludes solved days and days with fewer than 3 reference stations (the PCF's `V_REFINF` `.FIX` set, read against the PCF's `V_RNXDIR`), splits the rest into blocks, names the busiest day as the preflight, and refuses a PCF with a dangling `WAIT=` or jump. Reports each ADDNEQ2 `MAXPAR` rather than checking it, because the parameter count is not known (`docs/bernese_maxpar_limit.md`). On PHREF 2025 it gives the same blocks and exclusions as `run_phref_year.sh` |
 | `ledger.py` | Append-only JSONL record of every attempt (`run_days(..., ledger=Ledger(path))`): run start with host, pid and config hash, then each day's start and end with outcome, seconds, error and station count, then the halt reason. `python -m bernese_workflow.ledger status <file>` reads it and tells a slow day (2), a dead driver (3) and a halted run (4) apart; 0 running, 1 finished. The `.done` markers are kept alongside |
+| `run_year.py` | Step F: runs a range of days as blocks of parallel sessions, each in its own private campaign (`REPR_MODE`, `MAXSESS`, driver `config/bernese/gpsuser/SCRIPT/sessions_pcs.pl`), on `run_days`' banking and breaker rules. `bernese-run-year --campaign PHREF --repr-prefix PHR --year 2025 --from 152 --to 181 --pcf PHREF_DLY --plan` (or `--run`) builds the same plan as `run_plan.py`, takes its results directory from the PCF's `V_RESULT`, and writes the run ledger beside the results, `<V_RESULT>/ledger.jsonl` (`$BPE_LEDGER_DIR` or `--ledger` override). A day with any `FIN_*` is left alone, as `scripts/` decides (`--done fin`, the default); `--done banked` makes redoing `scripts/`' days a deliberate act. SIGTERM or SIGHUP kills the BPE's process group, records `run_end(halt="interrupted: …")` and exits 130 |
+| `bpe_lock.py` | One BPE run per machine: `fcntl.flock` on `$BPE_LOCK` (default `~/.local/state/bernese-workflow/bpe.lock`), released by the kernel however the holder dies. A refused run is told who holds it and whether that pid is still alive |
 | `orchestrator.py` | `BerneseOrchestrator`: renders a Jinja2 PCF template, runs the BPE through a backend, and runs the post-BPE `RUNX_v2.py` velocity step headlessly |
 | `campaign_builder.py`, `campaign_models.py` | generate the campaign's station files (STA, CRD, ABB, …) as text |
 | `pcf_context.py` | PCF template context, including the troposphere settings per GPSEST panel and drift detection between panels (GEO-003) |
@@ -71,19 +73,24 @@ skip when the captured panels are absent.
 
 ## What is missing before production
 
-From `docs/project_documentation/bpe_orchestration_design.md` and the roadmap
-(deliverable 1.3), none of which is built yet:
+The five pieces `docs/project_documentation/bpe_orchestration_design.md` and
+the roadmap (deliverable 1.3) listed are built:
 
-1. an error-signature scanner for `*** SR` lines in BPE output;
-2. a circuit breaker that stops after K identical failures;
-3. an append-only run ledger, so a broken run can be told from a slow one;
-4. a plan phase: exclusions derived from data, `MAXPAR` against the network
-   size, the worst-case day as the preflight;
-5. parallel sessions (`REPR_MODE`, `MAXSESS`), which today exist only in the
-   Perl drivers.
+1. an error-signature scanner for `*** SR` lines in BPE output (`bpe_scanner.py`);
+2. a circuit breaker that stops after K identical failures (`circuit_breaker.py`);
+3. an append-only run ledger, so a broken run can be told from a slow one (`ledger.py`, #300);
+4. a plan phase: exclusions derived from data, `MAXPAR` reported against the
+   busiest day, that day as the preflight (`run_plan.py`, #299);
+5. parallel sessions, `REPR_MODE` and `MAXSESS` (`run_year.py`, #302).
 
-Then a parity run: one month already solved by `scripts/`, re-run through the
-service and compared with `scripts/compare_solutions.sh`.
+None has run a production day. What is left:
+
+- **the parity run:** one month already solved by `scripts/`, re-run through
+  `bernese-run-year` and compared with `scripts/compare_solutions.sh`. It is
+  the first proof of more than one session at a time; EXAMPLE (finch,
+  2026-10-27) had a single day;
+- **the `scripts/` drivers take the BPE lock**, so a service run and a shell run
+  cannot share a machine, and `local_ci.py`'s `bpe_running()` reads it.
 
 ## Related documents
 
