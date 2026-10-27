@@ -353,7 +353,7 @@ def cli_env(tmp_path: Path, monkeypatch):
         for sta in ("aaaa", "bbbb", "cccc"):
             (tmp_path / "D" / "RINEX" / f"{sta}{doy}0.25o").write_text("")
     monkeypatch.setenv("BPE_LOCK", str(tmp_path / "bpe.lock"))
-    monkeypatch.setenv("BPE_LEDGER_DIR", str(tmp_path / "ledger"))
+    monkeypatch.delenv("BPE_LEDGER_DIR", raising=False)
     return tmp_path
 
 
@@ -410,7 +410,7 @@ def _capture_run_year(monkeypatch) -> dict:
 @pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
 def test_the_cli_runs_the_run_plan_with_its_ledger_and_station_counts(cli_env, monkeypatch) -> None:
     """--run hands run_year the same RunPlan --plan prints, a Ledger in
-    $BPE_LEDGER_DIR, the configuration hash and each day's station count."""
+    beside the results, the configuration hash and each day's station count."""
     import bernese_workflow.run_year as ry
     from bernese_workflow.ledger import Ledger
     from bernese_workflow.run_plan import RunPlan
@@ -421,9 +421,35 @@ def test_the_cli_runs_the_run_plan_with_its_ledger_and_station_counts(cli_env, m
     assert seen["plan"].todo == [152, 153]
     assert seen["station_counts"] == {152: 3, 153: 3}
     assert isinstance(seen["ledger"], Ledger)
-    assert seen["ledger"].path == cli_env / "ledger" / "PHREF-2025.jsonl"
+    # The provenance of SAVEDISK/PHREF/2025's FINs lives with them, not in a home dir.
+    assert seen["ledger"].path == cli_env / "S" / "PHREF" / "2025" / "ledger.jsonl"
     assert len(seen["config"]) == 12
     assert seen["sol_dir"] == cli_env / "S" / "PHREF" / "2025" / "SOL"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_bpe_ledger_dir_overrides_the_ledger_location(cli_env, monkeypatch) -> None:
+    import bernese_workflow.run_year as ry
+
+    monkeypatch.setenv("BPE_LEDGER_DIR", str(cli_env / "ledger"))
+    seen = _capture_run_year(monkeypatch)
+    ry.main(ARGS)
+    assert seen["ledger"].path == cli_env / "ledger" / "PHREF-2025.jsonl"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_a_day_scripts_solved_is_not_rerun_by_default(cli_env, monkeypatch) -> None:
+    """scripts/ leaves a FIN and no .done marker. By default any FIN means the day
+    is solved, so a --run over production's range cannot redo production's days
+    in its SAVEDISK; counting only banked days is an explicit --done banked."""
+    import bernese_workflow.run_year as ry
+
+    (cli_env / "S" / "PHREF" / "2025" / "SOL" / "FIN_20251520.NQ0").write_bytes(b"x")
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 0
+    assert seen["plan"].todo == [153]
+    ry.main([*ARGS[:-1], "--done", "banked", "--run"])
+    assert seen["plan"].todo == [152, 153]
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")

@@ -452,11 +452,14 @@ def _env_path(name: str) -> Path:
     return Path(v)
 
 
-def default_ledger_path(campaign: str, year: int) -> Path:
-    """$BPE_LEDGER_DIR/<campaign>-<year>.jsonl, else beside the BPE lock."""
+def default_ledger_path(campaign: str, year: int, sol_dir: Path) -> Path:
+    """The ledger beside the results it describes: <V_RESULT>/ledger.jsonl, the
+    parent of SOL/. It is their provenance, so it is backed up and found with
+    them. $BPE_LEDGER_DIR/<campaign>-<year>.jsonl overrides."""
     root = os.environ.get("BPE_LEDGER_DIR")
-    base = Path(root) if root else Path.home() / ".local/state/bernese-workflow/ledger"
-    return base / f"{campaign}-{year}.jsonl"
+    if root:
+        return Path(root) / f"{campaign}-{year}.jsonl"
+    return sol_dir.parent / "ledger.jsonl"
 
 
 def run_config_hash(u: Path, pcf_path: Path, pcf_text: str) -> str:
@@ -501,8 +504,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--ledger",
         type=Path,
-        help="the run ledger (JSONL); default $BPE_LEDGER_DIR or "
-        "~/.local/state/bernese-workflow/ledger, as <campaign>-<year>.jsonl",
+        help="the run ledger (JSONL); default <V_RESULT>/ledger.jsonl, beside SOL/, "
+        "or $BPE_LEDGER_DIR/<campaign>-<year>.jsonl when that is set",
+    )
+    ap.add_argument(
+        "--done",
+        choices=("fin", "banked"),
+        default="fin",
+        help="fin (default): a day with any FIN_* file is left alone, as scripts/ "
+        "decides, so days scripts/ solved are never re-run by accident. banked: only "
+        "a FIN with the service's .done marker counts; redoing scripts/' days is then "
+        "a deliberate choice",
     )
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--plan", action="store_true", help="print what would run, run nothing")
@@ -519,7 +531,7 @@ def main(argv: list[str] | None = None) -> int:
             return plan_from_env(
                 campaign=args.campaign, year=args.year, pcf=args.pcf,
                 doy_from=args.doy_from, doy_to=args.doy_to,
-                listed=listed, sol_dir=args.sol_dir,
+                listed=listed, sol_dir=args.sol_dir, done_mode=args.done,
             )  # fmt: skip
         except OSError as e:  # the PCF itself: nothing to plan from
             print(f"refused: {e}", file=sys.stderr)
@@ -537,7 +549,6 @@ def main(argv: list[str] | None = None) -> int:
 
     backend = LinuxBPEBackend(C, U, P, pcf_file=args.pcf)
     purpose = f"{args.campaign} {args.year} {args.doy_from:03d}-{args.doy_to:03d} ({args.pcf})"
-    ledger_path = args.ledger or default_ledger_path(args.campaign, args.year)
     old = {s: signal.signal(s, _raise_interrupted) for s in (signal.SIGTERM, signal.SIGHUP)}
     try:
         with BPELock(purpose=purpose):
@@ -548,6 +559,9 @@ def main(argv: list[str] | None = None) -> int:
             if not planned.plan.ok:
                 print("refused: the plan has problems, nothing was run", file=sys.stderr)
                 return 2
+            ledger_path = args.ledger or default_ledger_path(
+                args.campaign, args.year, planned.sol_dir
+            )
             print(f"ledger:   {ledger_path}")
             out = run_year(
                 backend, planned.plan,
