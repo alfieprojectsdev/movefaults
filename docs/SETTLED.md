@@ -51,6 +51,7 @@ from `CLAUDE.md` because both duplicates were removed.
 |---|---|
 | Bernese 5.4 installed and verified on the **T420** (≤0.09 mm vs reference) and the **R740** (0.0000 mm, no `objcopy` patch needed) | 2026-02 / 2026-07-29. **BRN-001 is DONE** |
 | `services/bernese-workflow` **invokes BSW for real** — `backends.py` → `startBPE.pm` over Perl | verified in code |
+| **The service path gives the same solutions as `scripts/` on the same inputs** (shown on 3 days). `bernese-run-year` ran PHREF 2025 DOY 091–120 (30/30 days, MAXSESS 6, 1h15m, ledger and campaign cleanup as designed); a control run of DOY 094/096/098 through `phref_year.pl` from a PCF differing only in `V_RESULT` is identical to it, coordinates included (`compare_solutions.sh` after #306, and the STAX/STAY/STAZ lines byte-compared). Both differ from **production** PHREF 2025 (run 29 Aug) by up to 16 mm for single stations; that is the 29–30 Sep input fixes, not the service (see §6) | gps3, 2026-10-27; results in `SAVEDISK/PHRPAR` and `SAVEDISK/PHRCTL` |
 | `timeseries/analysis.py` reproduces `vel_line_v8_newvelduetooffset_v4.m` — 161/165 components to <5e-6 mm/yr | verified against PHIVOLCS' own published MATLAB output |
 | The 2025 LUZON year is **358/365**, over three runs plus a DOY 036 recovery; the final run was **249 days in 476 min = 1.91 min/day** | session log §24.1, corrected in PR #138 after review |
 | **DOY 036** failed on wrongly-fixed integer ambiguities. Float RMS 1.68 mm vs fixed 37.98 mm; recovered as a float solution at 1.79 mm | §24.3, closed by controlled experiment |
@@ -633,6 +634,16 @@ Old documents and older memory still assert these. They are wrong.
 A settled-list that suppresses live questions is worse than none. These are
 genuinely unresolved as of 2026-09-24, re-checked 2026-10-14, and *should* be
 worked on:
+
+- **Production PHREF 2025 was solved without ocean loading for four IGS
+  fiducials.** Its 29 Aug run used a `PHNAT.BLQ` with `$$ END TABLE` above the
+  blocks for CUSV, GUUG, NTUS and PTAG, and a `PHNAT.ATL` that named PTAG as
+  `PTAG ` (ATL matches full names), so PTAG had no S1/S2 loading either. Both
+  were fixed 29–30 Sep (backups `PHNAT.BLQ.pre-endtable-fix-20260930`,
+  `PHNAT.ATL.pre-ptag-20260930`). These are datum stations, so the effect
+  spreads: up to 16 mm for single stations on single days, mostly 0.01–0.3 mm
+  (measured by the parity run, §2). Whether to reprocess the 360 days is
+  Alfie's decision; at the parity run's rate it is ~15 h on gps3.
 
 - **GitHub Actions is ENABLED and still runs nothing: the account is
   billing-locked.** Enabled 2026-09-24 (it had been disabled repo-wide since

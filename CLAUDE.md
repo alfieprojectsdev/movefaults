@@ -168,8 +168,11 @@ has run a production day. Parallel sessions (`REPR_MODE`, `MAXSESS`) are in
 the service since step F: `run_year.py` (`bernese-run-year`) runs blocks of
 consecutive days, each session in its own campaign, on run_days' banking and
 breaker rules, under a machine-wide BPE lock (`bpe_lock.py`). It has run
-EXAMPLE end to end (finch, 2026-10-27, 0.0000 mm against the reference), not
-yet a production range.
+EXAMPLE end to end (finch, 2026-10-27, 0.0000 mm against the reference), and
+**the PHREF parity run** (gps3, 2026-10-27): 30/30 days of PHREF 2025, DOY
+091–120, six sessions at a time; the three days re-run through the `scripts/`
+path on the same inputs (094, 096, 098) are identical (`docs/SETTLED.md` §2). Production ranges still go through
+`scripts/` until the cutover.
 
 #### Corrections to earlier versions of this section
 
