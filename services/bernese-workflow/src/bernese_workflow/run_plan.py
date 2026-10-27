@@ -177,6 +177,16 @@ def result_dir(
     return _pcf_dir(pcf_text, "V_RESULT", env, year, fallback)
 
 
+def sta_file(pcf_text: str, env: Mapping[str, str], year: int, fallback_dir: Path) -> Path | None:
+    """The station information file R2S_COP copies into the campaign:
+    ${V_REFDIR}/${V_STAINF}.STA. None when the PCF names no V_STAINF."""
+    name = pcf_variable(pcf_text, "V_STAINF")
+    if not name:
+        return None
+    refdir, _ = _pcf_dir(pcf_text, "V_REFDIR", env, year, fallback_dir)
+    return refdir / f"{name}.STA"
+
+
 def fix_stations(fix_text: str) -> set[str]:
     """Station codes in a Bernese .FIX file (the reference set)."""
     return {m.group(1) for line in fix_text.splitlines() if (m := _FIX_LINE_RE.match(line))}
@@ -321,6 +331,8 @@ class PlannedRun:
     pcf_path: Path
     pcf_text: str
     sol_dir: Path
+    rinex_dir: Path  # V_RNXDIR: what the RINEX header check reads
+    sta_file: Path | None  # ${V_REFDIR}/${V_STAINF}.STA: what it checks against
     sources: list[str]  # where the datapool and results directories came from
     label: str
 
@@ -366,6 +378,13 @@ def plan_from_env(
     coverage = scan(datadir, year) if datadir.is_dir() else None
     if coverage is None:
         problems.append(f"no datapool directory {datadir}")
+    sta = sta_file(pcf_text, env, year, fallback_dir=d / "REF54")
+    if sta is None:
+        problems.append(f"{pcf_path.name} has no V_STAINF: the RINEX headers cannot be checked")
+    elif not sta.is_file():
+        problems.append(f"no station information file {sta}: the RINEX headers cannot be checked")
+    else:
+        sources.append(f"STA:      {sta}")
 
     if sol_dir is None:
         resdir, res_from = result_dir(pcf_text, env, year, fallback=s / campaign / str(year))
@@ -395,7 +414,7 @@ def plan_from_env(
     plan.maxpar = addneq2_maxpar(u / "OPT", pcf_option_dirs(pcf_text))
     with_data = len(refs & set(coverage.stations if coverage else []))
     label = f"PCF {pcf}   references {refinf} ({with_data} with data)"
-    return PlannedRun(plan, pcf_path, pcf_text, sol_dir, sources, label)
+    return PlannedRun(plan, pcf_path, pcf_text, sol_dir, datadir, sta, sources, label)
 
 
 def parse_excludes(items: Iterable[str]) -> dict[int, str]:

@@ -547,7 +547,6 @@ def main(argv: list[str] | None = None) -> int:
         show(planned)
         return 0 if planned.plan.ok else 1
 
-    backend = LinuxBPEBackend(C, U, P, pcf_file=args.pcf)
     purpose = f"{args.campaign} {args.year} {args.doy_from:03d}-{args.doy_to:03d} ({args.pcf})"
     old = {s: signal.signal(s, _raise_interrupted) for s in (signal.SIGTERM, signal.SIGHUP)}
     try:
@@ -563,6 +562,15 @@ def main(argv: list[str] | None = None) -> int:
                 args.campaign, args.year, planned.sol_dir
             )
             print(f"ledger:   {ledger_path}")
+            # The header check reads where the BPE will read: RINEX from
+            # V_RNXDIR, the STA R2S_COP copies from V_REFDIR. The base campaign
+            # has neither, and REPR_MODE's private ones do not exist yet; with
+            # no sources the check used to skip with a warning.
+            backend = LinuxBPEBackend(
+                C, U, P, pcf_file=args.pcf,
+                rinex_source_dir=planned.rinex_dir, sta_file=planned.sta_file,
+                preflight_required=True,
+            )  # fmt: skip
             out = run_year(
                 backend, planned.plan,
                 campaign=args.campaign, repr_prefix=args.repr_prefix,

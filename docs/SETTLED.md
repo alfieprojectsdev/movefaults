@@ -557,10 +557,22 @@ Do not open these as findings.
   **Days banked by `scripts/` carry no marker and are re-run** under it, and it
   runs one session at a time (no `REPR_MODE`/`MAXSESS`); `run_year.run_year`
   (step F) runs parallel blocks of private-campaign sessions on the same
-  banking and breaker rules. So check which path
+  banking and breaker rules, but its CLI by default (`--done fin`, #303) treats
+  any `FIN_*` as solved, so `scripts/`' days are left alone. So check which path
   you are on — and which driver — before pricing a restart. Since #271 a
   service-side timeout kills the BPE's whole process group, so a timed-out
   session no longer leaves the server and its jobs running unsupervised.
+
+  **The driver's output pipe does not tell you the jobs are done.** Measured on
+  gps3 during the PHREF parity run, 2026-10-27: every process of a session (the
+  Perl driver, `menu.sh`, `menu`, each job's `sh`, `RUNBPE.sh`, `RUNBPE.pm`, the
+  program) is in the driver's process group, but only the server, `menu.sh`,
+  holds the pipe to the driver. Job shells write fd 1 to their own
+  `$P/<campaign>/BPE/<task>_<pid>_<sub>.LOG`. So `communicate()` returns when the
+  server exits, and jobs can still be running at that moment. #288's drain of
+  the group after the driver exits is therefore required, not a safety net. An
+  earlier reading of the source had guessed the jobs inherit the pipe; they do
+  not.
 
   **Which means the advice inverts for short sessions, and that is not a
   quibble.** Waiting 45 minutes to be sure is obviously right when the session

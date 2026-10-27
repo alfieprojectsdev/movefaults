@@ -597,6 +597,50 @@ def test_linux_bpe_datapool_source_empty_for_session_raises(tmp_path):
     assert "No RINEX" in str(exc_info.value)
 
 
+def test_the_sta_file_given_is_the_one_headers_are_checked_against(tmp_path):
+    """REPR_MODE (run_year): the base campaign has no STA/ and the private
+    campaigns do not exist before the BPE, so the check reads the STA R2S_COP
+    will copy, ${V_REFDIR}/${V_STAINF}.STA. Before, it found no STA and skipped."""
+    from bernese_workflow.backends import LinuxBPEBackend
+
+    source = tmp_path / "DATAPOOL" / "PGN"
+    source.mkdir(parents=True)
+    _write_rinex(source, "plg20860.26o", _rinex2_obs("PLG2", "LEICA GR50", "LEIAR20      NONE"))
+    (tmp_path / "GPSDATA" / "PAGENET").mkdir(parents=True)  # no RAW/, no STA/
+    ref = tmp_path / "DATAPOOL" / "REF54"
+    ref.mkdir()
+    (ref / "PGN.STA").write_text(_make_sta_content([{"name": "BOST"}]), encoding="ascii")
+
+    backend = LinuxBPEBackend(
+        bernese_root=tmp_path / "BERN54",
+        user_dir=tmp_path / "GPSUSER",
+        campaign_dir=tmp_path / "GPSDATA",
+        rinex_source_dir=source,
+        sta_file=ref / "PGN.STA",
+    )
+    with pytest.raises(ValidationError) as exc_info:
+        backend._preflight_rinex("PAGENET", 2026, "0860")
+    assert "PLG2" in str(exc_info.value)
+
+
+def test_a_required_preflight_that_cannot_run_refuses_instead_of_skipping(tmp_path):
+    from bernese_workflow.backends import LinuxBPEBackend
+
+    source = tmp_path / "DATAPOOL" / "PGN"
+    source.mkdir(parents=True)
+    (tmp_path / "GPSDATA" / "PAGENET").mkdir(parents=True)
+    kw = {
+        "bernese_root": tmp_path / "BERN54",
+        "user_dir": tmp_path / "GPSUSER",
+        "campaign_dir": tmp_path / "GPSDATA",
+        "rinex_source_dir": source,
+        "sta_file": tmp_path / "DATAPOOL" / "REF54" / "PGN.STA",  # absent
+    }
+    LinuxBPEBackend(**kw)._preflight_rinex("PAGENET", 2026, "0860")  # warns, as before
+    with pytest.raises(FileNotFoundError, match="PGN.STA"):
+        LinuxBPEBackend(**kw, preflight_required=True)._preflight_rinex("PAGENET", 2026, "0860")
+
+
 # ===========================================================================
 # Task C2 — compressed and Hatanaka RINEX recognition
 #
