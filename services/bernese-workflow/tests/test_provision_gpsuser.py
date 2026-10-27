@@ -4,7 +4,7 @@ The sanitizing and MAXPAR logic is tested in test_panel_sanitizer.py; what is
 covered here is the orchestration this script adds on top, which is where the
 file-class distinctions live:
 
-  * PCFs are refused when they carry a dangling WAIT
+  * PCFs are refused when they carry a dangling WAIT or jump
   * SCRIPT/ is copied verbatim, never separator-converted
   * PAN/USER.CPU is generated from the host, never copied from the repo
   * dry run writes nothing
@@ -62,6 +62,22 @@ def test_pcf_with_dangling_wait_is_refused(prov, tmp_path):
     assert actions == []
     assert len(errors) == 1
     assert "dangling WAIT" in errors[0] and "522" in errors[0]
+    assert not (user / "PCF" / "PAGENET_DLY.PCF").exists(), "must not be copied"
+
+
+def test_pcf_with_dangling_jump_is_refused(prov, tmp_path):
+    """A NEXTJOB to an undefined PID breaks the BPE when the jump is taken."""
+    gold, user = tmp_path / "gold", tmp_path / "U"
+    (gold / "PCF").mkdir(parents=True)
+    (user / "PCF").mkdir(parents=True)
+    text = _pcf(dangling=False).replace("WAIT=499\n", "WAIT=499; NEXTJOB=530\n")
+    (gold / "PCF" / "PAGENET_DLY.PCF").write_text(text, encoding="ascii")
+
+    actions, errors = prov.provision_pcfs(gold, user, apply=True)
+
+    assert actions == []
+    assert len(errors) == 1
+    assert "dangling jump" in errors[0] and "NEXTJOB=530" in errors[0]
     assert not (user / "PCF" / "PAGENET_DLY.PCF").exists(), "must not be copied"
 
 

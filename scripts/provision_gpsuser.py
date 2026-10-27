@@ -42,6 +42,7 @@ from bernese_workflow.cpu_config import (  # noqa: E402
     set_user_cpu_maxjobs,
 )
 from bernese_workflow.panel_sanitizer import (  # noqa: E402
+    find_dangling_jumps,
     find_dangling_waits,
     provision_opt_dir,
 )
@@ -141,6 +142,11 @@ def provision_pcfs(gold: Path, user: Path, apply: bool) -> tuple[list[str], list
         if dangling:
             detail = ", ".join(f"L{d.line} WAIT={d.pid}" for d in dangling[:5])
             errors.append(f"PCF/{path.name}: dangling WAIT ({detail})")
+            continue
+        jumps = find_dangling_jumps(text).dangling
+        if jumps:
+            detail = ", ".join(f"L{j.line} {j.keyword}={j.pid}" for j in jumps[:5])
+            errors.append(f"PCF/{path.name}: dangling jump ({detail})")
             continue
         target = user / "PCF" / path.name
         same = target.exists() and target.read_text(errors="replace") == text

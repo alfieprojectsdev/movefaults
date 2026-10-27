@@ -66,7 +66,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "services" / "bernese-workflow" / "src"))
 
-from bernese_workflow.panel_sanitizer import find_dangling_waits  # noqa: E402
+from bernese_workflow.panel_sanitizer import (  # noqa: E402
+    find_dangling_jumps,
+    find_dangling_waits,
+)
 
 OVERRIDES = {
     "V_PCV": "I14",
@@ -180,6 +183,14 @@ def main() -> int:
         for d in dangling[:6]:
             print(f"  L{d.line} WAIT={d.pid}")
         print("REFUSING — a WAIT on an undefined PID hangs the BPE forever.")
+        return 1
+
+    jumps = find_dangling_jumps(text)
+    print(f"dangling jumps: {len(jumps.dangling)} of {jumps.checked} checked")
+    if jumps.dangling:
+        for j in jumps.dangling[:6]:
+            print(f"  L{j.line} {j.keyword} {j.pid or '(empty)'}")
+        print("REFUSING — a jump to an undefined PID breaks the BPE when it is taken.")
         return 1
 
     # Guard the format: 5.4 rows carry `CPU=`. A file without them is the 5.2
