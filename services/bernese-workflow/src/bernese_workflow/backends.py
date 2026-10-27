@@ -49,6 +49,38 @@ class BPEBackend(Protocol):
     def collect_outputs(self, campaign_name: str, year: int, session: str) -> dict[str, Path]: ...
 
 
+@dataclass
+class SessionsResult:
+    """What one multi-session BPE call reported.
+
+    ``statuses`` maps each session the server knew about, as "<yy><ssss>", to
+    its state in <PCF>.RUN (finished | error | running | waiting). A session
+    missing from it was never started. It is evidence, not the verdict: a day
+    is done only when its FIN is on disk (run_year checks that).
+    """
+
+    success: bool
+    raw_log: str = ""
+    statuses: dict[str, str] = field(default_factory=dict)
+
+
+def repr_campaign_name(prefix: str, year: int, session: str) -> str:
+    """The private campaign BSW's server creates for a session in REPR_MODE.
+
+    MENU/server.cpp: REPR_MODE_CAMPAIGN + YEAR + SESSION, YEAR as two digits.
+    """
+    return f"{prefix}{year % 100:02d}{session}"
+
+
+# "Session 253460: finished", one line per session in <PCF>.RUN.
+_RUN_STATUS = re.compile(r"^\s*Session\s+(\d{6}):\s*(\w+)", re.M)
+
+
+def parse_run_status(text: str) -> dict[str, str]:
+    """<PCF>.RUN as {"<yy><ssss>": state}; the last line for a session wins."""
+    return {m[1]: m[2].lower() for m in _RUN_STATUS.finditer(text)}
+
+
 _KILL_GRACE_SEC = 10
 # How long a driver's group may take to empty on its own after a normal exit.
 # BSW 5.4's server sends QUIT and exits without waiting for the client, which
@@ -485,11 +517,9 @@ class LinuxBPEBackend:
                 validate_dir,
             )
 
-    def run(self, campaign_name: str, year: int, session: str) -> BPEResult:
-        self._preflight_rinex(campaign_name, year, session)
+    def _bpe_env(self, campaign_name: str, year: int, session: str) -> tuple[dict[str, str], int | None]:
+        """The environment a BPE driver runs with, and the MAXPAR it carries (or None)."""
         campaign_path = self.campaign_dir / campaign_name
-
-        script = self.driver_script or (self.user_dir / "SCRIPT" / "rnx2snx_pcs.pl")
 
         # MAXPAR: explicit constructor override wins; otherwise size from the
         # campaign CRD station count (gap #10). Left unset when neither is available
@@ -518,6 +548,12 @@ class LinuxBPEBackend:
             env_overrides["MAXPAR"] = str(maxpar)
 
         env = {**os.environ, **env_overrides}
+        return env, maxpar
+
+    def run(self, campaign_name: str, year: int, session: str) -> BPEResult:
+        self._preflight_rinex(campaign_name, year, session)
+        script = self.driver_script or (self.user_dir / "SCRIPT" / "rnx2snx_pcs.pl")
+        env, maxpar = self._bpe_env(campaign_name, year, session)
 
         logger.info(
             "Starting BPE: perl %s %s %s pcf=%s cpu=%s maxpar=%s",
@@ -552,6 +588,80 @@ class LinuxBPEBackend:
                 result.helmchk_failed,
             )
         return result
+
+    def run_sessions(
+        self,
+        campaign_name: str,
+        year: int,
+        first_session: str,
+        n_sessions: int,
+        *,
+        maxsess: int,
+        repr_prefix: str,
+    ) -> SessionsResult:
+        """Run ``n_sessions`` consecutive sessions in one BPE, in parallel, each
+        in its own campaign ``${P}/<repr_prefix><yy><ssss>`` (BSW REPR_MODE).
+
+        The driver is config/bernese/gpsuser/SCRIPT/sessions_pcs.pl. Private
+        campaigns are KEPT on success as well as on error: the caller deletes a
+        session's campaign once it has banked the day (run_year). After the
+        first failed session the server starts no new one and lets the running
+        ones finish (NEXTSESS=0), so a call ends early rather than going on past
+        a failure.
+
+        Every session's RINEX is validated before the BPE starts, as run() does
+        for one: a bad header refuses the whole call (ValidationError).
+        """
+        if n_sessions < 1 or maxsess < 1:
+            raise ValueError(f"n_sessions and maxsess must be >= 1, got {n_sessions}, {maxsess}")
+        doy0 = int(first_session[:3])
+        char = first_session[3:]
+        for i in range(n_sessions):
+            self._preflight_rinex(campaign_name, year, f"{doy0 + i:03d}{char}")
+
+        script = self.driver_script or (self.user_dir / "SCRIPT" / "sessions_pcs.pl")
+        env, maxpar = self._bpe_env(campaign_name, year, first_session)
+        # Each wave of maxsess sessions may take as long as one session alone.
+        timeout = self.timeout_sec * -(-n_sessions // maxsess)
+        status_file = self.campaign_dir / campaign_name / "BPE" / f"{self.pcf_file}.RUN"
+        started = time.time()
+        cmd = [
+            "perl",
+            str(script),
+            str(year),
+            first_session,
+            self.pcf_file,
+            str(n_sessions),
+            str(maxsess),
+            campaign_name,
+            repr_prefix,
+        ]
+        logger.info(
+            "Starting BPE: %s sessions from %s %s, maxsess=%s, repr=%s, pcf=%s, maxpar=%s",
+            n_sessions, year, first_session, maxsess, repr_prefix, self.pcf_file, maxpar,
+        )
+        try:
+            proc = _run_bpe_process(cmd, env=env, timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"BPE timed out after {timeout}s for {n_sessions} sessions of {campaign_name} "
+                f"from {first_session}; its process group was sent SIGTERM, then SIGKILL "
+                "(any member that survived is logged)"
+            ) from exc
+
+        statuses: dict[str, str] = {}
+        try:
+            # Only this call's status file counts; an older one describes another run.
+            if status_file.stat().st_mtime >= started - 1:
+                statuses = parse_run_status(status_file.read_text(errors="replace"))
+        except FileNotFoundError:
+            pass
+        ok = proc.returncode == 0 and all(v == "finished" for v in statuses.values())
+        return SessionsResult(
+            success=ok and bool(statuses),
+            raw_log=proc.stdout + "\n" + proc.stderr,
+            statuses=statuses,
+        )
 
     def run_continuous(self, campaign_name: str, year: int, session: str) -> tuple[BPEResult, BPEResult]:
         """Two-pass BPE for continuous GPS campaigns.
