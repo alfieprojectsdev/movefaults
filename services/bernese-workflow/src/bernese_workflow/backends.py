@@ -313,6 +313,8 @@ class LinuxBPEBackend:
         cpu_file: str = "USER",
         driver_script: str | Path | None = None,
         max_par: int | None = None,
+        sta_file: str | Path | None = None,
+        preflight_required: bool = False,
     ) -> None:
         self.bernese_root = Path(bernese_root).expanduser()
         self.user_dir = Path(user_dir).expanduser()
@@ -342,6 +344,14 @@ class LinuxBPEBackend:
         self.rinex_source_dir = (
             Path(rinex_source_dir).expanduser() if rinex_source_dir is not None else None
         )
+        # The STA the BPE will use. R2S_COP copies ${V_REFDIR}/${V_STAINF}.STA into
+        # the campaign, so before the BPE (and always for REPR_MODE, whose private
+        # campaigns do not exist yet) that file is the one to check against. None:
+        # the campaign's own STA/<campaign>.STA.
+        self.sta_file = Path(sta_file).expanduser() if sta_file is not None else None
+        # True: a check that cannot run (no source dir, no STA) raises instead of
+        # logging a warning and letting the BPE start unchecked.
+        self.preflight_required = preflight_required
 
     def prepare_campaign(
         self,
@@ -452,7 +462,7 @@ class LinuxBPEBackend:
         from .rinex_header_validator import ValidationError, validate_rinex_headers
 
         campaign_path = self.campaign_dir / campaign_name
-        sta_path = campaign_path / "STA" / f"{campaign_name}.STA"
+        sta_path = self.sta_file or campaign_path / "STA" / f"{campaign_name}.STA"
 
         # Validate the DATAPOOL source (per session) when configured — that is
         # where RINEX lives pre-BPE. Fall back to the campaign RAW/ only when no
@@ -510,11 +520,17 @@ class LinuxBPEBackend:
             )
             if not report.ok:
                 raise ValidationError(report)
+        elif self.preflight_required:
+            raise FileNotFoundError(
+                f"pre-flight RINEX header check cannot run for {campaign_name}: "
+                f"{validate_dir if not validate_dir.exists() else sta_path} not present"
+            )
         else:
             logger.warning(
-                "Pre-flight RINEX header check skipped for %s (source %s or STA not present)",
+                "Pre-flight RINEX header check skipped for %s (source %s or STA %s not present)",
                 campaign_name,
                 validate_dir,
+                sta_path,
             )
 
     def _bpe_env(self, campaign_name: str, year: int, session: str) -> tuple[dict[str, str], int | None]:

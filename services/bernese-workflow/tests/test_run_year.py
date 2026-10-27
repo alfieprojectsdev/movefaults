@@ -343,11 +343,14 @@ def cli_env(tmp_path: Path, monkeypatch):
         "V_REFINF = IGS20;\n"
         "V_RNXDIR = ${D}/RINEX;\n"
         "V_RESULT = ${S}/PHREF/$Y+0;\n"
+        "V_REFDIR = ${D}/REF54;\n"
+        "V_STAINF = PHR;\n"
     )
     (tmp_path / "U" / "OPT" / "R2S_GEN").mkdir(parents=True)
     (tmp_path / "U" / "OPT" / "R2S_GEN" / "ADDNEQ2.INP").write_text('MAXPAR 1 "3000"\n')
     (tmp_path / "D" / "REF54").mkdir()
     (tmp_path / "D" / "REF54" / "IGS20.FIX").write_text("AAAA 1\nBBBB 2\nCCCC 3\n")
+    (tmp_path / "D" / "REF54" / "PHR.STA").write_text("")
     (tmp_path / "D" / "RINEX").mkdir()
     for doy in (152, 153):
         for sta in ("aaaa", "bbbb", "cccc"):
@@ -425,6 +428,34 @@ def test_the_cli_runs_the_run_plan_with_its_ledger_and_station_counts(cli_env, m
     assert seen["ledger"].path == cli_env / "S" / "PHREF" / "2025" / "ledger.jsonl"
     assert len(seen["config"]) == 12
     assert seen["sol_dir"] == cli_env / "S" / "PHREF" / "2025" / "SOL"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_the_header_check_reads_the_pcfs_rinex_and_sta(cli_env, monkeypatch) -> None:
+    """The parity run (gps3, 2026-10-27) logged "Pre-flight RINEX header check
+    skipped for PHREF": the backend looked in the base campaign's RAW/ and STA/,
+    which a REPR_MODE run never fills. It now reads V_RNXDIR and V_STAINF's
+    STA, and a check that cannot run refuses instead of skipping."""
+    import bernese_workflow.run_year as ry
+
+    seen: dict = {}
+    monkeypatch.setattr(ry, "run_year", lambda backend, plan, **kw: seen.update(b=backend) or [])
+    assert ry.main(ARGS) == 0
+    b = seen["b"]
+    assert b.rinex_source_dir == cli_env / "D" / "RINEX"
+    assert b.sta_file == cli_env / "D" / "REF54" / "PHR.STA"
+    assert b.preflight_required
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_no_station_information_file_is_a_plan_problem(cli_env, monkeypatch, capsys) -> None:
+    import bernese_workflow.run_year as ry
+
+    (cli_env / "D" / "REF54" / "PHR.STA").unlink()
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 2
+    assert seen == {}
+    assert "no station information file" in capsys.readouterr().out
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
