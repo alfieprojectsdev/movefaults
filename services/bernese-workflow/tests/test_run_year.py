@@ -328,12 +328,32 @@ def test_run_sessions_refuses_nonsense_counts(tmp_path: Path) -> None:
 
 @pytest.fixture
 def cli_env(tmp_path: Path, monkeypatch):
-    for v in ("P", "U", "C", "S"):
+    """What LOADGPS.setvar and a campaign leave: a PCF naming its reference set,
+    datapool and result directory, that reference set, and three reference
+    stations' RINEX on DOY 152 and 153."""
+    for v in ("P", "U", "C", "S", "D"):
         (tmp_path / v).mkdir()
         monkeypatch.setenv(v, str(tmp_path / v))
     (tmp_path / "P" / "PHREF" / "BPE").mkdir(parents=True)
     (tmp_path / "S" / "PHREF" / "2025" / "SOL").mkdir(parents=True)
+    (tmp_path / "U" / "PCF").mkdir()
+    (tmp_path / "U" / "PCF" / "PHREF_DLY.PCF").write_text(
+        "001 R2S_COP  R2S_GEN\n"
+        "VARIABLE DESCRIPTION\n"
+        "V_REFINF = IGS20;\n"
+        "V_RNXDIR = ${D}/RINEX;\n"
+        "V_RESULT = ${S}/PHREF/$Y+0;\n"
+    )
+    (tmp_path / "U" / "OPT" / "R2S_GEN").mkdir(parents=True)
+    (tmp_path / "U" / "OPT" / "R2S_GEN" / "ADDNEQ2.INP").write_text('MAXPAR 1 "3000"\n')
+    (tmp_path / "D" / "REF54").mkdir()
+    (tmp_path / "D" / "REF54" / "IGS20.FIX").write_text("AAAA 1\nBBBB 2\nCCCC 3\n")
+    (tmp_path / "D" / "RINEX").mkdir()
+    for doy in (152, 153):
+        for sta in ("aaaa", "bbbb", "cccc"):
+            (tmp_path / "D" / "RINEX" / f"{sta}{doy}0.25o").write_text("")
     monkeypatch.setenv("BPE_LOCK", str(tmp_path / "bpe.lock"))
+    monkeypatch.setenv("BPE_LEDGER_DIR", str(tmp_path / "ledger"))
     return tmp_path
 
 
@@ -372,6 +392,123 @@ def test_a_second_run_is_refused_while_one_holds_the_lock(cli_env, monkeypatch, 
     with BPELock(purpose="PHREF 2025 the other run"):
         assert ry.main(ARGS) == 3
     assert "the other run" in capsys.readouterr().err
+
+
+def _capture_run_year(monkeypatch) -> dict:
+    import bernese_workflow.run_year as ry
+
+    seen: dict = {}
+
+    def fake(backend, plan, **kw):
+        seen.update(kw, plan=plan)
+        return []
+
+    monkeypatch.setattr(ry, "run_year", fake)
+    return seen
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_the_cli_runs_the_run_plan_with_its_ledger_and_station_counts(cli_env, monkeypatch) -> None:
+    """--run hands run_year the same RunPlan --plan prints, a Ledger in
+    $BPE_LEDGER_DIR, the configuration hash and each day's station count."""
+    import bernese_workflow.run_year as ry
+    from bernese_workflow.ledger import Ledger
+    from bernese_workflow.run_plan import RunPlan
+
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 0
+    assert isinstance(seen["plan"], RunPlan)
+    assert seen["plan"].todo == [152, 153]
+    assert seen["station_counts"] == {152: 3, 153: 3}
+    assert isinstance(seen["ledger"], Ledger)
+    assert seen["ledger"].path == cli_env / "ledger" / "PHREF-2025.jsonl"
+    assert len(seen["config"]) == 12
+    assert seen["sol_dir"] == cli_env / "S" / "PHREF" / "2025" / "SOL"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_the_config_hash_changes_with_a_panel_the_pcf_uses(cli_env, monkeypatch) -> None:
+    import bernese_workflow.run_year as ry
+
+    seen = _capture_run_year(monkeypatch)
+    ry.main(ARGS)
+    before = seen["config"]
+    (cli_env / "U" / "OPT" / "R2S_GEN" / "ADDNEQ2.INP").write_text('MAXPAR 1 "4000"\n')
+    ry.main(ARGS)
+    assert seen["config"] != before
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_the_results_dir_comes_from_the_pcfs_v_result(cli_env, monkeypatch, capsys) -> None:
+    """EXAMPLE archives to ${S}/RNX2SNX/$Y+0, not $S/<campaign>/<year>: the
+    reason --sol-dir had to exist. Now the PCF says where."""
+    import bernese_workflow.run_year as ry
+
+    pcf = cli_env / "U" / "PCF" / "PHREF_DLY.PCF"
+    pcf.write_text(pcf.read_text().replace("${S}/PHREF/$Y+0", "${S}/RNX2SNX/$Y+0"))
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 0
+    assert seen["sol_dir"] == cli_env / "S" / "RNX2SNX" / "2025" / "SOL"
+    assert "from V_RESULT" in capsys.readouterr().out
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_a_plan_with_problems_is_refused_before_anything_runs(cli_env, monkeypatch, capsys) -> None:
+    import bernese_workflow.run_year as ry
+
+    (cli_env / "D" / "REF54" / "IGS20.FIX").unlink()
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 2
+    assert seen == {}, "run_year was not called"
+    assert "cannot read the reference set" in capsys.readouterr().out
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_a_missing_pcf_is_a_refusal_and_frees_the_lock(cli_env, monkeypatch, capsys) -> None:
+    import bernese_workflow.run_year as ry
+    from bernese_workflow.bpe_lock import BPELock
+
+    (cli_env / "U" / "PCF" / "PHREF_DLY.PCF").unlink()
+    seen = _capture_run_year(monkeypatch)
+    with pytest.raises(SystemExit) as e:
+        ry.main(ARGS)
+    assert e.value.code == 2 and seen == {}
+    assert "PHREF_DLY.PCF" in capsys.readouterr().err
+    with BPELock(purpose="after"):
+        pass  # free again
+
+
+def test_plan_mode_and_run_plan_print_the_same_plan(cli_env, monkeypatch, capsys) -> None:
+    """--plan runs nothing and prints what run_plan prints for the same range:
+    one plan_from_env behind both, so they cannot drift apart."""
+    import bernese_workflow.run_plan as rp
+    import bernese_workflow.run_year as ry
+
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main([*ARGS[:-1], "--plan"]) == 0
+    ours = capsys.readouterr().out
+    assert seen == {}
+    assert rp.main(["--campaign", "PHREF", "--year", "2025", "--pcf", "PHREF_DLY",
+                    "--from", "152", "--to", "153"]) == 0  # fmt: skip
+    theirs = capsys.readouterr().out
+    assert ours.replace("   MAXSESS 6", "") == theirs
+    assert "DOY 152-153  (2 days)" in theirs
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_short_and_hand_excluded_days_are_left_out_with_their_reason(
+    cli_env, monkeypatch, capsys
+) -> None:
+    import bernese_workflow.run_year as ry
+
+    (cli_env / "D" / "RINEX" / "cccc1520.25o").unlink()  # 152: two references
+    seen = _capture_run_year(monkeypatch)
+    args = [*ARGS[:-1], "--to", "154", "--exclude", "154:receiver swap", "--run"]
+    ry.main(args)
+    assert seen["plan"].todo == [153]
+    out = capsys.readouterr().out
+    assert "DOY 152  short: 2 reference station(s)" in out
+    assert "DOY 154  listed: receiver swap" in out
 
 
 # --- review of #302: what counts as "this run started that day" ------------------------

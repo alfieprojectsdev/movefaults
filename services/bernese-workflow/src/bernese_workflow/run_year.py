@@ -452,9 +452,27 @@ def _env_path(name: str) -> Path:
     return Path(v)
 
 
+def default_ledger_path(campaign: str, year: int) -> Path:
+    """$BPE_LEDGER_DIR/<campaign>-<year>.jsonl, else beside the BPE lock."""
+    root = os.environ.get("BPE_LEDGER_DIR")
+    base = Path(root) if root else Path.home() / ".local/state/bernese-workflow/ledger"
+    return base / f"{campaign}-{year}.jsonl"
+
+
+def run_config_hash(u: Path, pcf_path: Path, pcf_text: str) -> str:
+    """ledger.config_hash over the PCF and every panel in the option directories it uses."""
+    from .ledger import config_hash
+    from .run_plan import pcf_option_dirs
+
+    panels = [p for d in pcf_option_dirs(pcf_text) for p in sorted((u / "OPT" / d).glob("*.INP"))]
+    return config_hash([pcf_path, *panels])
+
+
 def main(argv: list[str] | None = None) -> int:
     from .backends import LinuxBPEBackend
     from .bpe_lock import BPELock, BPELockHeld
+    from .ledger import Ledger
+    from .run_plan import format_plan, parse_excludes, plan_from_env
 
     ap = argparse.ArgumentParser(
         description="Run a range of days as parallel BPE blocks, one campaign per session."
@@ -466,13 +484,25 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--to", dest="doy_to", type=int, required=True)
     ap.add_argument("--pcf", required=True)
     ap.add_argument("--maxsess", type=int, default=6)
-    ap.add_argument("--exclude", type=int, nargs="*", default=[], help="days never to attempt")
+    ap.add_argument(
+        "--exclude",
+        action="extend",
+        nargs="+",
+        default=[],
+        metavar="DOY[:REASON]",
+        help="days never to attempt, each with an optional reason",
+    )
     ap.add_argument("--no-preflight", action="store_true")
     ap.add_argument(
         "--sol-dir",
         type=Path,
-        help="where R2S_SAV archives FIN files (the PCF's V_RESULT + /SOL); "
-        "default $S/<campaign>/<year>/SOL",
+        help="where R2S_SAV archives FIN files; default the PCF's V_RESULT + /SOL",
+    )
+    ap.add_argument(
+        "--ledger",
+        type=Path,
+        help="the run ledger (JSONL); default $BPE_LEDGER_DIR or "
+        "~/.local/state/bernese-workflow/ledger, as <campaign>-<year>.jsonl",
     )
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--plan", action="store_true", help="print what would run, run nothing")
@@ -482,29 +512,51 @@ def main(argv: list[str] | None = None) -> int:
 
     # LOADGPS.setvar exports the Bernese root as $C (there is no $X).
     P, U, C, S = (_env_path(v) for v in ("P", "U", "C", "S"))
-    sol_dir = args.sol_dir or S / args.campaign / str(args.year) / "SOL"
-    days = [d for d in range(args.doy_from, args.doy_to + 1) if d not in set(args.exclude)]
-    banked = [d for d in days if fin_banked(sol_dir, args.year, d)] if sol_dir.is_dir() else []
-    plan = SimplePlan(args.year, [d for d in days if d not in banked])
+    listed = parse_excludes(args.exclude)
+
+    def make_plan():
+        try:
+            return plan_from_env(
+                campaign=args.campaign, year=args.year, pcf=args.pcf,
+                doy_from=args.doy_from, doy_to=args.doy_to,
+                listed=listed, sol_dir=args.sol_dir,
+            )  # fmt: skip
+        except OSError as e:  # the PCF itself: nothing to plan from
+            print(f"refused: {e}", file=sys.stderr)
+            raise SystemExit(2) from e
+
+    def show(planned) -> None:
+        for line in planned.sources:
+            print(line)
+        print(format_plan(planned.plan, label=f"{planned.label}   MAXSESS {args.maxsess}"))
+
     if args.plan:
-        print(f"{args.campaign} {args.year}  PCF {args.pcf}  MAXSESS {args.maxsess}")
-        for a, b in plan.blocks:
-            print(f"  DOY {a:03d}-{b:03d}  ({b - a + 1} days)")
-        print(
-            f"  to run: {len(plan.todo)}   already banked: {len(banked)}   excluded: {len(args.exclude)}"
-        )
-        return 0
+        planned = make_plan()
+        show(planned)
+        return 0 if planned.plan.ok else 1
 
     backend = LinuxBPEBackend(C, U, P, pcf_file=args.pcf)
     purpose = f"{args.campaign} {args.year} {args.doy_from:03d}-{args.doy_to:03d} ({args.pcf})"
+    ledger_path = args.ledger or default_ledger_path(args.campaign, args.year)
     old = {s: signal.signal(s, _raise_interrupted) for s in (signal.SIGTERM, signal.SIGHUP)}
     try:
         with BPELock(purpose=purpose):
+            # Planned under the lock: which days are banked can change until
+            # no other run can be banking them.
+            planned = make_plan()
+            show(planned)
+            if not planned.plan.ok:
+                print("refused: the plan has problems, nothing was run", file=sys.stderr)
+                return 2
+            print(f"ledger:   {ledger_path}")
             out = run_year(
-                backend, plan,
+                backend, planned.plan,
                 campaign=args.campaign, repr_prefix=args.repr_prefix,
-                campaign_dir=P, sol_dir=sol_dir, maxsess=args.maxsess,
+                campaign_dir=P, sol_dir=planned.sol_dir, maxsess=args.maxsess,
                 preflight=not args.no_preflight,
+                ledger=Ledger(ledger_path),
+                config=run_config_hash(U, planned.pcf_path, planned.pcf_text),
+                station_counts=planned.plan.station_counts,
             )  # fmt: skip
     except BPELockHeld as e:
         print(f"refused: {e}", file=sys.stderr)

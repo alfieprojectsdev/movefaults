@@ -313,6 +313,100 @@ def _env_path(name: str) -> Path:
     return Path(v)
 
 
+@dataclass
+class PlannedRun:
+    """A plan and what it was built from, as both CLIs print it."""
+
+    plan: RunPlan
+    pcf_path: Path
+    pcf_text: str
+    sol_dir: Path
+    sources: list[str]  # where the datapool and results directories came from
+    label: str
+
+
+def plan_from_env(
+    *,
+    campaign: str,
+    year: int,
+    pcf: str,
+    doy_from: int,
+    doy_to: int,
+    listed: Mapping[int, str] | None = None,
+    done_mode: str = "banked",
+    session_char: str = "0",
+    min_references: int = MIN_REFERENCES,
+    sol_dir: Path | None = None,
+) -> PlannedRun:
+    """Build the plan from the environment LOADGPS.setvar exports ($U, $D, $S).
+
+    This is what ``main`` prints and what run_year runs: one function, so the
+    plan a person reads is the plan that runs. ``sol_dir`` overrides the PCF's
+    V_RESULT + /SOL.
+    """
+    u, d, s = _env_path("U"), _env_path("D"), _env_path("S")
+    pcf_path = u / "PCF" / f"{pcf}.PCF"
+    pcf_text = pcf_path.read_text(errors="replace")
+
+    problems: list[str] = []
+    refinf = pcf_variable(pcf_text, "V_REFINF")
+    refs: set[str] = set()
+    if not refinf:
+        problems.append(f"{pcf_path.name} has no V_REFINF: the reference set is unknown")
+    else:
+        fix = d / "REF54" / f"{refinf}.FIX"
+        try:
+            refs = fix_stations(fix.read_text(errors="replace"))
+        except OSError as exc:
+            problems.append(f"cannot read the reference set {fix}: {exc}")
+
+    env = {**os.environ, "D": str(d), "S": str(s), "U": str(u)}
+    datadir, data_from = rinex_dir(pcf_text, env, year, fallback=d / campaign)
+    sources = [f"datapool: {datadir}  ({data_from})"]
+    coverage = scan(datadir, year) if datadir.is_dir() else None
+    if coverage is None:
+        problems.append(f"no datapool directory {datadir}")
+
+    if sol_dir is None:
+        resdir, res_from = result_dir(pcf_text, env, year, fallback=s / campaign / str(year))
+        sol_dir = resdir / "SOL"
+    else:
+        res_from = "given"
+    sources.append(f"results:  {sol_dir}  ({res_from})")
+    sol = sol_dir
+    sc = session_char
+    done = (
+        (lambda doy: fin_banked(sol, year, doy, sc))
+        if done_mode == "banked"
+        else (lambda doy: fin_present(sol, year, doy, sc))
+    )
+    plan = build_plan(
+        year,
+        doy_from,
+        doy_to,
+        done=done,
+        coverage=coverage,
+        references=refs,
+        min_references=min_references,
+        listed=listed,
+    )
+    plan.problems[:0] = problems
+    plan.problems += check_pcf(pcf_text)
+    plan.maxpar = addneq2_maxpar(u / "OPT", pcf_option_dirs(pcf_text))
+    with_data = len(refs & set(coverage.stations if coverage else []))
+    label = f"PCF {pcf}   references {refinf} ({with_data} with data)"
+    return PlannedRun(plan, pcf_path, pcf_text, sol_dir, sources, label)
+
+
+def parse_excludes(items: Iterable[str]) -> dict[int, str]:
+    """``DOY:REASON`` (or a bare DOY) per item, as --exclude takes them."""
+    listed = {}
+    for item in items:
+        doy, _, reason = item.partition(":")
+        listed[int(doy)] = reason or "excluded by hand"
+    return listed
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Plan a multi-day BPE run. Runs nothing.")
     ap.add_argument("--campaign", required=True, help="campaign name, e.g. PHREF")
@@ -338,64 +432,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--session-char", default="0")
     args = ap.parse_args(argv)
 
-    u, d, s = _env_path("U"), _env_path("D"), _env_path("S")
-    pcf_path = u / "PCF" / f"{args.pcf}.PCF"
-    pcf_text = pcf_path.read_text(errors="replace")
-    listed = {}
-    for item in args.exclude:
-        doy, _, reason = item.partition(":")
-        listed[int(doy)] = reason or "excluded by hand"
-
-    problems: list[str] = []
-    refinf = pcf_variable(pcf_text, "V_REFINF")
-    refs: set[str] = set()
-    if not refinf:
-        problems.append(f"{pcf_path.name} has no V_REFINF: the reference set is unknown")
-    else:
-        fix = d / "REF54" / f"{refinf}.FIX"
-        try:
-            refs = fix_stations(fix.read_text(errors="replace"))
-        except OSError as exc:
-            problems.append(f"cannot read the reference set {fix}: {exc}")
-
-    env = {**os.environ, "D": str(d), "S": str(s), "U": str(u)}
-    datadir, data_from = rinex_dir(pcf_text, env, args.year, fallback=d / args.campaign)
-    print(f"datapool: {datadir}  ({data_from})")
-    coverage = scan(datadir, args.year) if datadir.is_dir() else None
-    if coverage is None:
-        problems.append(f"no datapool directory {datadir}")
-
-    resdir, res_from = result_dir(
-        pcf_text, env, args.year, fallback=s / args.campaign / str(args.year)
-    )
-    sol = resdir / "SOL"
-    print(f"results:  {sol}  ({res_from})")
-    sc = args.session_char
-    done = (
-        (lambda doy: fin_banked(sol, args.year, doy, sc))
-        if args.done == "banked"
-        else (lambda doy: fin_present(sol, args.year, doy, sc))
-    )
-    plan = build_plan(
-        args.year,
-        args.doy_from,
-        args.doy_to or days_in_year(args.year),
-        done=done,
-        coverage=coverage,
-        references=refs,
+    run = plan_from_env(
+        campaign=args.campaign,
+        year=args.year,
+        pcf=args.pcf,
+        doy_from=args.doy_from,
+        doy_to=args.doy_to or days_in_year(args.year),
+        listed=parse_excludes(args.exclude),
+        done_mode=args.done,
+        session_char=args.session_char,
         min_references=args.min_references,
-        listed=listed,
     )
-    plan.problems[:0] = problems
-    plan.problems += check_pcf(pcf_text)
-    plan.maxpar = addneq2_maxpar(u / "OPT", pcf_option_dirs(pcf_text))
-    print(
-        format_plan(
-            plan,
-            label=f"PCF {args.pcf}   references {refinf} ({len(refs & set(coverage.stations if coverage else []))} with data)",
-        )
-    )
-    return 0 if plan.ok else 1
+    for line in run.sources:
+        print(line)
+    print(format_plan(run.plan, label=run.label))
+    return 0 if run.plan.ok else 1
 
 
 if __name__ == "__main__":
