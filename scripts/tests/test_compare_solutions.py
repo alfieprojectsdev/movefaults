@@ -138,3 +138,19 @@ def test_two_empty_files_are_not_evidence(tmp_path: Path) -> None:
     _write(tmp_path / "B", "FIN_20250960.CRD", "")
     r = _run(tmp_path / "A", tmp_path / "B", "FIN_*.CRD")
     assert r.returncode != 0, r.stdout + r.stderr
+
+
+def test_a_binary_neq_is_reported_not_compared(tmp_path: Path) -> None:
+    """FIN_*.NQ0 is binary: grep strips it to nothing, so the old script called
+    every pair identical and the first fix called them all unreadable. It is
+    neither; say what it is, and do not pass."""
+    blob = bytes(range(256)) * 4
+    for d in ("A", "B"):
+        (tmp_path / d).mkdir()
+        with gzip.open(tmp_path / d / "FIN_20250960.NQ0.gz", "wb") as f:
+            f.write(blob)
+    r = _run(tmp_path / "A", tmp_path / "B", "FIN_*.NQ0.gz")
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "BINARY: FIN_20250960.NQ0.gz" in r.stdout
+    assert "identical: 0" in r.stdout
+    assert "binary file matches" not in r.stdout + r.stderr
