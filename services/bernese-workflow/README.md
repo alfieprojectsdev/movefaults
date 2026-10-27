@@ -83,12 +83,10 @@ the roadmap (deliverable 1.3) listed are built:
    busiest day, that day as the preflight (`run_plan.py`, #299);
 5. parallel sessions, `REPR_MODE` and `MAXSESS` (`run_year.py`, #302).
 
-None has run a production day. What is left:
+**The parity run is done** (gps3, 2026-10-27): PHREF 2025 DOY 091–120 through
+`bernese-run-year`, 30/30 days; the three days re-run through the `scripts/`
+path on the same inputs are identical (`docs/SETTLED.md` §2). What is left:
 
-- **the parity run:** one month already solved by `scripts/`, re-run through
-  `bernese-run-year` and compared with `scripts/compare_solutions.sh`. It is
-  the first proof of more than one session at a time; EXAMPLE (finch,
-  2026-10-27) had a single day;
 - **the `scripts/` drivers take the BPE lock**, so a service run and a shell run
   cannot share a machine, and `local_ci.py`'s `bpe_running()` reads it.
 

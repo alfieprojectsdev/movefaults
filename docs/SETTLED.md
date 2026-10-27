@@ -51,6 +51,7 @@ from `CLAUDE.md` because both duplicates were removed.
 |---|---|
 | Bernese 5.4 installed and verified on the **T420** (≤0.09 mm vs reference) and the **R740** (0.0000 mm, no `objcopy` patch needed) | 2026-02 / 2026-07-29. **BRN-001 is DONE** |
 | `services/bernese-workflow` **invokes BSW for real** — `backends.py` → `startBPE.pm` over Perl | verified in code |
+| **The service path gives the same solutions as `scripts/` on the same inputs** (shown on 3 days). `bernese-run-year` ran PHREF 2025 DOY 091–120 (30/30 days, MAXSESS 6, 1h15m, ledger and campaign cleanup as designed); a control run of DOY 094/096/098 through `phref_year.pl` from a PCF differing only in `V_RESULT` is identical to it, coordinates included (`compare_solutions.sh` after #306, and the STAX/STAY/STAZ lines byte-compared). The control ran each day alone (NUM_SESS 1, MAXSESS 1), so the identity also shows **parallel sessions (6 at a time, each in its own REPR campaign) give the same solutions as one session at a time**, for those days: the claim the §21 LZP test could not support (§5). Both differ from **production** PHREF 2025 (run 29 Aug) by up to 16 mm for single stations; that is the 29–30 Sep input fixes, not the service (see §6) | gps3, 2026-10-27; results in `SAVEDISK/PHRPAR` and `SAVEDISK/PHRCTL` |
 | `timeseries/analysis.py` reproduces `vel_line_v8_newvelduetooffset_v4.m` — 161/165 components to <5e-6 mm/yr | verified against PHIVOLCS' own published MATLAB output |
 | The 2025 LUZON year is **358/365**, over three runs plus a DOY 036 recovery; the final run was **249 days in 476 min = 1.91 min/day** | session log §24.1, corrected in PR #138 after review |
 | **DOY 036** failed on wrongly-fixed integer ambiguities. Float RMS 1.68 mm vs fixed 37.98 mm; recovered as a float solution at 1.79 mm | §24.3, closed by controlled experiment |
@@ -613,7 +614,7 @@ Old documents and older memory still assert these. They are wrong.
 | still says | actually |
 |---|---|
 | headless BPE on the T420 hangs under concurrent `uv sync`/pytest I/O; keep the machine quiet | the hang was the hostname `t420` resolving through the office DNS wildcard to CloudFront; fixed in `/etc/hosts` 2026-10-27 (§4, "The cause, measured") |
-| `scripts/compare_solutions.sh` said "identical" (any verdict before 2026-10-27): the parallel-session test, LZP251210–LZP251250 "byte-identical to the sequential baseline" (session log §21), and the LUZON baseline restore "30 identical" | **those verdicts compared covariances and statistics, not coordinates.** The strip pattern for run timestamps (`YY:DDD:SSSSS`) also matched every SOLUTION/ESTIMATE line's reference epoch, deleting the estimates (10,983 of 11,331 lines of a real SINEX); and plain files (`.CRD`) went through `zcat 2>/dev/null` and compared empty. Binary files (`*.NQ0`) were stripped to grep's "binary file matches" line on both sides, so any NQ0 "identical" meant nothing. Fixed 2026-10-27, with tests; NQ0 is now reported `BINARY`, not compared. **Re-checked with the fixed script (gps3, 2026-10-27):** the LUZON baseline restore holds with coordinates (`LUZON_BASELINE_20260806` vs `LUZON`, identical 30). The parallel-session test **cannot be re-checked**: the LZP campaigns are gone and their outputs were overwritten by that restore, so it stays unverified for estimates. The PHREF parity run (30/30 days through `bernese-run-year`, 2026-10-27) is now the evidence that parallel REPR sessions work. GEO-002 is unaffected: it rests on a full unstripped diff of four timestamp lines |
+| `scripts/compare_solutions.sh` said "identical" (any verdict before 2026-10-27): the parallel-session test, LZP251210–LZP251250 "byte-identical to the sequential baseline" (session log §21), and the LUZON baseline restore "30 identical" | **those verdicts compared covariances and statistics, not coordinates.** The strip pattern for run timestamps (`YY:DDD:SSSSS`) also matched every SOLUTION/ESTIMATE line's reference epoch, deleting the estimates (10,983 of 11,331 lines of a real SINEX); and plain files (`.CRD`) went through `zcat 2>/dev/null` and compared empty. Binary files (`*.NQ0`) were stripped to grep's "binary file matches" line on both sides, so any NQ0 "identical" meant nothing. Fixed 2026-10-27, with tests; NQ0 is now reported `BINARY`, not compared. **Re-checked with the fixed script (gps3, 2026-10-27):** the LUZON baseline restore holds with coordinates (`LUZON_BASELINE_20260806` vs `LUZON`, identical 30). The parallel-session test **cannot be re-checked**: the LZP campaigns are gone and their outputs were overwritten by that restore, so it stays unverified for estimates. The PHREF parity run and its sequential control (2026-10-27, §2) are now the evidence that parallel REPR sessions give the same solutions as sequential ones. GEO-002 is unaffected: it rests on a full unstripped diff of four timestamp lines |
 | `bernese-workflow` is "~10% complete" | **~60%**, 229 tests, invokes BSW. The real gap is that production still runs through `scripts/` |
 | `vel_line_v8.m` "remains to port" (`roadmap.md` Deliverable 2.4) | **done and verified** |
 | gfzrnx is "not wired into any module" | **wired**, on two triggers |
@@ -633,6 +634,16 @@ Old documents and older memory still assert these. They are wrong.
 A settled-list that suppresses live questions is worse than none. These are
 genuinely unresolved as of 2026-09-24, re-checked 2026-10-14, and *should* be
 worked on:
+
+- **Production PHREF 2025 was solved without ocean loading for four IGS
+  fiducials.** Its 29 Aug run used a `PHNAT.BLQ` with `$$ END TABLE` above the
+  blocks for CUSV, GUUG, NTUS and PTAG, and a `PHNAT.ATL` that named PTAG as
+  `PTAG ` (ATL matches full names), so PTAG had no S1/S2 loading either. Both
+  were fixed 29–30 Sep (backups `PHNAT.BLQ.pre-endtable-fix-20260930`,
+  `PHNAT.ATL.pre-ptag-20260930`). These are datum stations, so the effect
+  spreads: up to 16 mm for single stations on single days, mostly 0.01–0.3 mm
+  (measured by the parity run, §2). Whether to reprocess the 360 days is
+  Alfie's decision; at the parity run's rate it is ~15 h on gps3.
 
 - **GitHub Actions is ENABLED and still runs nothing: the account is
   billing-locked.** Enabled 2026-09-24 (it had been disabled repo-wide since
