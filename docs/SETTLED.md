@@ -555,7 +555,9 @@ Do not open these as findings.
   error at once, after 3 consecutive days with the same session error, and after
   5 consecutive failed days of any kind (the circuit breaker; until 2026-10-19 it stopped after any two failed days).
   **Days banked by `scripts/` carry no marker and are re-run** under it, and it
-  runs one session at a time (no `REPR_MODE`/`MAXSESS`). So check which path
+  runs one session at a time (no `REPR_MODE`/`MAXSESS`); `run_year.run_year`
+  (step F) runs parallel blocks of private-campaign sessions on the same
+  banking and breaker rules. So check which path
   you are on — and which driver — before pricing a restart. Since #271 a
   service-side timeout kills the BPE's whole process group, so a timed-out
   session no longer leaves the server and its jobs running unsupervised.
@@ -568,12 +570,27 @@ Do not open these as findings.
   costs before waiting; do not carry PAGENET's answer to a network it wasn't
   measured on.
 
-  **The cause of the 0870 hang is deliberately not recorded here.** A note from
-  the day attributes it to I/O contention from concurrent `uv sync` and pytest
-  runs, but that rests on a single co-occurrence on one machine, with no
-  controlled test — a hypothesis, and it has no business in this file next to
-  things that were measured. What was measured is everything above: the
-  signature, and the two heuristics that were tried and found false.
+  **The cause, measured 2026-10-27 on finch (the T420): name resolution, not
+  I/O.** Each RUNBPE worker connects back to the BPE server by the machine's
+  hostname (`RUNBPE.pm t420 <port> <pid> <sub>`). finch's `/etc/hosts` named only
+  its old hostname, so `t420` went to DNS, where the office network's search
+  domain turned it into `t420.phivolcs.dost.gov.ph`, a wildcard that resolves to
+  public CloudFront addresses (18.172.21.2, 2600:9000:…). Workers sat in
+  `SYN-SENT` to `18.172.21.2:<port>` (`ss -tnp`) and got through, if at all, on
+  a retry: a job LOG read `Reconnect successful at attempt 7/30`. Two step-F runs
+  of EXAMPLE stalled this way (at 412 `GNSAMB_P`, then at 001 `R2S_COP` with a
+  0-byte LOG and an idle worker); after `t420` was added to the `127.0.1.1` line
+  in `/etc/hosts` the second recovered on its next reconnect, finished, and
+  matched the reference solution to 0.0000 mm. Because the search domain comes
+  from DHCP, the stall depended on which network finch was on, which is why it
+  looked intermittent and why the concurrent `uv sync`/pytest of 0870 looked like
+  a cause. gps3 is not affected: its hostname is in its `/etc/hosts`, its search
+  domain is Tailscale's, and none of its BPE LOGs contains a reconnect (checked
+  2026-10-27).
+
+  **Check before any BPE on a machine:** `getent ahostsv4 $(hostname)` must give a
+  local address. Use `ahostsv4`: plain `getent hosts` asks for IPv6 first and
+  still shows the DNS answer after the fix.
 
 ---
 
@@ -583,6 +600,7 @@ Old documents and older memory still assert these. They are wrong.
 
 | still says | actually |
 |---|---|
+| headless BPE on the T420 hangs under concurrent `uv sync`/pytest I/O; keep the machine quiet | the hang was the hostname `t420` resolving through the office DNS wildcard to CloudFront; fixed in `/etc/hosts` 2026-10-27 (§4, "The cause, measured") |
 | `bernese-workflow` is "~10% complete" | **~60%**, 229 tests, invokes BSW. The real gap is that production still runs through `scripts/` |
 | `vel_line_v8.m` "remains to port" (`roadmap.md` Deliverable 2.4) | **done and verified** |
 | gfzrnx is "not wired into any module" | **wired**, on two triggers |
