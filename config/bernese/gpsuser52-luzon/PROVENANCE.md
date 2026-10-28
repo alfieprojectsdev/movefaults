@@ -2,7 +2,7 @@
 
 **Delivered 2026-08-03, captured into the repo 2026-08-04** from
 `/run/media/finch/DOSTB20150918/processing_files/` — a 22 GB set produced by
-**Abegail** (she handles the Luzon network) at PHIVOLCS and delivered on the
+**the LUZON processing team** at PHIVOLCS and delivered on the
 DOSTB external drive.
 
 **This is the production workflow of record.** Not a training example, not a
@@ -34,7 +34,7 @@ last saved the panel from the menu. Across this tree it held four different
 PHIVOLCS staff names and workstation accounts, in 72 files. All were replaced
 with `"<operator>"`.
 
-This repository is **public**, and a colleague's name published without her
+This repository is **public**, and a colleague's name published without their
 knowing is not something a capture is entitled to do. The field is menu
 metadata — it does not affect processing, and it is not the provenance that
 matters here. What ran, and against which models, is recorded in this document
@@ -201,8 +201,8 @@ have nothing to do with PCF tuning.
 | Stations per cluster (`V_CLU`) | 10 | identical |
 
 I14 → I20 is a cm-level, largely vertical, systematic shift. **Reprocess with
-I14 first and reproduce Abegail's numbers**, then change to I20 as a separate,
-deliberate run. Comparing a fresh I20 result against her I14 result and
+I14 first and reproduce the processing team's numbers**, then change to I20 as a separate,
+deliberate run. Comparing a fresh I20 result against their I14 result and
 attributing the difference to PCF tuning would be wrong, and plausibly wrong —
 the magnitude is in the range a tuning change could produce.
 
@@ -266,7 +266,7 @@ and the gps3 session caught it on first contact with the copied set:
 | Solutions for DOY 121–151 | **none** |
 
 The raw data on this drive was never processed into the solutions on this
-drive. "Reproduce her `SOL/` numbers" is therefore **not executable against the
+drive. "Reproduce the team's `SOL/` numbers" is therefore **not executable against the
 RINEX** — there is no reference solution for those days.
 
 The viable comparison is the ten days where `OBS/` and `F1_` **do** coincide.
