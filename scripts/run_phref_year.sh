@@ -119,6 +119,13 @@ mkdir -p "$LOG_DIR"
 LOCK="$HOME/.run_phref_year.lock"
 mkdir "$LOCK" 2>/dev/null || die "another run holds $LOCK"
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+# The machine-wide BPE lock, shared with bernese-run-year (scripts/bpe_lock.sh):
+# the lock above stops a second copy of this script, this one any other BPE run.
+_bpe_helper="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/bpe_lock.sh"
+[ -r "$_bpe_helper" ] || die "helper missing: $_bpe_helper"
+# shellcheck source=bpe_lock.sh
+source "$_bpe_helper"
+bpe_lock_acquire "run_phref_year $PHREF_YEAR ($PHREF_PCF, MAXSESS $PHREF_MAXSESS)" || die "the machine's BPE lock is held (see above); not starting"
 
 printf '=== LUZON %s, %d days in %d blocks, MAXSESS=%s ===\n' \
        "$PHREF_YEAR" "$total" "$(echo "$BLOCKS" | wc -w)" "$PHREF_MAXSESS"

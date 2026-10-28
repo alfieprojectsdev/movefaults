@@ -85,6 +85,10 @@ CONTEXT = "local-ci/gps3"
 MAX_ERROR_ATTEMPTS = 3
 STALE_AFTER_S = 30 * 60
 BPE_PATTERN = r"startBPE|RUNBPE|_pcs\.pl"
+# The machine-wide BPE lock (bernese_workflow/bpe_lock.py, scripts/bpe_lock.sh).
+BPE_LOCK = Path(
+    os.environ.get("BPE_LOCK") or Path.home() / ".local/state/bernese-workflow/bpe.lock"
+)
 FRONTEND = "services/field-ops/frontend"
 
 
@@ -129,6 +133,7 @@ PREFLIGHT_TOOLS = (
     "zcat",
     "bash",
     "perl",
+    "flock",
 )
 
 
@@ -419,7 +424,29 @@ def bpe_running() -> bool:
     reason. While deferred, the heartbeat stays fresh with note "deferred: ...", so
     a fresh heartbeat means the runner is alive, NOT that CI is testing.
     """
-    return sh(["pgrep", "-f", BPE_PATTERN], timeout=10).returncode == 0
+    return bpe_lock_held(BPE_LOCK) or sh(["pgrep", "-f", BPE_PATTERN], timeout=10).returncode == 0
+
+
+def bpe_lock_held(path: Path, proc_locks: Path = Path("/proc/locks")) -> bool:
+    """True if a process holds the BPE lock, read from /proc/locks.
+
+    Read, not tried: taking the lock to test it would, for that instant, make a
+    BPE run starting on the machine find it held and refuse. /proc/locks lists
+    every flock as "FLOCK  ADVISORY  WRITE <pid> <maj>:<min>:<inode> ...", with
+    major and minor in hex. No /proc/locks (not Linux) or no lock file: False,
+    and pgrep remains the check.
+    """
+    try:
+        st = path.stat()
+        text = proc_locks.read_text()
+    except OSError:
+        return False
+    want = f"{os.major(st.st_dev):02x}:{os.minor(st.st_dev):02x}:{st.st_ino}"
+    for line in text.splitlines():
+        f = line.split()
+        if "FLOCK" in f and "->" not in f and want in f:
+            return True
+    return False
 
 
 def clean_env() -> dict:
