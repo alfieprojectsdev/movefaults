@@ -4,7 +4,7 @@
 #
 # WHAT THIS IS
 # `processing_files/` (~22 GB) is a complete processed run of the LUZON network
-# from Abegail, produced under Bernese 5.2. It is one of exactly two paths on
+# from the LUZON processing team, produced under Bernese 5.2. It is one of exactly two paths on
 # that personal drive which are in scope — see README_FOR_GPS3_CLAUDE.md §0.
 #
 # WHY IT MATTERS MORE THAN ITS SIZE SUGGESTS
@@ -183,7 +183,7 @@ Bernese 5.2 LUZON processed set
 Copied     : $STAMP
 From       : DOSTB20150918 (NTFS, mounted read-only at /mnt/dostb)
 Source path: processing_files/
-Origin     : PHIVOLCS staff machine (Abegail's LUZON processing, Bernese 5.2)
+Origin     : PHIVOLCS staff machine (the LUZON processing team's work, Bernese 5.2)
 
 Census at copy time (source and destination matched):
   whole tree : $SRC_CENSUS   (files symlinks dirs other bytes)

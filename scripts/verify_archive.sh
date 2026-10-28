@@ -29,7 +29,7 @@
 set -uo pipefail
 
 # Target is now selectable. It was hardcoded to legacy/ until 2026-08-12, which
-# meant `processed/` -- Abegail's sixteen-year SOL series, equally
+# meant `processed/` -- the processing team's sixteen-year SOL series, equally
 # irreplaceable -- had no fixity path at all and nobody noticed. Anything under
 # /srv/gnss-archive can be addressed now; the mountpoint check below still
 # refuses to run against a path that is not on the array.

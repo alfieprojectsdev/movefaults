@@ -4,7 +4,7 @@
 the DOSTB drive to `/srv/gnss-archive/processed/luzon-bern52/`.
 
 **Goal**, in the user's words: *"i-reprocess ko sa GPS3 under Bernese 5.4 for
-comparison ng results / adjustment (fine tuning) ng PCF."* Reprocess Abegail's
+comparison ng results / adjustment (fine tuning) ng PCF."* Reprocess the processing team's
 LUZON network under 5.4, reproduce her 5.2 numbers, and only then tune.
 
 **Status as of 2026-08-06: RUN, and it completes.** 30 of the 31 days processed
@@ -16,7 +16,7 @@ Two things that section headings below will not tell you, so read them here:
 1. **It ran under I20, not I14.** I14 cannot run on 5.4 at this epoch — the
    satellite tables end in 2023 and the ANTEX fails a consistency check 5.2 did
    not perform (§4b.6). **These coordinates are therefore NOT comparable with
-   Abegail's `F1_25*` series**, and differencing them will show a frame and
+   the processing team's `F1_25*` series**, and differencing them will show a frame and
    antenna-model change, not a Bernese-version effect. The stated goal at the top
    of this document — reproduce her numbers — is **not** what this run achieved.
 2. **Only 31 days of 2025 can be reprocessed at all**, verified by census (§7).
@@ -665,7 +665,7 @@ The honest options:
 comparison.** It establishes that the 31-day chain executes end to end on this
 machine, which is BRN-001 acceptance evidence in its own right. The I14
 comparison then becomes a separate question — and the finding that I14 cannot be
-run on 5.4 at this epoch is itself a result worth reporting to Abegail, since it
+run on 5.4 at this epoch is itself a result worth reporting to the LUZON processing team, since it
 bears on how the LUZON series can be continued at all.
 
 ### 4b.7 I20 pipeline test: the chain runs, and where each configuration stops
@@ -737,7 +737,7 @@ the Chalmers/Onsala service (FES2004, CMC:NO, Gutenberg-Bullen — chosen to mat
 the 135 existing stations, not for being newest) and merged into `LUZON.BLQ` via
 `scripts/merge_blq.py`. **DOY 121 then completed cleanly:** `Sessions finished:
 OK: 1 Error: 0`, 5m36s, 30 stations in `FIN_20251210.SNX` — the same count
-Abegail's run produced — with `HELMCHK` and `COMPARF` both passing.
+the processing team's run produced — with `HELMCHK` and `COMPARF` both passing.
 
 So both failure modes in the table above are resolved, and the answer to "is a
 multi-day batch worth running" flipped. `scripts/run_luzon_month.sh` runs
@@ -822,8 +822,8 @@ marginal one.
 **Separately: is S01R needed at all?** Answered — the guess two paragraphs
 above (Luzon Strait / Taiwan collision-zone science) was wrong. The real
 reason is documented twice in this repo: once at the source, in PHIVOLCS's own
-work instructions (authored by Cass, Dane and Abegail — GPS data-processing
-staff, not the user), and again in `docs/work_instructions_review.md` (the
+work instructions (authored by PHIVOLCS's GPS data-processing staff, not the
+user), and again in `docs/work_instructions_review.md` (the
 user's October 2025 technical review of that document).
 
 The source text, verbatim:

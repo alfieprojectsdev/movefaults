@@ -1503,7 +1503,7 @@ Two independent blockers follow:
 **Reproducing her I14 numbers on 5.4 is therefore not a configuration problem.**
 The recommendation is to run I20 first, explicitly as a *pipeline test* rather
 than a comparison — that is BRN-001 acceptance evidence in its own right — and
-to put the I14 finding to Abegail, since it bears on how the LUZON series can be
+to put the I14 finding to the LUZON processing team, since it bears on how the LUZON series can be
 continued at all.
 
 ### 18.6 Three tooling defects, found by use
@@ -1537,7 +1537,7 @@ without creating a new one. The commit is sound; the route was not.
 Ocean-loading coefficients for the nine fiducials arrived from the
 Chalmers/Onsala service and were merged into `LUZON.BLQ`. **DOY 121 then
 completed cleanly** — `Sessions finished: OK: 1 Error: 0`, 5m36s, 30 stations in
-`FIN_20251210.SNX`, the same count Abegail's run produced, with `HELMCHK` and
+`FIN_20251210.SNX`, the same count the processing team's run produced, with `HELMCHK` and
 `COMPARF` both passing. `scripts/run_luzon_month.sh` was launched over DOY
 121–151 at 14:40 and is running at roughly 5m30s per day.
 
@@ -1594,7 +1594,7 @@ nobody opened until much later.
 Worth noting separately: `shellcheck` passed clean on a version of this script
 that referenced three unset variables under `set -u`. A grep caught them.
 
-### 19.4 Two findings for Abegail, both about limits rather than bugs
+### 19.4 Two findings for the LUZON processing team, both about limits rather than bugs
 
 **The series cannot be continued under its original model.** I14's satellite
 tables end in 2023, AIUB no longer publishes `SATELLIT_I14.SAT`, and the I14
@@ -1805,7 +1805,7 @@ real files rather than guessed:
 
 **What actually changed the picture**: S01R carries an estimated velocity in
 `LUZON.VEL` (`-0.02209 -0.00659 -0.01191` m/yr, EURA-relative) and appears in
-**364 of the 365 days** Abegail solved in 2025 — checked across the full
+**364 of the 365 days** the processing team solved in 2025 — checked across the full
 year, not just the 31-day window. It fails in **all ten** of this session's
 I20 runs and **none** of hers over the identical days. The pipeline is the
 anomaly, not the station — something in the 5.4/I20 derivation regresses a
@@ -1814,7 +1814,7 @@ station that has processed reliably since 2002. Cause still not identified.
 **Then the actual rationale surfaced, sourced rather than inferred.** An
 earlier guess in the runbook (Luzon Strait/Taiwan collision-zone tectonic
 interest) was wrong. The real answer was already written, twice, in this
-repo: in PHIVOLCS's own work instructions (Cass, Dane, Abegail) and in the
+repo: in PHIVOLCS's own work instructions (the GPS data-processing staff) and in the
 user's own October 2025 technical review of that document
 (`docs/work_instructions_review.md`). Quoted verbatim in the runbook now.
 S01R is the fixed reference point for a **Eurasia-plate-relative velocity
@@ -2560,7 +2560,7 @@ in the pilot, and the accident stopped holding at scale.**
 **(a) No fiducial observation downloader existed.** `fetch_igs_products.sh`
 gets orbits and clocks; `igs_downloader.py` is a `ProductDownloader` reading
 `/gnss/products/`. Nothing fetched the fiducial *observations*. The pilot never
-noticed because Abegail's copied set happened to include 32 days of RINEX 3.
+noticed because the processing team's copied set happened to include 32 days of RINEX 3.
 Written as `scripts/fetch_fiducial_obs.sh` — BKG mirror, 2,025 files, zero
 failures. Parallelism measured rather than assumed: one stream ~190 KB/s, four
 ~425 KB/s, so the limit is per-connection latency.

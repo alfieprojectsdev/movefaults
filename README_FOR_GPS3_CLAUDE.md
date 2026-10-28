@@ -20,7 +20,7 @@ Two separate things are on it that concern you:
 
 | Path | Size | What |
 |---|---|---|
-| `processing_files/` | **22 GB** | Bernese **5.2** LUZON processed set from Abegail — the new work (§3) |
+| `processing_files/` | **22 GB** | Bernese **5.2** LUZON processed set from the LUZON processing team — the new work (§3) |
 | `RECOVERED_*/` (3 dirs) | **26 GB** | the legacy archive rescued from three dead/dying drives (§4) |
 
 Also present and **none of your business**: `ps4e/` (99 GB InSAR pipeline from
@@ -96,7 +96,7 @@ the source, not a transfer failure — do not chase it as a bug.
 ## 3. The Bernese 5.2 set — what it is for
 
 `processing_files/` is a complete processed run of the **LUZON** network from
-**Abegail** (she runs that network at PHIVOLCS), produced under **Bernese 5.2**.
+**the PHIVOLCS processing team that runs that network**, produced under **Bernese 5.2**.
 The user's goal, in his words: *"i-reprocess ko sa GPS3 under Bernese 5.4 for
 comparison ng results / adjustment (fine tuning) ng PCF."*
 
@@ -283,7 +283,7 @@ and this is the case it was written for.
    irreversible if skipped; this one is.
 2. **`sha256sum` manifest** of what landed, into git.
 3. **Copy the LUZON data** needed for the reprocessing into `$P`/`$D`.
-4. **Reprocess under I14** and reproduce Abegail's `SOL/` numbers.
+4. **Reprocess under I14** and reproduce the processing team's `SOL/` numbers.
 5. Only then vary models or tune the PCF.
 
 If the drive has to come off before 1 is done, say so plainly and say what did
