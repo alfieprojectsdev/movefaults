@@ -36,7 +36,7 @@ set -uo pipefail
 LUZON_SRC="/srv/gnss-archive/processed/luzon-bern52"
 
 # WHERE THE RINEX 2 OBSERVATIONS COME FROM (changed 2026-08-24, approved)
-# Abegail's copied set holds only DOY 121-151. A full year has to come from the
+# The processing team's copied set holds only DOY 121-151. A full year has to come from the
 # national datapool transferred off the file server in August, which carries
 # 2010 to present for every PHIVOLCS site.
 #
@@ -54,10 +54,10 @@ LUZON_SRC="/srv/gnss-archive/processed/luzon-bern52"
 # the last digit rounds differently. That is far below the 3 mm daily
 # repeatability and cannot affect a solution.
 #
-# Set LUZON_RNX2_SRC to override, e.g. back to Abegail's set for a comparison.
+# Set LUZON_RNX2_SRC to override, e.g. back to the processing team's set for a comparison.
 LUZON_RNX2_SRC="${LUZON_RNX2_SRC:-/srv/gnss-archive/datapool/PHIVOLCS}"
 
-# The 25 stations that DEFINE the LUZON subnetwork, taken from Abegail's staged
+# The 25 stations that DEFINE the LUZON subnetwork, taken from the processing team's staged
 # set -- the authoritative statement of which sites this campaign processes.
 # The national datapool holds hundreds of sites; staging it unfiltered would
 # silently change the network and make every solution incomparable with the

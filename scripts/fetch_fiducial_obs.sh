@@ -6,7 +6,7 @@
 # `fetch_igs_products.sh` gets orbits, clocks, ERP and biases. Nothing in this
 # repository fetched the fiducial *observations* — `igs_downloader.py` is a
 # ProductDownloader and reads `/gnss/products/`, not `/gnss/data/`. The 31-day
-# LUZON run did not need one because Abegail's copied set happened to include
+# LUZON run did not need one because the processing team's copied set happened to include
 # 32 days of RINEX 3. Extending to a full year exposed the gap: without these,
 # every day outside that window has no datum to constrain it.
 #

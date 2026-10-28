@@ -5,7 +5,7 @@
 # one log per day, safe to re-run after an interruption.
 #
 # ⚠ WHAT THIS RUN IS AND IS NOT
-# It runs under **I20**, not the I14 configuration Abegail used. That is a
+# It runs under **I20**, not the I14 configuration the processing team used. That is a
 # deliberate choice, not an oversight: I14's satellite tables end in 2023 and
 # AIUB no longer publishes them, and the I14 ANTEX fails 5.4's SVN/PRN
 # consistency check (runbook §4b.6). So:
@@ -183,7 +183,7 @@ done
     echo "  Solutions: \$S/LUZON/$LUZON_YEAR/SOL/ (archived by R2S_SAV)"
     echo
     echo "  REMINDER: this ran under I20. The coordinates are NOT comparable"
-    echo "  with Abegail's I14 solutions — see runbook §1.4 and §4b.6."
+    echo "  with the processing team's I14 solutions — see runbook §1.4 and §4b.6."
 } | tee -a "$LUZON_SUMMARY"
 
 exit "$failed"
