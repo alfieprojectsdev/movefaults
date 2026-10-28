@@ -189,3 +189,41 @@ def test_a_shell_driver_will_not_start_a_bpe_while_the_service_holds_the_lock(
     subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=60)
     assert marker.exists(), "with the lock free the driver is reached"
     assert not _held(lock), "and the lock is released when the run ends"
+
+
+def test_local_ci_answers_from_proc_locks_and_never_tries_the_lock(tmp_path: Path) -> None:
+    """The guarantee the test above is named for, made checkable: the answer comes
+    from /proc/locks alone. A free lock that /proc/locks says is held reads held,
+    and a really held lock that /proc/locks does not list reads free. Trying the
+    lock (flock LOCK_NB) would get both of these backwards."""
+    import importlib.util
+    import os
+
+    spec = importlib.util.spec_from_file_location("local_ci", ROOT / "scripts" / "local_ci.py")
+    ci = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault("local_ci", ci)
+    spec.loader.exec_module(ci)
+
+    lock = tmp_path / "bpe.lock"
+    lock.touch()
+    st = lock.stat()
+    dev = f"{os.major(st.st_dev):02x}:{os.minor(st.st_dev):02x}:{st.st_ino}"
+    says_held = tmp_path / "locks_held"
+    says_held.write_text(f"1: FLOCK  ADVISORY  WRITE 4242 {dev} 0 EOF\n")
+    says_free = tmp_path / "locks_free"
+    says_free.write_text("")
+
+    # Nobody holds it, but /proc/locks says someone does: held.
+    assert ci.bpe_lock_held(lock, proc_locks=says_held)
+    # A blocked waiter ("->") is not a holder.
+    waiter = tmp_path / "locks_waiter"
+    waiter.write_text(f"1: -> FLOCK  ADVISORY  WRITE 4243 {dev} 0 EOF\n")
+    assert not ci.bpe_lock_held(lock, proc_locks=waiter)
+    # Someone really holds it, but /proc/locks does not list it: free.
+    p = _shell(lock, 'bpe_lock_acquire "x" || exit 9; echo held; sleep 30')
+    try:
+        assert p.stdout.readline().strip() == "held"
+        assert not ci.bpe_lock_held(lock, proc_locks=says_free)
+    finally:
+        p.kill()
+        p.wait()
