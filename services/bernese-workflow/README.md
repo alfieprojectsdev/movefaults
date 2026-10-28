@@ -85,10 +85,11 @@ the roadmap (deliverable 1.3) listed are built:
 
 **The parity run is done** (gps3, 2026-10-27): PHREF 2025 DOY 091–120 through
 `bernese-run-year`, 30/30 days; the three days re-run through the `scripts/`
-path on the same inputs are identical (`docs/SETTLED.md` §2). What is left:
-
-- **the `scripts/` drivers take the BPE lock**, so a service run and a shell run
-  cannot share a machine, and `local_ci.py`'s `bpe_running()` reads it.
+path on the same inputs are identical (`docs/SETTLED.md` §2). The `scripts/`
+drivers take the same machine-wide BPE lock (`scripts/bpe_lock.sh`, #308), so a
+service run and a shell run cannot share a machine, and `local_ci.py`'s
+`bpe_running()` reads it from `/proc/locks`. What is left is the cutover itself:
+production ranges move from `scripts/` to `bernese-run-year`.
 
 ## Related documents
 

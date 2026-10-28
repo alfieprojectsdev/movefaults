@@ -77,6 +77,15 @@ if pgrep -x RUNBPE >/dev/null 2>&1; then
   while pgrep -x RUNBPE >/dev/null 2>&1; do sleep 30; done
 fi
 
+# The machine-wide BPE lock, shared with bernese-run-year (scripts/bpe_lock.sh):
+# the lock above stops a second copy of this script, this one any other BPE run.
+_bpe_helper="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/bpe_lock.sh"
+[ -r "$_bpe_helper" ] || { log "ABORT: helper missing: $_bpe_helper"; exit 1; }
+# shellcheck source=bpe_lock.sh
+source "$_bpe_helper"
+bpe_lock_acquire "run_pagenet_week $YEAR ($PCFNAME)" \
+  || { log "ABORT: the machine's BPE lock is held (see above); not starting"; exit 1; }
+
 # ---- main loop --------------------------------------------------------------
 log "=== PAGENET week run. days:$DAYS ==="
 done_cnt=0; skip_cnt=0; fail=0
