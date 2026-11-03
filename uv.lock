@@ -2278,6 +2278,10 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+bsw-console = [
+    { name = "fastapi" },
+    { name = "uvicorn", extra = ["standard"] },
+]
 dev = [
     { name = "alembic" },
     { name = "black" },
@@ -2375,6 +2379,7 @@ requires-dist = [
     { name = "celery", marker = "extra == 'dev'", specifier = ">=5.3.0" },
     { name = "click", specifier = ">=8.1.0" },
     { name = "click", marker = "extra == 'drive-archaeologist'", specifier = ">=8.1.0" },
+    { name = "fastapi", marker = "extra == 'bsw-console'", specifier = ">=0.110.0" },
     { name = "fastapi", marker = "extra == 'field-ops'", specifier = ">=0.110.0" },
     { name = "fastapi", marker = "extra == 'velocity-reviewer'", specifier = ">=0.110.0" },
     { name = "filetype", marker = "extra == 'drive-archaeologist'", specifier = ">=1.2.0" },
@@ -2432,12 +2437,13 @@ requires-dist = [
     { name = "typer", marker = "extra == 'field-ops'", specifier = ">=0.21.1" },
     { name = "typer", marker = "extra == 'vadase-rt-monitor'", specifier = ">=0.21.1" },
     { name = "uv", marker = "extra == 'dev'" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'bsw-console'", specifier = ">=0.27.0" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'field-ops'", specifier = ">=0.27.0" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'velocity-reviewer'", specifier = ">=0.27.0" },
     { name = "watchdog", marker = "extra == 'drive-archaeologist'", specifier = ">=3.0.0" },
     { name = "whoosh", marker = "extra == 'drive-archaeologist'", specifier = ">=2.7.4" },
 ]
-provides-extras = ["drive-archaeologist", "drive-archaeologist-tui", "vadase-rt-monitor", "field-ops", "velocity-reviewer", "dev"]
+provides-extras = ["drive-archaeologist", "drive-archaeologist-tui", "vadase-rt-monitor", "bsw-console", "field-ops", "velocity-reviewer", "dev"]
 
 [package.metadata.requires-dev]
 dev = [
