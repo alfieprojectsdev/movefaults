@@ -63,7 +63,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .rinex_header_validator import StaRow, sta_type002_rows
+from .rinex_header_validator import StaRow, sta_type002_rows, windows_overlap
 
 if TYPE_CHECKING:
     from pogf_geodetic_suite.qc.completeness import Coverage
@@ -244,13 +244,9 @@ def _is_open(row: StaRow) -> bool:
 
 
 def _overlap(a: StaRow, b: StaRow) -> bool:
-    """Both windows cover a common moment. A shared boundary does not count:
-    the IGS convention ends one row exactly where the next begins."""
-    a_lo, b_lo = a.start, b.start
-    a_hi, b_hi = a.end, b.end
-    return (a_lo is None or b_hi is None or a_lo < b_hi) and (
-        b_lo is None or a_hi is None or b_lo < a_hi
-    )
+    """Both windows cover a common moment (``windows_overlap``, the rule the
+    header check uses too). A shared boundary does not count."""
+    return windows_overlap(a.start, a.end, b.start, b.end)
 
 
 def _common(a: StaRow, b: StaRow) -> tuple[dt.datetime | None, dt.datetime | None]:

@@ -1183,3 +1183,64 @@ def test_a_change_day_is_not_reported_as_an_overlap(tmp_path):
     raw_dir, sta = _wsrt(tmp_path, "AOAD/M_T        DUTD", "23")
     report = validate_rinex_headers(raw_dir, sta, day=dt.date(2023, 12, 7))
     assert report.ok and report.warnings == []
+
+
+def _s01r_two_rows(tmp_path, first_to, second_from, second_name="S01R"):
+    raw_dir = tmp_path / "RAW"
+    raw_dir.mkdir()
+    _write_rinex(raw_dir, "S01R0100.25o", _rinex2_obs("S01R", "TRIMBLE ALLOY", "LEIAR25.R4      LEIT"))
+    content = _make_sta_content(
+        [
+            {"name": "S01R", "receiver": "TRIMBLE NETR9", "antenna": "LEIAR25.R4",
+             "from": "2024 01 01 00 00 00", "to": first_to},
+            {"name": "S01R", "receiver": "TRIMBLE ALLOY", "antenna": "LEIAR25.R4",
+             "from": second_from, "to": " " * 19},
+        ]
+    )  # fmt: skip
+    if second_name != "S01R":
+        head, sep, last = content.rpartition("S01R 00000S000")
+        content = head + f"{second_name:<14}" + last
+    sta = tmp_path / "TEST.STA"
+    sta.write_text(content, encoding="ascii")
+    return raw_dir, sta
+
+
+def test_an_igs_style_shared_boundary_is_not_an_overlap(tmp_path):
+    """One row ends at the instant the next begins: the IGS convention. The
+    header check used to call this an overlap while station_files did not;
+    both now use rinex_header_validator.windows_overlap."""
+    raw_dir, sta = _s01r_two_rows(tmp_path, "2025 04 15 00 00 00", "2025 04 15 00 00 00")
+    report = validate_rinex_headers(raw_dir, sta, day=dt.date(2025, 4, 15))
+    assert report.ok and report.warnings == [], report.warnings
+
+
+def test_rows_under_two_full_names_are_not_an_overlap(tmp_path):
+    """Bernese keys TYPE 002 on the full 16-column name; two names that share a
+    code are two stations, as station_files treats them."""
+    raw_dir, sta = _s01r_two_rows(
+        tmp_path, "2025 12 31 23 59 59", "2025 04 15 00 00 00", second_name="S01R 99999M001"
+    )
+    report = validate_rinex_headers(raw_dir, sta, day=dt.date(2025, 6, 1))
+    assert not any("overlap" in w for w in report.warnings), report.warnings
+
+
+def test_both_checks_agree_on_the_same_rows(tmp_path):
+    """The same STA through station_files and the header check: one verdict."""
+    from bernese_workflow.rinex_header_validator import sta_type002_rows
+    from bernese_workflow.station_files import _overlap
+
+    cases = [
+        ("2025 04 15 00 00 00", "2025 04 15 00 00 00", False),  # shared boundary
+        ("2025 12 31 23 59 59", "2025 04 15 00 00 00", True),   # real overlap
+        ("2025 04 14 23 59 59", "2025 04 15 00 00 00", False),  # gap of 1 s
+    ]  # fmt: skip
+    for i, (to, frm, expected) in enumerate(cases):
+        d = tmp_path / str(i)
+        d.mkdir()
+        raw_dir, sta = _s01r_two_rows(d, to, frm)
+        a, b = sta_type002_rows(sta.read_text())
+        header_says = any(
+            "overlap" in w
+            for w in validate_rinex_headers(raw_dir, sta, day=dt.date(2025, 4, 15)).warnings
+        )
+        assert _overlap(a, b) is expected and header_says is expected, (to, frm)

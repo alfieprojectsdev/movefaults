@@ -480,12 +480,30 @@ def _parse_rinex_headers(
 # ---------------------------------------------------------------------------
 
 
+def windows_overlap(
+    a_start: dt.datetime | None,
+    a_end: dt.datetime | None,
+    b_start: dt.datetime | None,
+    b_end: dt.datetime | None,
+) -> bool:
+    """Two TYPE 002 windows cover a common moment (None = open at that end).
+
+    The one overlap rule in this package: the header check below and
+    ``station_files`` both use it. A shared boundary does not count: the IGS
+    convention ends one row exactly where the next begins.
+    """
+    return (a_start is None or b_end is None or a_start < b_end) and (
+        b_start is None or a_end is None or b_start < a_end
+    )
+
+
 @dataclass(frozen=True)
 class _StaEntry:
     receiver: str
     antenna: str
     start: dt.datetime | None  # None: open (valid from the beginning)
     end: dt.datetime | None  # None: open (still valid)
+    name: str = ""  # full 16-column name, what Bernese keys a station on
 
     def overlaps(self, day: dt.date) -> bool:
         """Valid at any moment of ``day``: an equipment change on the day itself
@@ -496,12 +514,16 @@ class _StaEntry:
 
 
 def _overlapping(entries: list[_StaEntry]) -> list[_StaEntry]:
-    """The entries whose windows cover a common moment (meeting at a change is fine)."""
-    lo = dt.datetime.min
-    ordered = sorted(entries, key=lambda e: e.start or lo)
-    for a, b in zip(ordered, ordered[1:], strict=False):
-        if a.end is None or (b.start or lo) <= a.end:
-            return [a, b]
+    """The first two entries OF ONE FULL NAME whose windows cover a common moment.
+
+    Same rule and same key as ``station_files``: ``windows_overlap`` (meeting
+    at a change is fine), and only rows with the same full name, since rows
+    under two names that share a code are two stations to Bernese.
+    """
+    for i, a in enumerate(entries):
+        for b in entries[i + 1 :]:
+            if a.name == b.name and windows_overlap(a.start, a.end, b.start, b.end):
+                return [a, b]
     return []
 
 
@@ -612,7 +634,13 @@ def _sta_entries(sta_path: Path) -> dict[str, list[_StaEntry]]:
     result: dict[str, list[_StaEntry]] = {}
     for row in sta_type002_rows(content):
         result.setdefault(row.code, []).append(
-            _StaEntry(receiver=row.receiver, antenna=row.antenna, start=row.start, end=row.end)
+            _StaEntry(
+                receiver=row.receiver,
+                antenna=row.antenna,
+                start=row.start,
+                end=row.end,
+                name=row.name,
+            )
         )
     return result
 
