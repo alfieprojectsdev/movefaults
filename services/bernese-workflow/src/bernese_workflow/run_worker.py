@@ -63,6 +63,7 @@ from . import bpe_processes
 from . import redo as rd
 from .bpe_knowledge import KnowledgeBase
 from .bpe_lock import BPELock, BPELockHeld
+from .ledger import HALT_STOPPED
 from .month_driver import DayOutcome
 from .run_queue import (
     MAXSESS_DEFAULT,
@@ -467,7 +468,7 @@ class Worker:
         # Stopped only if the stop is what left days not run: a SIGTERM that
         # arrives during a block the breaker then halts must not hide the halt.
         # The halt's kind says which, not the wording of a note.
-        by_stop = next((o for o in not_run if o.halt_kind == "stopped"), None)
+        by_stop = next((o for o in not_run if o.halt_kind == HALT_STOPPED), None)
         if by_stop is not None:
             stopped = self._stop_reason or self._signal_reason or by_stop.note
             return "stopped", "; ".join(x for x in (stopped, detail) if x), {"days": days}
@@ -555,7 +556,7 @@ class Worker:
             )
         removed = self._restore(s.ledger, m, req)
         why = (day.error or day.note) if day else "run_year did not report the day"
-        stopped = day is not None and day.status == "not_run" and day.halt_kind == "stopped"
+        stopped = day is not None and day.status == "not_run" and day.halt_kind == HALT_STOPPED
         outcome = "stopped" if stopped else "failed"
         return (
             outcome,

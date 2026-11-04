@@ -927,3 +927,33 @@ def test_status_is_rewritten_when_the_clock_steps_back(env: Env) -> None:
         now[0] -= dt.timedelta(hours=1)
         assert w.step() == "idle"
         assert read_json(status)["updated"] == now[0].isoformat()
+
+
+# --- review follow-ups: the heartbeat on the command line, and a stopped redo ------------
+
+
+def test_redo_still_recognises_a_day_the_stop_left_not_run(env: Env) -> None:
+    """A stop that arrives before the redo's one BPE call: the day is not_run with
+    halt kind "stopped", the redo is recorded stopped (not failed), the old set is
+    put back, and the ledger's on-disk kind is the string "stopped"."""
+    old = old_set(env, 40)
+    real = env.setup
+
+    def setup_then_stop(req: dict) -> Setup:
+        s = real(req)
+        env.submit(STOP)  # read by run_year's stop check, before any BPE call
+        return s
+
+    env.setup = setup_then_stop  # type: ignore[method-assign]
+    req = env.submit(REDO, doy=40)
+    with env.worker() as w:
+        w.step()
+    rec = env.done(req)
+    assert rec["outcome"] == "stopped"
+    assert rec["days"] == {"040": "not_run"}
+    assert "old set is back" in rec["detail"]
+    assert env.bsw.calls == []
+    assert on_disk(env, 40) == old
+    entries, _ = read_entries(env.year_dir / "ledger.jsonl")
+    end = [e for e in entries if e["event"] == "run_end"][-1]
+    assert end["halt_reason"]["kind"] == "stopped"
