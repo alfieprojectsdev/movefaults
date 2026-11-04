@@ -87,6 +87,10 @@ class Settings:
     # Stage 3 actions (start, stop, redo, preflight) need a run worker that does
     # not exist yet. Off until it does; the endpoints say why.
     actions_enabled: bool = False
+    # Addresses of reverse proxies allowed to name the signed-in user in
+    # X-Remote-User. Empty (the default): the header is ignored from everyone,
+    # because without a proxy any client on the network could send it.
+    trusted_proxies: frozenset[str] = frozenset()
 
     @property
     def env(self) -> dict[str, str]:
@@ -128,4 +132,9 @@ class Settings:
             state_dir=Path(os.environ.get("BSW_CONSOLE_STATE", home / ".local/state/bsw-console")),
             static_dir=static if static.is_dir() else None,
             actions_enabled=False,
+            trusted_proxies=frozenset(
+                x.strip()
+                for x in os.environ.get("BSW_CONSOLE_TRUSTED_PROXIES", "").split(",")
+                if x.strip()
+            ),
         )

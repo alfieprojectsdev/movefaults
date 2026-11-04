@@ -5,13 +5,16 @@ The BSW tree every test reads is built in conftest.py.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 
 from bernese_workflow.bpe_scanner import kind_of
 from bsw_console import plan as plans
 from bsw_console import stations, status
+from bsw_console.main import create_app
 from bsw_console.settings import Campaign, parse_campaigns, read_setvar
+from fastapi.testclient import TestClient
 
 YEAR = 2025
 HELM = f"HELMR1: {kind_of('NO REDUNDANCY. NO VERIFICATION OF SITES POSSIBLE')}"
@@ -104,16 +107,76 @@ def test_redo_preview_lists_every_result_without_moving_any(client, bsw):
     assert not (bsw.savedisk / "LUZON" / str(YEAR) / "SUPERSEDED").exists()
 
 
+PLAN = {"campaign": "LUZON", "year": YEAR, "from": 37, "to": 40, "pcf": "LUZON_DLY"}
+
+
 def test_saving_a_plan_writes_one_file(client, bsw):
-    r = client.post(
-        "/api/plans",
-        json={"campaign": "LUZON", "year": YEAR, "from": 37, "to": 40, "pcf": "LUZON_DLY"},
-        headers={"X-Remote-User": "op"},
-    )
-    assert r.status_code == 200 and r.json()["by"] == "op"
+    r = client.post("/api/plans", json={**PLAN, "skipped": [3, 3, 1], "name": "x"})
+    assert r.status_code == 200 and r.json()["by"] == "not signed in"
+    assert r.json()["skipped"] == [1, 3]
     assert len(list((bsw.state_dir / "plans").glob("*.json"))) == 1
     assert client.get("/api/plans").json()["plans"][0]["from"] == 37
-    assert client.post("/api/plans", json={"campaign": "NOPE"}).status_code == 404
+    assert client.post("/api/plans", json={**PLAN, "campaign": "NOPE"}).status_code == 404
+
+
+def test_remote_user_is_believed_only_from_a_trusted_proxy(bsw):
+    forged = {"X-Remote-User": "the-project-leader"}
+    # TestClient connects from the address "testclient".
+    untrusted = TestClient(create_app(bsw))
+    assert untrusted.get("/api/session", headers=forged).json()["user"] is None
+    r = untrusted.post("/api/plans", json=PLAN, headers=forged)
+    assert r.json()["by"] == "not signed in"
+    proxied = TestClient(
+        create_app(dataclasses.replace(bsw, trusted_proxies=frozenset({"testclient"})))
+    )
+    assert proxied.get("/api/session", headers=forged).json()["user"] == "the-project-leader"
+
+
+def test_a_plan_cannot_be_written_cross_site(client, bsw):
+    body = json.dumps(PLAN)
+    # text/plain is a CORS "simple request": a page on any site can send it with no preflight.
+    for ctype in ("text/plain", "application/x-www-form-urlencoded", "multipart/form-data", None):
+        headers = {"Content-Type": ctype} if ctype else {}
+        r = client.post("/api/plans", content=body, headers=headers)
+        assert r.status_code == 415, ctype
+    evil = {"Content-Type": "application/json", "Origin": "https://evil.example"}
+    assert client.post("/api/plans", content=body, headers=evil).status_code == 403
+    cross = {"Content-Type": "application/json", "Sec-Fetch-Site": "cross-site"}
+    assert client.post("/api/plans", content=body, headers=cross).status_code == 403
+    same = {"Content-Type": "application/json", "Origin": "http://testserver"}
+    assert client.post("/api/plans", content=body, headers=same).status_code == 200
+    assert len(list((bsw.state_dir / "plans").glob("*.json"))) == 1
+
+
+def test_a_plan_is_typed_and_bounded(client, bsw):
+    bad = [
+        {**PLAN, "name": "n" * 101},
+        {**PLAN, "year": "2025"},
+        {**PLAN, "year": True},
+        {**PLAN, "from": 0},
+        {**PLAN, "to": 366},
+        {**PLAN, "from": 40, "to": 37},
+        {**PLAN, "skipped": "3"},
+        {**PLAN, "skipped": [10]},
+        {**PLAN, "skipped": list(range(11))},
+        {**PLAN, "pcf": "../../etc/x"},
+        {**PLAN, "rnxgra": "anything"},
+        {**PLAN, "extra": 1},
+        [PLAN],
+    ]
+    for b in bad:
+        assert client.post("/api/plans", json=b).status_code == 422, b
+    big = {**PLAN, "name": "n" * 90, "padding": "x" * 5000}
+    assert client.post("/api/plans", json=big).status_code == 413
+    assert (
+        client.post(
+            "/api/plans", content=b"{not json", headers={"Content-Type": "application/json"}
+        ).status_code
+        == 422
+    )
+    assert not (bsw.state_dir / "plans").exists() or not list(
+        (bsw.state_dir / "plans").glob("*.json")
+    )
 
 
 def test_bad_days_and_campaigns_are_refused(client):

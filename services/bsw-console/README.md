@@ -30,6 +30,7 @@ does not exist yet. From an office PC, tunnel to it:
 | `BSW_CONSOLE_KB` | `config/bernese/bpe_errors.yaml` | the known-errors list |
 | `BPE_LOCK` | bernese-workflow's default | the lock file it reads |
 | `BSW_CONSOLE_STATE` | `~/.local/state/bsw-console` | where saved plans go |
+| `BSW_CONSOLE_TRUSTED_PROXIES` | empty | comma-separated addresses of reverse proxies allowed to name the user in `X-Remote-User`. Empty: the header is ignored |
 
 For frontend work, `npm run dev` proxies `/api` to the running server.
 
@@ -59,7 +60,13 @@ lock, and personal accounts so every action carries a name.
   names it listed for that day.
 - The BPE lock is read from `/proc/locks`, never taken. Taking it to test it
   would make a BPE starting at that instant find it held.
-- The only write is a saved plan, under the console's own state directory.
+- The only write is a saved plan, under the console's own state directory. It
+  accepts only a same-origin `application/json` body of at most 4 KB with known,
+  typed fields. Any other content type is refused (415): `text/plain` and form
+  posts are what a page on another site can send without a CORS preflight.
+- `X-Remote-User` is believed only from `BSW_CONSOLE_TRUSTED_PROXIES`. Any
+  client can send the header, so with no proxy in front it would let anyone on
+  the network sign as anyone.
 
 ## Tests
 

@@ -2,8 +2,10 @@
 
     uv run python services/bsw-console/tests/make_frontend_fixture.py
 
-The responses come from the synthetic tree in conftest.py, so nothing from a
-real campaign lands in the repo. Re-run it when a response shape changes.
+The responses come from the synthetic tree in conftest.py. Its one real file
+is the LZY250360 protocol file that bernese-workflow's tests already commit, so
+nothing new from a real campaign lands in the repo. Re-run it when a response
+shape changes.
 """
 
 import json
