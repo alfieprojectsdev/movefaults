@@ -459,7 +459,11 @@ class LinuxBPEBackend:
 
     def _preflight_rinex(self, campaign_name: str, year: int, session: str) -> None:
         """Validate a session's RINEX headers against the STA; raise ValidationError."""
-        from .rinex_header_validator import ValidationError, validate_rinex_headers
+        from .rinex_header_validator import (
+            PreflightUnavailable,
+            ValidationError,
+            validate_rinex_headers,
+        )
 
         campaign_path = self.campaign_dir / campaign_name
         sta_path = self.sta_file or campaign_path / "STA" / f"{campaign_name}.STA"
@@ -519,11 +523,12 @@ class LinuxBPEBackend:
                 day=_session_date(year, session),
             )
             if not report.ok:
-                raise ValidationError(report)
+                raise ValidationError(report, session=session)
         elif self.preflight_required:
-            raise FileNotFoundError(
+            raise PreflightUnavailable(
                 f"pre-flight RINEX header check cannot run for {campaign_name}: "
-                f"{validate_dir if not validate_dir.exists() else sta_path} not present"
+                f"{validate_dir if not validate_dir.exists() else sta_path} not present",
+                session=session,
             )
         else:
             logger.warning(

@@ -641,3 +641,28 @@ def test_stop_is_asked_between_bpe_calls_and_ends_the_run_there(env) -> None:
     assert all(st[d] == "ok" for d in range(152, 156))
     assert all(st[d] == "not_run" for d in range(156, 160))
     assert all("stopped by observer1" in o.note for o in out if o.status == "not_run")
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_the_cli_records_the_pcf_and_its_product_tier(cli_env, monkeypatch) -> None:
+    """The tier comes from the PCF's V_ORB, where the BPE is told what to read."""
+    import bernese_workflow.run_year as ry
+
+    pcf = cli_env / "U" / "PCF" / "PHREF_DLY.PCF"
+    pcf.write_text(pcf.read_text() + "V_ORB = COD0OPSRAP;\n")
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 0
+    assert (seen["pcf"], seen["products"], seen["product_tier"]) == (
+        "PHREF_DLY",
+        "COD0OPSRAP",
+        "rapid",
+    )
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_a_pcf_without_v_orb_records_no_tier(cli_env, monkeypatch) -> None:
+    import bernese_workflow.run_year as ry
+
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 0
+    assert (seen["products"], seen["product_tier"]) == (None, None)

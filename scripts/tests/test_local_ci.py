@@ -72,6 +72,33 @@ def test_description_fits_githubs_limit_and_names_the_failure():
     assert d.startswith("pytest FAILED (1 failed, 835 passed)")
 
 
+def test_description_puts_a_late_failure_first():
+    steps = [
+        ci.StepResult("ruff", True, "2 changed file(s)", 1.0),
+        ci.StepResult("pytest", True, "1209 passed", 300.0),
+        ci.StepResult("vitest-fo", True, "273 passed", 20.0),
+        ci.StepResult("tsc-fo", True, "", 9.0),
+        ci.StepResult("vitest-bsw", False, "1 failed, 15 passed", 5.0),
+        ci.StepResult("tsc-bsw", True, "", 4.0),
+    ]
+    d = ci.describe(ci.Outcome("failure", steps))
+    assert d.startswith("vitest-bsw FAILED (1 failed, 15 passed)")
+    assert len(d) <= 140
+
+
+def test_every_frontend_the_commit_has_is_tested(tmp_path):
+    keys = [k for k, _ in ci.FRONTENDS]
+    assert keys == ["fo", "bsw"]
+    assert ci.frontends_present(tmp_path) == []
+    for _, p in ci.FRONTENDS:
+        (tmp_path / p).mkdir(parents=True)
+        (tmp_path / p / "package.json").write_text("{}")
+    assert [k for k, _ in ci.frontends_present(tmp_path)] == ["fo", "bsw"]
+    # An older SHA without the console: field-ops only, not a failure.
+    (tmp_path / "services/bsw-console/frontend/package.json").unlink()
+    assert [k for k, _ in ci.frontends_present(tmp_path)] == ["fo"]
+
+
 def test_harness_error_is_not_described_as_a_code_failure():
     d = ci.describe(ci.Outcome("error", reason="field_ops imports from /elsewhere"))
     assert d.startswith("harness error:")
