@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 # Fixed-column slices in STA TYPE 002 data lines (0-indexed)
 _STA_NAME_SLICE = slice(0, 4)
+# The full station name, 16 columns: the key Bernese matches on
+_STA_FULLNAME_SLICE = slice(0, 16)
 # FROM / TO: "YYYY MM DD HH MM SS", blank for an open end
 _STA_FROM_SLICE = slice(27, 46)
 _STA_TO_SLICE = slice(48, 67)
@@ -473,22 +475,46 @@ def _sta_time(field: str) -> dt.datetime | None:
         return None
 
 
-def _sta_entries(sta_path: Path) -> dict[str, list[_StaEntry]]:
-    """Every TYPE 002 entry per 4-char station code, in file order.
+@dataclass(frozen=True)
+class StaRow:
+    """One TYPE 002 data row, as written.
 
-    A station's equipment history is several entries with FROM/TO windows; which
-    one describes a file depends on the file's date (validate_rinex_headers).
+    ``name`` is the full 16-column station name (``PTAG 22006M005``), which is
+    what Bernese keys a station on; ``code`` is its first four characters,
+    which is what RINEX filenames and the datapool are keyed on. ``text`` is
+    the row without its line ending or trailing blanks, so two rows that differ
+    only in CRLF versus LF compare equal. ``from_field``/``to_field`` are the
+    raw date columns: ``start``/``end`` are None both for a blank column and
+    for one that does not parse, and only the raw text tells those apart.
     """
-    try:
-        content = sta_path.read_text(encoding="ascii", errors="replace")
-    except OSError as exc:
-        raise FileNotFoundError(f"STA file not found: {sta_path}") from exc
 
-    result: dict[str, list[_StaEntry]] = {}
+    line: int  # 1-based line number in the file
+    name: str
+    text: str
+    from_field: str
+    to_field: str
+    start: dt.datetime | None
+    end: dt.datetime | None
+    receiver: str
+    antenna: str
+
+    @property
+    def code(self) -> str:
+        return self.text[_STA_NAME_SLICE].strip()
+
+
+def sta_type002_rows(content: str) -> list[StaRow]:
+    """Every TYPE 002 data row of a .STA file's text, in file order.
+
+    The one reader of TYPE 002 in this package: the header validator groups
+    these by code (``_sta_entries``) and ``station_files`` checks them for
+    overlaps. CRLF and LF both work (``splitlines``).
+    """
+    rows: list[StaRow] = []
     in_type002 = False
     past_header = False
 
-    for line in content.splitlines():
+    for number, line in enumerate(content.splitlines(), start=1):
         if "TYPE 002: STATION INFORMATION" in line:
             in_type002 = True
             past_header = False
@@ -507,16 +533,39 @@ def _sta_entries(sta_path: Path) -> dict[str, list[_StaEntry]]:
         if len(line) < 141:
             continue
 
-        station_code = line[_STA_NAME_SLICE].strip()
-        if not station_code:
+        if not line[_STA_NAME_SLICE].strip():
             continue
-        result.setdefault(station_code, []).append(
-            _StaEntry(
-                receiver=line[_STA_REC_SLICE].strip(),
-                antenna=line[_STA_ANT_SLICE].strip(),
+        rows.append(
+            StaRow(
+                line=number,
+                name=line[_STA_FULLNAME_SLICE].rstrip(),
+                text=line.rstrip(),
+                from_field=line[_STA_FROM_SLICE],
+                to_field=line[_STA_TO_SLICE],
                 start=_sta_time(line[_STA_FROM_SLICE]),
                 end=_sta_time(line[_STA_TO_SLICE]),
+                receiver=line[_STA_REC_SLICE].strip(),
+                antenna=line[_STA_ANT_SLICE].strip(),
             )
+        )
+    return rows
+
+
+def _sta_entries(sta_path: Path) -> dict[str, list[_StaEntry]]:
+    """Every TYPE 002 entry per 4-char station code, in file order.
+
+    A station's equipment history is several entries with FROM/TO windows; which
+    one describes a file depends on the file's date (validate_rinex_headers).
+    """
+    try:
+        content = sta_path.read_text(encoding="ascii", errors="replace")
+    except OSError as exc:
+        raise FileNotFoundError(f"STA file not found: {sta_path}") from exc
+
+    result: dict[str, list[_StaEntry]] = {}
+    for row in sta_type002_rows(content):
+        result.setdefault(row.code, []).append(
+            _StaEntry(receiver=row.receiver, antenna=row.antenna, start=row.start, end=row.end)
         )
     return result
 

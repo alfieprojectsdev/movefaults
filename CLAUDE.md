@@ -324,6 +324,8 @@ uv run field-ops-api                      # field logsheet API ($PORT, default 8
 uv run velocity-reviewer --plots-dir DIR  # web outlier reviewer for PLOT files
 uv run bernese-run-year --campaign PHREF --repr-prefix PHR --year 2025 \
     --from 152 --to 181 --pcf PHREF_DLY --plan   # or --run; source LOADGPS.setvar first
+uv run bernese-check-stations --sta X.STA --crd X.CRD --blq X.BLQ --atl X.ATL \
+    [--rinex-dir DIR --year 2025]                  # read-only; --plan --check-stations lists the same
 ```
 
 **`vadase-ingestor` does not exist**, and this file used to list it. The
