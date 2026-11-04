@@ -283,3 +283,73 @@ def test_a_run_reposts_the_recorded_verdict_and_tests_nothing(tmp_path, monkeypa
     assert ci.cmd_run(args) == 0
     assert posts == [(sha, "success", "ok")]
     assert json.loads((tmp_path / "state.json").read_text())[sha]["posted"] is True
+
+
+# --- which PRs may run on gps3 --------------------------------------------------------
+
+_OWNER = frozenset({"owner"})
+
+
+def _pr(n, *, cross=False, login="owner", sha=None):
+    return {"number": n, "headRefOid": sha or f"{n:040d}", "isCrossRepository": cross,
+            "author": {"login": login}}  # fmt: skip
+
+
+def test_a_same_repo_pr_by_a_trusted_author_runs():
+    targets, skipped = ci.pr_targets([_pr(5)], _OWNER)
+    assert [t.label for t in targets] == ["#5"] and skipped == []
+
+
+def test_a_fork_pr_never_runs_whoever_opened_it():
+    targets, skipped = ci.pr_targets([_pr(6, cross=True)], _OWNER)
+    assert targets == [] and "fork" in skipped[0]
+
+
+def test_a_same_repo_pr_by_an_untrusted_author_does_not_run():
+    targets, skipped = ci.pr_targets([_pr(7, login="stranger")], _OWNER)
+    assert targets == [] and "'stranger'" in skipped[0]
+
+
+def test_missing_fields_fail_closed():
+    """If gh stops returning a field, nothing runs: it must not read as "trusted"."""
+    bare = {"number": 8, "headRefOid": "a" * 40}
+    no_author = {**_pr(9), "author": None}
+    targets, skipped = ci.pr_targets([bare, no_author], _OWNER)
+    assert targets == [] and len(skipped) == 2
+
+
+def test_author_match_ignores_case():
+    """GitHub logins are case-insensitive; a differently-cased config must not lock the owner out."""
+    targets, _ = ci.pr_targets([_pr(10, login="Owner")], frozenset({"OWNER"}))
+    assert [t.label for t in targets] == ["#10"]
+
+
+def test_a_missing_head_sha_is_skipped_not_a_crash():
+    pr = {**_pr(11), "headRefOid": None}
+    targets, skipped = ci.pr_targets([pr, _pr(12)], _OWNER)
+    assert [t.label for t in targets] == ["#12"] and "#11" in skipped[0]
+
+
+def test_trusted_authors_default_to_the_repository_owner():
+    assert ci.trusted_authors({}) == {ci.SLUG.split("/")[0].lower()}
+    assert ci.trusted_authors({"LOCAL_CI_TRUSTED_AUTHORS": "A, b,"}) == {"a", "b"}
+
+
+def test_gh_targets_asks_for_the_fields_the_filter_needs(monkeypatch):
+    import json
+    import subprocess
+
+    asked = []
+
+    def fake_sh(cmd, cwd=None, timeout=3600, env=None):
+        asked.append(cmd)
+        if cmd[:2] == ["gh", "api"]:
+            return subprocess.CompletedProcess(cmd, 0, "f" * 40 + "\n", "")
+        prs = [_pr(1, login=next(iter(ci.TRUSTED_AUTHORS))), _pr(2, cross=True)]
+        return subprocess.CompletedProcess(cmd, 0, json.dumps(prs), "")
+
+    monkeypatch.setattr(ci, "sh", fake_sh)
+    targets = ci.gh_targets()
+    assert [t.label for t in targets] == ["main", "#1"]
+    fields = asked[1][asked[1].index("--json") + 1].split(",")
+    assert {"isCrossRepository", "author", "headRefOid", "number"} <= set(fields)

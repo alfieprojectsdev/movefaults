@@ -32,6 +32,17 @@ WHAT IT DOES, per run (cron, every 10 minutes; see INSTALL below)
      exists to catch.
 
 WHAT IT DELIBERATELY DOES NOT DO
+- Test a PR from a fork, or one opened by an author not in
+  LOCAL_CI_TRUSTED_AUTHORS (default: the repository's owner). The repository
+  is public, and testing a PR means running its code on gps3 as the gps3 user,
+  which can read the gh token (repo scope), the DATAPOOL and the office LAN.
+  GitHub Actions gates fork PRs behind an approval; this has no such gate, so
+  it does not run them at all. A skipped PR gets no status, so merge_pr.sh
+  refuses it: the filter fails closed.
+  What it does NOT defend against: anyone with write access to this
+  repository. They can push commits to a trusted author's branch, which then
+  run here, and they can push to main, whose copy of this script the cron
+  runs. The boundary is the repository's collaborator list, not this filter.
 - Run while a Bernese BPE is running. HANDOVER.md: don't compete with a BPE.
   The run is deferred and the heartbeat says so.
 - Run anything against the hosted database. The suite uses the local Postgres
@@ -86,6 +97,18 @@ CONTEXT = "local-ci/gps3"
 MAX_ERROR_ATTEMPTS = 3
 STALE_AFTER_S = 30 * 60
 BPE_PATTERN = r"startBPE|RUNBPE|_pcs\.pl"
+
+
+# Who may have their PRs run on gps3. Comma-separated logins; default the owner
+# in SLUG. See "WHAT IT DELIBERATELY DOES NOT DO".
+# GitHub logins are case-insensitive, so the set is lowercased and so is the
+# login it is checked against.
+def trusted_authors(environ=os.environ) -> frozenset[str]:
+    raw = environ.get("LOCAL_CI_TRUSTED_AUTHORS", SLUG.split("/")[0])
+    return frozenset(a.strip().lower() for a in raw.split(",") if a.strip())
+
+
+TRUSTED_AUTHORS = trusted_authors()
 # The machine-wide BPE lock (bernese_workflow/bpe_lock.py, scripts/bpe_lock.sh).
 BPE_LOCK = Path(
     os.environ.get("BPE_LOCK") or Path.home() / ".local/state/bernese-workflow/bpe.lock"
@@ -302,6 +325,34 @@ def summarize_vitest(output: str) -> str:
     return m.group(1).strip() if m else ""
 
 
+def pr_targets(prs: list[dict], trusted: frozenset[str]) -> tuple[list[Target], list[str]]:
+    """The open PRs it is safe to run on gps3, and why each other one was skipped.
+
+    Runs a PR only when its head branch is in this repository AND its author is
+    trusted. Both, because either alone leaves a gap: a trusted author's fork
+    is cross-repository, and a collaborator's branch here is not. It checks
+    who opened the PR, not who pushed each commit: write access is trusted
+    (see "WHAT IT DELIBERATELY DOES NOT DO"). A field missing from gh's answer
+    counts against the PR, so an API change cannot quietly turn the filter off.
+    """
+    targets: list[Target] = []
+    skipped: list[str] = []
+    trusted = frozenset(t.lower() for t in trusted)
+    for pr in prs:
+        label = f"#{pr.get('number')}"
+        login = (pr.get("author") or {}).get("login")
+        sha = pr.get("headRefOid")
+        if pr.get("isCrossRepository") is not False:
+            skipped.append(f"{label}: head branch is not in this repository (a fork)")
+        elif not isinstance(login, str) or login.lower() not in trusted:
+            skipped.append(f"{label}: author {login!r} is not in LOCAL_CI_TRUSTED_AUTHORS")
+        elif not sha:
+            skipped.append(f"{label}: gh returned no head SHA")
+        else:
+            targets.append(Target(sha, label))
+    return targets, skipped
+
+
 def frontends_present(root: Path) -> list[tuple[str, Path]]:
     """The FRONTENDS this checkout contains, as (short name, absolute path)."""
     return [(k, root / p) for k, p in FRONTENDS if (root / p / "package.json").is_file()]
@@ -357,18 +408,16 @@ def gh_targets() -> list[Target]:
             "--limit",
             "200",
             "--json",
-            "number,headRefOid",
-            "--jq",
-            '.[]|"\\(.number) \\(.headRefOid)"',
+            "number,headRefOid,isCrossRepository,author",
         ],
         timeout=60,
     )
     if prs.returncode != 0:
         raise RuntimeError(f"gh pr list failed: {prs.stderr.strip()[:200]}")
-    for line in prs.stdout.strip().splitlines():
-        num, sha = line.split()
-        targets.append(Target(sha, f"#{num}"))
-    return targets
+    allowed, skipped = pr_targets(json.loads(prs.stdout or "[]"), TRUSTED_AUTHORS)
+    if skipped:
+        log(f"  not testing {len(skipped)} PR(s): " + "; ".join(skipped))
+    return targets + allowed
 
 
 def post_status(sha: str, state: str, description: str) -> bool:
