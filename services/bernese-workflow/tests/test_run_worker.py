@@ -916,3 +916,14 @@ def test_run_year_marks_not_run_days_with_the_halt_kind(env: Env) -> None:
     entries, _ = read_entries(env.year_dir / "ledger.jsonl")
     end = [e for e in entries if e["event"] == "run_end"][-1]
     assert end["halt_reason"]["kind"] == "stopped"
+
+
+def test_status_is_rewritten_when_the_clock_steps_back(env: Env) -> None:
+    """A wall clock stepped back must not silence the heartbeat until it catches up."""
+    now = [dt.datetime(2026, 11, 4, 12, 0, tzinfo=dt.UTC)]
+    status = env.queue.root / "status.json"
+    with env.worker(clock=lambda: now[0], heartbeat_s=60.0) as w:
+        assert w.step() == "idle"
+        now[0] -= dt.timedelta(hours=1)
+        assert w.step() == "idle"
+        assert read_json(status)["updated"] == now[0].isoformat()

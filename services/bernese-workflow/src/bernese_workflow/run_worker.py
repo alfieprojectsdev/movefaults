@@ -219,7 +219,9 @@ class Worker:
         now = self.clock()
         if self._last_status is not None:
             last, at = self._last_status
-            if last == body and (now - at).total_seconds() < self.heartbeat_s:
+            # A wall clock stepped back (NTP) gives a negative age: write, rather
+            # than going silent until the clock catches up with the last write.
+            if last == body and 0 <= (now - at).total_seconds() < self.heartbeat_s:
                 return
         write_json_atomic(
             self.status_path, {**body, "updated": now.isoformat()}, tmp_dir=self.queue.tmp
@@ -465,8 +467,9 @@ class Worker:
         # Stopped only if the stop is what left days not run: a SIGTERM that
         # arrives during a block the breaker then halts must not hide the halt.
         # The halt's kind says which, not the wording of a note.
-        if any(o.halt_kind == "stopped" for o in not_run):
-            stopped = self._stop_reason or self._signal_reason or not_run[0].note
+        by_stop = next((o for o in not_run if o.halt_kind == "stopped"), None)
+        if by_stop is not None:
+            stopped = self._stop_reason or self._signal_reason or by_stop.note
             return "stopped", "; ".join(x for x in (stopped, detail) if x), {"days": days}
         if failed or not_run:
             if not_run:
