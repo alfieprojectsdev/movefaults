@@ -29,7 +29,9 @@ conflict with the settled decision that the scientific pipeline has no cron
 ```
 $BERNESE_WORKER_STATE            default ~/.local/state/bernese-workflow/worker
 ├── worker.lock     flock: one worker per state directory
-├── status.json     what the worker is doing now (rewritten atomically)
+├── status.json     what the worker is doing now (rewritten atomically when it
+│                   changes; between runs also every 60 s, so `updated` is a
+│                   heartbeat. During a run it is written once, at the start)
 ├── HALTED          present only after a restore failed; see "When a restore fails"
 ├── tmp/            a request is written here first
 ├── queue/          pending requests, one <id>.json each
