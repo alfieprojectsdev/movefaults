@@ -214,6 +214,11 @@ def check_station_files_for_pcf(
     a problem. BLQ and ATL are copied only when V_BLQINF / V_ATLINF are set, so
     a blank one is not checked, as Bernese does not read it, and the source
     lines say so.
+
+    ABB has no PCF variable of its own: R2S_COP copies ${V_CRDINF}.ABB beside
+    the CRD (the EXAMPLE tarball ships EXAMPLE.{CRD,VEL,ABB}_REF together, and
+    scripts/check_ref_coverage.py resolves it the same way). Its findings only
+    warn, so an ABB that cannot be read is a warning finding, not a problem.
     """
     problems: list[str] = []
     sources: list[str] = []
@@ -233,20 +238,33 @@ def check_station_files_for_pcf(
             problems.append(f"cannot read {path}: {exc}")
             continue
         sources.append(f"{kind}:      {path}")
+    abb_findings: list[Finding] = []
+    files["ABB"] = None
+    abb = ref_file(pcf_text, "V_CRDINF", "ABB", env, year, fallback_dir)
+    if abb is not None:
+        try:
+            files["ABB"] = (abb.name, read_station_file(abb))
+            sources.append(f"ABB:      {abb}")
+        except OSError as exc:
+            abb_findings.append(
+                Finding(abb.name, "missing_abb", "-",
+                        f"cannot read {abb}: {exc} (warning only)", False)
+            )  # fmt: skip
     try:
         sta_text = read_station_file(sta)
     except OSError as exc:
-        return [], [*problems, f"cannot read {sta}: {exc}"], sources
+        return abb_findings, [*problems, f"cannot read {sta}: {exc}"], sources
     findings = check_station_files(
         sta=(sta.name, sta_text),
         crd=files["CRD"],
         blq=files["BLQ"],
         atl=files["ATL"],
+        abb=files["ABB"],
         coverage=coverage,
         days=days,
         year=year,
     )
-    return findings, problems, sources
+    return abb_findings + findings, problems, sources
 
 
 # IGS long product name: centre (3), version (1), project (3), type (3), as in
@@ -571,7 +589,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--check-stations",
         action="store_true",
-        help="also list the station-file findings (STA, BLQ, ATL, CRD) by file and kind",
+        help="also list the station-file findings (STA, CRD, BLQ, ATL, ABB) by file and kind",
     )
     args = ap.parse_args(argv)
 

@@ -60,11 +60,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "services" / "bernese-workflow" / "src"))
 
 from bernese_workflow.station_files import (  # noqa: E402
-    _lines,
     atl_status,
     blq_status,
     crd_names,
     name_listed,
+    split_lines,
 )
 
 __all__ = ["atl_status", "blq_status", "check", "crd_names", "name_listed", "pcf_sets"]
@@ -117,7 +117,7 @@ _PCF_VAR = {
 def pcf_sets(text: str) -> dict[str, str]:
     """File kind -> reference set name the PCF resolves it to ('' = not used)."""
     values = {}
-    for line in _lines(text):
+    for line in split_lines(text):
         m = re.match(r"^(V_\w+)\s*=\s*([^;]*);", line)
         if m:
             values[m[1]] = m[2].strip()

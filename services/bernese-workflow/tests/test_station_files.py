@@ -13,7 +13,7 @@ import pytest
 from bernese_workflow import station_files as sf
 from pogf_geodetic_suite.qc.completeness import Coverage
 
-from .station_fixtures import sta_text
+from .station_fixtures import abb_text, atl_text, sta_text
 
 REPO = Path(__file__).resolve().parents[3]
 LUZON = REPO / "config" / "bernese" / "gpsuser52-luzon" / "STA"
@@ -185,14 +185,13 @@ def _atl(*headers: str) -> str:
 
 
 def test_an_atl_header_that_is_not_the_sta_name_is_found():
+    """check_atl names the stray header and never blocks: whether the run can
+    read PTAG is check_atl_presence's question (tests below)."""
     names = {"PTAG": {"PTAG 22006M005"}, "AGUS": {"AGUS AGUS"}}
     text = _atl("PTAG", "AGUS AGUS", "ZIMM 14001M004")
-    (f,) = sf.check_atl(text, "X.ATL", names, active={"PTAG"})
-    assert (f.kind, f.station, f.blocking) == ("atl_name", "PTAG", True)
+    (f,) = sf.check_atl(text, "X.ATL", names)
+    assert (f.kind, f.station, f.blocking) == ("atl_name", "PTAG", False)
     assert "header 'PTAG' is not the STA name 'PTAG 22006M005'" in f.detail
-    # Not processed in this run: reported, but does not refuse it.
-    (f,) = sf.check_atl(text, "X.ATL", names, active=())
-    assert not f.blocking
 
 
 def test_an_atl_header_naming_another_crd_station_is_not_a_mismatch():
@@ -280,7 +279,10 @@ def test_the_cli_prints_findings_and_never_rewrites_a_file(tmp_path: Path, capsy
     out = capsys.readouterr().out
     assert "PROBLEM: X.STA: S01R S01R: line 14 repeats line 13 exactly" in out
     assert "PROBLEM: X.BLQ: CUSV: line" in out
-    assert "WARNING: X.ATL: OVLP: line 1: header 'OVLP' is not the STA name 'OVLP OVLP'" in out
+    # No --rinex-dir: a station with no full-name ATL block blocks, as overlaps
+    # do, and the bare header is its reason rather than a second finding.
+    assert "PROBLEM: X.ATL: OVLP: no block under the STA name: header 'OVLP' != 'OVLP OVLP'" in out
+    assert "is not the STA name 'OVLP OVLP'" not in out
     after = {k: (p.read_bytes(), p.stat().st_mtime_ns) for k, p in paths.items()}
     assert after == before, "a check must not touch the files it reads (CRLF included)"
 
@@ -382,3 +384,103 @@ def test_an_overlap_blocks_only_a_station_with_data_over_the_days_to_run() -> No
         if f.station == "OVLP OVLP"
     ]
     assert ovlp and all("warning only" in f.detail for f in ovlp)
+
+
+# --- ATL and ABB presence ---------------------------------------------------------------------
+
+PRESENCE_STA = [
+    ("AGUS AGUS", T0, OPEN),
+    ("PTAG 22006M005", T0, OPEN),
+    ("IDLE IDLE", T0, OPEN),  # in the STA, no RINEX in the run
+]
+NEWLINES = pytest.mark.parametrize("newline", ["\r\n", "\n"], ids=["CRLF", "LF"])
+
+
+def _presence(newline, atl=None, abb=None, coverage=True):
+    cov = _coverage({d: {"AGUS", "PTAG"} for d in (10, 11)}) if coverage else None
+    return sf.check_station_files(
+        sta=("X.STA", sta_text(PRESENCE_STA, newline)),
+        atl=None if atl is None else ("X.ATL", atl_text(atl, newline)),
+        abb=None if abb is None else ("X.ABB", abb_text(abb, newline)),
+        coverage=cov,
+        days=[10, 11],
+        year=2025,
+    )
+
+
+@NEWLINES
+def test_a_station_with_data_and_no_atl_block_blocks(newline):
+    findings = _presence(newline, atl=["AGUS AGUS", "IDLE IDLE"])
+    (f,) = [f for f in findings if f.blocking]
+    assert (f.file, f.kind, f.station) == ("X.ATL", "missing_atl", "PTAG")
+    assert f.detail == "RINEX on DOY 010-011 but absent"
+
+
+@NEWLINES
+def test_the_same_station_without_data_only_warns(newline):
+    findings = _presence(newline, atl=["AGUS AGUS", "PTAG 22006M005"])
+    (f,) = findings
+    assert (f.kind, f.station, f.blocking) == ("missing_atl", "-", False)
+    assert f.detail.endswith("(warning only): IDLE")
+
+
+@NEWLINES
+def test_a_full_name_mismatch_blocks_with_the_header_as_its_reason(newline):
+    """The PHNAT.ATL of 2026-09-30: `PTAG` where GTATML looks up
+    `PTAG 22006M005`, NOT FOUND at GPSEDT_P."""
+    findings = _presence(newline, atl=["AGUS AGUS", "PTAG", "IDLE IDLE"])
+    (f,) = findings
+    assert (f.kind, f.station, f.blocking) == ("missing_atl", "PTAG", True)
+    assert f.detail == "RINEX on DOY 010-011 but header 'PTAG' != 'PTAG 22006M005'"
+
+
+@NEWLINES
+def test_a_missing_abb_line_warns_and_never_blocks(newline):
+    findings = _presence(newline, abb=["AGUS AGUS"])
+    (f,) = findings
+    assert (f.file, f.kind, f.station, f.blocking) == ("X.ABB", "missing_abb", "PTAG", False)
+    assert f.detail == "RINEX on DOY 010-011 but no line for 'PTAG 22006M005' (warning only)"
+    # A bare-code ABB line is not the station either: name_listed's rule.
+    assert _presence(newline, abb=["AGUS AGUS", "PTAG"])[0].station == "PTAG"
+    assert _presence(newline, abb=["AGUS AGUS", "PTAG 22006M005"]) == []
+
+
+def test_a_stray_atl_header_beside_a_correct_block_only_warns():
+    findings = _presence("\r\n", atl=["AGUS AGUS", "PTAG", "PTAG 22006M005", "IDLE IDLE"])
+    (f,) = findings
+    assert (f.kind, f.station, f.blocking) == ("atl_name", "PTAG", False)
+
+
+def test_without_a_datapool_scan_every_station_missing_from_the_atl_blocks():
+    findings = _presence("\n", atl=["AGUS AGUS"], abb=["AGUS AGUS"], coverage=False)
+    assert sorted((f.kind, f.station, f.blocking) for f in findings) == [
+        ("missing_abb", "IDLE", False),
+        ("missing_abb", "PTAG", False),
+        ("missing_atl", "IDLE", True),
+        ("missing_atl", "PTAG", True),
+    ]
+
+
+def test_a_code_with_two_sta_names_needs_a_block_under_one():
+    rows = [("BILI BILI", T0, OPEN), ("BILI 12363M001", T0, OPEN)]
+    findings = sf.check_station_files(
+        sta=("X.STA", sta_text(rows)),
+        atl=("X.ATL", atl_text(["BILI BILI"])),
+        coverage=_coverage({10: {"BILI"}}),
+        days=[10],
+        year=2025,
+    )
+    assert findings == []
+
+
+def test_the_luzon_capture_has_no_atl_or_abb_gaps():
+    """All 151 STA names have a full-name ATL block and an ABB line."""
+    if not (LUZON / "LUZON.ATL").is_file():
+        pytest.skip("LUZON capture not in this checkout")
+    findings = sf.check_station_files(
+        sta=("LUZON.STA", sf.read_text(LUZON / "LUZON.STA")),
+        atl=("LUZON.ATL", sf.read_text(LUZON / "LUZON.ATL")),
+        abb=("LUZON.ABB", sf.read_text(LUZON / "LUZON.ABB")),
+        crd=("LUZON.CRD", sf.read_text(LUZON / "LUZON.CRD")),
+    )
+    assert [f for f in findings if f.file in ("LUZON.ATL", "LUZON.ABB")] == []
