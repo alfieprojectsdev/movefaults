@@ -290,3 +290,42 @@ def test_the_cli_exits_0_on_clean_files(tmp_path: Path, capsys):
     sta.write_text(sta_text([("AGUS AGUS", T0, OPEN)]))
     assert sf.main(["--sta", str(sta)]) == 0
     assert "0 problem(s), 0 warning(s)" in capsys.readouterr().out
+
+
+# --- review round ---------------------------------------------------------------------------
+
+
+def test_a_0x85_byte_does_not_split_a_row(tmp_path: Path):
+    """read_text decodes latin-1, where cp1252's ellipsis 0x85 becomes U+0085,
+    and str.splitlines() breaks a line there. In a description column (past
+    column 141) that shifts every later line number, so findings point at the
+    wrong row; in a serial-number column (before 141) the row is dropped and
+    its overlap goes unreported."""
+    rows = [("NEL1 NEL1", T0, OPEN), ("NEL1 NEL1", "2024 01 01 00 00 00", "", "TRIMBLE ALLOY")]
+    text = sta_text(rows, "\r\n")
+    described = text.replace("    0.0000\r\n", "    0.0000  Brgy. Sto. Ni\x85o\r\n", 1)
+    serial = text.replace(
+        "LEICA GR50" + " " * 12 + " " * 20, "LEICA GR50" + " " * 12 + "12\x85" + " " * 17, 1
+    )
+    for variant in (described, serial):
+        assert variant.count("\x85") == 1
+        path = tmp_path / "X.STA"
+        path.write_bytes(variant.encode("latin-1"))
+        (f,) = sf.check_sta(sf.read_text(path), "X.STA")
+        assert f.kind == "sta_open_then_later"
+        assert f.detail.startswith("line 12 is open") and "but line 13 starts" in f.detail
+
+
+def test_a_rinex_dir_that_does_not_exist_is_an_error_not_a_clean_scan(tmp_path: Path, capsys):
+    sta = tmp_path / "X.STA"
+    sta.write_text(sta_text([("AGUS AGUS", T0, OPEN)]))
+    with pytest.raises(SystemExit) as e:
+        sf.main(["--sta", str(sta), "--rinex-dir", str(tmp_path / "typo"), "--year", "2025"])
+    assert e.value.code == 2
+    assert "is not a directory" in capsys.readouterr().err
+
+
+def test_an_empty_sta_is_one_finding_not_one_per_station():
+    cov = _coverage({5: {"AGUS", "PTAG", "CUSV"}})
+    findings = sf.check_station_files(sta=("X.STA", sta_text([])), coverage=cov, days=[5])
+    assert _kinds(findings) == [("sta_empty", "-")]

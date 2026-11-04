@@ -508,13 +508,20 @@ def sta_type002_rows(content: str) -> list[StaRow]:
 
     The one reader of TYPE 002 in this package: the header validator groups
     these by code (``_sta_entries``) and ``station_files`` checks them for
-    overlaps. CRLF and LF both work (``splitlines``).
+    overlaps. CRLF and LF both work.
+
+    Lines are split on ``\n`` only, not ``str.splitlines``: that also breaks on
+    \x0b, \x0c, \x1c-\x1e and \x85, and station_files reads as latin-1, where
+    a stray cp1252 byte 0x85 (an ellipsis) decodes to \x85. Split there, a row
+    broken before column 141 is dropped without a word, and one broken in the
+    description columns shifts every later line number by one.
     """
     rows: list[StaRow] = []
     in_type002 = False
     past_header = False
 
-    for number, line in enumerate(content.splitlines(), start=1):
+    for number, raw in enumerate(content.split("\n"), start=1):
+        line = raw.rstrip("\r")
         if "TYPE 002: STATION INFORMATION" in line:
             in_type002 = True
             past_header = False

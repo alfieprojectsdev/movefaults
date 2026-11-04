@@ -165,15 +165,6 @@ def _blq_headers(text: str) -> list[tuple[str, int, bool]]:
     return out
 
 
-def blq_after_end_table(text: str) -> list[tuple[str, int]]:
-    """(code, line number) of every block header after the first `$$ END TABLE`.
-
-    Bernese stops reading there, so these blocks are never seen however
-    well-formed they are. No marker means nothing is after it.
-    """
-    return [(code, number) for code, number, after in _blq_headers(text) if after]
-
-
 def atl_headers(text: str) -> list[tuple[str, int]]:
     """(header, line number) of every ATL block header: unindented, not `$$`."""
     return [
@@ -254,14 +245,16 @@ def _start_key(row: StaRow) -> tuple[int, object, int]:
     return (0, 0, row.line) if row.start is None else (1, row.start, row.line)
 
 
-def check_sta(text: str, label: str) -> list[Finding]:
+def check_sta(text: str, label: str, rows: list[StaRow] | None = None) -> list[Finding]:
     """TYPE 002 defects, per full station name (the key Bernese uses).
 
     Each offending pair is reported once, under the most specific cause:
     an exact duplicate, then an open-ended row that a later row follows, then a
     plain overlap. All three are overlaps to Bernese, and all three block.
+    ``rows``: ``sta_type002_rows(text)`` when the caller already has it.
     """
-    rows = sta_type002_rows(text)
+    if rows is None:
+        rows = sta_type002_rows(text)
     if not rows:
         return [Finding(label, "sta_empty", "-", "no TYPE 002 rows were read", True)]
     out: list[Finding] = []
@@ -397,12 +390,16 @@ def check_rinex_stations(
     crd_label: str = "CRD",
     blq_text: str | None = None,
     blq_label: str = "BLQ",
+    sta_read: bool = True,
 ) -> list[Finding]:
     """Stations with RINEX on one of ``days`` but absent from the STA, CRD or BLQ.
 
     One finding per station and file, with the days compressed into ranges.
     The CRD must carry one of the station's STA names, since that is the name
     Bernese looks up; a code the STA lacks is checked by code alone.
+    ``sta_read`` False: the STA yielded no rows, which check_sta already
+    reports once as sta_empty; a missing_sta line for every station would
+    bury that one finding, so STA presence is not checked.
     """
     from pogf_geodetic_suite.qc.completeness import compress_ranges
 
@@ -411,7 +408,7 @@ def check_rinex_stations(
     def why_missing(code: str) -> list[tuple[str, str, str]]:
         """(kind, file label, reason) for each file that lacks ``code``."""
         out = []
-        if code not in names:
+        if sta_read and code not in names:
             out.append(("missing_sta", sta_label, "no TYPE 002 row"))
         if crd is not None:
             in_crd, wanted = crd.get(code, []), names.get(code, set())
@@ -460,7 +457,7 @@ def check_station_files(
     names = sta_names(rows)
     active = {c for d in days for c in (coverage.by_day.get(d, set()) if coverage else set())}
 
-    out = check_sta(sta_text, sta_label)
+    out = check_sta(sta_text, sta_label, rows)
     if blq is not None:
         out += check_blq(blq[1], blq[0])
     if atl is not None:
@@ -476,6 +473,7 @@ def check_station_files(
             crd_label=crd[0] if crd else "CRD",
             blq_text=blq[1] if blq else None,
             blq_label=blq[0] if blq else "BLQ",
+            sta_read=bool(rows),
         )
     return out
 
@@ -511,6 +509,9 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     if args.rinex_dir and args.year is None:
         ap.error("--rinex-dir needs --year")
+    if args.rinex_dir and not args.rinex_dir.is_dir():
+        # scan() of a missing directory finds nothing, and nothing reads as clean
+        ap.error(f"--rinex-dir {args.rinex_dir} is not a directory")
 
     def load(p: Path | None) -> tuple[str, str] | None:
         return None if p is None else (p.name, read_text(p))
