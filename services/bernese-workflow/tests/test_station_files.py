@@ -484,3 +484,25 @@ def test_the_luzon_capture_has_no_atl_or_abb_gaps():
         crd=("LUZON.CRD", sf.read_text(LUZON / "LUZON.CRD")),
     )
     assert [f for f in findings if f.file in ("LUZON.ATL", "LUZON.ABB")] == []
+
+
+# --- single-instant rows (FROM == TO) ---------------------------------------------------------
+
+
+def test_a_single_instant_overlap_at_the_runs_first_midnight_blocks():
+    """Two rows of one name valid only at 2025-04-15 00:00:00 (DOY 105), with
+    RINEX that day. Their common window is that one instant; scoping must
+    count it as inside DOY 105, not as ending where the run begins."""
+    instant = "2025 04 15 00 00 00"
+    rows = [("S01R S01R", instant, instant), ("S01R S01R", instant, instant, "TRIMBLE ALLOY")]
+    findings = sf.check_station_files(
+        sta=("X.STA", sta_text(rows)), coverage=_coverage({105: {"S01R"}}), days=[105], year=2025
+    )
+    (f,) = [f for f in findings if f.kind == "sta_overlap"]
+    assert f.blocking, f
+    # The day before is not touched by it.
+    findings = sf.check_station_files(
+        sta=("X.STA", sta_text(rows)), coverage=_coverage({104: {"S01R"}}), days=[104], year=2025
+    )
+    (f,) = [f for f in findings if f.kind == "sta_overlap"]
+    assert not f.blocking, f

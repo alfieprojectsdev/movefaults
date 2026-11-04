@@ -491,7 +491,23 @@ def windows_overlap(
     The one overlap rule in this package: the header check below and
     ``station_files`` both use it. A shared boundary does not count: the IGS
     convention ends one row exactly where the next begins.
+
+    A SINGLE-INSTANT ROW (FROM == TO) IS THE EXCEPTION, and is compared with
+    its endpoints included. The shared-boundary rule works because each of
+    two abutting ranges has extent on its own side of the boundary, so the
+    boundary instant can be ceded to either without leaving a row empty. A
+    single-instant row has no own side: the instant is all it covers. So it
+    overlaps any row valid at that instant, including a row that starts or
+    ends exactly there, and another single instant at the same moment. In
+    each case two rows describe the station at that instant and may disagree,
+    and which one Bernese takes is not ours to guess. Ranges that merely
+    abut are unaffected: neither is a single instant, so they still compare
+    strictly.
     """
+    if (a_start is not None and a_start == a_end) or (b_start is not None and b_start == b_end):
+        return (a_start is None or b_end is None or a_start <= b_end) and (
+            b_start is None or a_end is None or b_start <= a_end
+        )
     return (a_start is None or b_end is None or a_start < b_end) and (
         b_start is None or a_end is None or b_start < a_end
     )
