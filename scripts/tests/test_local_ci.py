@@ -318,8 +318,21 @@ def test_missing_fields_fail_closed():
     assert targets == [] and len(skipped) == 2
 
 
+def test_author_match_ignores_case():
+    """GitHub logins are case-insensitive; a differently-cased config must not lock the owner out."""
+    targets, _ = ci.pr_targets([_pr(10, login="Owner")], frozenset({"OWNER"}))
+    assert [t.label for t in targets] == ["#10"]
+
+
+def test_a_missing_head_sha_is_skipped_not_a_crash():
+    pr = {**_pr(11), "headRefOid": None}
+    targets, skipped = ci.pr_targets([pr, _pr(12)], _OWNER)
+    assert [t.label for t in targets] == ["#12"] and "#11" in skipped[0]
+
+
 def test_trusted_authors_default_to_the_repository_owner():
-    assert ci.SLUG.split("/")[0] in ci.TRUSTED_AUTHORS
+    assert ci.trusted_authors({}) == {ci.SLUG.split("/")[0].lower()}
+    assert ci.trusted_authors({"LOCAL_CI_TRUSTED_AUTHORS": "A, b,"}) == {"a", "b"}
 
 
 def test_gh_targets_asks_for_the_fields_the_filter_needs(monkeypatch):
