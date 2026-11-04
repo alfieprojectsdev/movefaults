@@ -324,6 +324,10 @@ uv run field-ops-api                      # field logsheet API ($PORT, default 8
 uv run velocity-reviewer --plots-dir DIR  # web outlier reviewer for PLOT files
 uv run bernese-run-year --campaign PHREF --repr-prefix PHR --year 2025 \
     --from 152 --to 181 --pcf PHREF_DLY --plan   # or --run; source LOADGPS.setvar first
+uv run bernese-worker run                 # run queued requests under the BPE lock (LOADGPS.setvar first)
+uv run bernese-worker submit start --campaign PHREF --repr-prefix PHR --year 2025 \
+    --from 152 --to 181 --pcf PHREF_DLY  # also: preflight, redo --doy N --reason ..., stop
+uv run bernese-worker list                # queue, running request, recent outcomes
 uv run bernese-check-stations --sta X.STA --crd X.CRD --blq X.BLQ --atl X.ATL --abb X.ABB \
     [--rinex-dir DIR --year 2025]                  # read-only; --plan --check-stations lists the same
 ```
@@ -365,6 +369,7 @@ of a value nobody diffs is how every other stale claim in this file started.
 | Day-level resume driver (service side) | `services/bernese-workflow/src/bernese_workflow/month_driver.py` |
 | Parallel multi-day driver (service side, step F) | `services/bernese-workflow/src/bernese_workflow/run_year.py` → `config/bernese/gpsuser/SCRIPT/sessions_pcs.pl` |
 | Machine-wide BPE lock | `services/bernese-workflow/src/bernese_workflow/bpe_lock.py` (`$BPE_LOCK`) |
+| Run worker (the console's Start/Stop/Redo/Preflight) | `services/bernese-workflow/src/bernese_workflow/run_worker.py`, `run_queue.py`, `redo.py`; design in `docs/project_documentation/run_worker_design.md` |
 | Local CI (the merge gate while Actions is locked) | `scripts/local_ci.py` |
 | Deploy-time schema check (`/health`) | `services/field-ops/src/field_ops/schema_check.py` |
 | VADASE threshold evidence | `services/vadase-rt-monitor/scripts/threshold_evidence.py` → `docs/project_documentation/vadase_threshold_evidence.md` |
