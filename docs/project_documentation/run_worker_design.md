@@ -224,13 +224,25 @@ much. Raise the limit if longer runs become normal. Files left in `tmp/` by a su
 died mid-write are not requests and are ignored; the worker removes them once
 they are an hour old.
 
-**What recovery does not see.** A worker killed with SIGKILL can leave its BPE
-running: the driver runs in its own process group (so a timeout can kill all
-of it, #271), which also means it survives the worker. The BPE lock is
-released when the worker dies, so a new worker could start a second BPE
-beside the orphan. Recovery does not look for orphaned BPE processes. Until it
-does, after a SIGKILL check `pgrep -f startBPE` (or the campaign's `BPE/`
-directory) before restarting the worker.
+**A BPE left running by a killed run.** A worker killed with SIGKILL can leave
+its BPE running: the driver runs in its own process group (so a timeout can
+kill all of it, #271), which also means it survives the worker, and the BPE
+lock is released the moment the worker dies. So before it recovers anything,
+and before it claims every new job, the worker looks for BPE processes while
+it holds the lock (`bpe_processes.py`). Every BPE runner takes that lock, so
+one found under it is not supervised by anybody. The worker then claims and
+restores nothing, `status.json` says `blocked-by-running-bpe` and lists the
+processes, and it looks again next poll. It never kills them: that would be a
+kill mid-day, and whether to let an orphan finish is a person's call.
+
+A BPE process is recognised two ways. The worker puts
+`BERNESE_WORKER_REQUEST=<id>` in its environment for the length of each job;
+the backend builds the driver's environment from the worker's, and BSW's
+server and job shells inherit it, so the marker finds the worker's own BPEs
+and every program they start. Independently, an interpreter running
+`startBPE.pm`, `RUNBPE.pm`, `RUNBPE.sh` or a `*_pcs.pl` driver is recognised
+by its command line, which also covers `scripts/` and `bernese-run-year`.
+Only this account's processes are visible, which is the account BPEs run as.
 
 ## What the worker records, and where
 

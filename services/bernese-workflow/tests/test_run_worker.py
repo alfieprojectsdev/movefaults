@@ -14,12 +14,15 @@ from __future__ import annotations
 import datetime as dt
 import gzip
 import json
+import os
 import shutil
+import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
+from bernese_workflow import bpe_processes
 from bernese_workflow import redo as rd
 from bernese_workflow.backends import SessionsResult, repr_campaign_name
 from bernese_workflow.bpe_lock import BPELock, BPELockHeld
@@ -111,6 +114,7 @@ class Env:
     sol: Path
     lock_path: Path
     busiest: int | None = None
+    running: list = field(default_factory=list)  # what the /proc scan reports
 
     def setup(self, req: dict) -> Setup:
         days = [req["doy"]] if req["kind"] == REDO else list(range(req["from"], req["to"] + 1))
@@ -123,6 +127,9 @@ class Env:
         )
 
     def worker(self, **kw) -> Worker:
+        # The real /proc scan is tested on its own below. Here it is fixed, so a
+        # BPE really running on the machine (gps3's local CI) cannot change a result.
+        kw.setdefault("bpe_running", lambda: self.running)
         return Worker(self.queue, self.setup, lock_path=self.lock_path, **kw)
 
     def submit(self, kind: str, at: dt.datetime | None = None, **fields) -> dict:
@@ -672,3 +679,91 @@ def test_a_redo_whose_ledger_write_fails_still_restores(env: Env, monkeypatch) -
         w.step()
     assert env.done(req)["outcome"] == "failed"
     assert on_disk(env, 40) == old
+
+
+# --- a BPE left running by a killed run ------------------------------------------------
+
+ORPHAN = bpe_processes.BPEProcess(4242, "perl RUNBPE.pm gps3 5000 1 2", "PHR250400", "")
+
+
+def test_a_bpe_running_without_the_lock_blocks_the_next_request(env: Env) -> None:
+    req = env.submit(START, **{"from": 10, "to": 10})
+    env.running = [ORPHAN]
+    with env.worker() as w:
+        assert w.step() == "blocked"
+        status = read_json(env.queue.root / "status.json")
+        assert status["state"] == "blocked-by-running-bpe"
+        assert "pid 4242" in status["processes"][0]
+        assert (env.queue.queue / f"{req['id']}.json").exists(), "still queued, not claimed"
+        with BPELock(env.lock_path):  # and the lock was let go
+            pass
+        env.running = []
+        assert w.step() == "ran"
+    assert env.bsw.calls == [(10, 1)]
+
+
+def test_recovery_does_not_restore_a_redo_under_a_bpe_still_running(env: Env) -> None:
+    old = old_set(env, 40)
+    req = env.submit(REDO, doy=40)
+    mpath = rd.manifest_path(env.year_dir, YEAR, 40)
+    rd.move_aside(env.year_dir, YEAR, 40, mpath, request=req["id"])
+    crashed(env, req, manifest=str(mpath))
+    env.running = [bpe_processes.BPEProcess(4242, "sh -c GPSEST", "PHR250400", req["id"])]
+    with env.worker() as w:
+        assert w.step() == "recovering"
+        assert rd.Manifest.load(mpath).state == rd.MOVED, "nothing moved back under it"
+        assert (env.queue.active / f"{req['id']}.json").exists()
+        env.running = []
+        w.step()
+    assert on_disk(env, 40) == old
+    assert env.done(req)["outcome"] == "interrupted"
+
+
+def test_the_job_marker_is_in_the_environment_only_while_the_job_runs(env: Env) -> None:
+    req = env.submit(START, **{"from": 10, "to": 10})
+    seen: list[str | None] = []
+    env.bsw.during = lambda first: seen.append(os.environ.get(bpe_processes.WORKER_MARKER))
+    with env.worker() as w:
+        w.step()
+    assert seen == [req["id"]]
+    assert bpe_processes.WORKER_MARKER not in os.environ
+
+
+def _proc(root: Path, pid: int, argv: list[str], env: dict[str, str] | None = None) -> None:
+    d = root / str(pid)
+    d.mkdir(parents=True)
+    (d / "cmdline").write_bytes(b"\0".join(a.encode() for a in argv) + b"\0")
+    if env is not None:
+        (d / "environ").write_bytes(b"\0".join(f"{k}={v}".encode() for k, v in env.items()))
+
+
+def test_find_recognises_bpe_scripts_and_the_worker_marker_and_nothing_else(tmp_path) -> None:
+    _proc(
+        tmp_path,
+        10,
+        ["perl", "/u/SCRIPT/sessions_pcs.pl", "2025", "0400"],
+        {"BPE_CAMPAIGN": "PHREF"},
+    )
+    _proc(tmp_path, 11, ["/usr/bin/perl", "/bsw/BPE/RUNBPE.pm", "gps3", "5000"])
+    _proc(tmp_path, 12, ["/bsw/EXE_GNU/GPSEST"], {bpe_processes.WORKER_MARKER: "req-1"})
+    _proc(tmp_path, 13, ["vim", "/bsw/BPE/RUNBPE.pm"])  # editing it is not running it
+    _proc(tmp_path, 14, ["grep", "-r", "startBPE.pm", "."])
+    _proc(tmp_path, 15, ["perl", "sessions_pcs.pl"])  # excluded below: "this process"
+    (tmp_path / "self").mkdir()
+    (tmp_path / "16").mkdir()  # exited between listing and reading: no cmdline
+    found = bpe_processes.find(tmp_path, exclude={15})
+    assert [p.pid for p in found] == [10, 11, 12]
+    assert found[0].campaign == "PHREF"
+    assert found[2].request == "req-1"
+
+
+def test_find_sees_a_real_child_that_inherited_the_marker() -> None:
+    proc = subprocess.Popen(
+        ["sleep", "30"], env={**os.environ, bpe_processes.WORKER_MARKER: "req-real"}
+    )
+    try:
+        found = [p for p in bpe_processes.find() if p.pid == proc.pid]
+        assert found and found[0].request == "req-real"
+    finally:
+        proc.kill()
+        proc.wait()

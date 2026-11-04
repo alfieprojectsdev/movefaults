@@ -32,6 +32,12 @@ CRASH RECOVERY (Worker.recover)
 A request left in active/ belongs to a dead worker, since worker.lock is held.
 Under the BPE lock, a redo whose files had started moving is restored; any
 other request is recorded interrupted and is NOT re-run automatically.
+
+A BPE STILL RUNNING
+Before recovering and before claiming each job, under the BPE lock, the worker
+looks for BPE processes (bpe_processes.py). One found then has no lock holder
+supervising it, typically an orphan of a SIGKILLed run, and the worker starts
+nothing until it has gone. It never kills it.
 """
 
 from __future__ import annotations
@@ -53,6 +59,7 @@ from pathlib import Path
 from types import FrameType
 from typing import IO
 
+from . import bpe_processes
 from . import redo as rd
 from .bpe_knowledge import KnowledgeBase
 from .bpe_lock import BPELock, BPELockHeld
@@ -147,8 +154,10 @@ class Worker:
         max_age_s: float = MAX_AGE_DEFAULT_S,
         poll_s: float = POLL_DEFAULT_S,
         clock: Callable[[], dt.datetime] = now_utc,
+        bpe_running: Callable[[], list[bpe_processes.BPEProcess]] = bpe_processes.find,
     ) -> None:
         self.queue = queue.ensure()
+        self.bpe_running = bpe_running
         self.setup = setup
         self.lock_path = lock_path
         self.max_age_s = max_age_s
@@ -301,8 +310,31 @@ class Worker:
 
     # --- the loop ----------------------------------------------------------------------------
 
+    def _orphans(self, purpose: str) -> bool:
+        """Under the BPE lock: is a BPE still running that nobody supervises?
+
+        Every BPE runner takes the lock, so one found while we hold it was left
+        by a run that died (a SIGKILLed worker or bernese-run-year). Starting
+        another beside it, or restoring a redo under it, is what this prevents.
+        Nothing is killed: that would be a kill mid-day. A person decides.
+        """
+        found = self.bpe_running()
+        if not found:
+            return False
+        self._status(
+            "blocked-by-running-bpe",
+            reason=f"{purpose}: a BPE is running without the BPE lock; nothing is started "
+            "until it has exited. If it is an orphan of a killed run, decide whether to "
+            "let it finish or kill its process group",
+            processes=[p.describe() for p in found],
+        )
+        logger.error("%s blocked: BPE processes running: %s", purpose,
+                     "; ".join(p.describe() for p in found))  # fmt: skip
+        return True
+
     def step(self) -> str:
-        """One pass. Returns what it did: recovering | exiting | halted | idle | waiting | ran."""
+        """One pass. Returns what it did:
+        recovering | exiting | halted | idle | waiting | blocked | ran."""
         self.queue.clean_tmp()
         if not self.recovered and not self.recover():
             return "recovering"
@@ -325,6 +357,8 @@ class Worker:
             self._status("waiting-for-bpe-lock", next=req["id"], holder=str(exc))
             return "waiting"
         try:
+            if self._orphans(f"next request {req['id']}"):
+                return "blocked"
             try:
                 active = self.queue.claim(path)
             except FileNotFoundError:
@@ -353,6 +387,9 @@ class Worker:
         self._status("running", request=describe(req))
         logger.info("running %s: %s", req["id"], describe(req))
         fields: dict = {}
+        # Inherited by the BPE driver and everything it starts, so a BPE this job
+        # leaves behind can be found by the next start (bpe_processes).
+        os.environ[bpe_processes.WORKER_MARKER] = req["id"]
         try:
             if req["kind"] == REDO:
                 outcome, detail, fields = self._redo(active, req)
@@ -364,6 +401,8 @@ class Worker:
         except Exception as exc:  # noqa: BLE001 -- recorded as the request's outcome
             logger.exception("request %s raised", req["id"])
             outcome, detail = "failed", f"{type(exc).__name__}: {exc}"
+        finally:
+            os.environ.pop(bpe_processes.WORKER_MARKER, None)
         self.queue.finish(active, req, outcome, detail, **fields)
         logger.info("%s: %s %s", req["id"], outcome, detail)
         self._active_id = None
@@ -516,6 +555,8 @@ class Worker:
             self._status("waiting-for-bpe-lock", reason="crash recovery", holder=str(exc))
             return False
         try:
+            if self._orphans("crash recovery"):
+                return False
             for path in files:
                 self._recover_one(path)
         finally:
