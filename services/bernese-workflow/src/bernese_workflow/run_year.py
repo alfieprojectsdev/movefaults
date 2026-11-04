@@ -67,7 +67,9 @@ from .circuit_breaker import (
     CircuitBreaker,
     Diagnosis,
     diagnose_day,
+    preflight_refusal,
 )
+from .ledger import halt_reason
 from .month_driver import (
     DayOutcome,
     _done_marker,
@@ -76,6 +78,7 @@ from .month_driver import (
     _write_marker,
     fin_banked,
     session_for,
+    validation_halt,
 )
 
 logger = logging.getLogger(__name__)
@@ -103,6 +106,7 @@ class PlanLike(Protocol):
     year: int
     todo: list[int]
     problems: list[str]
+    excluded: list  # run_plan.Excluded: doy, reason, detail
 
     @property
     def blocks(self) -> list[tuple[int, int]]: ...
@@ -122,6 +126,10 @@ class RunLedger(Protocol):
         doys: list[int],
         banked: list[int],
         config: str | None = None,
+        pcf: str | None = None,
+        products: str | None = None,
+        product_tier: str | None = None,
+        excluded: list[dict[str, object]] | None = None,
     ) -> str: ...
 
     def attempt_start(self, *, doy: int, session: str, **extra: object) -> None: ...
@@ -139,7 +147,7 @@ class RunLedger(Protocol):
         **extra: object,
     ) -> None: ...
 
-    def run_end(self, *, halt: str | None) -> None: ...
+    def run_end(self, *, halt: str | None, reason: dict[str, object] | None = None) -> None: ...
 
 
 def contiguous_blocks(days: Iterable[int]) -> list[tuple[int, int]]:
@@ -160,6 +168,7 @@ class SimplePlan:
     todo: list[int]
     problems: list[str] = field(default_factory=list)
     busiest: int | None = None
+    excluded: list = field(default_factory=list)
 
     @property
     def blocks(self) -> list[tuple[int, int]]:
@@ -232,8 +241,16 @@ def run_year(
     ledger: RunLedger | None = None,
     config: str | None = None,
     station_counts: Mapping[int, int] | None = None,
+    pcf: str | None = None,
+    products: str | None = None,
+    product_tier: str | None = None,
 ) -> list[DayOutcome]:
-    """Run ``plan.todo`` in parallel blocks. See the module docstring."""
+    """Run ``plan.todo`` in parallel blocks. See the module docstring.
+
+    ``pcf``, ``products`` and ``product_tier`` are recorded in the ledger's
+    run_start with ``plan.excluded``, so a result can be traced to the
+    configuration and the plan that made it (ledger.py, PROVENANCE).
+    """
     if plan.problems:
         raise ValueError("the plan has problems, nothing was run: " + "; ".join(plan.problems))
     if maxsess < 1:
@@ -258,12 +275,19 @@ def run_year(
     }
     breaker = CircuitBreaker(k, max_failures)
     halt: str | None = None
+    reason: dict[str, object] | None = None
     if ledger is not None:
-        ledger.run_start(campaign=campaign, year=year, doys=days, banked=banked, config=config)
+        ledger.run_start(
+            campaign=campaign, year=year, doys=days, banked=banked, config=config,
+            pcf=pcf, products=products, product_tier=product_tier,
+            excluded=[
+                {"doy": e.doy, "reason": e.reason, "detail": e.detail} for e in plan.excluded
+            ],
+        )  # fmt: skip
     try:
         while queue and halt is None:
             a, b = queue.pop(0)
-            halt, resume_from = _run_chunk(
+            halt, reason, resume_from = _run_chunk(
                 backend, a, b, out,
                 year=year, campaign=campaign, repr_prefix=repr_prefix,
                 campaign_dir=campaign_dir, sol_dir=sol_dir, maxsess=maxsess,
@@ -278,11 +302,13 @@ def run_year(
                     d, session_for(d, session_char), "not_run", note=f"stopped: {halt}"
                 )
     except BaseException as exc:
-        halt = halt or f"interrupted: {type(exc).__name__}"
+        if halt is None:
+            halt = f"interrupted: {type(exc).__name__}"
+            reason = halt_reason("interrupted", type(exc).__name__)
         raise
     finally:
         if ledger is not None:
-            ledger.run_end(halt=halt)
+            ledger.run_end(halt=halt, reason=reason)
     return [out[d] for d in sorted(out)]
 
 
@@ -303,8 +329,12 @@ def _run_chunk(
     session_char: str,
     ledger: RunLedger | None,
     counts: Mapping[int, int],
-) -> tuple[str | None, int | None]:
-    """One BPE call for days a..b. Returns (halt reason, day to resume from)."""
+) -> tuple[str | None, dict[str, object] | None, int | None]:
+    """One BPE call for days a..b.
+
+    Returns (halt, halt_reason, day to resume from): the sentence and the data
+    run_end records (ledger.halt_reason), both None when the run goes on.
+    """
     days = list(range(a, b + 1))
     sessions = {d: session_for(d, session_char) for d in days}
     block = [a, b]
@@ -318,6 +348,8 @@ def _run_chunk(
     started = time.time()
     t0 = time.monotonic()
     raised: str | None = None
+    raised_type = ""
+    refused: tuple[str, str | None] | None = None
     result: SessionsResult | None = None
     try:
         result = backend.run_sessions(
@@ -325,7 +357,14 @@ def _run_chunk(
         )
     except Exception as exc:  # noqa: BLE001 -- recorded as this block's failure
         raised = f"{type(exc).__name__}: {exc}"
+        raised_type = type(exc).__name__
+        refused = preflight_refusal(exc)
     seconds = time.monotonic() - t0
+    if refused is not None:
+        return _refused(
+            refused, raised or "", days, sessions, block, seconds, out,
+            ledger=ledger, counts=counts,
+        )  # fmt: skip
     statuses = result.statuses if result is not None else {}
 
     # Judge every day by what is on disk, then tell the breaker in day order.
@@ -373,6 +412,7 @@ def _run_chunk(
     )
 
     halt: str | None = None
+    reason: dict[str, object] | None = None
     first_not_started: int | None = None
     for d, verdict, found, note in judged:
         s = sessions[d]
@@ -399,19 +439,24 @@ def _run_chunk(
             if halt is None:
                 halt = breaker.failure(found)
                 if halt is not None:
+                    reason = halt_reason("breaker", found.label, d)
                     logger.error("stopping: %s\n%s", halt, explanation)
             continue
         if first_not_started is None:
             first_not_started = d
-    if halt is None and raised is not None:
-        # A raise (timeout, refused pre-flight) is unknown whatever a step left
-        # behind, as in month_driver: another block would cost another timeout.
-        halt = f"unknown failure (backend raised {raised}); no remedy on file"
+    if raised is not None:
+        # A raise (a timeout) is unknown whatever a step left behind, as in
+        # month_driver: another block would cost another timeout. The breaker may
+        # already have halted on a day the killed BPE left failed, but the raise
+        # is the cause, so the reason is "backend" whichever sentence stands.
+        halt = halt or f"unknown failure (backend raised {raised}); no remedy on file"
+        reason = halt_reason("backend", f"backend raised {raised_type}")
     if halt is None and out_of_order is not None:
         halt = (
             f"sessions finished out of order: DOY {first_not_started:03d} did not start but "
             f"DOY {out_of_order:03d} ran; not resuming, so nothing banked is re-run"
         )
+        reason = halt_reason("order", "sessions finished out of order", out_of_order)
     if halt is not None or first_not_started is None:
         if halt is not None and ledger is not None:
             for d, verdict, _, _ in judged:
@@ -420,7 +465,7 @@ def _run_chunk(
                         doy=d, session=sessions[d], outcome="not_run", seconds=0.0,
                         note=f"not started: {halt}", mode="block", block=block,
                     )  # fmt: skip
-        return halt, None
+        return halt, reason, None
     if ledger is not None:
         for d, verdict, _, _ in judged:
             if verdict == "not_started":
@@ -430,8 +475,59 @@ def _run_chunk(
                     mode="block", block=block,
                 )  # fmt: skip
     if not any(v != "not_started" for _, v, _, _ in judged):
-        return "no session of the block started", None
-    return None, first_not_started
+        return (
+            "no session of the block started",
+            halt_reason("no_start", "no session of the block started", a),
+            None,
+        )
+    return None, None, first_not_started
+
+
+def _refused(
+    refused: tuple[str, str | None],
+    message: str,
+    days: list[int],
+    sessions: Mapping[int, str],
+    block: list[int],
+    seconds: float,
+    out: dict[int, DayOutcome],
+    *,
+    ledger: RunLedger | None,
+    counts: Mapping[int, int],
+) -> tuple[str, dict[str, object], None]:
+    """The pre-BPE header check refused a session, so no session of the block ran.
+
+    The refused day is recorded as failed, with the validator's label as its
+    error: a failure with no known-errors entry, which is what it is. Before,
+    every day was recorded not_run and the run ended as "unknown failure", so
+    a screen counting failures found none while the run said it had halted on
+    one. The other days are not_run. Nothing is told to the breaker: this stops
+    the run whatever it would have said.
+    """
+    label, session = refused
+    by_session = {s: d for d, s in sessions.items()}
+    # The backend checks sessions in order and raises at the first it refuses.
+    # A refusal that does not name one of this block's sessions is put on the
+    # block's first day, the earliest it can be.
+    d = by_session.get(session or "", days[0])
+    halt, reason = validation_halt(label, d)
+    logger.error("stopping: %s\n%s", halt, message)
+    for day in days:
+        s = sessions[day]
+        if day == d:
+            note = f"refused before the BPE: {message}"
+            out[day] = DayOutcome(day, s, "failed", seconds, note, label, message)
+            if ledger is not None:
+                ledger.attempt_end(
+                    doy=day, session=s, outcome="failed", seconds=seconds, error=label,
+                    note=note, stations=counts.get(day), mode="block", block=block,
+                )  # fmt: skip
+        elif ledger is not None:
+            ledger.attempt_end(
+                doy=day, session=s, outcome="not_run", seconds=0.0,
+                note=f"not started: {halt}", mode="block", block=block,
+            )  # fmt: skip
+    return halt, reason, None
 
 
 # --- command line ---------------------------------------------------------------------
@@ -475,7 +571,7 @@ def main(argv: list[str] | None = None) -> int:
     from .backends import LinuxBPEBackend
     from .bpe_lock import BPELock, BPELockHeld
     from .ledger import Ledger
-    from .run_plan import format_plan, parse_excludes, plan_from_env
+    from .run_plan import format_plan, parse_excludes, plan_from_env, product_tier
 
     ap = argparse.ArgumentParser(
         description="Run a range of days as parallel BPE blocks, one campaign per session."
@@ -562,6 +658,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.campaign, args.year, planned.sol_dir
             )
             print(f"ledger:   {ledger_path}")
+            products, tier = product_tier(planned.pcf_text)
             # The header check reads where the BPE will read: RINEX from
             # V_RNXDIR, the STA R2S_COP copies from V_REFDIR. The base campaign
             # has neither, and REPR_MODE's private ones do not exist yet; with
@@ -579,6 +676,7 @@ def main(argv: list[str] | None = None) -> int:
                 ledger=Ledger(ledger_path),
                 config=run_config_hash(U, planned.pcf_path, planned.pcf_text),
                 station_counts=planned.plan.station_counts,
+                pcf=args.pcf, products=products, product_tier=tier,
             )  # fmt: skip
     except BPELockHeld as e:
         print(f"refused: {e}", file=sys.stderr)
