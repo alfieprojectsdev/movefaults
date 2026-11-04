@@ -133,7 +133,7 @@ def status(
             outlier_mode=outlier_mode,
             outlier_iqr_factor=iqr_factor,
         )
-    except ValueError as exc:
+    except (ValueError, OSError) as exc:  # OSError: an unreadable CRD or catalog
         click.echo(f"Error: {exc}", err=True)
         raise SystemExit(1) from exc
     # allow_nan=False: NaN is not JSON, and a browser's JSON.parse rejects it.

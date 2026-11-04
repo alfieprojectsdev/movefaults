@@ -703,6 +703,7 @@ worked on:
   modes and echoes which one produced its numbers. `analysis.py`'s default is
   unchanged, so the two currently disagree **on purpose**. When this closes,
   align them and move this entry to §3.
+
 - **No production month has run through `services/bernese-workflow`.** Until one
   is compared byte-for-byte against `scripts/` output, its 229 tests are
   evidence about the service, not about the science.

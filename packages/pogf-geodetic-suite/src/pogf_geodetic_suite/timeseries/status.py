@@ -211,6 +211,12 @@ def series_status(
         # A NaN would make the fit NaN and the JSON invalid; refuse here, where
         # the cause is still nameable.
         raise ValueError(f"Station {station!r}: series contains NaN or inf.")
+    # Both are echoed into the result, so a NaN or inf here would break the
+    # allow_nan=False promise. A factor <= 0 flags (nearly) every epoch.
+    if not (np.isfinite(outlier_iqr_factor) and outlier_iqr_factor > 0):
+        raise ValueError(f"outlier_iqr_factor must be finite and > 0, got {outlier_iqr_factor!r}")
+    if not (np.isfinite(min_span_years) and min_span_years >= 0):
+        raise ValueError(f"min_span_years must be finite and >= 0, got {min_span_years!r}")
 
     order = np.argsort(t, kind="stable")
     t, enu_m = t[order], enu_m[order]
@@ -260,12 +266,13 @@ def series_status(
             f"the latest {n_after} epoch(s), after the last offset, are too few "
             "to fit (< 3): 'velocity' is the rate BEFORE that offset"
         )
-    # Unfitted epochs BETWEEN segments; the trailing ones are reported above.
+    # Unfitted epochs before the first segment or between segments; the
+    # trailing ones are reported above.
     n_unfit = int((~assigned).sum()) - n_after
     if n_unfit:
         warnings.append(
-            f"{n_unfit} epoch(s) lie in intervals between offsets with fewer "
-            "than 3 epochs; no velocity was fitted there (segment = null)"
+            f"{n_unfit} epoch(s) lie in intervals (before or between offsets) "
+            "with fewer than 3 epochs; no velocity was fitted there (segment = null)"
         )
     n_dup = t.size - np.unique(t).size
     if n_dup:
@@ -286,6 +293,13 @@ def series_status(
         ends = np.array([seg.t_start, seg.t_end])
         line = d_bar[None, :] + np.outer(ends - t_bar, vel)
         span = seg.t_end - seg.t_start
+        if span == 0:
+            # Every epoch on one day: the slope is lstsq's arbitrary minimum-
+            # norm answer and _fit_segment reports sigma 0, i.e. "exact".
+            warnings.append(
+                f"segment {k} has all {int(members.sum())} epochs at one time: "
+                "its velocity and sigma are meaningless"
+            )
         segments.append({
             "index": k,
             "t_start": seg.t_start,
@@ -411,13 +425,19 @@ def station_status(
     provenance: dict[str, str] | None = None
     if offsets_catalog is not None:
         path = Path(offsets_catalog)
+        before = _sha256(path)
         # The loader keeps the file's case; merge rather than overwrite, so
         # "abcd" and "ABCD" lines both reach the fit (series_status re-sorts).
         catalog: dict[str, list[OffsetEvent]] = {}
         for name, evs in load_offsets_catalog(path).items():
             catalog.setdefault(name.upper(), []).extend(evs)
         events = catalog.get(code, [])
-        provenance = {"path": str(path), "sha256": _sha256(path)}
+        # The hash is provenance for the events actually fitted: refuse if the
+        # file changed between hashing and parsing.
+        digest = _sha256(path)
+        if digest != before:
+            raise ValueError(f"{path} changed while it was being read; try again")
+        provenance = {"path": str(path), "sha256": digest}
 
     return series_status(
         t, enu_m,

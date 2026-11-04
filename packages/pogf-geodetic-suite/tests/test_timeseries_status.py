@@ -341,6 +341,30 @@ def test_unknown_outlier_mode_is_refused():
         series_status(t, np.zeros((30, 3)), station="X", outlier_mode="drop")
 
 
+@pytest.mark.parametrize("factor", [float("nan"), float("inf"), 0.0, -1.0])
+def test_unusable_iqr_factor_is_refused(factor):
+    # NaN/inf would be echoed into outlier_rule and break allow_nan=False;
+    # a factor <= 0 flags nearly every epoch.
+    t = np.linspace(2020, 2022, 30)
+    with pytest.raises(ValueError, match="outlier_iqr_factor"):
+        series_status(t, np.zeros((30, 3)), station="X", outlier_iqr_factor=factor)
+
+
+def test_zero_span_segment_is_warned():
+    t = np.full(5, 2020.0)
+    enu = np.random.default_rng(0).normal(size=(5, 3)) * 1e-3
+    out = series_status(t, enu, station="X")
+    assert any("one time" in w for w in out["warnings"])
+
+
+def test_leading_unfittable_interval_is_not_called_between():
+    t = np.linspace(2020, 2022, 30)
+    offsets = [OffsetEvent(date=float(t[2]), offset_type=OffsetType.EQ)]
+    out = series_status(t, np.zeros((30, 3)), station="X", offsets=offsets)
+    assert out["series"]["segment"][:2] == [None, None]
+    assert any("before or between" in w for w in out["warnings"])
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
