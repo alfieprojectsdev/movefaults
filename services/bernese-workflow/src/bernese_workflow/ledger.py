@@ -95,7 +95,9 @@ class Ledger:
         doys: list[int],
         banked: list[int],
         config: str | None = None,
+        **extra: object,
     ) -> str:
+        """``extra`` is written as is: the run worker adds who asked for the run."""
         self.run_id = uuid.uuid4().hex[:8]
         self._append(
             "run_start",
@@ -106,6 +108,7 @@ class Ledger:
             doys=doys,
             banked=banked,
             config=config,
+            **extra,
         )
         return self.run_id
 
@@ -140,6 +143,16 @@ class Ledger:
 
     def run_end(self, *, halt: str | None) -> None:
         self._append("run_end", halt=halt)
+
+    def event(self, event: str, **fields: object) -> None:
+        """Any other entry, e.g. the run worker's ``superseded`` and ``restored``.
+
+        Readers filter on the event names they know, so an entry they do not
+        know is invisible to them rather than an error.
+        """
+        if event in ("run_start", "attempt_start", "attempt_end", "run_end"):
+            raise ValueError(f"{event} has its own method")
+        self._append(event, **fields)
 
 
 def read_entries(path: Path) -> tuple[list[dict], int]:

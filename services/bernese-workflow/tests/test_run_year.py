@@ -622,3 +622,22 @@ def test_the_deletion_guard_requires_the_private_campaign_prefix(tmp_path: Path)
     (tmp_path / "PHR251520").mkdir()
     _remove_private_campaign(tmp_path, "PHR251520", "PHREF", "PHR")
     assert not (tmp_path / "PHR251520").exists() and (tmp_path / "LUZON").is_dir()
+
+
+def test_stop_is_asked_between_bpe_calls_and_ends_the_run_there(env) -> None:
+    """The run worker's stop: never inside a BPE call, only before the next one."""
+    camp, sol = env
+    bsw = FakeBSW(camp, sol)
+    asked: list[int] = []
+
+    def stop() -> str | None:
+        asked.append(len(bsw.calls))
+        return "stopped by observer1" if bsw.calls else None
+
+    out = go(bsw, SimplePlan(YEAR, list(range(152, 160))), maxsess=2, chunk_days=4, stop=stop)
+    assert bsw.calls == [(152, 4, 2)]
+    assert asked == [0, 1]
+    st = by_doy(out)
+    assert all(st[d] == "ok" for d in range(152, 156))
+    assert all(st[d] == "not_run" for d in range(156, 160))
+    assert all("stopped by observer1" in o.note for o in out if o.status == "not_run")

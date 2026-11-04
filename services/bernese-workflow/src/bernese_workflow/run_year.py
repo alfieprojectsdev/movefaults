@@ -53,7 +53,7 @@ import shutil
 import signal
 import sys
 import time
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import FrameType
@@ -232,8 +232,15 @@ def run_year(
     ledger: RunLedger | None = None,
     config: str | None = None,
     station_counts: Mapping[int, int] | None = None,
+    stop: Callable[[], str | None] | None = None,
 ) -> list[DayOutcome]:
-    """Run ``plan.todo`` in parallel blocks. See the module docstring."""
+    """Run ``plan.todo`` in parallel blocks. See the module docstring.
+
+    ``stop`` is asked before every BPE call, never during one. When it returns a
+    reason the run ends there, as a breaker halt would: the days not yet handed
+    to BSW are not_run with that reason, and it is the ledger's halt. This is
+    how the run worker stops "after the current day" without killing a BPE.
+    """
     if plan.problems:
         raise ValueError("the plan has problems, nothing was run: " + "; ".join(plan.problems))
     if maxsess < 1:
@@ -262,6 +269,9 @@ def run_year(
         ledger.run_start(campaign=campaign, year=year, doys=days, banked=banked, config=config)
     try:
         while queue and halt is None:
+            if stop is not None and (asked := stop()):
+                halt = asked
+                break
             a, b = queue.pop(0)
             halt, resume_from = _run_chunk(
                 backend, a, b, out,
