@@ -133,7 +133,7 @@ from typing import Any
 
 import numpy as np
 
-from .analysis import OffsetEvent, OffsetType, estimate_velocity
+from .analysis import OffsetEvent, OffsetType, _detect_outliers_iqr, estimate_velocity
 from .crd_pipeline import crd_directory_to_enu
 from .gmt import MIN_SPAN_YEARS
 from .offsets_catalog import load_offsets_catalog
@@ -227,18 +227,22 @@ def series_status(
     origin = enu_m[0]
     rel_mm = (enu_m - origin) * 1000.0
 
-    # Per-epoch segment index and outlier flag, read back from the fit result
-    # rather than recomputed: segments are contiguous slices of the sorted
-    # series, so [t_start, t_end] identifies their epochs exactly, and the
-    # outlier epochs are the same float values `estimate_velocity` read.
-    segment_idx: list[int | None] = [None] * t.size
+    # Per-epoch segment index: segments are contiguous slices of the sorted
+    # series, so [t_start, t_end] identifies their epochs exactly. The outlier
+    # flag is the same rule applied to the same slice, BY INDEX. Matching
+    # `seg.outlier_epochs` by value instead would flag both copies of a
+    # duplicated day when only one is an outlier (the F1_/FIN_ case warned
+    # about below), and in "exclude" mode report a fit set that disagrees with
+    # the one `estimate_velocity` used. The row-wise rule is order-invariant,
+    # so it marks the same rows whatever order the fit sorted ties into.
+    seg_of = np.full(t.size, -1, dtype=int)
     outlier = np.zeros(t.size, dtype=bool)
     for k, seg in enumerate(result.segments):
         members = (t >= seg.t_start) & (t <= seg.t_end)
-        for i in np.flatnonzero(members):
-            segment_idx[i] = k
-        outlier |= members & np.isin(t, seg.outlier_epochs)
-    assigned = np.array([s is not None for s in segment_idx])
+        seg_of[members] = k
+        outlier[members] = _detect_outliers_iqr(enu_m[members], outlier_iqr_factor)
+    assigned = seg_of >= 0
+    segment_idx: list[int | None] = [int(k) if k >= 0 else None for k in seg_of]
     in_fit = assigned & ~outlier if mode is OutlierMode.EXCLUDE else assigned
 
     warnings: list[str] = []
@@ -249,14 +253,15 @@ def series_status(
     # An interval with fewer than 3 epochs is skipped by estimate_velocity
     # without a word. When it is the LAST interval, its final_velocity is the
     # rate from BEFORE the latest event: a plausible number for the wrong epoch.
-    covers_latest = bool(result.segments[-1].t_end == t[-1])
+    n_after = int((t > result.segments[-1].t_end).sum())
+    covers_latest = n_after == 0
     if not covers_latest:
-        n_after = int((t > result.segments[-1].t_end).sum())
         warnings.append(
             f"the latest {n_after} epoch(s), after the last offset, are too few "
             "to fit (< 3): 'velocity' is the rate BEFORE that offset"
         )
-    n_unfit = int((~assigned).sum())
+    # Unfitted epochs BETWEEN segments; the trailing ones are reported above.
+    n_unfit = int((~assigned).sum()) - n_after
     if n_unfit:
         warnings.append(
             f"{n_unfit} epoch(s) lie in intervals between offsets with fewer "
@@ -271,7 +276,7 @@ def series_status(
 
     segments: list[dict[str, Any]] = []
     for k, seg in enumerate(result.segments):
-        members = np.array([s == k for s in segment_idx])
+        members = seg_of == k
         fit = members & in_fit
         vel = np.array([seg.ve_mm_yr, seg.vn_mm_yr, seg.vu_mm_yr])
         # OLS passes through (mean t, mean d) of the epochs it fitted, so the
@@ -406,7 +411,11 @@ def station_status(
     provenance: dict[str, str] | None = None
     if offsets_catalog is not None:
         path = Path(offsets_catalog)
-        catalog = {k.upper(): v for k, v in load_offsets_catalog(path).items()}
+        # The loader keeps the file's case; merge rather than overwrite, so
+        # "abcd" and "ABCD" lines both reach the fit (series_status re-sorts).
+        catalog: dict[str, list[OffsetEvent]] = {}
+        for name, evs in load_offsets_catalog(path).items():
+            catalog.setdefault(name.upper(), []).extend(evs)
         events = catalog.get(code, [])
         provenance = {"path": str(path), "sha256": _sha256(path)}
 

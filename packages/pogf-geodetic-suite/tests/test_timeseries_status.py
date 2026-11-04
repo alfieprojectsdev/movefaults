@@ -256,6 +256,17 @@ def test_catalog_present_but_no_events_for_station(campaign, tmp_path):
     assert any("no offset events for this station" in w for w in out["warnings"])
 
 
+def test_catalog_case_variants_are_merged_not_overwritten(campaign, tmp_path):
+    crd_dir, _, _ = campaign
+    cat = tmp_path / "offsets"
+    cat.write_text(
+        f"{STA.upper()}  2021.0000  CE\n{STA.lower()}  2022.0000  EQ\n",
+        encoding="utf-8",
+    )
+    out = station_status(crd_dir, STA, REF, offsets_catalog=cat)
+    assert [o["t"] for o in out["offsets"]] == [2021.0, 2022.0]
+
+
 def test_short_final_segment_is_flagged_not_hidden():
     t = 2020 + np.arange(0, 400) / 365.25 * 3          # ~3.3 years
     enu = _small(t)
@@ -284,6 +295,19 @@ def test_duplicate_epochs_are_warned():
     enu = _small(t)
     out = series_status(t, enu, station="X", offsets=[])
     assert any("duplicate epoch" in w for w in out["warnings"])
+
+
+def test_duplicate_day_flags_only_the_outlying_copy():
+    """Two files for one day, one bad: only that copy is flagged or dropped."""
+    t = np.linspace(2020, 2022, 60)
+    enu = _small(t)
+    t = np.append(t, t[30])
+    enu = np.vstack([enu, enu[30]])
+    enu[30, 2] += 0.5                                     # one copy is an outlier
+    out = series_status(t, enu, station="X", offsets=[], outlier_mode="exclude")
+    seg = out["segments"][0]
+    assert sum(out["series"]["outlier"]) == seg["n_outliers"] == 1
+    assert sum(out["series"]["in_fit"]) == seg["n_fit"] == 60
 
 
 # ---------------------------------------------------------------------------
