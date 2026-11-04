@@ -26,7 +26,7 @@ redo       redo.move_aside, run_year for the one day, redo.restore on failure
 STOP
 run_year asks ``stop`` before each BPE call. A stop therefore ends a run after
 the block in progress (up to 2 x MAXSESS days), never inside one. SIGTERM and
-SIGINT do the same and then exit the loop; nothing here kills a BPE.
+SIGINT (and SIGHUP) do the same and then exit the loop; nothing here kills a BPE.
 
 CRASH RECOVERY (Worker.recover)
 A request left in active/ belongs to a dead worker, since worker.lock is held.
@@ -264,7 +264,8 @@ class Worker:
         """Apply every queued stop request: stop the running one, or cancel a queued one."""
         for path in list(self.queue.pending()):
             try:
-                kind = read_json(path).get("kind")
+                raw = read_json(path)
+                kind = raw.get("kind") if isinstance(raw, dict) else None
             except (OSError, ValueError, UnicodeDecodeError):
                 kind = None  # _read rejects it below if it is still there
             if kind != STOP and kind is not None:
@@ -286,11 +287,14 @@ class Worker:
                 )  # fmt: skip
                 continue
             found = self.queue.find(target)
-            if found and found[0] == "queue":
-                victim = read_json(found[1])
+            # _read rejects or expires a victim that is not a valid request, so
+            # nothing malformed can raise out of here into run_year's stop call.
+            victim = self._read(found[1]) if found and found[0] == "queue" else None
+            if victim is not None:
                 self.queue.finish(found[1], victim, "cancelled", f"cancelled by {who}")
                 self.queue.finish(path, req, "applied", f"cancelled {target}", applied_to=target)
             else:
+                found = self.queue.find(target)
                 where = found[0] if found else "nowhere"
                 self.queue.finish(
                     path, req, "nothing-to-stop", f"{target} is {where}, not queued or running"
@@ -336,6 +340,11 @@ class Worker:
         """One pass. Returns what it did:
         recovering | exiting | halted | idle | waiting | blocked | ran."""
         self.queue.clean_tmp()
+        # Before recovery too: recovery can wait hours on a lock held elsewhere
+        # or on an orphan BPE, and a SIGTERM must still end the loop meanwhile.
+        if self._signal_reason:
+            self._status("exiting", reason=self._signal_reason)
+            return "exiting"
         if not self.recovered and not self.recover():
             return "recovering"
         self._apply_stops()
@@ -432,7 +441,9 @@ class Worker:
         not_run = [o for o in out if o.status == "not_run"]
         detail = "; ".join(f"DOY {o.doy:03d} {o.error or o.note}" for o in failed)
         stopped = self._stop_reason or self._signal_reason
-        if not_run and stopped:
+        # Stopped only if the stop is what left days not run: a SIGTERM that
+        # arrives during a block the breaker then halts must not hide the halt.
+        if stopped and any(o.note == f"stopped: {stopped}" for o in not_run):
             return "stopped", "; ".join(x for x in (stopped, detail) if x), {"days": days}
         if failed or not_run:
             if not_run:
@@ -660,7 +671,12 @@ def _list(q: Queue, n_done: int) -> None:
             r = read_json(p)
         except (OSError, ValueError):
             return f"  {where:7} {p.name}  (unreadable)"
-        what = describe(r) if r.get("kind") else r.get("detail", "")
+        if not isinstance(r, dict):
+            return f"  {where:7} {p.name}  (not a valid request)"
+        try:
+            what = describe(r) if r.get("kind") else r.get("detail", "")
+        except (KeyError, TypeError, AttributeError):
+            what = "(not a valid request)"
         tail = f"  -> {r['outcome']}: {r.get('detail', '')}" if "outcome" in r else ""
         return f"  {where:7} {r.get('id', p.stem)}  {what}{tail}"
 
@@ -673,7 +689,7 @@ def _list(q: Queue, n_done: int) -> None:
         print(line("active", p))
     for p in q.pending():
         print(line("queued", p))
-    done = sorted(q.done.glob("*.json"))[-n_done:] if q.done.is_dir() else []
+    done = sorted(q.done.glob("*.json"))[-n_done:] if q.done.is_dir() and n_done > 0 else []
     for p in done:
         print(line("done", p))
 
@@ -761,7 +777,9 @@ def main(argv: list[str] | None = None) -> int:
     def on_signal(signum: int, _frame: FrameType | None) -> None:
         worker.request_exit(signal.Signals(signum).name)
 
-    old = {s: signal.signal(s, on_signal) for s in (signal.SIGTERM, signal.SIGINT)}
+    # SIGHUP too, as bernese-run-year does: a closed terminal or a dropped ssh
+    # session must stop after the BPE call, not kill the worker mid-redo.
+    old = {s: signal.signal(s, on_signal) for s in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)}
     try:
         with worker:
             if args.once:

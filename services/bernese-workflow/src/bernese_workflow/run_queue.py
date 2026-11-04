@@ -43,6 +43,13 @@ _NAME = re.compile(r"[A-Za-z0-9_]+")
 _USER = re.compile(r"[A-Za-z0-9._-]{1,64}")
 _ID = re.compile(r"\d{8}T\d{6}\.\d{6}Z-[0-9a-f]{8}")
 MAXSESS_DEFAULT = 6
+# Written by the worker into active/ and done/, never by a submitter. Crash
+# recovery trusts "manifest" in an active request to find the files a redo
+# moved, so a request that arrives already carrying it must not be run.
+WORKER_FIELDS = frozenset(
+    {"started", "worker", "manifest", "superseded", "removed", "days", "preflight_day",
+     "outcome", "detail", "finished", "applied_to"}
+)  # fmt: skip
 
 
 class InvalidRequest(ValueError):
@@ -103,6 +110,9 @@ def validate(req: object) -> dict:
         raise InvalidRequest(
             f"submitted must be an ISO time, got {req.get('submitted')!r}"
         ) from None
+    owned = sorted(WORKER_FIELDS & req.keys())
+    if owned:
+        raise InvalidRequest(f"a request may not carry the worker's own fields: {', '.join(owned)}")
     reason = req.get("reason", "")
     if not isinstance(reason, str) or len(reason) > 2000:
         raise InvalidRequest("reason must be text of at most 2000 characters")

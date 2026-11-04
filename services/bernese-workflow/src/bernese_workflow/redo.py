@@ -35,7 +35,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .month_driver import session_for
-from .run_queue import now_utc, read_json, write_json_atomic
+from .run_queue import _fsync_dir, now_utc, read_json, write_json_atomic
 
 MANIFEST_VERSION = 1
 
@@ -91,14 +91,6 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: f.read(1 << 20), b""):
             h.update(block)
     return h.hexdigest()
-
-
-def _fsync_dir(d: Path) -> None:
-    fd = os.open(d, os.O_RDONLY)
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
 
 
 def _move(src: Path, dst: Path) -> None:
@@ -226,7 +218,26 @@ def restore(m: Manifest) -> list[str]:
     3. each old file is moved back and checked again where it landed.
 
     Returns the relative paths of the files the attempt wrote and this deleted.
+
+    Any other error part way through (an OSError from a rename or an unlink)
+    leaves the day half put back, which is no less a case for a person than a
+    checksum mismatch: it is recorded ``restore-failed`` and raised as
+    RestoreFailed, so the worker halts instead of recording a plain failure.
     """
+    try:
+        return _restore(m)
+    except RestoreFailed:
+        raise
+    except Exception as exc:
+        why = f"restore stopped part way: {type(exc).__name__}: {exc}"
+        try:
+            m.set_state(RESTORE_FAILED, problems=[why])
+        except Exception:  # noqa: BLE001 -- the raise below is what matters
+            pass
+        raise RestoreFailed(f"{why} (manifest {m.path})") from exc
+
+
+def _restore(m: Manifest) -> list[str]:
     year_dir = m.year_dir
     aside: dict[str, Path] = {}
     in_place: set[str] = set()

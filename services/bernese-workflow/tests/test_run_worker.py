@@ -767,3 +767,81 @@ def test_find_sees_a_real_child_that_inherited_the_marker() -> None:
     finally:
         proc.kill()
         proc.wait()
+
+
+# --- review fixes ------------------------------------------------------------------------
+
+
+def test_a_restore_that_dies_part_way_halts_the_worker_instead_of_failing_quietly(
+    env: Env, monkeypatch
+) -> None:
+    old_set(env, 40)
+    env.bsw.failing = {40}
+    req = env.submit(REDO, doy=40)
+    real, n = rd._move, {"calls": 0}
+
+    def flaky(src, dst):
+        n["calls"] += 1
+        if n["calls"] == len(OLD) + 2:  # every move aside, then the second move back
+            raise OSError("EIO")
+        real(src, dst)
+
+    monkeypatch.setattr(rd, "_move", flaky)
+    with env.worker() as w:
+        w.step()
+        assert w.step() == "halted"
+    rec = env.done(req)
+    assert rec["outcome"] == "restore-failed"
+    assert "EIO" in rec["detail"]
+    [mfile] = manifests(env)
+    assert rd.Manifest.load(mfile).state == rd.RESTORE_FAILED
+
+
+def test_a_request_carrying_the_workers_own_fields_is_refused(env: Env) -> None:
+    req = make_request(START, USER, campaign="PHREF", repr_prefix="PHR", year=YEAR,
+                       pcf="PHREF_DLY", **{"from": 10, "to": 10})  # fmt: skip
+    with pytest.raises(InvalidRequest, match="manifest"):
+        validate({**req, "manifest": "/elsewhere/SUPERSEDED/x/MANIFEST_20250400.json"})
+
+
+def test_sigterm_ends_the_loop_while_recovery_is_waiting(env: Env) -> None:
+    req = env.submit(START, **{"from": 10, "to": 10})
+    crashed(env, req)
+    with env.worker() as w:
+        with BPELock(env.lock_path):
+            assert w.step() == "recovering"
+            w.request_exit("SIGTERM")
+            assert w.step() == "exiting"
+
+
+def test_a_stop_naming_a_malformed_queued_file_does_not_fail_the_running_job(env: Env) -> None:
+    from bernese_workflow.run_queue import new_id
+
+    run = env.submit(START, **{"from": 10, "to": 19})
+    bad = new_id()
+
+    def during(first: int) -> None:
+        if first == 10:
+            (env.queue.queue / f"{bad}.json").write_text("[1, 2]")
+            env.submit(STOP, target=bad)
+
+    env.bsw.during = during
+    with env.worker() as w:
+        w.step()
+    assert env.done(run)["outcome"] == "ok", "the run went on past the stop's check"
+    assert [f for f, _ in env.bsw.calls] == [10, 14, 18]
+
+
+def test_cli_list_survives_a_malformed_queued_request_and_n_0_shows_none(env: Env, capsys) -> None:
+    from bernese_workflow.run_queue import new_id
+
+    env.submit(START, **{"from": 10, "to": 10})
+    with env.worker() as w:
+        w.step()
+    env.queue.ensure()
+    (env.queue.queue / f"{new_id()}.json").write_text('{"kind": "start"}')
+    capsys.readouterr()
+    assert main(["--state-dir", str(env.queue.root), "list", "-n", "0"]) == 0
+    out = capsys.readouterr().out
+    assert "(not a valid request)" in out
+    assert not any(line.startswith("  done") for line in out.splitlines())

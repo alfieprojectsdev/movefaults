@@ -124,9 +124,10 @@ for 360 days at MAXSESS 6, `SETTLED.md` §2) a block of 12 is about half an
 hour. A redo and a preflight are one day each, so for them
 the two meanings coincide.
 
-SIGTERM and SIGINT are treated as a stop of the running request followed by
-the worker exiting. A second signal does not escalate: the only way to abandon
-a BPE mid-day is SIGKILL, and that is handled as a crash. Whoever deploys the
+SIGTERM, SIGINT and SIGHUP are treated as a stop of the running request
+followed by the worker exiting, also while crash recovery is still waiting.
+A second signal does not escalate: the only way to abandon a BPE mid-day is
+SIGKILL, and that is handled as a crash. Whoever deploys the
 worker under a service manager must give it a stop timeout longer than a
 block, or the manager will escalate to SIGKILL itself.
 
