@@ -305,11 +305,13 @@ def run_year(
             )  # fmt: skip
             if halt is None and resume_from is not None:
                 queue.insert(0, (resume_from, b))
+        kind = str(reason["kind"]) if reason else ""
         for d in todo:
             if d not in out:
                 out[d] = DayOutcome(
-                    d, session_for(d, session_char), "not_run", note=f"stopped: {halt}"
-                )
+                    d, session_for(d, session_char), "not_run",
+                    note=f"stopped: {halt}", halt_kind=kind,
+                )  # fmt: skip
     except BaseException as exc:
         if halt is None:
             halt = f"interrupted: {type(exc).__name__}"

@@ -98,6 +98,10 @@ class DayOutcome:
     note: str = ""
     error: str = ""  # the failure's signature, as "emitter: KIND"
     explanation: str = ""  # what the knowledge base says about it, for a person
+    # For a not_run day: the kind of the halt that left it unrun, the same
+    # ``halt_reason["kind"]`` run_end records ("stopped", "breaker", ...).
+    # Callers decide on this, never on the wording of ``note``.
+    halt_kind: str = ""
 
 
 def session_for(doy: int, session_char: str = "0") -> str:
@@ -351,8 +355,15 @@ def run_days(
                     reason = halt_reason("breaker", label, doy)
             if halt is not None:
                 logger.error("stopping: %s\n%s", halt, explanation)
+                kind = str(reason["kind"]) if reason else ""
                 out.extend(
-                    DayOutcome(d, session_for(d, session_char), "not_run", note=f"stopped: {halt}")
+                    DayOutcome(
+                        d,
+                        session_for(d, session_char),
+                        "not_run",
+                        note=f"stopped: {halt}",
+                        halt_kind=kind,
+                    )  # fmt: skip
                     for d in days[i + 1 :]
                 )
                 break

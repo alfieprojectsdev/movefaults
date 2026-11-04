@@ -850,3 +850,80 @@ def test_cli_list_survives_a_malformed_queued_request_and_n_0_shows_none(env: En
     out = capsys.readouterr().out
     assert "(not a valid request)" in out
     assert not any(line.startswith("  done") for line in out.splitlines())
+
+
+# --- status.json: written on change, plus a heartbeat --------------------------------------
+
+
+def test_idle_status_is_rewritten_only_on_change_or_heartbeat(env: Env) -> None:
+    """Idle polls every 5 s used to rewrite status.json each time (an fsync per
+    poll, ~17,000 a day). Now: same content inside the heartbeat, no write."""
+    now = [dt.datetime(2026, 11, 4, 12, 0, tzinfo=dt.UTC)]
+    status = env.queue.root / "status.json"
+    with env.worker(clock=lambda: now[0], heartbeat_s=60.0) as w:
+        assert w.step() == "idle"
+        first = read_json(status)["updated"]
+        for _ in range(11):  # 55 s of idle polls
+            now[0] += dt.timedelta(seconds=5)
+            assert w.step() == "idle"
+        assert read_json(status)["updated"] == first
+        now[0] += dt.timedelta(seconds=5)  # 60 s: the heartbeat is due
+        w.step()
+        assert read_json(status)["updated"] == now[0].isoformat()
+        (env.queue.root / "HALTED").write_text("restore failed\n")
+        now[0] += dt.timedelta(seconds=1)  # a change is written at once
+        assert w.step() == "halted"
+        assert read_json(status)["state"] == "halted"
+        assert read_json(status)["updated"] == now[0].isoformat()
+
+
+# --- "stopped" is decided on the halt's kind, not a note's wording ------------------------
+
+
+def _outcomes(kind: str, note: str):
+    from bernese_workflow.month_driver import DayOutcome
+
+    return [
+        DayOutcome(10, "0100", "ok"),
+        DayOutcome(11, "0110", "not_run", note=note, halt_kind=kind),
+    ]
+
+
+def test_summary_stopped_follows_halt_kind_whatever_the_note_says(env: Env) -> None:
+    w = env.worker()
+    w._stop_reason = "stopped by someone"
+    # The note's wording no longer matters...
+    assert w._summary(_outcomes("stopped", "anything at all"))[0] == "stopped"
+    # ...and a breaker halt is a failure even while a stop was also asked for
+    # (a SIGTERM during a block the breaker then halts must not hide the halt),
+    # even if the note happens to read like the stop.
+    assert w._summary(_outcomes("breaker", "stopped: stopped by someone"))[0] == "failed"
+
+
+def test_run_year_marks_not_run_days_with_the_halt_kind(env: Env) -> None:
+    """The kind on each not_run day is the one run_end records."""
+    from bernese_workflow.run_year import run_year
+
+    out = run_year(
+        env.bsw, SimplePlan(YEAR, [10, 11, 12]),
+        campaign="PHREF", repr_prefix="PHR", campaign_dir=env.bsw.campaign_dir,
+        sol_dir=env.sol, maxsess=1, chunk_days=1, preflight=False,
+        ledger=Ledger(env.year_dir / "ledger.jsonl"),
+        stop=lambda: "stopped by test",
+    )  # fmt: skip
+    assert {o.status for o in out} == {"not_run"}
+    assert {o.halt_kind for o in out} == {"stopped"}
+    entries, _ = read_entries(env.year_dir / "ledger.jsonl")
+    end = [e for e in entries if e["event"] == "run_end"][-1]
+    assert end["halt_reason"]["kind"] == "stopped"
+
+
+def test_status_is_rewritten_when_the_clock_steps_back(env: Env) -> None:
+    """A wall clock stepped back must not silence the heartbeat until it catches up."""
+    now = [dt.datetime(2026, 11, 4, 12, 0, tzinfo=dt.UTC)]
+    status = env.queue.root / "status.json"
+    with env.worker(clock=lambda: now[0], heartbeat_s=60.0) as w:
+        assert w.step() == "idle"
+        now[0] -= dt.timedelta(hours=1)
+        assert w.step() == "idle"
+        assert read_json(status)["updated"] == now[0].isoformat()
