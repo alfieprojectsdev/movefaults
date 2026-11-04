@@ -51,6 +51,7 @@ from pathlib import Path
 
 from bernese_workflow.bpe_knowledge import Entry, KnowledgeBase, explain, match_key
 from bernese_workflow.bpe_scanner import StepReport, scan_file
+from bernese_workflow.rinex_header_validator import PreflightUnavailable, ValidationError
 
 K_DEFAULT = 3
 MAX_FAILURES_DEFAULT = 5
@@ -98,6 +99,18 @@ class Diagnosis:
                 "No BPE step reported a failure. UNKNOWN: read the BPE output and the driver's log."
             )
         return f"{self.step.name}\n{explain(self.report, kb)}"
+
+
+def preflight_refusal(exc: BaseException) -> tuple[str, str | None] | None:
+    """(label, session) when ``exc`` is the pre-BPE RINEX header check refusing
+    a session, or unable to run; None for any other exception.
+
+    Such a refusal leaves no BPE output, so diagnose_day would call it "no
+    failed BPE step". The validator's own label says what was wrong instead.
+    """
+    if isinstance(exc, (ValidationError, PreflightUnavailable)):
+        return exc.label, exc.session
+    return None
 
 
 def _step_order(path: Path) -> tuple[int, int, str]:
