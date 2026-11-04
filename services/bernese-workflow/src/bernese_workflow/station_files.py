@@ -25,8 +25,14 @@ WHAT IT REPORTS
 
 WHICH FINDINGS BLOCK
 run_plan puts a blocking finding in RunPlan.problems, where each entry refuses
-the run, and the rest in RunPlan.warnings. Blocking: every overlap form
-(duplicate and open-ended rows are overlaps with a known cause), every block
+the run, and the rest in RunPlan.warnings. Blocking: an overlap form
+(duplicate and open-ended rows are overlaps with a known cause) for a station
+with RINEX on a day to run, when the overlap covers that day (S01R, LUZON
+2026: Bernese dropped it every day). An overlap for a station with no data in
+the run, or one that ended before the run's first day (BTUN, SNFO and SPAB in
+LUZON.STA; BTUN, SPAB and URDT in PHNAT.STA), is a warning: it cannot affect
+these days, and blocking on it refused runs that solve. Without a datapool
+scan (the CLI with no --rinex-dir) every overlap blocks. Also blocking: every block
 after END TABLE, and a station with RINEX to run that the STA, CRD or BLQ does
 not have (the header validator already treats a station missing from the STA
 as an error, and a missing BLQ entry stops GPSEDT). An ATL name mismatch
@@ -49,6 +55,7 @@ never touched.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import re
 import sys
 from collections.abc import Iterable, Mapping
@@ -70,6 +77,8 @@ OPEN_YEAR = 2099
 
 _CRD_LINE = re.compile(r"^\s*\d+\s{2}(\S{4}.{12})\s*-?\d+\.\d+\s+-?\d+\.\d+\s+-?\d+\.\d+")
 _END_TABLE = "$$ END TABLE"
+# What may follow a BLQ header's 4-char code: end of line, a blank, or `_`
+_BLQ_NAME_END = ("", " ", "_")
 
 
 # ---------------------------------------------------------------------------
@@ -114,12 +123,14 @@ def name_listed(text: str, full_name: str) -> bool:
 def _blq_header_code(line: str) -> str | None:
     """The code of a BLQ block header in the column Bernese reads (3), else None.
 
-    Two blanks, four characters, then a blank or the end of the line. Data rows
-    also start with two blanks but carry numbers (`  .01857`), so the four
-    characters are not alphanumeric.
+    Two blanks, four characters, then a blank, an underscore or the end of the
+    line. Data rows also start with two blanks but carry numbers (`  .01857`),
+    so the four characters are not alphanumeric. The underscore is the OLMPP
+    form `  LORE_LORE`: PHNAT.BLQ carries LORE and MONT that way, and PHREF's
+    GPSEST read PHNAT.BLQ for both without a NOT FOUND (PHR251700, DOY 170).
     """
     code = line[2:6]
-    if line[:2] == "  " and line[6:7] in ("", " ") and len(code) == 4 and code.isalnum():
+    if line[:2] == "  " and line[6:7] in _BLQ_NAME_END and len(code) == 4 and code.isalnum():
         return code
     return None
 
@@ -142,7 +153,7 @@ def blq_status(text: str, code: str) -> str:
             line[1:5] == code
             and line[:1] == " "
             and line[1:2] != " "
-            and line[5:6] in ("", " ")
+            and line[5:6] in _BLQ_NAME_END
             and not seen_end
         ):
             misindented = True
@@ -202,6 +213,8 @@ class Finding:
     station: str  # full name for STA/ATL findings, the 4-char code otherwise
     detail: str
     blocking: bool
+    # For STA overlap forms: the moment range both rows cover (None = open).
+    window: tuple[dt.datetime | None, dt.datetime | None] | None = None
 
     def __str__(self) -> str:
         return f"{self.file}: {self.station}: {self.detail}"
@@ -238,6 +251,23 @@ def _overlap(a: StaRow, b: StaRow) -> bool:
     return (a_lo is None or b_hi is None or a_lo < b_hi) and (
         b_lo is None or a_hi is None or b_lo < a_hi
     )
+
+
+def _common(a: StaRow, b: StaRow) -> tuple[dt.datetime | None, dt.datetime | None]:
+    """The window both rows cover; None at either end means open."""
+    starts = [x for x in (a.start, b.start) if x is not None]
+    ends = [x for x in (a.end, b.end) if x is not None]
+    return (max(starts) if starts else None, min(ends) if ends else None)
+
+
+_OVERLAP_KINDS = frozenset({"sta_overlap", "sta_duplicate", "sta_open_then_later"})
+
+
+def _touches(
+    window: tuple[dt.datetime | None, dt.datetime | None], lo: dt.datetime, hi: dt.datetime
+) -> bool:
+    w_lo, w_hi = window
+    return (w_lo is None or w_lo < hi) and (w_hi is None or w_hi > lo)
 
 
 def _start_key(row: StaRow) -> tuple[int, object, int]:
@@ -294,28 +324,38 @@ def check_sta(text: str, label: str, rows: list[StaRow] | None = None) -> list[F
             if r.text in first_seen:
                 out.append(
                     Finding(label, "sta_duplicate", name,
-                            f"line {r.line} repeats line {first_seen[r.text].line} exactly", True)
+                            f"line {r.line} repeats line {first_seen[r.text].line} exactly", True,
+                            (r.start, r.end))
                 )  # fmt: skip
             else:
                 first_seen[r.text] = r
 
         ordered = sorted(usable, key=_start_key)
         for i, a in enumerate(ordered):
+            closed_at_first_later = False
             for b in ordered[i + 1 :]:
                 if a.text == b.text or not _overlap(a, b):
                     continue
                 later = b.start is not None and (a.start is None or b.start > a.start)
                 if _is_open(a) and later:
+                    # Closing ``a`` at the first later start also ends its
+                    # overlap with every row that starts after that one; a
+                    # finding per later row would advise closing it at each.
+                    if closed_at_first_later:
+                        continue
+                    closed_at_first_later = True
                     out.append(
                         Finding(label, "sta_open_then_later", name,
                                 f"line {a.line} is open (TO {_fmt(a, 'to')}) but line {b.line} "
-                                f"starts {_fmt(b, 'from')}; close line {a.line} there", True)
+                                f"starts {_fmt(b, 'from')}; close line {a.line} there", True,
+                                _common(a, b))
                     )  # fmt: skip
                 else:
                     out.append(
                         Finding(label, "sta_overlap", name,
                                 f"line {a.line} ({_fmt(a, 'from')} to {_fmt(a, 'to')}) overlaps "
-                                f"line {b.line} ({_fmt(b, 'from')} to {_fmt(b, 'to')})", True)
+                                f"line {b.line} ({_fmt(b, 'from')} to {_fmt(b, 'to')})", True,
+                                _common(a, b))
                     )  # fmt: skip
     return out
 
@@ -444,6 +484,7 @@ def check_station_files(
     atl: tuple[str, str] | None = None,
     coverage: Coverage | None = None,
     days: Iterable[int] = (),
+    year: int | None = None,
 ) -> list[Finding]:
     """Every finding for one campaign's files. Each file is ``(label, text)``.
 
@@ -458,6 +499,13 @@ def check_station_files(
     active = {c for d in days for c in (coverage.by_day.get(d, set()) if coverage else set())}
 
     out = check_sta(sta_text, sta_label, rows)
+    if coverage is not None and year is not None:
+        # No days to run: nothing an overlap could affect, so active is empty
+        # and every overlap scopes down to a warning.
+        first, last = (min(days), max(days)) if days else (1, 1)
+        lo = dt.datetime(year, 1, 1) + dt.timedelta(days=first - 1)
+        hi = dt.datetime(year, 1, 1) + dt.timedelta(days=last)
+        out = [_scope_overlap(f, active, lo, hi) for f in out]
     if blq is not None:
         out += check_blq(blq[1], blq[0])
     if atl is not None:
@@ -476,6 +524,20 @@ def check_station_files(
             sta_read=bool(rows),
         )
     return out
+
+
+def _scope_overlap(f: Finding, active: set[str], lo: dt.datetime, hi: dt.datetime) -> Finding:
+    """An STA overlap blocks only for a station with RINEX to run, over the run's days."""
+    if f.kind not in _OVERLAP_KINDS or f.window is None:
+        return f
+    if f.station[:4] in active and _touches(f.window, lo, hi):
+        return f
+    why = (
+        "no RINEX for it on the days to run"
+        if f.station[:4] not in active
+        else "it does not cover the days to run"
+    )
+    return Finding(f.file, f.kind, f.station, f"{f.detail} (warning only: {why})", False, f.window)
 
 
 def read_text(path: Path) -> str:
@@ -524,7 +586,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     coverage = scan(args.rinex_dir, args.year) if args.rinex_dir else None
     findings = check_station_files(
-        sta=sta, **files, coverage=coverage, days=range(args.doy_from, args.doy_to + 1)
+        sta=sta,
+        **files,
+        coverage=coverage,
+        days=range(args.doy_from, args.doy_to + 1),
+        year=args.year,
     )
     checked = [args.sta.name] + [p.name for p in (args.crd, args.blq, args.atl) if p]
     if coverage is not None:

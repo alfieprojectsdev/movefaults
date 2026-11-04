@@ -329,3 +329,56 @@ def test_an_empty_sta_is_one_finding_not_one_per_station():
     cov = _coverage({5: {"AGUS", "PTAG", "CUSV"}})
     findings = sf.check_station_files(sta=("X.STA", sta_text([])), coverage=cov, days=[5])
     assert _kinds(findings) == [("sta_empty", "-")]
+
+
+def test_an_open_row_followed_by_several_is_one_finding_at_the_first_start():
+    """PHNAT.STA's BTUN: one row open to 2099 and three later rows. Closing it at
+    the first later start ends all three overlaps; a finding per later row would
+    also advise closing it at the second and the third."""
+    rows = [
+        ("BTUN BTUN", T0, OPEN),
+        ("BTUN BTUN", "2016 08 26 00 00 00", "2017 04 17 23 59 59", "TRIMBLE NETR9"),
+        ("BTUN BTUN", "2017 04 18 00 00 00", "2019 08 19 23 59 59", "TRIMBLE ALLOY"),
+        ("BTUN BTUN", "2019 08 20 00 00 00", OPEN, "LEICA GR50"),
+    ]
+    (f,) = sf.check_sta(sta_text(rows), "X.STA")
+    assert f.kind == "sta_open_then_later" and f.blocking
+    assert "but line 13 starts 2016 08 26 00 00 00; close line 12 there" in f.detail
+
+
+def test_a_blq_header_with_an_underscore_name_is_read():
+    """PHNAT.BLQ heads LORE and MONT as `  LORE_LORE` (OLMPP's form), and
+    PHREF's GPSEST read both from it without a NOT FOUND."""
+    text = _blq(["AGUS"], []).replace("  AGUS               AGUS", "  LORE_LORE")
+    assert sf.blq_status(text, "LORE") == "ok"
+    assert sf.check_blq(text + "$$ END TABLE\r\n  MONT_MONT\r\n", "X.BLQ")[0].station == "MONT"
+
+
+def test_an_overlap_blocks_only_a_station_with_data_over_the_days_to_run() -> None:
+    """LUZON 2026 solved 31/31 with BTUN, SNFO and SPAB overlaps in its STA; S01R's blocked.
+
+    S01R's open row overlaps 2025-04-15 onward and S01R has RINEX in the run:
+    it blocks. OVLP's overlap ended in 2021: warning. S01R in a run where it
+    has no data: warning. No days to run at all: nothing can be affected.
+    """
+    sta = ("T.STA", sta_text(EVERY_CASE))
+
+    def blocking(cov: dict[int, set[str]], days: list[int], year: int = 2025) -> set[str]:
+        c = _coverage(cov)
+        found = sf.check_station_files(sta=sta, coverage=c, days=days, year=year)
+        return {f.station for f in found if f.blocking and f.kind.startswith("sta_")}
+
+    assert blocking({152: {"S01R", "OVLP"}}, [152]) == {"S01R S01R"}
+    assert blocking({152: {"OVLP"}}, [152]) == set()
+    assert blocking({}, []) == set()
+    # Without a datapool scan, every overlap still blocks (the CLI with no --rinex-dir).
+    unscoped = sf.check_station_files(sta=sta, days=[152], year=2025)
+    assert {f.station for f in unscoped if f.blocking} >= {"S01R S01R", "OVLP OVLP"}
+    # A warning says why it is not blocking.
+    c = _coverage({152: {"OVLP"}})
+    ovlp = [
+        f
+        for f in sf.check_station_files(sta=sta, coverage=c, days=[152], year=2025)
+        if f.station == "OVLP OVLP"
+    ]
+    assert ovlp and all("warning only" in f.detail for f in ovlp)

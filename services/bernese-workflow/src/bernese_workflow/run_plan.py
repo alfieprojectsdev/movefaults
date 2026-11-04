@@ -244,6 +244,7 @@ def check_station_files_for_pcf(
         atl=files["ATL"],
         coverage=coverage,
         days=days,
+        year=year,
     )
     return findings, problems, sources
 
