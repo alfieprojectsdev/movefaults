@@ -11,13 +11,62 @@ earlier days failed. The ledger records those directly.
 WHAT IS WRITTEN
 One JSON object per line, appended and fsynced, never rewritten:
 
-  run_start      a run_days call began: run id, host, pid, campaign, year, the
-                 days asked for, the days already banked, and the config hash
+  run_start      a run began: run id, host, pid, campaign, year, the days
+                 asked for, the days already banked, and the config hash; and
+                 its provenance (below)
   attempt_start  a day was handed to the backend
   attempt_end    that day finished: outcome ok | failed, seconds, error, note,
                  station count
-  run_end        the call returned; ``halt`` is the circuit breaker's reason,
-                 or null when every day was attempted
+  run_end        the call returned; ``halt`` is why the run stopped, as a
+                 sentence, or null when every day was attempted; and
+                 ``halt_reason`` is the same as data (below)
+
+PROVENANCE, IN run_start
+What a person reading a result later needs to know about the run that made it.
+The process facts are collected here, so every writer records them:
+
+  user, sudo_user  getpass.getuser(), and $SUDO_USER (null when not under sudo)
+  command          sys.argv, as the process was started
+  code             {"commit": <sha> | "unknown", "dirty": true | false | null}:
+                   the checkout this module was imported from. "dirty" counts
+                   tracked files only; an untracked file is not imported unless
+                   a tracked one was changed to import it. Never fails a run:
+                   no git, no checkout or a refused one is "unknown"
+
+The run's own facts come from the caller, and are null when it did not say
+(month_driver.run_days, which has no plan and no PCF of its own):
+
+  pcf              the PCF name, e.g. PHREF_DLY
+  products         the PCF's V_ORB, e.g. COD0OPSFIN: the products the BPE reads
+  product_tier     final | rapid | ultra, from V_ORB; null when V_ORB does not
+                   say (run_plan.product_tier gives the cases)
+  excluded         the days the plan left out, each {doy, reason, detail};
+                   reason is run_plan's: solved | short | listed. [] means a plan
+                   excluded nothing; null means no plan was recorded
+
+HALT REASON, IN run_end
+``halt_reason`` is null when ``halt`` is, and otherwise
+{"kind": ..., "label": ..., "doy": <day> | null}. ``label`` is the short name a
+screen shows; for kind "breaker" it is the failed day's error label
+("neqckdim: DIMENSION_TOO_SMALL"), as in attempt_end, so it can be looked up
+in the known-errors list. Kinds:
+
+  breaker      the circuit breaker stopped the run after a failed day (doy)
+  validation   the pre-BPE RINEX header check refused a day (doy), or could
+               not run; no BPE was started for it, and that day's attempt_end
+               is outcome "failed" with the same label as its error
+  backend      the backend raised (a timeout, say)
+  order        sessions finished out of order (run_year)
+  no_start     no session of a block started (run_year)
+  interrupted  a signal or exception ended the driver
+
+THE VERSION, ``v``
+``v`` changes when a reader written for the previous format would misread a
+line: a field removed or renamed, or given a different type or meaning. Adding
+a field does not change it. Readers take every field with .get(), and a line
+written before a field existed has no such key, which every reader here treats
+as "not recorded". The provenance fields and halt_reason were added that way,
+so lines with and without them are both v 1.
 
 A run with a run_start and no run_end was interrupted, or is still running.
 Which one is decided from the pid: alive on this host means running.
@@ -32,11 +81,13 @@ keeping both is the choice that can be undone.
 from __future__ import annotations
 
 import argparse
+import getpass
 import hashlib
 import json
 import os
 import socket
 import statistics
+import subprocess
 import sys
 import time
 import uuid
@@ -64,6 +115,72 @@ def config_hash(paths: Iterable[Path]) -> str:
         h.update(p.read_bytes())
         h.update(b"\0")
     return h.hexdigest()[:12]
+
+
+def code_version(where: Path | None = None) -> dict[str, object]:
+    """The git commit of the checkout ``where`` is in, and whether it is dirty.
+
+    {"commit": "unknown", "dirty": None} when git cannot say: no git, an
+    installed wheel rather than a checkout, or a checkout git refuses (sudo to
+    another user gives "dubious ownership"). Never raises: a run is not stopped
+    for want of its provenance.
+    """
+    where = Path(__file__).resolve().parent if where is None else where
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(where), *args],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        ).stdout.strip()
+
+    try:
+        commit = git("rev-parse", "HEAD")
+        # An installed (non-editable) copy in a .venv inside the checkout is in
+        # the work tree but not tracked: HEAD would describe the checkout, not
+        # the code that was imported.
+        git("ls-files", "--error-unmatch", "--", ".")
+    except (OSError, subprocess.SubprocessError):
+        return {"commit": "unknown", "dirty": None}
+    try:
+        # --no-optional-locks: status must not take index.lock (and refresh the
+        # index) under an operator's own git command, or rewrite it as root.
+        dirty: bool | None = bool(
+            git("--no-optional-locks", "status", "--porcelain", "--untracked-files=no")
+        )
+    except (OSError, subprocess.SubprocessError):
+        dirty = None
+    return {"commit": commit or "unknown", "dirty": dirty}
+
+
+def started_by() -> dict[str, str | None]:
+    """The account running this process, and the one that ran sudo, if any."""
+    try:
+        user = getpass.getuser()
+    except (OSError, KeyError):  # no login name in the environment or passwd
+        user = "unknown"
+    return {"user": user, "sudo_user": os.environ.get("SUDO_USER") or None}
+
+
+HALT_KINDS = ("breaker", "validation", "backend", "order", "no_start", "interrupted")
+
+
+def halt_reason(kind: str, label: str, doy: int | None = None) -> dict[str, object]:
+    """run_end's ``halt_reason``; see the module docstring for the kinds."""
+    if kind not in HALT_KINDS:
+        raise ValueError(f"unknown halt kind {kind!r}; one of {', '.join(HALT_KINDS)}")
+    return {"kind": kind, "label": label, "doy": doy}
+
+
+# Every key a run_start line carries without ``extra``: the envelope _append
+# writes, then run_start's own fields.
+_RUN_START_FIELDS = frozenset(
+    {"v", "ts", "event", "run", "host", "pid", "campaign", "year", "doys", "banked",
+     "config", "user", "sudo_user", "command", "code", "pcf", "products",
+     "product_tier", "excluded"}
+)  # fmt: skip
 
 
 class Ledger:
@@ -95,7 +212,23 @@ class Ledger:
         doys: list[int],
         banked: list[int],
         config: str | None = None,
+        pcf: str | None = None,
+        products: str | None = None,
+        product_tier: str | None = None,
+        excluded: list[dict[str, object]] | None = None,
+        **extra: object,
     ) -> str:
+        """Open a run. The arguments after ``config`` are its provenance (module
+        docstring); who, the command line and the code version are read here.
+
+        ``extra`` is written as is, for a caller with more to say (the run
+        worker records who asked for the run). It may not reuse a field this
+        method writes: the envelope's ``v``/``ts``/``event``/``run`` would be
+        overwritten silently, and the rest would be ambiguous.
+        """
+        clash = sorted(set(extra) & _RUN_START_FIELDS)
+        if clash:
+            raise ValueError(f"run_start extra fields reuse reserved names: {', '.join(clash)}")
         self.run_id = uuid.uuid4().hex[:8]
         self._append(
             "run_start",
@@ -106,6 +239,14 @@ class Ledger:
             doys=doys,
             banked=banked,
             config=config,
+            **started_by(),
+            command=list(sys.argv),
+            code=code_version(),
+            pcf=pcf,
+            products=products,
+            product_tier=product_tier,
+            excluded=excluded,
+            **extra,
         )
         return self.run_id
 
@@ -138,8 +279,9 @@ class Ledger:
             **extra,
         )
 
-    def run_end(self, *, halt: str | None) -> None:
-        self._append("run_end", halt=halt)
+    def run_end(self, *, halt: str | None, reason: dict[str, object] | None = None) -> None:
+        """``reason`` is written as ``halt_reason``: see halt_reason()."""
+        self._append("run_end", halt=halt, halt_reason=reason)
 
 
 def read_entries(path: Path) -> tuple[list[dict], int]:
@@ -192,6 +334,33 @@ def _doys(attempts: list[dict]) -> str:
     return "DOY " + ", ".join(f"{d:03d}" for d in ds)
 
 
+def _provenance_line(start: dict) -> str | None:
+    """Who, which code, which PCF and products; None for a run_start written
+    before these were recorded, so an old ledger reads as it always did."""
+    if not any(k in start for k in ("user", "code", "pcf")):
+        return None
+    who = str(start.get("user") or "unknown")
+    if start.get("sudo_user"):
+        who += f" (sudo from {start['sudo_user']})"
+    code = start.get("code") or {}
+    commit = str(code.get("commit") or "unknown")
+    version = commit if commit == "unknown" else commit[:10]
+    if code.get("dirty"):
+        version += " (dirty)"
+    elif commit != "unknown" and code.get("dirty") is None:
+        # git named the commit but could not say whether the tree matched it:
+        # printing the bare sha would read as "clean".
+        version += " (dirty unknown)"
+    parts = [f"by {who}", f"code {version}"]
+    if start.get("pcf"):
+        parts.append(f"PCF {start['pcf']}")
+    if start.get("products"):
+        parts.append(
+            f"products {start['products']} ({start.get('product_tier') or 'tier unknown'})"
+        )
+    return "  " + "   ".join(parts)
+
+
 @dataclass
 class RunStatus:
     state: str  # none | running | slow | finished | halted | dead | unknown
@@ -239,14 +408,19 @@ def run_status(
     done_doys = {e["doy"] for e in ends}
     left = [d for d in asked if d not in done_doys and d not in banked]
 
+    excluded = start.get("excluded")
     lines = [
         f"run {run}  {start.get('campaign')} {start.get('year')}  host {start.get('host')} "
         f"pid {start.get('pid')}  config {start.get('config') or '-'}",
         f"  started {time.strftime('%Y-%m-%d %H:%M', time.localtime(start['ts']))}; "
-        f"{len(asked)} days asked, {len(banked)} already banked",
+        f"{len(asked)} days asked, {len(banked)} already banked"
+        + (f", {len(excluded)} excluded by the plan" if isinstance(excluded, list) else ""),
         f"  ok {len(ok)}   failed {len(failed)}   not run {len(not_run)}   "
         f"not yet attempted {len(left)}",
     ]
+    provenance = _provenance_line(start)
+    if provenance is not None:
+        lines.insert(1, provenance)
     for e in failed[-5:]:
         lines.append(f"  failed DOY {e['doy']:03d}: {e.get('error') or e.get('note')}")
 

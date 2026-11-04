@@ -746,3 +746,28 @@ def test_the_deletion_guard_requires_the_private_campaign_prefix(tmp_path: Path)
     (tmp_path / "PHR251520").mkdir()
     _remove_private_campaign(tmp_path, "PHR251520", "PHREF", "PHR")
     assert not (tmp_path / "PHR251520").exists() and (tmp_path / "LUZON").is_dir()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_the_cli_records_the_pcf_and_its_product_tier(cli_env, monkeypatch) -> None:
+    """The tier comes from the PCF's V_ORB, where the BPE is told what to read."""
+    import bernese_workflow.run_year as ry
+
+    pcf = cli_env / "U" / "PCF" / "PHREF_DLY.PCF"
+    pcf.write_text(pcf.read_text() + "V_ORB = COD0OPSRAP;\n")
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 0
+    assert (seen["pcf"], seen["products"], seen["product_tier"]) == (
+        "PHREF_DLY",
+        "COD0OPSRAP",
+        "rapid",
+    )
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_a_pcf_without_v_orb_records_no_tier(cli_env, monkeypatch) -> None:
+    import bernese_workflow.run_year as ry
+
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 0
+    assert (seen["products"], seen["product_tier"]) == (None, None)

@@ -248,6 +248,34 @@ def check_station_files_for_pcf(
     return findings, problems, sources
 
 
+# IGS long product name: centre (3), version (1), project (3), type (3), as in
+# COD0OPSFIN, IGS0OPSRAP, COD0MGXFIN. The type is the tier.
+_LONG_PRODUCT_RE = re.compile(r"^[A-Z0-9]{3}[0-9][A-Z0-9]{3}([A-Z]{3})$")
+_TIERS = {"FIN": "final", "RAP": "rapid", "ULT": "ultra"}
+
+
+def product_tier(pcf_text: str) -> tuple[str | None, str | None]:
+    """The products a PCF tells the BPE to read (V_ORB), and their tier.
+
+    V_ORB is where the products are chosen: the BPE opens the orbit, ERP, clock
+    and bias files named after it. Its last three letters are the IGS type,
+    FIN, RAP or ULT. The tier is None, rather than guessed, when:
+
+    * V_ORB is absent: a 5.2 PCF names only the centre (V_B = COD), so the
+      tier is in which files were downloaded, and the PCF does not say;
+    * V_ORB is not a long name, or holds a variable the BPE expands later;
+    * the type is none of the three (PRD, predicted, say).
+
+    This names what the BPE was told to read, not what was on disk: a product
+    missing from V_ORBDIR fails the step that opens it, which the ledger records.
+    """
+    orb = pcf_variable(pcf_text, "V_ORB")
+    if not orb:
+        return None, None
+    m = _LONG_PRODUCT_RE.match(orb)
+    return orb, (_TIERS.get(m.group(1)) if m else None)
+
+
 def fix_stations(fix_text: str) -> set[str]:
     """Station codes in a Bernese .FIX file (the reference set)."""
     return {m.group(1) for line in fix_text.splitlines() if (m := _FIX_LINE_RE.match(line))}

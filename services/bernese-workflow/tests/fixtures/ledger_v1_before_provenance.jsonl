@@ -1,0 +1,14 @@
+{"v":1,"ts":1761552000.0,"event":"run_start","run":"9692ab26","host":"gps3","pid":4242,"campaign":"PHREF","year":2025,"doys":[152,153,154],"banked":[],"config":"0123456789ab"}
+{"v":1,"ts":1761552060.0,"event":"attempt_start","run":"9692ab26","doy":152,"session":"1520","mode":"block","block":[152,154]}
+{"v":1,"ts":1761552120.0,"event":"attempt_start","run":"9692ab26","doy":153,"session":"1530","mode":"block","block":[152,154]}
+{"v":1,"ts":1761552180.0,"event":"attempt_start","run":"9692ab26","doy":154,"session":"1540","mode":"block","block":[152,154]}
+{"v":1,"ts":1761552240.0,"event":"attempt_end","run":"9692ab26","doy":152,"session":"1520","outcome":"ok","seconds":1802.4,"error":"","note":"","stations":47,"mode":"block","block":[152,154]}
+{"v":1,"ts":1761552300.0,"event":"attempt_end","run":"9692ab26","doy":153,"session":"1530","outcome":"ok","seconds":1802.4,"error":"","note":"","stations":47,"mode":"block","block":[152,154]}
+{"v":1,"ts":1761552360.0,"event":"attempt_end","run":"9692ab26","doy":154,"session":"1540","outcome":"ok","seconds":1802.4,"error":"","note":"","stations":47,"mode":"block","block":[152,154]}
+{"v":1,"ts":1761552420.0,"event":"run_end","run":"9692ab26","halt":null}
+{"v":1,"ts":1761552480.0,"event":"run_start","run":"3df8adb4","host":"gps3","pid":4242,"campaign":"PHREF","year":2025,"doys":[155,156],"banked":[],"config":"0123456789ab"}
+{"v":1,"ts":1761552540.0,"event":"attempt_start","run":"3df8adb4","doy":155,"session":"1550","mode":"block","block":[155,156]}
+{"v":1,"ts":1761552600.0,"event":"attempt_start","run":"3df8adb4","doy":156,"session":"1560","mode":"block","block":[155,156]}
+{"v":1,"ts":1761552660.0,"event":"attempt_end","run":"3df8adb4","doy":155,"session":"1550","outcome":"failed","seconds":640.0,"error":"neqckdim: DIMENSION_TOO_SMALL","note":"session error and no fresh FIN","stations":47,"mode":"block","block":[155,156]}
+{"v":1,"ts":1761552720.0,"event":"attempt_end","run":"3df8adb4","doy":156,"session":"1560","outcome":"not_run","seconds":0.0,"error":"","note":"not started: configuration error (neqckdim: DIMENSION_TOO_SMALL); every day would fail the same way","stations":null,"mode":"block","block":[155,156]}
+{"v":1,"ts":1761552780.0,"event":"run_end","run":"3df8adb4","halt":"configuration error (neqckdim: DIMENSION_TOO_SMALL); every day would fail the same way"}

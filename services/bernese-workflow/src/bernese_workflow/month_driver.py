@@ -82,8 +82,9 @@ from .circuit_breaker import (
     CircuitBreaker,
     Diagnosis,
     diagnose_day,
+    preflight_refusal,
 )
-from .ledger import Ledger
+from .ledger import Ledger, halt_reason
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +196,15 @@ def _write_marker(marker: Path, fin: Path) -> None:
     _fsync(marker.parent)
 
 
+def validation_halt(label: str, doy: int) -> tuple[str, dict[str, object]]:
+    """run_end's ``halt`` and ``halt_reason`` for a day the pre-BPE header check
+    refused (circuit_breaker.preflight_refusal). Shared with run_year."""
+    return (
+        f"pre-BPE validation refused DOY {doy:03d} ({label}); no BPE was started",
+        halt_reason("validation", label, doy),
+    )
+
+
 def run_days(
     backend: BPEBackend,
     campaign: str,
@@ -241,6 +251,7 @@ def run_days(
         ledger.run_start(campaign=campaign, year=year, doys=days, banked=banked, config=config)
     counts = station_counts or {}
     halt: str | None = None
+    reason: dict[str, object] | None = None
     out: list[DayOutcome] = []
     try:
         for i, doy in enumerate(days):
@@ -257,16 +268,20 @@ def run_days(
             t0 = time.monotonic()
             if ledger is not None:
                 ledger.attempt_start(doy=doy, session=session)
+            refused: tuple[str, str | None] | None = None
+            raised_type = ""
             try:
                 result = backend.run(campaign, year, session)
                 error = None
             except Exception as exc:  # noqa: BLE001 -- a day's error is that day's failure
                 # The real backend raises on timeout and on RINEX header validation.
                 # The day is recorded and the report still returned, and the run
-                # stops as unknown whatever BPE/ shows (see the halt below).
+                # stops whatever BPE/ shows (see the halt below).
                 # KeyboardInterrupt is not an Exception and propagates.
                 result = None
                 error = f"{type(exc).__name__}: {exc}"
+                raised_type = type(exc).__name__
+                refused = preflight_refusal(exc)
             seconds = time.monotonic() - t0
             # A FIN left by an earlier failed attempt is not this run's output. mtime
             # granularity (ms) is far below a BPE day (minutes), so equality means untouched.
@@ -295,33 +310,45 @@ def run_days(
                 note = "BPE reported success but the FIN file predates this run"
             else:
                 note = "BPE reported success but no valid FIN file"
-            try:
-                diagnosis = diagnose_day(bpe_dir, year, session, started, kb)
-            except OSError as exc:
-                # Reading BPE/ must not cost the report: diagnose as unknown, which halts.
-                logger.error("DOY %03d: could not read %s: %s", doy, bpe_dir, exc)
-                diagnosis = Diagnosis(None, None, None, unreadable=f"{type(exc).__name__}: {exc}")
-            explanation = diagnosis.explanation(kb)
-            out.append(
-                DayOutcome(doy, session, "failed", seconds, note, diagnosis.label, explanation)
-            )
+            if refused is not None:
+                # No BPE ran, so BPE/ has nothing to say; the validator does.
+                label, explanation = refused[0], error or ""
+                note = f"refused before the BPE: {error}"
+            else:
+                try:
+                    diagnosis = diagnose_day(bpe_dir, year, session, started, kb)
+                except OSError as exc:
+                    # Reading BPE/ must not cost the report: diagnose as unknown, which halts.
+                    logger.error("DOY %03d: could not read %s: %s", doy, bpe_dir, exc)
+                    diagnosis = Diagnosis(
+                        None, None, None, unreadable=f"{type(exc).__name__}: {exc}"
+                    )
+                label, explanation = diagnosis.label, diagnosis.explanation(kb)
+            out.append(DayOutcome(doy, session, "failed", seconds, note, label, explanation))
             if ledger is not None:
                 ledger.attempt_end(
                     doy=doy,
                     session=session,
                     outcome="failed",
                     seconds=seconds,
-                    error=diagnosis.label,
+                    error=label,
                     note=note,
                     stations=counts.get(doy),
                 )
-            logger.warning("DOY %03d failed: %s; %s", doy, note, diagnosis.label)
-            halt = breaker.failure(diagnosis)
-            if halt is None and result is None:
-                # A backend that raised (timeout, refused pre-flight) is unknown even
-                # when a step left a known session error: that error does not explain
-                # the raise, and another day would cost another timeout.
-                halt = f"unknown failure (backend raised {error}); no remedy on file"
+            logger.warning("DOY %03d failed: %s; %s", doy, note, label)
+            if refused is not None:
+                # Stops the run, as any raise does, but says what the check found.
+                halt, reason = validation_halt(label, doy)
+            else:
+                halt = breaker.failure(diagnosis)
+                if result is None:
+                    # A backend that raised (a timeout) is unknown even when a step
+                    # left a known session error: that error does not explain the
+                    # raise, and another day would cost another timeout.
+                    halt = halt or f"unknown failure (backend raised {error}); no remedy on file"
+                    reason = halt_reason("backend", f"backend raised {raised_type}", doy)
+                elif halt is not None:
+                    reason = halt_reason("breaker", label, doy)
             if halt is not None:
                 logger.error("stopping: %s\n%s", halt, explanation)
                 out.extend(
@@ -333,8 +360,11 @@ def run_days(
         # Ctrl-C, or the SIGTERM a service stop becomes, is a deliberate stop:
         # close the run in the ledger, or status calls it running, then dead.
         if ledger is not None:
-            ledger.run_end(halt=f"interrupted: {type(exc).__name__}")
+            ledger.run_end(
+                halt=f"interrupted: {type(exc).__name__}",
+                reason=halt_reason("interrupted", type(exc).__name__),
+            )
         raise
     if ledger is not None:
-        ledger.run_end(halt=halt)
+        ledger.run_end(halt=halt, reason=reason)
     return out

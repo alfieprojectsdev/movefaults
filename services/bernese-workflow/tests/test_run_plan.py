@@ -233,3 +233,36 @@ def test_a_variable_it_cannot_expand_falls_back_and_says_so():
     assert path == Path("/data/SAVEDISK/PHREF/2025") and "fallback" in source
     path, source = run_plan.rinex_dir("", _ENV, 2025, fallback=Path("/data/DATAPOOL/PHREF"))
     assert path == Path("/data/DATAPOOL/PHREF") and "fallback" in source
+
+
+@pytest.mark.parametrize(
+    ("value", "tier"),
+    [
+        ("COD0OPSFIN", "final"),
+        ("IGS0OPSRAP", "rapid"),
+        ("COD0OPSULT", "ultra"),
+        ("COD0MGXFIN", "final"),  # another project, same type field
+        ("COD0OPSPRD", None),  # predicted: none of the three, so not guessed
+        ("COD", None),  # not a long name
+        ("${ORB}", None),  # expanded by the BPE, not readable here
+    ],
+)
+def test_product_tier_is_the_type_in_v_orb(value: str, tier: str | None) -> None:
+    from bernese_workflow.run_plan import product_tier
+
+    text = f"V_ORB          = {value};       DESCRIPTION=Orbit/ERP, CLK, bias information\n"
+    assert product_tier(text) == (value, tier)
+
+
+def test_a_pcf_without_v_orb_has_no_products_or_tier() -> None:
+    """A 5.2 PCF names only the centre (V_B = COD); the tier is not in it."""
+    from bernese_workflow.run_plan import product_tier
+
+    assert product_tier("V_B = COD;\nV_REFINF = IGS20;\n") == (None, None)
+
+
+def test_the_captured_pagenet_pcf_reads_as_final() -> None:
+    from bernese_workflow.run_plan import product_tier
+
+    pcf = Path(__file__).parents[3] / "config/bernese/gpsuser/PCF/PAGENET_DLY.PCF"
+    assert product_tier(pcf.read_text(errors="replace")) == ("COD0OPSFIN", "final")

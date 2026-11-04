@@ -82,8 +82,15 @@ class ValidationReport:
 
 
 class ValidationError(Exception):
-    def __init__(self, report: ValidationReport) -> None:
+    """The headers disagree with the STA (or there is nothing to check).
+
+    ``session`` is the session refused, when the caller knows it: run_year and
+    month_driver record it as the day the run stopped on.
+    """
+
+    def __init__(self, report: ValidationReport, session: str | None = None) -> None:
         self.report = report
+        self.session = session
         lines = [f"Pre-BPE RINEX header validation failed ({len(report.mismatches)} mismatch(es)):"]
         for m in report.mismatches:
             lines.append(
@@ -102,6 +109,39 @@ class ValidationError(Exception):
                 "— validation cannot run (empty/wrong source, or data not yet staged)."
             )
         super().__init__("\n".join(lines))
+
+    @property
+    def label(self) -> str:
+        """One line naming what was wrong, as the ledger records it.
+
+        Not in the known-errors list, deliberately: these are refused before
+        any BPE step runs, so there is no ``***`` message to match.
+        """
+        r = self.report
+        parts = []
+        if r.mismatches:
+            parts.append(f"{len(r.mismatches)} receiver/antenna mismatch(es)")
+        if r.missing_from_sta:
+            parts.append(f"{len(r.missing_from_sta)} station(s) not in the STA")
+        if r.atx_missing:
+            parts.append(f"{len(r.atx_missing)} antenna type(s) not in the ATX")
+        if r.no_rinex_found:
+            parts.append("no RINEX for the session")
+        return "RINEX header check: " + (", ".join(parts) or "refused")
+
+
+class PreflightUnavailable(FileNotFoundError):
+    """The header check could not run: no RINEX source or no STA.
+
+    Raised instead of a warning when the backend is told the check is required.
+    A FileNotFoundError still, so anything that caught that before still does.
+    """
+
+    label = "RINEX header check could not run"
+
+    def __init__(self, message: str, session: str | None = None) -> None:
+        super().__init__(message)
+        self.session = session
 
 
 # ---------------------------------------------------------------------------
