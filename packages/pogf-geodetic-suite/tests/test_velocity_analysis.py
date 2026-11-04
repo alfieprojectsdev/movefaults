@@ -1,6 +1,8 @@
 """Tests for timeseries.analysis — velocity estimation from ENU time series."""
 from __future__ import annotations
 
+import dataclasses
+
 import numpy as np
 import pytest
 from pogf_geodetic_suite.timeseries.analysis import (
@@ -243,8 +245,8 @@ def test_segment_velocity_dataclass_frozen():
         r2_e=0.99, r2_n=0.99, r2_u=0.99,
         n_points=50, t_start=2010.0, t_end=2020.0,
     )
-    with pytest.raises(Exception):
-        sv.ve_mm_yr = 99.0  # frozen dataclass
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        sv.ve_mm_yr = 99.0  # type: ignore[misc]
 
 
 # ---------------------------------------------------------------------------
