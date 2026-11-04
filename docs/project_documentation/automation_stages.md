@@ -287,6 +287,10 @@ written to the `outliers` file, and never applied — which is why the work
 instruction has an analyst delete points by hand. Item 1 being on this list
 independently confirms that decision.
 
+**Reopened 2026-11-04.** The decision owner now calls this an open team
+decision; `docs/SETTLED.md` section 6 has the evidence and what each module
+defaults to meanwhile. The text above is kept as the record of 2026-08-13.
+
 What remains: detection currently runs IQR on raw ENU values per segment. On a
 site with a strong trend the trend itself inflates the spread, so a genuine
 outlier can hide inside it. **Detecting on residuals from the fit, iteratively,

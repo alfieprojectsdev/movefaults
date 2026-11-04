@@ -310,6 +310,30 @@ def test_duplicate_day_flags_only_the_outlying_copy():
     assert sum(out["series"]["in_fit"]) == seg["n_fit"] == 60
 
 
+def test_flags_come_from_the_fit_not_a_second_copy_of_the_rule(monkeypatch):
+    """Change the fit's rule and the status flags follow it.
+
+    status.py used to re-run `_detect_outliers_iqr` itself. Swap in a rule the
+    IQR test would never produce (flag the first row of every segment) and the
+    status flags must still match the fit's, in both modes.
+    """
+    from pogf_geodetic_suite.timeseries import analysis
+
+    def first_row_only(data, factor):
+        mask = np.zeros(len(data), dtype=bool)
+        mask[0] = True
+        return mask
+
+    monkeypatch.setattr(analysis, "_detect_outliers_iqr", first_row_only)
+    t = np.linspace(2020, 2022, 40)
+    for mode in ("record", "exclude"):
+        out = series_status(t, _small(t), station="X", offsets=[], outlier_mode=mode)
+        s = out["series"]
+        assert [i for i, f in enumerate(s["outlier"]) if f] == [0]
+        assert out["segments"][0]["n_outliers"] == 1
+        assert s["in_fit"][0] is (mode == "record")
+
+
 # ---------------------------------------------------------------------------
 # Errors
 # ---------------------------------------------------------------------------

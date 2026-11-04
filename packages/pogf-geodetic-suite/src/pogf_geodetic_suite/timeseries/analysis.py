@@ -50,6 +50,10 @@ horizontally** (NVY9, North) and **10.83 mm/yr vertically** (BSCS, Up).
   roughly five times. The horizontal figure was unaffected.
 
 The team decided on 2026-08-13 to publish the `exclude_outliers=True` column.
+REOPENED 2026-11-04: `docs/SETTLED.md` section 6 records the decision owner
+calling it open, and `timeseries/status.py` defaults to record-only until it
+closes. This default is unchanged meanwhile; the 2026-08-13 text stays as the
+record of what was decided then.
 The full per-site delta, plus two findings that matter more than this setting
 (six sites whose published velocity is fitted to days of data, and five whose
 reference disagreement is catalog drift rather than implementation error), is
@@ -110,6 +114,16 @@ class SegmentVelocity:
     t_start: float          # decimal year
     t_end: float
     outlier_epochs: tuple[float, ...] = field(default_factory=tuple)
+    # Which of the CALLER'S input rows (indices into the `t` / `enu_m` passed
+    # to `estimate_velocity`, before its sort) belong to this segment, and
+    # which of those the outlier rule flagged. A consumer that needs per-epoch
+    # flags reads these instead of re-running the rule: re-running it is a
+    # second copy of the rule, and the day detection changes (residual-based,
+    # `automation_stages.md` stage 3 item 1) the copy would silently disagree.
+    # Rows rather than `outlier_epochs` because a duplicated day has two rows
+    # with one time, and only one of them may be the outlier.
+    rows: tuple[int, ...] = field(default_factory=tuple)
+    outlier_rows: tuple[int, ...] = field(default_factory=tuple)
 
 
 @dataclass
@@ -221,7 +235,8 @@ def estimate_velocity(
     if len(t) != enu_m.shape[0]:
         raise ValueError("t and enu_m must have the same number of rows")
 
-    # Sort chronologically
+    # Sort chronologically. `order` maps sorted position -> caller's row, so
+    # each segment can report its rows in the caller's numbering.
     order = np.argsort(t)
     t, enu_m = t[order], enu_m[order]
 
@@ -241,6 +256,7 @@ def estimate_velocity(
         seg_start, seg_end = starts[i], starts[i + 1]
         t_seg = t[seg_start:seg_end]
         enu_seg = enu_m[seg_start:seg_end]
+        rows_seg = order[seg_start:seg_end]
 
         if len(t_seg) < 3:
             continue
@@ -288,6 +304,8 @@ def estimate_velocity(
                 t_start=float(t_seg[0]),
                 t_end=float(t_seg[-1]),
                 outlier_epochs=outlier_epochs,
+                rows=tuple(int(r) for r in rows_seg),
+                outlier_rows=tuple(int(r) for r in rows_seg[is_outlier]),
             )
         )
 

@@ -6,6 +6,10 @@ detected outliers from the fit (`exclude_outliers=True`, the default in
 currently in circulation. This document is the delta, so the departure is
 something the team decided rather than something a colleague discovers.
 
+**Reopened 2026-11-04.** The decision owner now calls this an open team
+decision; `docs/SETTLED.md` section 6 has the evidence and what each module
+defaults to meanwhile. The text above is kept as the record of 2026-08-13.
+
 Regenerate at any time:
 
 ```bash

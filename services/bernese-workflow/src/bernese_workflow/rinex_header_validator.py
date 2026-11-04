@@ -480,12 +480,34 @@ def _parse_rinex_headers(
 # ---------------------------------------------------------------------------
 
 
+def windows_overlap(
+    a_start: dt.datetime | None,
+    a_end: dt.datetime | None,
+    b_start: dt.datetime | None,
+    b_end: dt.datetime | None,
+) -> bool:
+    """Two TYPE 002 windows cover a common moment (None = open at that end).
+
+    The one overlap rule in this package: the header check below and
+    ``station_files`` both use it. A shared boundary does not count: the IGS
+    convention ends one row exactly where the next begins.
+    """
+    return (a_start is None or b_end is None or a_start < b_end) and (
+        b_start is None or a_end is None or b_start < a_end
+    )
+
+
 @dataclass(frozen=True)
 class _StaEntry:
     receiver: str
     antenna: str
     start: dt.datetime | None  # None: open (valid from the beginning)
     end: dt.datetime | None  # None: open (still valid)
+    name: str = ""  # full 16-column name, what Bernese keys a station on
+    # False when a FROM/TO column is written but does not parse, or FROM is
+    # after TO: ``station_files`` reports those rows and leaves them out of
+    # its overlap check, so ``_overlapping`` does too.
+    dates_usable: bool = True
 
     def overlaps(self, day: dt.date) -> bool:
         """Valid at any moment of ``day``: an equipment change on the day itself
@@ -496,12 +518,21 @@ class _StaEntry:
 
 
 def _overlapping(entries: list[_StaEntry]) -> list[_StaEntry]:
-    """The entries whose windows cover a common moment (meeting at a change is fine)."""
-    lo = dt.datetime.min
-    ordered = sorted(entries, key=lambda e: e.start or lo)
-    for a, b in zip(ordered, ordered[1:], strict=False):
-        if a.end is None or (b.start or lo) <= a.end:
-            return [a, b]
+    """The first two entries OF ONE FULL NAME whose windows cover a common moment.
+
+    Same rule and same key as ``station_files``: ``windows_overlap`` (meeting
+    at a change is fine), and only rows with the same full name, since rows
+    under two names that share a code are two stations to Bernese.
+    """
+    for i, a in enumerate(entries):
+        for b in entries[i + 1 :]:
+            if (
+                a.dates_usable
+                and b.dates_usable
+                and a.name == b.name
+                and windows_overlap(a.start, a.end, b.start, b.end)
+            ):
+                return [a, b]
     return []
 
 
@@ -598,6 +629,18 @@ def sta_type002_rows(content: str) -> list[StaRow]:
     return rows
 
 
+def sta_row_dates_usable(row: StaRow) -> bool:
+    """FROM and TO each blank or parsed, and FROM not after TO.
+
+    A row failing this is left out of both overlap checks (here and in
+    ``station_files``), which reports it as ``sta_bad_date`` / ``sta_reversed``.
+    """
+    for raw, parsed in ((row.from_field, row.start), (row.to_field, row.end)):
+        if raw.strip() and parsed is None:
+            return False
+    return not (row.start is not None and row.end is not None and row.start > row.end)
+
+
 def _sta_entries(sta_path: Path) -> dict[str, list[_StaEntry]]:
     """Every TYPE 002 entry per 4-char station code, in file order.
 
@@ -612,7 +655,14 @@ def _sta_entries(sta_path: Path) -> dict[str, list[_StaEntry]]:
     result: dict[str, list[_StaEntry]] = {}
     for row in sta_type002_rows(content):
         result.setdefault(row.code, []).append(
-            _StaEntry(receiver=row.receiver, antenna=row.antenna, start=row.start, end=row.end)
+            _StaEntry(
+                receiver=row.receiver,
+                antenna=row.antenna,
+                start=row.start,
+                end=row.end,
+                name=row.name,
+                dates_usable=sta_row_dates_usable(row),
+            )
         )
     return result
 
@@ -774,6 +824,17 @@ def validate_rinex_headers(
             continue
 
         candidates = sta_info[station]
+        names = sorted({e.name for e in candidates})
+        if len(names) > 1:
+            # Not an overlap (Bernese keys on the full name, so these are two
+            # stations), but the match below accepts either name's equipment,
+            # so a file can pass against the wrong station's record. Say so.
+            report.warnings.append(
+                f"{station}: {len(names)} STA TYPE 002 names are valid on {day} ("
+                + " / ".join(repr(n) for n in names)
+                + "); the header passes if it matches either"
+            )
+            logger.warning("%s", report.warnings[-1])
         overlap = _overlapping(candidates)
         if overlap:
             # Two windows that cover the same moment are an error in the STA, not

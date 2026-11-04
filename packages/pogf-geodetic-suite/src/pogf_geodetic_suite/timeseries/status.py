@@ -21,8 +21,10 @@ and one CLI subcommand, `pogf-timeseries status` (see `cli.py`).
 
 OUTLIERS ARE FLAGGED, NEVER DROPPED
 -----------------------------------
-The rule is the one the package already uses, `analysis._detect_outliers_iqr`,
-applied by `estimate_velocity` per segment: an epoch is flagged when ANY of its
+The flags are the fit's own: `estimate_velocity` reports, per segment, which
+rows it assigned and which it flagged (`SegmentVelocity.rows`, `.outlier_rows`),
+and this module copies them rather than re-running the rule. The rule today is
+`analysis._detect_outliers_iqr`, per segment: an epoch is flagged when ANY of its
 E, N, U values lies more than `outlier_iqr_factor` (default 3.0, as in
 `vel_line_v8`) interquartile ranges outside that segment's quartiles. It runs on
 the raw values, not on residuals from the fit; see "Known weakness" below.
@@ -133,7 +135,7 @@ from typing import Any
 
 import numpy as np
 
-from .analysis import OffsetEvent, OffsetType, _detect_outliers_iqr, estimate_velocity
+from .analysis import OffsetEvent, OffsetType, estimate_velocity
 from .crd_pipeline import crd_directory_to_enu
 from .gmt import MIN_SPAN_YEARS
 from .offsets_catalog import load_offsets_catalog
@@ -233,20 +235,17 @@ def series_status(
     origin = enu_m[0]
     rel_mm = (enu_m - origin) * 1000.0
 
-    # Per-epoch segment index: segments are contiguous slices of the sorted
-    # series, so [t_start, t_end] identifies their epochs exactly. The outlier
-    # flag is the same rule applied to the same slice, BY INDEX. Matching
-    # `seg.outlier_epochs` by value instead would flag both copies of a
-    # duplicated day when only one is an outlier (the F1_/FIN_ case warned
-    # about below), and in "exclude" mode report a fit set that disagrees with
-    # the one `estimate_velocity` used. The row-wise rule is order-invariant,
-    # so it marks the same rows whatever order the fit sorted ties into.
+    # Per-epoch segment index and outlier flag, copied BY ROW from the fit
+    # (`t` and `enu_m` here are what was passed to `estimate_velocity`, so its
+    # row numbers index them directly). Matching `seg.outlier_epochs` by value
+    # instead would flag both copies of a duplicated day when only one is an
+    # outlier (the F1_/FIN_ case warned about below), and re-running the rule
+    # here would be a second copy of it that drifts the day the fit's changes.
     seg_of = np.full(t.size, -1, dtype=int)
     outlier = np.zeros(t.size, dtype=bool)
     for k, seg in enumerate(result.segments):
-        members = (t >= seg.t_start) & (t <= seg.t_end)
-        seg_of[members] = k
-        outlier[members] = _detect_outliers_iqr(enu_m[members], outlier_iqr_factor)
+        seg_of[list(seg.rows)] = k
+        outlier[list(seg.outlier_rows)] = True
     assigned = seg_of >= 0
     segment_idx: list[int | None] = [int(k) if k >= 0 else None for k in seg_of]
     in_fit = assigned & ~outlier if mode is OutlierMode.EXCLUDE else assigned
@@ -307,7 +306,7 @@ def series_status(
             "span_yr": float(span),
             "n_epochs": int(members.sum()),
             "n_fit": int(seg.n_points),
-            "n_outliers": len(seg.outlier_epochs),
+            "n_outliers": len(seg.outlier_rows),
             "velocity_mm_yr": _enu(vel),
             "sigma_mm_yr": {"e": seg.sig_ve, "n": seg.sig_vn, "u": seg.sig_vu},
             "r2": {"e": seg.r2_e, "n": seg.r2_n, "u": seg.r2_u},
