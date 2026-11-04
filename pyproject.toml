@@ -51,6 +51,8 @@ igs-downloader = "pogf_geodetic_suite.igs_downloader:main"
 # A range of days as parallel BPE blocks, one campaign per session (step F).
 bernese-run-year = "bernese_workflow.run_year:main"
 field-ops-api = "field_ops.main:start"
+# The Bernese processing console: a read-only web view over bernese-workflow.
+bsw-console = "bsw_console.main:start"
 velocity-reviewer = "velocity_reviewer.cli:main"
 
 [project.optional-dependencies]
@@ -92,6 +94,13 @@ vadase-rt-monitor = [
     "httpx>=0.28.1",
     "aiofiles>=25.1.0",
     "typer>=0.21.1",
+]
+
+# The Bernese processing console (services/bsw-console). The processing
+# service it reads is already a base dependency; this adds only the web layer.
+bsw-console = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
 ]
 
 # Dependencies for the field-ops PWA service
@@ -181,6 +190,7 @@ packages = [
 "services/ingestion-pipeline/src" = ""
 "services/bernese-workflow/src" = ""
 "services/field-ops/src" = ""
+"services/bsw-console/src" = ""
 "tools/velocity-reviewer/src" = ""
 
 [dependency-groups]
@@ -213,6 +223,7 @@ consider_namespace_packages = true
 testpaths = [
     "packages/pogf-geodetic-suite/tests",
     "services/bernese-workflow/tests",
+    "services/bsw-console/tests",
     "services/field-ops/tests",
     "analysis/epb_discriminator/tests",
     "services/ingestion-pipeline/tests",

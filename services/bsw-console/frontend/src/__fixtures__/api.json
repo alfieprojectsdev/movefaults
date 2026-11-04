@@ -1,0 +1,4583 @@
+{
+ "/api/session": {
+  "user": null,
+  "accounts": "pending",
+  "version": "ca4c551",
+  "actions_enabled": false,
+  "campaigns": [
+   "LUZON"
+  ]
+ },
+ "/api/lock": {
+  "held": false,
+  "holder": "",
+  "last_holder": "",
+  "path": "/srv/bsw/bpe.lock",
+  "run": null
+ },
+ "/api/campaigns": {
+  "campaigns": [
+   {
+    "name": "LUZON",
+    "pcf": "LUZON_DLY",
+    "float_pcf": "",
+    "prefix": "LZY",
+    "years": [
+     {
+      "year": 2025,
+      "fixed": 1,
+      "float": 0,
+      "failed": 1,
+      "not_run": 363
+     }
+    ],
+    "last_run": {
+     "run": "r1",
+     "started": 1793689751.6485233,
+     "ended": 1793690352.6485233,
+     "host": "elsewhere",
+     "pid": 1,
+     "doys": [
+      35,
+      36,
+      37
+     ],
+     "banked": [],
+     "config": "abc",
+     "state": "halted",
+     "halt": "configuration error (example)",
+     "status_lines": [
+      "run r1  LUZON 2025  host elsewhere pid 1  config abc",
+      "  started 2026-11-03 15:09; 3 days asked, 0 already banked",
+      "  ok 1   failed 1   not run 0   not yet attempted 1",
+      "  failed DOY 036: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
+      "  typical day: 5.0 min (median of 1)",
+      "  HALTED: configuration error (example)"
+     ],
+     "year": 2025
+    }
+   }
+  ],
+  "activity": [
+   {
+    "ts": 1793690352.6485233,
+    "who": "service",
+    "campaign": "LUZON",
+    "year": 2025,
+    "doy": null,
+    "event": "run_end",
+    "text": "Run r1 halted: configuration error (example)"
+   },
+   {
+    "ts": 1793690351.6485233,
+    "who": "service",
+    "campaign": "LUZON",
+    "year": 2025,
+    "doy": 36,
+    "event": "attempt_end",
+    "text": "DOY 036 failed: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE"
+   },
+   {
+    "ts": 1793689751.6485233,
+    "who": "elsewhere",
+    "campaign": "LUZON",
+    "year": 2025,
+    "doy": null,
+    "event": "run_start",
+    "text": "Run r1 started: 3 day(s), 0 already solved."
+   }
+  ]
+ },
+ "/api/campaigns/LUZON/years/2025/days": {
+  "campaign": "LUZON",
+  "year": 2025,
+  "counts": {
+   "fixed": 1,
+   "float": 0,
+   "failed": 1,
+   "running": 0,
+   "queued": 0,
+   "excluded": 0,
+   "none": 363
+  },
+  "days": [
+   {
+    "year": 2025,
+    "doy": 1,
+    "date": "2025-01-01",
+    "gps_week": 2347,
+    "gps_day": 3,
+    "session": "0010",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 2,
+    "date": "2025-01-02",
+    "gps_week": 2347,
+    "gps_day": 4,
+    "session": "0020",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 3,
+    "date": "2025-01-03",
+    "gps_week": 2347,
+    "gps_day": 5,
+    "session": "0030",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 4,
+    "date": "2025-01-04",
+    "gps_week": 2347,
+    "gps_day": 6,
+    "session": "0040",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 5,
+    "date": "2025-01-05",
+    "gps_week": 2348,
+    "gps_day": 0,
+    "session": "0050",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 6,
+    "date": "2025-01-06",
+    "gps_week": 2348,
+    "gps_day": 1,
+    "session": "0060",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 7,
+    "date": "2025-01-07",
+    "gps_week": 2348,
+    "gps_day": 2,
+    "session": "0070",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 8,
+    "date": "2025-01-08",
+    "gps_week": 2348,
+    "gps_day": 3,
+    "session": "0080",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 9,
+    "date": "2025-01-09",
+    "gps_week": 2348,
+    "gps_day": 4,
+    "session": "0090",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 10,
+    "date": "2025-01-10",
+    "gps_week": 2348,
+    "gps_day": 5,
+    "session": "0100",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 11,
+    "date": "2025-01-11",
+    "gps_week": 2348,
+    "gps_day": 6,
+    "session": "0110",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 12,
+    "date": "2025-01-12",
+    "gps_week": 2349,
+    "gps_day": 0,
+    "session": "0120",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 13,
+    "date": "2025-01-13",
+    "gps_week": 2349,
+    "gps_day": 1,
+    "session": "0130",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 14,
+    "date": "2025-01-14",
+    "gps_week": 2349,
+    "gps_day": 2,
+    "session": "0140",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 15,
+    "date": "2025-01-15",
+    "gps_week": 2349,
+    "gps_day": 3,
+    "session": "0150",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 16,
+    "date": "2025-01-16",
+    "gps_week": 2349,
+    "gps_day": 4,
+    "session": "0160",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 17,
+    "date": "2025-01-17",
+    "gps_week": 2349,
+    "gps_day": 5,
+    "session": "0170",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 18,
+    "date": "2025-01-18",
+    "gps_week": 2349,
+    "gps_day": 6,
+    "session": "0180",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 19,
+    "date": "2025-01-19",
+    "gps_week": 2350,
+    "gps_day": 0,
+    "session": "0190",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 20,
+    "date": "2025-01-20",
+    "gps_week": 2350,
+    "gps_day": 1,
+    "session": "0200",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 21,
+    "date": "2025-01-21",
+    "gps_week": 2350,
+    "gps_day": 2,
+    "session": "0210",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 22,
+    "date": "2025-01-22",
+    "gps_week": 2350,
+    "gps_day": 3,
+    "session": "0220",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 23,
+    "date": "2025-01-23",
+    "gps_week": 2350,
+    "gps_day": 4,
+    "session": "0230",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 24,
+    "date": "2025-01-24",
+    "gps_week": 2350,
+    "gps_day": 5,
+    "session": "0240",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 25,
+    "date": "2025-01-25",
+    "gps_week": 2350,
+    "gps_day": 6,
+    "session": "0250",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 26,
+    "date": "2025-01-26",
+    "gps_week": 2351,
+    "gps_day": 0,
+    "session": "0260",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 27,
+    "date": "2025-01-27",
+    "gps_week": 2351,
+    "gps_day": 1,
+    "session": "0270",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 28,
+    "date": "2025-01-28",
+    "gps_week": 2351,
+    "gps_day": 2,
+    "session": "0280",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 29,
+    "date": "2025-01-29",
+    "gps_week": 2351,
+    "gps_day": 3,
+    "session": "0290",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 30,
+    "date": "2025-01-30",
+    "gps_week": 2351,
+    "gps_day": 4,
+    "session": "0300",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 31,
+    "date": "2025-01-31",
+    "gps_week": 2351,
+    "gps_day": 5,
+    "session": "0310",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 32,
+    "date": "2025-02-01",
+    "gps_week": 2351,
+    "gps_day": 6,
+    "session": "0320",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 33,
+    "date": "2025-02-02",
+    "gps_week": 2352,
+    "gps_day": 0,
+    "session": "0330",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 34,
+    "date": "2025-02-03",
+    "gps_week": 2352,
+    "gps_day": 1,
+    "session": "0340",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 35,
+    "date": "2025-02-04",
+    "gps_week": 2352,
+    "gps_day": 2,
+    "session": "0350",
+    "state": "fixed",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 36,
+    "date": "2025-02-05",
+    "gps_week": 2352,
+    "gps_day": 3,
+    "session": "0360",
+    "state": "failed",
+    "note": "HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE"
+   },
+   {
+    "year": 2025,
+    "doy": 37,
+    "date": "2025-02-06",
+    "gps_week": 2352,
+    "gps_day": 4,
+    "session": "0370",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 38,
+    "date": "2025-02-07",
+    "gps_week": 2352,
+    "gps_day": 5,
+    "session": "0380",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 39,
+    "date": "2025-02-08",
+    "gps_week": 2352,
+    "gps_day": 6,
+    "session": "0390",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 40,
+    "date": "2025-02-09",
+    "gps_week": 2353,
+    "gps_day": 0,
+    "session": "0400",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 41,
+    "date": "2025-02-10",
+    "gps_week": 2353,
+    "gps_day": 1,
+    "session": "0410",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 42,
+    "date": "2025-02-11",
+    "gps_week": 2353,
+    "gps_day": 2,
+    "session": "0420",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 43,
+    "date": "2025-02-12",
+    "gps_week": 2353,
+    "gps_day": 3,
+    "session": "0430",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 44,
+    "date": "2025-02-13",
+    "gps_week": 2353,
+    "gps_day": 4,
+    "session": "0440",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 45,
+    "date": "2025-02-14",
+    "gps_week": 2353,
+    "gps_day": 5,
+    "session": "0450",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 46,
+    "date": "2025-02-15",
+    "gps_week": 2353,
+    "gps_day": 6,
+    "session": "0460",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 47,
+    "date": "2025-02-16",
+    "gps_week": 2354,
+    "gps_day": 0,
+    "session": "0470",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 48,
+    "date": "2025-02-17",
+    "gps_week": 2354,
+    "gps_day": 1,
+    "session": "0480",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 49,
+    "date": "2025-02-18",
+    "gps_week": 2354,
+    "gps_day": 2,
+    "session": "0490",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 50,
+    "date": "2025-02-19",
+    "gps_week": 2354,
+    "gps_day": 3,
+    "session": "0500",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 51,
+    "date": "2025-02-20",
+    "gps_week": 2354,
+    "gps_day": 4,
+    "session": "0510",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 52,
+    "date": "2025-02-21",
+    "gps_week": 2354,
+    "gps_day": 5,
+    "session": "0520",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 53,
+    "date": "2025-02-22",
+    "gps_week": 2354,
+    "gps_day": 6,
+    "session": "0530",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 54,
+    "date": "2025-02-23",
+    "gps_week": 2355,
+    "gps_day": 0,
+    "session": "0540",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 55,
+    "date": "2025-02-24",
+    "gps_week": 2355,
+    "gps_day": 1,
+    "session": "0550",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 56,
+    "date": "2025-02-25",
+    "gps_week": 2355,
+    "gps_day": 2,
+    "session": "0560",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 57,
+    "date": "2025-02-26",
+    "gps_week": 2355,
+    "gps_day": 3,
+    "session": "0570",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 58,
+    "date": "2025-02-27",
+    "gps_week": 2355,
+    "gps_day": 4,
+    "session": "0580",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 59,
+    "date": "2025-02-28",
+    "gps_week": 2355,
+    "gps_day": 5,
+    "session": "0590",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 60,
+    "date": "2025-03-01",
+    "gps_week": 2355,
+    "gps_day": 6,
+    "session": "0600",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 61,
+    "date": "2025-03-02",
+    "gps_week": 2356,
+    "gps_day": 0,
+    "session": "0610",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 62,
+    "date": "2025-03-03",
+    "gps_week": 2356,
+    "gps_day": 1,
+    "session": "0620",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 63,
+    "date": "2025-03-04",
+    "gps_week": 2356,
+    "gps_day": 2,
+    "session": "0630",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 64,
+    "date": "2025-03-05",
+    "gps_week": 2356,
+    "gps_day": 3,
+    "session": "0640",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 65,
+    "date": "2025-03-06",
+    "gps_week": 2356,
+    "gps_day": 4,
+    "session": "0650",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 66,
+    "date": "2025-03-07",
+    "gps_week": 2356,
+    "gps_day": 5,
+    "session": "0660",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 67,
+    "date": "2025-03-08",
+    "gps_week": 2356,
+    "gps_day": 6,
+    "session": "0670",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 68,
+    "date": "2025-03-09",
+    "gps_week": 2357,
+    "gps_day": 0,
+    "session": "0680",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 69,
+    "date": "2025-03-10",
+    "gps_week": 2357,
+    "gps_day": 1,
+    "session": "0690",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 70,
+    "date": "2025-03-11",
+    "gps_week": 2357,
+    "gps_day": 2,
+    "session": "0700",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 71,
+    "date": "2025-03-12",
+    "gps_week": 2357,
+    "gps_day": 3,
+    "session": "0710",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 72,
+    "date": "2025-03-13",
+    "gps_week": 2357,
+    "gps_day": 4,
+    "session": "0720",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 73,
+    "date": "2025-03-14",
+    "gps_week": 2357,
+    "gps_day": 5,
+    "session": "0730",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 74,
+    "date": "2025-03-15",
+    "gps_week": 2357,
+    "gps_day": 6,
+    "session": "0740",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 75,
+    "date": "2025-03-16",
+    "gps_week": 2358,
+    "gps_day": 0,
+    "session": "0750",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 76,
+    "date": "2025-03-17",
+    "gps_week": 2358,
+    "gps_day": 1,
+    "session": "0760",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 77,
+    "date": "2025-03-18",
+    "gps_week": 2358,
+    "gps_day": 2,
+    "session": "0770",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 78,
+    "date": "2025-03-19",
+    "gps_week": 2358,
+    "gps_day": 3,
+    "session": "0780",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 79,
+    "date": "2025-03-20",
+    "gps_week": 2358,
+    "gps_day": 4,
+    "session": "0790",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 80,
+    "date": "2025-03-21",
+    "gps_week": 2358,
+    "gps_day": 5,
+    "session": "0800",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 81,
+    "date": "2025-03-22",
+    "gps_week": 2358,
+    "gps_day": 6,
+    "session": "0810",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 82,
+    "date": "2025-03-23",
+    "gps_week": 2359,
+    "gps_day": 0,
+    "session": "0820",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 83,
+    "date": "2025-03-24",
+    "gps_week": 2359,
+    "gps_day": 1,
+    "session": "0830",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 84,
+    "date": "2025-03-25",
+    "gps_week": 2359,
+    "gps_day": 2,
+    "session": "0840",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 85,
+    "date": "2025-03-26",
+    "gps_week": 2359,
+    "gps_day": 3,
+    "session": "0850",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 86,
+    "date": "2025-03-27",
+    "gps_week": 2359,
+    "gps_day": 4,
+    "session": "0860",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 87,
+    "date": "2025-03-28",
+    "gps_week": 2359,
+    "gps_day": 5,
+    "session": "0870",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 88,
+    "date": "2025-03-29",
+    "gps_week": 2359,
+    "gps_day": 6,
+    "session": "0880",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 89,
+    "date": "2025-03-30",
+    "gps_week": 2360,
+    "gps_day": 0,
+    "session": "0890",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 90,
+    "date": "2025-03-31",
+    "gps_week": 2360,
+    "gps_day": 1,
+    "session": "0900",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 91,
+    "date": "2025-04-01",
+    "gps_week": 2360,
+    "gps_day": 2,
+    "session": "0910",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 92,
+    "date": "2025-04-02",
+    "gps_week": 2360,
+    "gps_day": 3,
+    "session": "0920",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 93,
+    "date": "2025-04-03",
+    "gps_week": 2360,
+    "gps_day": 4,
+    "session": "0930",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 94,
+    "date": "2025-04-04",
+    "gps_week": 2360,
+    "gps_day": 5,
+    "session": "0940",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 95,
+    "date": "2025-04-05",
+    "gps_week": 2360,
+    "gps_day": 6,
+    "session": "0950",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 96,
+    "date": "2025-04-06",
+    "gps_week": 2361,
+    "gps_day": 0,
+    "session": "0960",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 97,
+    "date": "2025-04-07",
+    "gps_week": 2361,
+    "gps_day": 1,
+    "session": "0970",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 98,
+    "date": "2025-04-08",
+    "gps_week": 2361,
+    "gps_day": 2,
+    "session": "0980",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 99,
+    "date": "2025-04-09",
+    "gps_week": 2361,
+    "gps_day": 3,
+    "session": "0990",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 100,
+    "date": "2025-04-10",
+    "gps_week": 2361,
+    "gps_day": 4,
+    "session": "1000",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 101,
+    "date": "2025-04-11",
+    "gps_week": 2361,
+    "gps_day": 5,
+    "session": "1010",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 102,
+    "date": "2025-04-12",
+    "gps_week": 2361,
+    "gps_day": 6,
+    "session": "1020",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 103,
+    "date": "2025-04-13",
+    "gps_week": 2362,
+    "gps_day": 0,
+    "session": "1030",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 104,
+    "date": "2025-04-14",
+    "gps_week": 2362,
+    "gps_day": 1,
+    "session": "1040",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 105,
+    "date": "2025-04-15",
+    "gps_week": 2362,
+    "gps_day": 2,
+    "session": "1050",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 106,
+    "date": "2025-04-16",
+    "gps_week": 2362,
+    "gps_day": 3,
+    "session": "1060",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 107,
+    "date": "2025-04-17",
+    "gps_week": 2362,
+    "gps_day": 4,
+    "session": "1070",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 108,
+    "date": "2025-04-18",
+    "gps_week": 2362,
+    "gps_day": 5,
+    "session": "1080",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 109,
+    "date": "2025-04-19",
+    "gps_week": 2362,
+    "gps_day": 6,
+    "session": "1090",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 110,
+    "date": "2025-04-20",
+    "gps_week": 2363,
+    "gps_day": 0,
+    "session": "1100",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 111,
+    "date": "2025-04-21",
+    "gps_week": 2363,
+    "gps_day": 1,
+    "session": "1110",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 112,
+    "date": "2025-04-22",
+    "gps_week": 2363,
+    "gps_day": 2,
+    "session": "1120",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 113,
+    "date": "2025-04-23",
+    "gps_week": 2363,
+    "gps_day": 3,
+    "session": "1130",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 114,
+    "date": "2025-04-24",
+    "gps_week": 2363,
+    "gps_day": 4,
+    "session": "1140",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 115,
+    "date": "2025-04-25",
+    "gps_week": 2363,
+    "gps_day": 5,
+    "session": "1150",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 116,
+    "date": "2025-04-26",
+    "gps_week": 2363,
+    "gps_day": 6,
+    "session": "1160",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 117,
+    "date": "2025-04-27",
+    "gps_week": 2364,
+    "gps_day": 0,
+    "session": "1170",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 118,
+    "date": "2025-04-28",
+    "gps_week": 2364,
+    "gps_day": 1,
+    "session": "1180",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 119,
+    "date": "2025-04-29",
+    "gps_week": 2364,
+    "gps_day": 2,
+    "session": "1190",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 120,
+    "date": "2025-04-30",
+    "gps_week": 2364,
+    "gps_day": 3,
+    "session": "1200",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 121,
+    "date": "2025-05-01",
+    "gps_week": 2364,
+    "gps_day": 4,
+    "session": "1210",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 122,
+    "date": "2025-05-02",
+    "gps_week": 2364,
+    "gps_day": 5,
+    "session": "1220",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 123,
+    "date": "2025-05-03",
+    "gps_week": 2364,
+    "gps_day": 6,
+    "session": "1230",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 124,
+    "date": "2025-05-04",
+    "gps_week": 2365,
+    "gps_day": 0,
+    "session": "1240",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 125,
+    "date": "2025-05-05",
+    "gps_week": 2365,
+    "gps_day": 1,
+    "session": "1250",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 126,
+    "date": "2025-05-06",
+    "gps_week": 2365,
+    "gps_day": 2,
+    "session": "1260",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 127,
+    "date": "2025-05-07",
+    "gps_week": 2365,
+    "gps_day": 3,
+    "session": "1270",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 128,
+    "date": "2025-05-08",
+    "gps_week": 2365,
+    "gps_day": 4,
+    "session": "1280",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 129,
+    "date": "2025-05-09",
+    "gps_week": 2365,
+    "gps_day": 5,
+    "session": "1290",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 130,
+    "date": "2025-05-10",
+    "gps_week": 2365,
+    "gps_day": 6,
+    "session": "1300",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 131,
+    "date": "2025-05-11",
+    "gps_week": 2366,
+    "gps_day": 0,
+    "session": "1310",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 132,
+    "date": "2025-05-12",
+    "gps_week": 2366,
+    "gps_day": 1,
+    "session": "1320",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 133,
+    "date": "2025-05-13",
+    "gps_week": 2366,
+    "gps_day": 2,
+    "session": "1330",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 134,
+    "date": "2025-05-14",
+    "gps_week": 2366,
+    "gps_day": 3,
+    "session": "1340",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 135,
+    "date": "2025-05-15",
+    "gps_week": 2366,
+    "gps_day": 4,
+    "session": "1350",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 136,
+    "date": "2025-05-16",
+    "gps_week": 2366,
+    "gps_day": 5,
+    "session": "1360",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 137,
+    "date": "2025-05-17",
+    "gps_week": 2366,
+    "gps_day": 6,
+    "session": "1370",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 138,
+    "date": "2025-05-18",
+    "gps_week": 2367,
+    "gps_day": 0,
+    "session": "1380",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 139,
+    "date": "2025-05-19",
+    "gps_week": 2367,
+    "gps_day": 1,
+    "session": "1390",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 140,
+    "date": "2025-05-20",
+    "gps_week": 2367,
+    "gps_day": 2,
+    "session": "1400",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 141,
+    "date": "2025-05-21",
+    "gps_week": 2367,
+    "gps_day": 3,
+    "session": "1410",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 142,
+    "date": "2025-05-22",
+    "gps_week": 2367,
+    "gps_day": 4,
+    "session": "1420",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 143,
+    "date": "2025-05-23",
+    "gps_week": 2367,
+    "gps_day": 5,
+    "session": "1430",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 144,
+    "date": "2025-05-24",
+    "gps_week": 2367,
+    "gps_day": 6,
+    "session": "1440",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 145,
+    "date": "2025-05-25",
+    "gps_week": 2368,
+    "gps_day": 0,
+    "session": "1450",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 146,
+    "date": "2025-05-26",
+    "gps_week": 2368,
+    "gps_day": 1,
+    "session": "1460",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 147,
+    "date": "2025-05-27",
+    "gps_week": 2368,
+    "gps_day": 2,
+    "session": "1470",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 148,
+    "date": "2025-05-28",
+    "gps_week": 2368,
+    "gps_day": 3,
+    "session": "1480",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 149,
+    "date": "2025-05-29",
+    "gps_week": 2368,
+    "gps_day": 4,
+    "session": "1490",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 150,
+    "date": "2025-05-30",
+    "gps_week": 2368,
+    "gps_day": 5,
+    "session": "1500",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 151,
+    "date": "2025-05-31",
+    "gps_week": 2368,
+    "gps_day": 6,
+    "session": "1510",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 152,
+    "date": "2025-06-01",
+    "gps_week": 2369,
+    "gps_day": 0,
+    "session": "1520",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 153,
+    "date": "2025-06-02",
+    "gps_week": 2369,
+    "gps_day": 1,
+    "session": "1530",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 154,
+    "date": "2025-06-03",
+    "gps_week": 2369,
+    "gps_day": 2,
+    "session": "1540",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 155,
+    "date": "2025-06-04",
+    "gps_week": 2369,
+    "gps_day": 3,
+    "session": "1550",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 156,
+    "date": "2025-06-05",
+    "gps_week": 2369,
+    "gps_day": 4,
+    "session": "1560",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 157,
+    "date": "2025-06-06",
+    "gps_week": 2369,
+    "gps_day": 5,
+    "session": "1570",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 158,
+    "date": "2025-06-07",
+    "gps_week": 2369,
+    "gps_day": 6,
+    "session": "1580",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 159,
+    "date": "2025-06-08",
+    "gps_week": 2370,
+    "gps_day": 0,
+    "session": "1590",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 160,
+    "date": "2025-06-09",
+    "gps_week": 2370,
+    "gps_day": 1,
+    "session": "1600",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 161,
+    "date": "2025-06-10",
+    "gps_week": 2370,
+    "gps_day": 2,
+    "session": "1610",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 162,
+    "date": "2025-06-11",
+    "gps_week": 2370,
+    "gps_day": 3,
+    "session": "1620",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 163,
+    "date": "2025-06-12",
+    "gps_week": 2370,
+    "gps_day": 4,
+    "session": "1630",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 164,
+    "date": "2025-06-13",
+    "gps_week": 2370,
+    "gps_day": 5,
+    "session": "1640",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 165,
+    "date": "2025-06-14",
+    "gps_week": 2370,
+    "gps_day": 6,
+    "session": "1650",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 166,
+    "date": "2025-06-15",
+    "gps_week": 2371,
+    "gps_day": 0,
+    "session": "1660",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 167,
+    "date": "2025-06-16",
+    "gps_week": 2371,
+    "gps_day": 1,
+    "session": "1670",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 168,
+    "date": "2025-06-17",
+    "gps_week": 2371,
+    "gps_day": 2,
+    "session": "1680",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 169,
+    "date": "2025-06-18",
+    "gps_week": 2371,
+    "gps_day": 3,
+    "session": "1690",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 170,
+    "date": "2025-06-19",
+    "gps_week": 2371,
+    "gps_day": 4,
+    "session": "1700",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 171,
+    "date": "2025-06-20",
+    "gps_week": 2371,
+    "gps_day": 5,
+    "session": "1710",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 172,
+    "date": "2025-06-21",
+    "gps_week": 2371,
+    "gps_day": 6,
+    "session": "1720",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 173,
+    "date": "2025-06-22",
+    "gps_week": 2372,
+    "gps_day": 0,
+    "session": "1730",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 174,
+    "date": "2025-06-23",
+    "gps_week": 2372,
+    "gps_day": 1,
+    "session": "1740",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 175,
+    "date": "2025-06-24",
+    "gps_week": 2372,
+    "gps_day": 2,
+    "session": "1750",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 176,
+    "date": "2025-06-25",
+    "gps_week": 2372,
+    "gps_day": 3,
+    "session": "1760",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 177,
+    "date": "2025-06-26",
+    "gps_week": 2372,
+    "gps_day": 4,
+    "session": "1770",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 178,
+    "date": "2025-06-27",
+    "gps_week": 2372,
+    "gps_day": 5,
+    "session": "1780",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 179,
+    "date": "2025-06-28",
+    "gps_week": 2372,
+    "gps_day": 6,
+    "session": "1790",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 180,
+    "date": "2025-06-29",
+    "gps_week": 2373,
+    "gps_day": 0,
+    "session": "1800",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 181,
+    "date": "2025-06-30",
+    "gps_week": 2373,
+    "gps_day": 1,
+    "session": "1810",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 182,
+    "date": "2025-07-01",
+    "gps_week": 2373,
+    "gps_day": 2,
+    "session": "1820",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 183,
+    "date": "2025-07-02",
+    "gps_week": 2373,
+    "gps_day": 3,
+    "session": "1830",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 184,
+    "date": "2025-07-03",
+    "gps_week": 2373,
+    "gps_day": 4,
+    "session": "1840",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 185,
+    "date": "2025-07-04",
+    "gps_week": 2373,
+    "gps_day": 5,
+    "session": "1850",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 186,
+    "date": "2025-07-05",
+    "gps_week": 2373,
+    "gps_day": 6,
+    "session": "1860",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 187,
+    "date": "2025-07-06",
+    "gps_week": 2374,
+    "gps_day": 0,
+    "session": "1870",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 188,
+    "date": "2025-07-07",
+    "gps_week": 2374,
+    "gps_day": 1,
+    "session": "1880",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 189,
+    "date": "2025-07-08",
+    "gps_week": 2374,
+    "gps_day": 2,
+    "session": "1890",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 190,
+    "date": "2025-07-09",
+    "gps_week": 2374,
+    "gps_day": 3,
+    "session": "1900",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 191,
+    "date": "2025-07-10",
+    "gps_week": 2374,
+    "gps_day": 4,
+    "session": "1910",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 192,
+    "date": "2025-07-11",
+    "gps_week": 2374,
+    "gps_day": 5,
+    "session": "1920",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 193,
+    "date": "2025-07-12",
+    "gps_week": 2374,
+    "gps_day": 6,
+    "session": "1930",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 194,
+    "date": "2025-07-13",
+    "gps_week": 2375,
+    "gps_day": 0,
+    "session": "1940",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 195,
+    "date": "2025-07-14",
+    "gps_week": 2375,
+    "gps_day": 1,
+    "session": "1950",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 196,
+    "date": "2025-07-15",
+    "gps_week": 2375,
+    "gps_day": 2,
+    "session": "1960",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 197,
+    "date": "2025-07-16",
+    "gps_week": 2375,
+    "gps_day": 3,
+    "session": "1970",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 198,
+    "date": "2025-07-17",
+    "gps_week": 2375,
+    "gps_day": 4,
+    "session": "1980",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 199,
+    "date": "2025-07-18",
+    "gps_week": 2375,
+    "gps_day": 5,
+    "session": "1990",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 200,
+    "date": "2025-07-19",
+    "gps_week": 2375,
+    "gps_day": 6,
+    "session": "2000",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 201,
+    "date": "2025-07-20",
+    "gps_week": 2376,
+    "gps_day": 0,
+    "session": "2010",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 202,
+    "date": "2025-07-21",
+    "gps_week": 2376,
+    "gps_day": 1,
+    "session": "2020",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 203,
+    "date": "2025-07-22",
+    "gps_week": 2376,
+    "gps_day": 2,
+    "session": "2030",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 204,
+    "date": "2025-07-23",
+    "gps_week": 2376,
+    "gps_day": 3,
+    "session": "2040",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 205,
+    "date": "2025-07-24",
+    "gps_week": 2376,
+    "gps_day": 4,
+    "session": "2050",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 206,
+    "date": "2025-07-25",
+    "gps_week": 2376,
+    "gps_day": 5,
+    "session": "2060",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 207,
+    "date": "2025-07-26",
+    "gps_week": 2376,
+    "gps_day": 6,
+    "session": "2070",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 208,
+    "date": "2025-07-27",
+    "gps_week": 2377,
+    "gps_day": 0,
+    "session": "2080",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 209,
+    "date": "2025-07-28",
+    "gps_week": 2377,
+    "gps_day": 1,
+    "session": "2090",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 210,
+    "date": "2025-07-29",
+    "gps_week": 2377,
+    "gps_day": 2,
+    "session": "2100",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 211,
+    "date": "2025-07-30",
+    "gps_week": 2377,
+    "gps_day": 3,
+    "session": "2110",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 212,
+    "date": "2025-07-31",
+    "gps_week": 2377,
+    "gps_day": 4,
+    "session": "2120",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 213,
+    "date": "2025-08-01",
+    "gps_week": 2377,
+    "gps_day": 5,
+    "session": "2130",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 214,
+    "date": "2025-08-02",
+    "gps_week": 2377,
+    "gps_day": 6,
+    "session": "2140",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 215,
+    "date": "2025-08-03",
+    "gps_week": 2378,
+    "gps_day": 0,
+    "session": "2150",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 216,
+    "date": "2025-08-04",
+    "gps_week": 2378,
+    "gps_day": 1,
+    "session": "2160",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 217,
+    "date": "2025-08-05",
+    "gps_week": 2378,
+    "gps_day": 2,
+    "session": "2170",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 218,
+    "date": "2025-08-06",
+    "gps_week": 2378,
+    "gps_day": 3,
+    "session": "2180",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 219,
+    "date": "2025-08-07",
+    "gps_week": 2378,
+    "gps_day": 4,
+    "session": "2190",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 220,
+    "date": "2025-08-08",
+    "gps_week": 2378,
+    "gps_day": 5,
+    "session": "2200",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 221,
+    "date": "2025-08-09",
+    "gps_week": 2378,
+    "gps_day": 6,
+    "session": "2210",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 222,
+    "date": "2025-08-10",
+    "gps_week": 2379,
+    "gps_day": 0,
+    "session": "2220",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 223,
+    "date": "2025-08-11",
+    "gps_week": 2379,
+    "gps_day": 1,
+    "session": "2230",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 224,
+    "date": "2025-08-12",
+    "gps_week": 2379,
+    "gps_day": 2,
+    "session": "2240",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 225,
+    "date": "2025-08-13",
+    "gps_week": 2379,
+    "gps_day": 3,
+    "session": "2250",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 226,
+    "date": "2025-08-14",
+    "gps_week": 2379,
+    "gps_day": 4,
+    "session": "2260",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 227,
+    "date": "2025-08-15",
+    "gps_week": 2379,
+    "gps_day": 5,
+    "session": "2270",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 228,
+    "date": "2025-08-16",
+    "gps_week": 2379,
+    "gps_day": 6,
+    "session": "2280",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 229,
+    "date": "2025-08-17",
+    "gps_week": 2380,
+    "gps_day": 0,
+    "session": "2290",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 230,
+    "date": "2025-08-18",
+    "gps_week": 2380,
+    "gps_day": 1,
+    "session": "2300",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 231,
+    "date": "2025-08-19",
+    "gps_week": 2380,
+    "gps_day": 2,
+    "session": "2310",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 232,
+    "date": "2025-08-20",
+    "gps_week": 2380,
+    "gps_day": 3,
+    "session": "2320",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 233,
+    "date": "2025-08-21",
+    "gps_week": 2380,
+    "gps_day": 4,
+    "session": "2330",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 234,
+    "date": "2025-08-22",
+    "gps_week": 2380,
+    "gps_day": 5,
+    "session": "2340",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 235,
+    "date": "2025-08-23",
+    "gps_week": 2380,
+    "gps_day": 6,
+    "session": "2350",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 236,
+    "date": "2025-08-24",
+    "gps_week": 2381,
+    "gps_day": 0,
+    "session": "2360",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 237,
+    "date": "2025-08-25",
+    "gps_week": 2381,
+    "gps_day": 1,
+    "session": "2370",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 238,
+    "date": "2025-08-26",
+    "gps_week": 2381,
+    "gps_day": 2,
+    "session": "2380",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 239,
+    "date": "2025-08-27",
+    "gps_week": 2381,
+    "gps_day": 3,
+    "session": "2390",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 240,
+    "date": "2025-08-28",
+    "gps_week": 2381,
+    "gps_day": 4,
+    "session": "2400",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 241,
+    "date": "2025-08-29",
+    "gps_week": 2381,
+    "gps_day": 5,
+    "session": "2410",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 242,
+    "date": "2025-08-30",
+    "gps_week": 2381,
+    "gps_day": 6,
+    "session": "2420",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 243,
+    "date": "2025-08-31",
+    "gps_week": 2382,
+    "gps_day": 0,
+    "session": "2430",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 244,
+    "date": "2025-09-01",
+    "gps_week": 2382,
+    "gps_day": 1,
+    "session": "2440",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 245,
+    "date": "2025-09-02",
+    "gps_week": 2382,
+    "gps_day": 2,
+    "session": "2450",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 246,
+    "date": "2025-09-03",
+    "gps_week": 2382,
+    "gps_day": 3,
+    "session": "2460",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 247,
+    "date": "2025-09-04",
+    "gps_week": 2382,
+    "gps_day": 4,
+    "session": "2470",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 248,
+    "date": "2025-09-05",
+    "gps_week": 2382,
+    "gps_day": 5,
+    "session": "2480",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 249,
+    "date": "2025-09-06",
+    "gps_week": 2382,
+    "gps_day": 6,
+    "session": "2490",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 250,
+    "date": "2025-09-07",
+    "gps_week": 2383,
+    "gps_day": 0,
+    "session": "2500",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 251,
+    "date": "2025-09-08",
+    "gps_week": 2383,
+    "gps_day": 1,
+    "session": "2510",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 252,
+    "date": "2025-09-09",
+    "gps_week": 2383,
+    "gps_day": 2,
+    "session": "2520",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 253,
+    "date": "2025-09-10",
+    "gps_week": 2383,
+    "gps_day": 3,
+    "session": "2530",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 254,
+    "date": "2025-09-11",
+    "gps_week": 2383,
+    "gps_day": 4,
+    "session": "2540",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 255,
+    "date": "2025-09-12",
+    "gps_week": 2383,
+    "gps_day": 5,
+    "session": "2550",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 256,
+    "date": "2025-09-13",
+    "gps_week": 2383,
+    "gps_day": 6,
+    "session": "2560",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 257,
+    "date": "2025-09-14",
+    "gps_week": 2384,
+    "gps_day": 0,
+    "session": "2570",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 258,
+    "date": "2025-09-15",
+    "gps_week": 2384,
+    "gps_day": 1,
+    "session": "2580",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 259,
+    "date": "2025-09-16",
+    "gps_week": 2384,
+    "gps_day": 2,
+    "session": "2590",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 260,
+    "date": "2025-09-17",
+    "gps_week": 2384,
+    "gps_day": 3,
+    "session": "2600",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 261,
+    "date": "2025-09-18",
+    "gps_week": 2384,
+    "gps_day": 4,
+    "session": "2610",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 262,
+    "date": "2025-09-19",
+    "gps_week": 2384,
+    "gps_day": 5,
+    "session": "2620",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 263,
+    "date": "2025-09-20",
+    "gps_week": 2384,
+    "gps_day": 6,
+    "session": "2630",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 264,
+    "date": "2025-09-21",
+    "gps_week": 2385,
+    "gps_day": 0,
+    "session": "2640",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 265,
+    "date": "2025-09-22",
+    "gps_week": 2385,
+    "gps_day": 1,
+    "session": "2650",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 266,
+    "date": "2025-09-23",
+    "gps_week": 2385,
+    "gps_day": 2,
+    "session": "2660",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 267,
+    "date": "2025-09-24",
+    "gps_week": 2385,
+    "gps_day": 3,
+    "session": "2670",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 268,
+    "date": "2025-09-25",
+    "gps_week": 2385,
+    "gps_day": 4,
+    "session": "2680",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 269,
+    "date": "2025-09-26",
+    "gps_week": 2385,
+    "gps_day": 5,
+    "session": "2690",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 270,
+    "date": "2025-09-27",
+    "gps_week": 2385,
+    "gps_day": 6,
+    "session": "2700",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 271,
+    "date": "2025-09-28",
+    "gps_week": 2386,
+    "gps_day": 0,
+    "session": "2710",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 272,
+    "date": "2025-09-29",
+    "gps_week": 2386,
+    "gps_day": 1,
+    "session": "2720",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 273,
+    "date": "2025-09-30",
+    "gps_week": 2386,
+    "gps_day": 2,
+    "session": "2730",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 274,
+    "date": "2025-10-01",
+    "gps_week": 2386,
+    "gps_day": 3,
+    "session": "2740",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 275,
+    "date": "2025-10-02",
+    "gps_week": 2386,
+    "gps_day": 4,
+    "session": "2750",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 276,
+    "date": "2025-10-03",
+    "gps_week": 2386,
+    "gps_day": 5,
+    "session": "2760",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 277,
+    "date": "2025-10-04",
+    "gps_week": 2386,
+    "gps_day": 6,
+    "session": "2770",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 278,
+    "date": "2025-10-05",
+    "gps_week": 2387,
+    "gps_day": 0,
+    "session": "2780",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 279,
+    "date": "2025-10-06",
+    "gps_week": 2387,
+    "gps_day": 1,
+    "session": "2790",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 280,
+    "date": "2025-10-07",
+    "gps_week": 2387,
+    "gps_day": 2,
+    "session": "2800",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 281,
+    "date": "2025-10-08",
+    "gps_week": 2387,
+    "gps_day": 3,
+    "session": "2810",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 282,
+    "date": "2025-10-09",
+    "gps_week": 2387,
+    "gps_day": 4,
+    "session": "2820",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 283,
+    "date": "2025-10-10",
+    "gps_week": 2387,
+    "gps_day": 5,
+    "session": "2830",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 284,
+    "date": "2025-10-11",
+    "gps_week": 2387,
+    "gps_day": 6,
+    "session": "2840",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 285,
+    "date": "2025-10-12",
+    "gps_week": 2388,
+    "gps_day": 0,
+    "session": "2850",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 286,
+    "date": "2025-10-13",
+    "gps_week": 2388,
+    "gps_day": 1,
+    "session": "2860",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 287,
+    "date": "2025-10-14",
+    "gps_week": 2388,
+    "gps_day": 2,
+    "session": "2870",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 288,
+    "date": "2025-10-15",
+    "gps_week": 2388,
+    "gps_day": 3,
+    "session": "2880",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 289,
+    "date": "2025-10-16",
+    "gps_week": 2388,
+    "gps_day": 4,
+    "session": "2890",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 290,
+    "date": "2025-10-17",
+    "gps_week": 2388,
+    "gps_day": 5,
+    "session": "2900",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 291,
+    "date": "2025-10-18",
+    "gps_week": 2388,
+    "gps_day": 6,
+    "session": "2910",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 292,
+    "date": "2025-10-19",
+    "gps_week": 2389,
+    "gps_day": 0,
+    "session": "2920",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 293,
+    "date": "2025-10-20",
+    "gps_week": 2389,
+    "gps_day": 1,
+    "session": "2930",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 294,
+    "date": "2025-10-21",
+    "gps_week": 2389,
+    "gps_day": 2,
+    "session": "2940",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 295,
+    "date": "2025-10-22",
+    "gps_week": 2389,
+    "gps_day": 3,
+    "session": "2950",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 296,
+    "date": "2025-10-23",
+    "gps_week": 2389,
+    "gps_day": 4,
+    "session": "2960",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 297,
+    "date": "2025-10-24",
+    "gps_week": 2389,
+    "gps_day": 5,
+    "session": "2970",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 298,
+    "date": "2025-10-25",
+    "gps_week": 2389,
+    "gps_day": 6,
+    "session": "2980",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 299,
+    "date": "2025-10-26",
+    "gps_week": 2390,
+    "gps_day": 0,
+    "session": "2990",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 300,
+    "date": "2025-10-27",
+    "gps_week": 2390,
+    "gps_day": 1,
+    "session": "3000",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 301,
+    "date": "2025-10-28",
+    "gps_week": 2390,
+    "gps_day": 2,
+    "session": "3010",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 302,
+    "date": "2025-10-29",
+    "gps_week": 2390,
+    "gps_day": 3,
+    "session": "3020",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 303,
+    "date": "2025-10-30",
+    "gps_week": 2390,
+    "gps_day": 4,
+    "session": "3030",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 304,
+    "date": "2025-10-31",
+    "gps_week": 2390,
+    "gps_day": 5,
+    "session": "3040",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 305,
+    "date": "2025-11-01",
+    "gps_week": 2390,
+    "gps_day": 6,
+    "session": "3050",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 306,
+    "date": "2025-11-02",
+    "gps_week": 2391,
+    "gps_day": 0,
+    "session": "3060",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 307,
+    "date": "2025-11-03",
+    "gps_week": 2391,
+    "gps_day": 1,
+    "session": "3070",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 308,
+    "date": "2025-11-04",
+    "gps_week": 2391,
+    "gps_day": 2,
+    "session": "3080",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 309,
+    "date": "2025-11-05",
+    "gps_week": 2391,
+    "gps_day": 3,
+    "session": "3090",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 310,
+    "date": "2025-11-06",
+    "gps_week": 2391,
+    "gps_day": 4,
+    "session": "3100",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 311,
+    "date": "2025-11-07",
+    "gps_week": 2391,
+    "gps_day": 5,
+    "session": "3110",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 312,
+    "date": "2025-11-08",
+    "gps_week": 2391,
+    "gps_day": 6,
+    "session": "3120",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 313,
+    "date": "2025-11-09",
+    "gps_week": 2392,
+    "gps_day": 0,
+    "session": "3130",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 314,
+    "date": "2025-11-10",
+    "gps_week": 2392,
+    "gps_day": 1,
+    "session": "3140",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 315,
+    "date": "2025-11-11",
+    "gps_week": 2392,
+    "gps_day": 2,
+    "session": "3150",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 316,
+    "date": "2025-11-12",
+    "gps_week": 2392,
+    "gps_day": 3,
+    "session": "3160",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 317,
+    "date": "2025-11-13",
+    "gps_week": 2392,
+    "gps_day": 4,
+    "session": "3170",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 318,
+    "date": "2025-11-14",
+    "gps_week": 2392,
+    "gps_day": 5,
+    "session": "3180",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 319,
+    "date": "2025-11-15",
+    "gps_week": 2392,
+    "gps_day": 6,
+    "session": "3190",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 320,
+    "date": "2025-11-16",
+    "gps_week": 2393,
+    "gps_day": 0,
+    "session": "3200",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 321,
+    "date": "2025-11-17",
+    "gps_week": 2393,
+    "gps_day": 1,
+    "session": "3210",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 322,
+    "date": "2025-11-18",
+    "gps_week": 2393,
+    "gps_day": 2,
+    "session": "3220",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 323,
+    "date": "2025-11-19",
+    "gps_week": 2393,
+    "gps_day": 3,
+    "session": "3230",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 324,
+    "date": "2025-11-20",
+    "gps_week": 2393,
+    "gps_day": 4,
+    "session": "3240",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 325,
+    "date": "2025-11-21",
+    "gps_week": 2393,
+    "gps_day": 5,
+    "session": "3250",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 326,
+    "date": "2025-11-22",
+    "gps_week": 2393,
+    "gps_day": 6,
+    "session": "3260",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 327,
+    "date": "2025-11-23",
+    "gps_week": 2394,
+    "gps_day": 0,
+    "session": "3270",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 328,
+    "date": "2025-11-24",
+    "gps_week": 2394,
+    "gps_day": 1,
+    "session": "3280",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 329,
+    "date": "2025-11-25",
+    "gps_week": 2394,
+    "gps_day": 2,
+    "session": "3290",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 330,
+    "date": "2025-11-26",
+    "gps_week": 2394,
+    "gps_day": 3,
+    "session": "3300",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 331,
+    "date": "2025-11-27",
+    "gps_week": 2394,
+    "gps_day": 4,
+    "session": "3310",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 332,
+    "date": "2025-11-28",
+    "gps_week": 2394,
+    "gps_day": 5,
+    "session": "3320",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 333,
+    "date": "2025-11-29",
+    "gps_week": 2394,
+    "gps_day": 6,
+    "session": "3330",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 334,
+    "date": "2025-11-30",
+    "gps_week": 2395,
+    "gps_day": 0,
+    "session": "3340",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 335,
+    "date": "2025-12-01",
+    "gps_week": 2395,
+    "gps_day": 1,
+    "session": "3350",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 336,
+    "date": "2025-12-02",
+    "gps_week": 2395,
+    "gps_day": 2,
+    "session": "3360",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 337,
+    "date": "2025-12-03",
+    "gps_week": 2395,
+    "gps_day": 3,
+    "session": "3370",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 338,
+    "date": "2025-12-04",
+    "gps_week": 2395,
+    "gps_day": 4,
+    "session": "3380",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 339,
+    "date": "2025-12-05",
+    "gps_week": 2395,
+    "gps_day": 5,
+    "session": "3390",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 340,
+    "date": "2025-12-06",
+    "gps_week": 2395,
+    "gps_day": 6,
+    "session": "3400",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 341,
+    "date": "2025-12-07",
+    "gps_week": 2396,
+    "gps_day": 0,
+    "session": "3410",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 342,
+    "date": "2025-12-08",
+    "gps_week": 2396,
+    "gps_day": 1,
+    "session": "3420",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 343,
+    "date": "2025-12-09",
+    "gps_week": 2396,
+    "gps_day": 2,
+    "session": "3430",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 344,
+    "date": "2025-12-10",
+    "gps_week": 2396,
+    "gps_day": 3,
+    "session": "3440",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 345,
+    "date": "2025-12-11",
+    "gps_week": 2396,
+    "gps_day": 4,
+    "session": "3450",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 346,
+    "date": "2025-12-12",
+    "gps_week": 2396,
+    "gps_day": 5,
+    "session": "3460",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 347,
+    "date": "2025-12-13",
+    "gps_week": 2396,
+    "gps_day": 6,
+    "session": "3470",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 348,
+    "date": "2025-12-14",
+    "gps_week": 2397,
+    "gps_day": 0,
+    "session": "3480",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 349,
+    "date": "2025-12-15",
+    "gps_week": 2397,
+    "gps_day": 1,
+    "session": "3490",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 350,
+    "date": "2025-12-16",
+    "gps_week": 2397,
+    "gps_day": 2,
+    "session": "3500",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 351,
+    "date": "2025-12-17",
+    "gps_week": 2397,
+    "gps_day": 3,
+    "session": "3510",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 352,
+    "date": "2025-12-18",
+    "gps_week": 2397,
+    "gps_day": 4,
+    "session": "3520",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 353,
+    "date": "2025-12-19",
+    "gps_week": 2397,
+    "gps_day": 5,
+    "session": "3530",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 354,
+    "date": "2025-12-20",
+    "gps_week": 2397,
+    "gps_day": 6,
+    "session": "3540",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 355,
+    "date": "2025-12-21",
+    "gps_week": 2398,
+    "gps_day": 0,
+    "session": "3550",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 356,
+    "date": "2025-12-22",
+    "gps_week": 2398,
+    "gps_day": 1,
+    "session": "3560",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 357,
+    "date": "2025-12-23",
+    "gps_week": 2398,
+    "gps_day": 2,
+    "session": "3570",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 358,
+    "date": "2025-12-24",
+    "gps_week": 2398,
+    "gps_day": 3,
+    "session": "3580",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 359,
+    "date": "2025-12-25",
+    "gps_week": 2398,
+    "gps_day": 4,
+    "session": "3590",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 360,
+    "date": "2025-12-26",
+    "gps_week": 2398,
+    "gps_day": 5,
+    "session": "3600",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 361,
+    "date": "2025-12-27",
+    "gps_week": 2398,
+    "gps_day": 6,
+    "session": "3610",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 362,
+    "date": "2025-12-28",
+    "gps_week": 2399,
+    "gps_day": 0,
+    "session": "3620",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 363,
+    "date": "2025-12-29",
+    "gps_week": 2399,
+    "gps_day": 1,
+    "session": "3630",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 364,
+    "date": "2025-12-30",
+    "gps_week": 2399,
+    "gps_day": 2,
+    "session": "3640",
+    "state": "none",
+    "note": ""
+   },
+   {
+    "year": 2025,
+    "doy": 365,
+    "date": "2025-12-31",
+    "gps_week": 2399,
+    "gps_day": 3,
+    "session": "3650",
+    "state": "none",
+    "note": ""
+   }
+  ]
+ },
+ "/api/campaigns/LUZON/years/2025/runs": {
+  "campaign": "LUZON",
+  "year": 2025,
+  "run": {
+   "run": "r1",
+   "started": 1793689751.6485233,
+   "ended": 1793690352.6485233,
+   "host": "elsewhere",
+   "pid": 1,
+   "doys": [
+    35,
+    36,
+    37
+   ],
+   "banked": [],
+   "config": "abc",
+   "state": "halted",
+   "halt": "configuration error (example)",
+   "status_lines": [
+    "run r1  LUZON 2025  host elsewhere pid 1  config abc",
+    "  started 2026-11-03 15:09; 3 days asked, 0 already banked",
+    "  ok 1   failed 1   not run 0   not yet attempted 1",
+    "  failed DOY 036: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
+    "  typical day: 5.0 min (median of 1)",
+    "  HALTED: configuration error (example)"
+   ]
+  },
+  "runs": [
+   {
+    "run": "r1",
+    "started": 1793689751.6485233,
+    "ended": 1793690352.6485233,
+    "state": "halted",
+    "halt": "configuration error (example)",
+    "doys": [
+     35,
+     36,
+     37
+    ]
+   }
+  ],
+  "groups": [
+   {
+    "key": "0xx",
+    "name": "copy"
+   },
+   {
+    "key": "1xx",
+    "name": "orbits"
+   },
+   {
+    "key": "2xx",
+    "name": "RINEX, CODSPP"
+   },
+   {
+    "key": "3xx",
+    "name": "baselines"
+   },
+   {
+    "key": "4xx",
+    "name": "ambiguities"
+   },
+   {
+    "key": "5xx",
+    "name": "ADDNEQ2, HELMCHK"
+   },
+   {
+    "key": "9xx",
+    "name": "R2S_SAV"
+   }
+  ],
+  "rows": [
+   {
+    "year": 2025,
+    "doy": 35,
+    "date": "2025-02-04",
+    "gps_week": 2352,
+    "gps_day": 2,
+    "session": "0350",
+    "outcome": "solved",
+    "error": "",
+    "note": "",
+    "pid": null,
+    "cells": [
+     "done",
+     "done",
+     "done",
+     "done",
+     "done",
+     "done",
+     "done"
+    ],
+    "seconds": 299.0
+   },
+   {
+    "year": 2025,
+    "doy": 36,
+    "date": "2025-02-05",
+    "gps_week": 2352,
+    "gps_day": 3,
+    "session": "0360",
+    "outcome": "failed",
+    "error": "HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
+    "note": "",
+    "pid": 513,
+    "cells": [
+     "done",
+     "done",
+     "done",
+     "done",
+     "done",
+     "failed",
+     "wait"
+    ],
+    "seconds": 299.0
+   },
+   {
+    "year": 2025,
+    "doy": 37,
+    "date": "2025-02-06",
+    "gps_week": 2352,
+    "gps_day": 4,
+    "session": "0370",
+    "outcome": "not started (halted)",
+    "error": "",
+    "note": "",
+    "pid": null,
+    "cells": [
+     "wait",
+     "wait",
+     "wait",
+     "wait",
+     "wait",
+     "wait",
+     "wait"
+    ],
+    "seconds": null
+   }
+  ],
+  "breaker": {
+   "identical": 1,
+   "identical_limit": 3,
+   "any": 1,
+   "any_limit": 5,
+   "last_error": "HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE"
+  },
+  "median_seconds": 299.0
+ },
+ "/api/campaigns/LUZON/years/2025/days/35": {
+  "year": 2025,
+  "doy": 35,
+  "date": "2025-02-04",
+  "gps_week": 2352,
+  "gps_day": 2,
+  "session": "0350",
+  "campaign": "LUZON",
+  "state": "fixed",
+  "attempts": [
+   {
+    "run": "r1",
+    "doy": 35,
+    "session": "0350",
+    "started": 1793689752.6485233,
+    "ended": 1793690051.6485233,
+    "outcome": "ok",
+    "seconds": 299.0,
+    "error": "",
+    "note": "",
+    "stations": 2,
+    "mode": "day",
+    "config": "abc",
+    "host": "elsewhere"
+   }
+  ],
+  "results": [
+   {
+    "name": "R2S_20250350.PRC",
+    "v52": "R2S250350.PRC",
+    "folder": "OUT",
+    "what": "BPE processing summary",
+    "size": 36,
+    "written": 1793693351.6478434,
+    "path": "OUT/R2S_20250350.PRC"
+   },
+   {
+    "name": "FIN_20250350.CRD",
+    "v52": "F1_250350.CRD",
+    "folder": "STA",
+    "what": "Final coordinates (the target output)",
+    "size": 2,
+    "written": 1793693351.6478434,
+    "path": "STA/FIN_20250350.CRD"
+   },
+   {
+    "name": "FIN_20250350.SNX.gz",
+    "v52": "F1_250350.SNX",
+    "folder": "SOL",
+    "what": "SINEX, one-session solution",
+    "size": 92,
+    "written": 1793693351.6478434,
+    "path": "SOL/FIN_20250350.SNX.gz"
+   },
+   {
+    "name": "FIN_20250350.NQ0.gz",
+    "v52": "F1_250350.NQ0",
+    "folder": "SOL",
+    "what": "Normal equations, final",
+    "size": 2,
+    "written": 1793693351.6478434,
+    "path": "SOL/FIN_20250350.NQ0.gz"
+   },
+   {
+    "name": "RED_20250350.NQ0.gz",
+    "v52": "R1_250350.NQ0",
+    "folder": "SOL",
+    "what": "Normal equations, reduced",
+    "size": 2,
+    "written": 1793693351.6478434,
+    "path": "SOL/RED_20250350.NQ0.gz"
+   },
+   {
+    "name": "FIN_20250350.TRO",
+    "v52": "F1_250350.TRO",
+    "folder": "ATM",
+    "what": "Troposphere, SINEX format",
+    "size": 2,
+    "written": 1793693351.6478434,
+    "path": "ATM/FIN_20250350.TRO"
+   },
+   {
+    "name": "FIN_20250350.TRP",
+    "v52": "F1_250350.TRP",
+    "folder": "ATM",
+    "what": "Troposphere, Bernese format",
+    "size": 2,
+    "written": 1793693351.6478434,
+    "path": "ATM/FIN_20250350.TRP"
+   }
+  ],
+  "present": 7,
+  "quality": {
+   "stations": 2,
+   "dropped": [],
+   "helmert_rms_mm": 6.53,
+   "ambiguity_rate": null,
+   "sources": {
+    "stations": "SOL/FIN_20250350.SNX.gz",
+    "helmert_rms_mm": "OUT/R2S_20250350.PRC:1"
+   }
+  },
+  "provenance": {
+   "pcf": "LUZON_DLY.PCF",
+   "ambiguities": "fixed",
+   "campaign_dir": "${P}/LZY250350",
+   "started_by": null,
+   "command": null,
+   "code_version": null,
+   "product_tier": null,
+   "config_hash": "abc"
+  }
+ },
+ "/api/campaigns/LUZON/years/2025/days/36/failure": {
+  "year": 2025,
+  "doy": 36,
+  "date": "2025-02-05",
+  "gps_week": 2352,
+  "gps_day": 3,
+  "session": "0360",
+  "campaign": "LUZON",
+  "attempt": {
+   "run": "r1",
+   "doy": 36,
+   "session": "0360",
+   "started": 1793690052.6485233,
+   "ended": 1793690351.6485233,
+   "outcome": "failed",
+   "seconds": 299.0,
+   "error": "HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
+   "note": "",
+   "stations": null,
+   "mode": "day"
+  },
+  "attempt_number": 1,
+  "label": "HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
+  "file": "BPE/RP250360_513_000.PRT",
+  "pid": 513,
+  "script": "HELMCHK",
+  "program": "HELMR1",
+  "cause": {
+   "emitter": "HELMR1",
+   "emitter_type": "PGM",
+   "program": "HELMR1",
+   "headline": "NO REDUNDANCY. NO VERIFICATION OF SITES POSSIBLE",
+   "kind": "NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
+   "detail": [],
+   "params": {},
+   "line": 28
+  },
+  "lines": [
+   "",
+   "",
+   " PROTOCOL FILE FOR BPE SCRIPT",
+   " ----------------------------",
+   " Campaign           : /home/gps3/GPSDATA/CAMPAIGN54/LZY250360",
+   " Session            : 0360",
+   " Year               : 2025",
+   " User name          : gps3",
+   " PCF name           : LUZON_DLY.PCF",
+   " Script name        : HELMCHK",
+   " Option directory   : R2S_FIN",
+   " Path to user area  : /home/gps3/GPSUSER",
+   " Path to work area  : /home/gps3/GPSWORK//BPE_LUZON_DLY_37355_25_0360_513_000",
+   " Path to executables: /home/gps3/BERN54/SOURCE/PGM/EXE_GNU",
+   " Process ID         : 513",
+   " Sub-process ID     : 000",
+   " PARAM1             : NEXTJOB",
+   " PARAM2             : 511",
+   " CPU name           : localhost",
+   " Server host        : gps3",
+   " Remote host        : gps3  (system pid: 2688296)",
+   "",
+   " Date         Time      Run time  Pgm.time  Sta Program   Message",
+   " ----------------------------------------------------------------------------",
+   " 25-AUG-2026  07:45:53  00:00:00            MSG RUNBPE.pm SCRIPT  STARTED",
+   " 25-AUG-2026  07:45:54  00:00:01            MSG HELMR1    PROGRAM STARTED",
+   "",
+   " *** PGM HELMR1: NO REDUNDANCY. NO VERIFICATION OF SITES POSSIBLE",
+   "",
+   " 25-AUG-2026  07:45:54  00:00:01  00:00:00  ERR HELMR1    ERROR IN MAIN PROGRAM",
+   " 25-AUG-2026  07:45:54  00:00:01            MSG RUNBPE.pm SCRIPT  ENDED",
+   " ----------------------------------------------------------------------------"
+  ],
+  "first_current_line": 2,
+  "entry": {
+   "emitter": "HELMR1",
+   "message": "NO REDUNDANCY. NO VERIFICATION OF SITES POSSIBLE",
+   "scope": "session",
+   "status": "established",
+   "diagnosis": "HELMR1's reference-site check found nothing to compare: no reference (IGS20) station is in the solution. Either the fiducials were never staged, or the day has too few of them.",
+   "remedy": "Check the day's fiducial RINEX files are staged into V_RNXDIR. If they are and the day has fewer than 3 reference stations, exclude it in the plan (scripts/check_ref_coverage.py and the year driver's exclusions). If every day fails this way, it is staging, not data.",
+   "source": "bernese54_luzon_reprocessing_runbook.md (24-station run, RINEX 3 fiducials never staged); captured LZY250360, 2026-08-25",
+   "confirm": null,
+   "number": 9
+  },
+  "verdict": {
+   "kind": "session",
+   "text": "Counted, and the run continued.",
+   "detail": "Session-scope error: 3 identical failures in a row stop the run."
+  }
+ },
+ "/api/campaigns/LUZON/years/2025/days/35/redo": {
+  "year": 2025,
+  "doy": 35,
+  "date": "2025-02-04",
+  "gps_week": 2352,
+  "gps_day": 2,
+  "session": "0350",
+  "campaign": "LUZON",
+  "from": "/srv/bsw/SAVEDISK/LUZON/2025",
+  "to": "/srv/bsw/SAVEDISK/LUZON/2025/SUPERSEDED/20261103-1609",
+  "files": [
+   {
+    "name": "R2S_20250350.PRC",
+    "v52": "R2S250350.PRC",
+    "folder": "OUT",
+    "what": "BPE processing summary",
+    "size": 36,
+    "written": 1793693351.6478434,
+    "path": "OUT/R2S_20250350.PRC"
+   },
+   {
+    "name": "FIN_20250350.CRD",
+    "v52": "F1_250350.CRD",
+    "folder": "STA",
+    "what": "Final coordinates (the target output)",
+    "size": 2,
+    "written": 1793693351.6478434,
+    "path": "STA/FIN_20250350.CRD"
+   },
+   {
+    "name": "FIN_20250350.SNX.gz",
+    "v52": "F1_250350.SNX",
+    "folder": "SOL",
+    "what": "SINEX, one-session solution",
+    "size": 92,
+    "written": 1793693351.6478434,
+    "path": "SOL/FIN_20250350.SNX.gz"
+   },
+   {
+    "name": "FIN_20250350.NQ0.gz",
+    "v52": "F1_250350.NQ0",
+    "folder": "SOL",
+    "what": "Normal equations, final",
+    "size": 2,
+    "written": 1793693351.6478434,
+    "path": "SOL/FIN_20250350.NQ0.gz"
+   },
+   {
+    "name": "RED_20250350.NQ0.gz",
+    "v52": "R1_250350.NQ0",
+    "folder": "SOL",
+    "what": "Normal equations, reduced",
+    "size": 2,
+    "written": 1793693351.6478434,
+    "path": "SOL/RED_20250350.NQ0.gz"
+   },
+   {
+    "name": "FIN_20250350.TRO",
+    "v52": "F1_250350.TRO",
+    "folder": "ATM",
+    "what": "Troposphere, SINEX format",
+    "size": 2,
+    "written": 1793693351.6478434,
+    "path": "ATM/FIN_20250350.TRO"
+   },
+   {
+    "name": "FIN_20250350.TRP",
+    "v52": "F1_250350.TRP",
+    "folder": "ATM",
+    "what": "Troposphere, Bernese format",
+    "size": 2,
+    "written": 1793693351.6478434,
+    "path": "ATM/FIN_20250350.TRP"
+   }
+  ],
+  "lock": {
+   "held": false,
+   "holder": "",
+   "last_holder": "",
+   "path": "/srv/bsw/bpe.lock"
+  }
+ },
+ "/api/campaigns/LUZON/years/2025/plan": {
+  "campaign": "LUZON",
+  "year": 2025,
+  "pcf": "LUZON_DLY",
+  "from": {
+   "year": 2025,
+   "doy": 35,
+   "date": "2025-02-04",
+   "gps_week": 2352,
+   "gps_day": 2,
+   "session": "0350"
+  },
+  "to": {
+   "year": 2025,
+   "doy": 40,
+   "date": "2025-02-09",
+   "gps_week": 2353,
+   "gps_day": 0,
+   "session": "0400"
+  },
+  "todo": [
+   35,
+   36,
+   37,
+   38,
+   39,
+   40
+  ],
+  "blocks": [
+   [
+    35,
+    40
+   ]
+  ],
+  "busiest": null,
+  "excluded": [],
+  "maxpar": {},
+  "label": "PCF LUZON_DLY   references IGS20 (0 with data)",
+  "sources": [
+   "datapool: /srv/bsw/DATAPOOL/LUZON  (from V_RNXDIR = ${D}/LUZON)",
+   "STA:      /srv/bsw/DATAPOOL/REF54/LUZON.STA",
+   "results:  /srv/bsw/SAVEDISK/LUZON/2025/SOL  (from V_RESULT = ${S}/LUZON/$Y+0)"
+  ],
+  "groups": [
+   {
+    "index": 0,
+    "key": "0xx",
+    "name": "copy",
+    "pids": [
+     "001 R2S_COP"
+    ]
+   },
+   {
+    "index": 1,
+    "key": "1xx",
+    "name": "orbits",
+    "pids": [
+     "101 POLUPD",
+     "199 DUMMY"
+    ]
+   },
+   {
+    "index": 2,
+    "key": "2xx",
+    "name": "RINEX, CODSPP",
+    "pids": [
+     "201 RNXGRA",
+     "299 DUMMY"
+    ]
+   },
+   {
+    "index": 3,
+    "key": "3xx",
+    "name": "baselines",
+    "pids": [
+     "301 INIT_BSL",
+     "399 DUMMY"
+    ]
+   },
+   {
+    "index": 4,
+    "key": "4xx",
+    "name": "ambiguities",
+    "pids": [
+     "401 SATMRK",
+     "499 DUMMY"
+    ]
+   },
+   {
+    "index": 5,
+    "key": "5xx",
+    "name": "ADDNEQ2, HELMCHK",
+    "pids": [
+     "511 ADDNEQ2",
+     "513 HELMCHK",
+     "599 DUMMY"
+    ]
+   },
+   {
+    "index": 6,
+    "key": "9xx",
+    "name": "R2S_SAV",
+    "pids": [
+     "901 R2S_SUM",
+     "902 R2S_SAV"
+    ]
+   }
+  ],
+  "skipped": [],
+  "rnxgra": "continuous",
+  "rnxgra_presets": {
+   "continuous": "Continuous \u00b7 min 200 obs, max 10 bad epochs, 3 obs per bad epoch",
+   "campaign": "Campaign survey \u00b7 min 100 obs, max 70 bad epochs, 3 obs per bad epoch"
+  },
+  "checks": [
+   {
+    "level": "info",
+    "title": "6 of 6 days will run; 0 excluded, 0 already solved",
+    "detail": "No day is short of reference stations."
+   },
+   {
+    "level": "ok",
+    "title": "MAXPAR in the ADDNEQ2 option directories",
+    "detail": ""
+   },
+   {
+    "level": "ok",
+    "title": "No dangling WAIT or NEXTJOB",
+    "detail": "Every script that runs has the script it waits for."
+   },
+   {
+    "level": "bad",
+    "title": "Products missing",
+    "detail": "orbits: DOY 035, 036, 037, 038, 039, 040; clocks: DOY 035, 036, 037, 038, 039, 040; ERP: DOY 035, 036, 037, 038, 039, 040; DCB/OSB: DOY 035, 036, 037, 038, 039, 040; ionosphere: DOY 035, 036, 037, 038, 039, 040"
+   },
+   {
+    "level": "bad",
+    "title": "Problems the service found",
+    "detail": "cannot read the reference set /srv/bsw/DATAPOOL/REF54/IGS20.FIX: [Errno 2] No such file or directory: '/srv/bsw/DATAPOOL/REF54/IGS20.FIX'; no datapool directory /srv/bsw/DATAPOOL/LUZON; no datapool scan: reference-station coverage was not checked"
+   },
+   {
+    "level": "info",
+    "title": "Preflight not run yet",
+    "detail": "No day to preflight."
+   }
+  ],
+  "can_start": false,
+  "start_blocked_because": [
+   "fix the checks marked above",
+   "the preflight has not run",
+   "starting runs from the console is not enabled yet"
+  ],
+  "pcfs": [
+   "LUZON_DLY"
+  ]
+ },
+ "/api/known-errors": {
+  "path": "./config/bernese/bpe_errors.yaml",
+  "days": 30,
+  "entries": [
+   {
+    "emitter": "neqckdim",
+    "message": "DIMENSION TOO SMALL",
+    "scope": "configuration",
+    "status": "established",
+    "diagnosis": "ADDNEQ2's parameter array (MAXPAR, \"Maximum number of parameters in combined NEQ\", panel ADDNEQ2 3.1) is smaller than the combined normal equation. The \"Requested\" number is the first request that overflowed, always MAXPAR + 1. It is not how many parameters the solution needs.",
+    "remedy": "Raise MAXPAR in ADDNEQ2.INP of the option directory used by the failing ADDNEQ2 step (R2S_FIN for the daily final solution). Do not size it from \"Requested\". Known points: PHREF 2025 (32-41 stations) failed on every day at 1000 and ran all 360 days at 3000. R2S_FIN on gps3 is 6000, matching the 5.2 production panel. Test the busiest day, not an arbitrary one.",
+    "source": "session log 25.3-25.5 (29 August, 24 failed days); SETTLED.md MAXPAR row; docs/bernese_maxpar_limit.md; reproduced 2026-10-15 on EXAMPLE; AIUB FAQ",
+    "confirm": "the busiest day of the range completes and writes FIN_*.NQ0",
+    "number": 1,
+    "fired": 0,
+    "last": null
+   },
+   {
+    "emitter": "chkmax",
+    "message": "Dimension for parameter \"MAXzzz\" exceeded",
+    "scope": "configuration",
+    "status": "proposed",
+    "diagnosis": "A program's array size, computed from the inputs and options, is more than twice the limit compiled into BSW, so the program stopped. Below twice the limit it only warns (\"Unusual big number of parameter\").",
+    "remedy": "Review the options of the failing step, especially whether epoch-wise parameters are pre-eliminated. If the network is simply too large, split it into clusters. Do not raise the compiled limit without asking.",
+    "source": "AIUB FAQ, \"CHKMAX: Dimension for parameter MAXzzz exceeded\"",
+    "confirm": null,
+    "number": 2,
+    "fired": 0,
+    "last": null
+   },
+   {
+    "emitter": "GTOCNL",
+    "message": "OCEAN LOADING CORRECTION VALUES NOT FOUND",
+    "scope": "configuration",
+    "status": "established",
+    "diagnosis": "Bernese found no readable ocean loading block for STATION NAME in the .BLQ named in FILE NAME. The station can be visibly present and still \"not found\". Known causes: the block is indented one column left; the block sits after the \"$$ END TABLE\" line; or the station is missing.",
+    "remedy": "Run scripts/check_ref_coverage.py --pcf <PCF> --stations <station list>. It reports which case it is. Fix the source file in $D/REF54 named by the PCF's V_BLQINF, not only the campaign's STA copy: R2S_COP copies the campaign's reference files from $D/REF54 at the start of every run.",
+    "source": "session log 25.2 attempt 4 (PTTN, CALU, URDT); SETTLED.md section 2, BLQ rows",
+    "confirm": "check_ref_coverage.py exits 0, then the day completes",
+    "number": 3,
+    "fired": 0,
+    "last": null
+   },
+   {
+    "emitter": "GTATML",
+    "message": "ATMOSPHERIC TIDAL LOADING CORRECTION VALUES NOT FOUND",
+    "scope": "configuration",
+    "status": "established",
+    "diagnosis": "No atmospheric tidal loading block in the .ATL (FILE NAME) is headed with STATION NAME exactly as the .CRD writes it. Two known causes: the block is headed with the 4-character code only (\"PTAG\" for \"PTAG 22006M005\"), or the station is missing. Fiducials are the usual missing ones, because they are what a larger campaign adds.",
+    "remedy": "Run scripts/check_ref_coverage.py --pcf <PCF> --stations <station list>, fiducials included. Fix the .ATL in $D/REF54 named by V_ATLINF.",
+    "source": "session log 25.2 attempt 2 (six fiducials missing from PHNAT.ATL); SETTLED.md ATL row (PHDEN DOY 200, PTAG)",
+    "confirm": "check_ref_coverage.py exits 0, then the day completes",
+    "number": 4,
+    "fired": 0,
+    "last": null
+   },
+   {
+    "emitter": "GTATML",
+    "message": "ERROR READING ATMOSPHERIC TIDAL LOADING CORRECTION VALUES",
+    "scope": "configuration",
+    "status": "established",
+    "diagnosis": "The .ATL file is malformed where Bernese reads it. Seen on the last block of a merged file that had no trailing blank line to end it; the same merge had also doubled the carriage returns (CRLF applied twice).",
+    "remedy": "End the .ATL with a blank line after the last block, and check the line endings (cat -A shows a doubled ^M). Fix the file in $D/REF54.",
+    "source": "session log 25.2 attempt 3; SETTLED.md seven-reference-types row",
+    "confirm": null,
+    "number": 5,
+    "fired": 0,
+    "last": null
+   },
+   {
+    "emitter": "OPNERR",
+    "message": "OPEN FAILED",
+    "scope": "configuration",
+    "status": "established",
+    "diagnosis": "The file in FILE NAME does not exist or cannot be read. PGM./SUBR. says which routine wanted it. Seen when a REPR_MODE campaign was started without its STA files. AIUB's FAQ gives the other common case: a missing ${MODEL}/DE421.EPH.",
+    "remedy": "Check FILE NAME. For campaign STA/ files, the copy step takes them from $D/REF54, which must hold all seven types (.CRD .VEL .ABB .STA .BLQ .ATL .CLU) under the names the PCF variables give. For DE421.EPH, follow README_JPL_EPH.TXT in ${DOC}.",
+    "source": "reproduction 2026-10-15 (MXP230100, missing EXAMPLE.STA); SETTLED.md seven-reference-types row; AIUB FAQ, \"OPNERR: OPEN FAILED\"",
+    "confirm": null,
+    "number": 6,
+    "fired": 0,
+    "last": null
+   },
+   {
+    "emitter": "GETSTAF",
+    "message": "COORDINATES NOT FOUND",
+    "scope": "configuration",
+    "status": "proposed",
+    "diagnosis": "STATION is in the observations but has no coordinates in the .CRD. AIUB say the usual cause is that RXOBV3 did not rename the station using the .STA, or the RINEX header does not match the .STA's search pattern.",
+    "remedy": "Add the station to the .CRD (and .STA) under the name the observations use. scripts/check_ref_coverage.py checks that every listed station has a .CRD line.",
+    "source": "AIUB FAQ, \"GETSTAF: COORDINATES NOT FOUND\"",
+    "confirm": null,
+    "number": 7,
+    "fired": 0,
+    "last": null
+   },
+   {
+    "emitter": "O_CCRNXO:concatenateOrMergeRinexFiles",
+    "message": "No input files",
+    "scope": "configuration",
+    "status": "established",
+    "diagnosis": "CCRNXO had no RINEX files to merge for this session. Seen once, and it was a setup fault rather than missing data: sessions 1210-1250 run in parallel in one campaign consumed each other's staged files (SUPERBPE without REPR_MODE; 4 of 5 sessions failed).",
+    "remedy": "For parallel sessions use REPR_MODE (one campaign per session). Check that the day's RINEX files, fiducials included, are in the directory V_RNXDIR names. If they are and the day really has no data, exclude the day in the plan rather than letting the run find out.",
+    "source": "session log 21.4 and 22.1 (LUZON 1210-1250, 12 August)",
+    "confirm": null,
+    "number": 8,
+    "fired": 0,
+    "last": null
+   },
+   {
+    "emitter": "HELMR1",
+    "message": "NO REDUNDANCY. NO VERIFICATION OF SITES POSSIBLE",
+    "scope": "session",
+    "status": "established",
+    "diagnosis": "HELMR1's reference-site check found nothing to compare: no reference (IGS20) station is in the solution. Either the fiducials were never staged, or the day has too few of them.",
+    "remedy": "Check the day's fiducial RINEX files are staged into V_RNXDIR. If they are and the day has fewer than 3 reference stations, exclude it in the plan (scripts/check_ref_coverage.py and the year driver's exclusions). If every day fails this way, it is staging, not data.",
+    "source": "bernese54_luzon_reprocessing_runbook.md (24-station run, RINEX 3 fiducials never staged); captured LZY250360, 2026-08-25",
+    "confirm": null,
+    "number": 9,
+    "fired": 1,
+    "last": {
+     "campaign": "LUZON",
+     "year": 2025,
+     "doy": 36,
+     "ts": 1793690351.6485233
+    }
+   },
+   {
+    "emitter": "HELMTR",
+    "message": "TOO MANY PARAMETERS TO ESTIMATE",
+    "scope": "session",
+    "status": "proposed",
+    "diagnosis": "A Helmert transformation had fewer stations than parameters; NUMBER OF STATIONS 0 means no reference station. AIUB give two causes: no station with known ITRF coordinates in the network, or HELMR1's outlier rejection removed them all because one station's coordinate was badly wrong.",
+    "remedy": "Check the day's reference stations as for HELMR1 NO REDUNDANCY. If they are present, read the HELMR1 output for one station with a large residual, take it out of the datum definition and rerun.",
+    "source": "AIUB FAQ, \"HELMTR: TOO MANY PARAMETERS TO ESTIMATE\"",
+    "confirm": null,
+    "number": 10,
+    "fired": 0,
+    "last": null
+   },
+   {
+    "emitter": "GETPOL",
+    "message": "NO SUITABLE EPOCHS IN POLE FILE",
+    "scope": "session",
+    "status": "proposed",
+    "diagnosis": "The pole (ERP) file does not cover the time span the orbit needs. AIUB say this is a wrong pole file, one that is too short, or an unintended processing interval.",
+    "remedy": "Check that the day's ERP file was fetched (scripts/fetch_igs_products.sh) and covers the day either side of the session.",
+    "source": "AIUB FAQ, \"GETPOL: NO SUITABLE EPOCHS IN POLE FILE\"",
+    "confirm": null,
+    "number": 11,
+    "fired": 0,
+    "last": null
+   }
+  ],
+  "unknown": []
+ },
+ "/api/campaigns/LUZON/years/2025/station-files": {
+  "campaign": "LUZON",
+  "refdir": "/srv/bsw/DATAPOOL/REF54",
+  "files": {
+   "STA": {
+    "name": "LUZON.STA",
+    "present": true
+   },
+   "CRD": {
+    "name": "LUZON.CRD",
+    "present": true
+   },
+   "ABB": {
+    "name": "LUZON.ABB",
+    "present": false
+   },
+   "ATL": {
+    "name": "LUZON.ATL",
+    "present": false
+   },
+   "PLD": {
+    "name": "LUZON.PLD",
+    "present": false
+   },
+   "VEL": {
+    "name": "LUZON.VEL",
+    "present": false
+   },
+   "CLU": {
+    "name": "LUZON.CLU",
+    "present": false
+   },
+   "BLQ": {
+    "name": "LUZON.BLQ",
+    "present": true
+   }
+  },
+  "columns": [
+   "STA",
+   "CRD",
+   "ABB",
+   "ATL",
+   "PLD",
+   "VEL",
+   "CLU",
+   "BLQ"
+  ],
+  "rows": [
+   {
+    "station": "ALBU",
+    "cells": {
+     "STA": 1,
+     "CRD": 1,
+     "ABB": 0,
+     "ATL": 0,
+     "PLD": 0,
+     "VEL": 0,
+     "CLU": 0,
+     "BLQ": 1
+    },
+    "notes": []
+   },
+   {
+    "station": "BILI",
+    "cells": {
+     "STA": 1,
+     "CRD": 2,
+     "ABB": 0,
+     "ATL": 0,
+     "PLD": 0,
+     "VEL": 0,
+     "CLU": 0,
+     "BLQ": 0
+    },
+    "notes": [
+     "CRD: 2 names share the code (BILI 12363M001, BILI BILI)",
+     "Not in the BLQ: ocean loading would fail (GTOCNL)."
+    ]
+   }
+  ]
+ },
+ "/api/plans": {
+  "plans": []
+ }
+}
