@@ -151,6 +151,28 @@ def test_estimate_velocity_removes_outliers():
     assert sv.ve_mm_yr == pytest.approx(10.0, abs=1.0)
 
 
+def test_segment_rows_are_the_callers_rows_even_unsorted():
+    """`rows` / `outlier_rows` index the arrays AS PASSED, not the sorted copy."""
+    rng = np.random.default_rng(5)
+    t = np.linspace(2010, 2020, 60)
+    enu = _synthetic_enu(t, ve=10.0, noise=0.001, rng=rng)
+    enu[40, 2] = 5.0                                   # the spike, sorted row 40
+    perm = rng.permutation(t.size)                     # shuffle the input
+    t_in, enu_in = t[perm], enu[perm]
+    offsets = [OffsetEvent(date=2015.0, offset_type=OffsetType.EQ)]
+    result = estimate_velocity(t_in, enu_in, offsets=offsets, exclude_outliers=False)
+
+    spike_row = int(np.flatnonzero(perm == 40)[0])     # where row 40 went
+    assert [r for seg in result.segments for r in seg.outlier_rows] == [spike_row]
+    for seg in result.segments:
+        assert set(seg.outlier_rows) <= set(seg.rows)
+        assert len(seg.outlier_rows) == len(seg.outlier_epochs)
+        assert np.all(np.diff(t_in[list(seg.rows)]) >= 0)  # in time order
+        assert t_in[seg.rows[0]] == seg.t_start and t_in[seg.rows[-1]] == seg.t_end
+    every = sorted(r for seg in result.segments for r in seg.rows)
+    assert every == list(range(t.size))                # a partition: no row twice
+
+
 def test_estimate_velocity_sorts_time_input():
     """Unsorted input should give the same result as sorted."""
     t = np.linspace(2010, 2020, 50)
