@@ -387,3 +387,30 @@ def test_a_day_restarted_after_not_run_is_in_progress_again():
     text = "\n".join(st.lines)
     assert "DOY 002 in progress" in text, text
     assert "not run 0" in text, text
+
+
+def test_run_start_extra_fields_and_other_events_are_written_and_status_ignores_them(
+    tmp_path: Path,
+):
+    """The run worker tags run_start with who asked, and adds superseded/restored
+    entries; run_status must read past entries it does not know."""
+    path = tmp_path / "ledger.jsonl"
+    led = Ledger(path)
+    led.event("superseded", doy=40, files=["SOL/FIN_20250400.NQ0.gz"])
+    led.run_start(campaign="PHREF", year=2025, doys=[40], banked=[], submitted_by="observer1")
+    led.attempt_start(doy=40, session="0400")
+    led.attempt_end(doy=40, session="0400", outcome="failed", seconds=1.0, error="X: Y")
+    led.run_end(halt=None)
+    led.event("restored", doy=40, removed=[])
+    entries, torn = read_entries(path)
+    assert torn == 0
+    assert [e["event"] for e in entries] == [
+        "superseded", "run_start", "attempt_start", "attempt_end", "run_end", "restored",
+    ]  # fmt: skip
+    assert entries[1]["submitted_by"] == "observer1"
+    known = [e for e in entries if e["event"] not in ("superseded", "restored")]
+    assert run_status(entries).state == run_status(known).state == "finished"
+    with pytest.raises(ValueError):
+        led.event("run_end", halt=None)
+    with pytest.raises(ValueError, match="envelope"):
+        led.event("restored", run="someone-elses-run")

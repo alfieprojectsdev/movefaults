@@ -748,6 +748,25 @@ def test_the_deletion_guard_requires_the_private_campaign_prefix(tmp_path: Path)
     assert not (tmp_path / "PHR251520").exists() and (tmp_path / "LUZON").is_dir()
 
 
+def test_stop_is_asked_between_bpe_calls_and_ends_the_run_there(env) -> None:
+    """The run worker's stop: never inside a BPE call, only before the next one."""
+    camp, sol = env
+    bsw = FakeBSW(camp, sol)
+    asked: list[int] = []
+
+    def stop() -> str | None:
+        asked.append(len(bsw.calls))
+        return "stopped by observer1" if bsw.calls else None
+
+    out = go(bsw, SimplePlan(YEAR, list(range(152, 160))), maxsess=2, chunk_days=4, stop=stop)
+    assert bsw.calls == [(152, 4, 2)]
+    assert asked == [0, 1]
+    st = by_doy(out)
+    assert all(st[d] == "ok" for d in range(152, 156))
+    assert all(st[d] == "not_run" for d in range(156, 160))
+    assert all("stopped by observer1" in o.note for o in out if o.status == "not_run")
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
 def test_the_cli_records_the_pcf_and_its_product_tier(cli_env, monkeypatch) -> None:
     """The tier comes from the PCF's V_ORB, where the BPE is told what to read."""
@@ -771,3 +790,23 @@ def test_a_pcf_without_v_orb_records_no_tier(cli_env, monkeypatch) -> None:
     seen = _capture_run_year(monkeypatch)
     assert ry.main(ARGS) == 0
     assert (seen["products"], seen["product_tier"]) == (None, None)
+
+
+def test_a_redo_plans_its_solved_day_as_unsolved_so_the_checks_see_it(cli_env) -> None:
+    """The run worker's redo plans with done_mode="none". As "fin" the day is
+    excluded as solved, and build_plan then checks nothing else about it."""
+    from bernese_workflow.run_plan import plan_from_env
+
+    kw: dict = {
+        "campaign": "PHREF",
+        "year": 2025,
+        "pcf": "PHREF_DLY",
+        "doy_from": 152,
+        "doy_to": 152,
+    }
+    sol = plan_from_env(**kw, done_mode="fin").sol_dir
+    sol.mkdir(parents=True, exist_ok=True)
+    (sol / "FIN_20251520.NQ0.gz").write_bytes(b"x")
+    as_fin = plan_from_env(**kw, done_mode="fin").plan
+    assert as_fin.todo == [] and as_fin.excluded[0].reason == "solved"
+    assert plan_from_env(**kw, done_mode="none").plan.todo == [152]
