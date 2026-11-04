@@ -347,6 +347,10 @@ def _provenance_line(start: dict) -> str | None:
     version = commit if commit == "unknown" else commit[:10]
     if code.get("dirty"):
         version += " (dirty)"
+    elif commit != "unknown" and code.get("dirty") is None:
+        # git named the commit but could not say whether the tree matched it:
+        # printing the bare sha would read as "clean".
+        version += " (dirty unknown)"
     parts = [f"by {who}", f"code {version}"]
     if start.get("pcf"):
         parts.append(f"PCF {start['pcf']}")

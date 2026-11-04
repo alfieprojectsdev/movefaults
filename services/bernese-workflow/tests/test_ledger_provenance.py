@@ -496,3 +496,14 @@ def test_old_and_new_lines_read_together(tmp_path: Path) -> None:
     assert "0 excluded by the plan" in text
     for line in path.read_text().splitlines():
         json.loads(line)
+
+
+def test_provenance_line_never_shows_unknown_cleanliness_as_clean() -> None:
+    """git named the commit but `git status` failed: say so, don't print a bare sha."""
+    sha = "a" * 40
+    line = ledger_mod._provenance_line
+    assert "(dirty unknown)" in line({"user": "u", "code": {"commit": sha, "dirty": None}})
+    assert "(dirty)" in line({"user": "u", "code": {"commit": sha, "dirty": True}})
+    clean = line({"user": "u", "code": {"commit": sha, "dirty": False}})
+    assert f"code {sha[:10]}" in clean and "dirty" not in clean
+    assert "dirty" not in line({"user": "u", "code": {"commit": "unknown", "dirty": None}})
