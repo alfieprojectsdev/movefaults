@@ -621,7 +621,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--check-stations",
         action="store_true",
-        help="also list the station-file findings (STA, BLQ, ATL, CRD) by file and kind; "
+        help="also list the station-file findings (STA, CRD, BLQ, ATL, ABB) by file and kind; "
         "the blocking ones refuse a run either way",
     )
     mode = ap.add_mutually_exclusive_group(required=True)

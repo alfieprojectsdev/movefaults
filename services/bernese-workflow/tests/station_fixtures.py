@@ -48,3 +48,23 @@ def sta_text(rows: list[tuple], newline: str = "\n") -> str:
     """A .STA file holding ``rows``, each (name, from, to[, receiver])."""
     lines = _STA_HEADER + [sta_row(*r) for r in rows] + _STA_FOOTER
     return newline.join(lines) + newline
+
+
+def atl_text(headers: list[str], newline: str = "\r\n") -> str:
+    """An ATL file: each header unindented, then three indented data rows, and
+    the trailing blank line Bernese needs as the last block's terminator."""
+    body = "      0.2799      0.0188     -0.5784     -0.9437"
+    return "".join(newline.join([h, body, body, body]) + newline for h in headers) + newline
+
+
+def abb_text(names: list[str], newline: str = "\r\n") -> str:
+    """An ABB file: the 16-column station name, then the 4-ID and 2-ID."""
+    header = [
+        "SYNTHETIC ABBREVIATIONS                                         01-JAN-26 00:00",
+        "-" * 80,
+        "",
+        "Station name             4-ID    2-ID    Remark",
+        "****************         ****     **     " + "*" * 39,
+    ]
+    rows = [f"{n:<16}         {n[:4]}     {n[:2]}     synthetic" for n in names]
+    return newline.join(header + rows) + newline

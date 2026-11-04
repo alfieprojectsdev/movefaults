@@ -21,7 +21,7 @@ import pytest
 from bernese_workflow.backends import SessionsResult, repr_campaign_name
 from bernese_workflow.run_year import SimplePlan, chunks, run_year
 
-from .station_fixtures import sta_text
+from .station_fixtures import abb_text, atl_text, sta_text
 
 FIXTURES = Path(__file__).parent / "fixtures" / "bpe_errors"
 YEAR = 2025
@@ -367,6 +367,7 @@ def cli_env(tmp_path: Path, monkeypatch):
             for i, c in enumerate(codes, start=1)
         )
     )
+    (tmp_path / "D" / "REF54" / "PHR.ABB").write_text(abb_text([f"{c} {c}" for c in codes]))
     (tmp_path / "D" / "RINEX").mkdir()
     for doy in (152, 153):
         for sta in ("aaaa", "bbbb", "cccc"):
@@ -626,21 +627,86 @@ def test_a_blq_block_after_end_table_refuses_the_run(cli_env, monkeypatch, capsy
 def test_an_atl_mismatch_without_data_warns_and_the_run_goes_ahead(
     cli_env, monkeypatch, capsys
 ) -> None:
+    """DDDD has no RINEX in the run, so its bare header cannot stop it: one
+    warning. AAAA-CCCC have data and full-name blocks."""
     import bernese_workflow.run_year as ry
 
     sta = _ref(cli_env, "PHR.STA")
     sta.write_text(sta_text([(f"{c} {c}", "1980 01 06 00 00 00", "") for c in
                              ("AAAA", "BBBB", "CCCC", "DDDD")]))  # fmt: skip
-    _ref(cli_env, "PHR.ATL").write_text(
-        "DDDD\n      0.2799      0.0188     -0.5784     -0.9437\n\n"
-    )
+    _ref(cli_env, "PHR.ATL").write_text(atl_text(["AAAA AAAA", "BBBB BBBB", "CCCC CCCC", "DDDD"]))
     _set_pcf(cli_env, "V_ATLINF", "PHR")
     seen = _capture_run_year(monkeypatch)
     assert ry.main(ARGS) == 0
     assert seen["plan"].todo == [152, 153]
     out = capsys.readouterr().out
-    assert "WARNING: PHR.ATL: DDDD: line 1: header 'DDDD' is not the STA name 'DDDD DDDD'" in out
+    assert (
+        "WARNING: PHR.ATL: -: 1 STA station(s) with no RINEX in this run have no block under "
+        "their STA name (warning only): DDDD (header 'DDDD' != 'DDDD DDDD')" in out
+    )
     assert "PROBLEM" not in out
+
+
+# The two acceptance cases for the ATL check, modelled on the real ones gps3
+# will check during review: a campaign like LUZON 2026 DOY 001-031 or PHREF
+# 2025, whose stations with data all have full-name ATL blocks while the
+# shared national STA carries stations with neither ATL nor ABB lines; and the
+# PHNAT.ATL of 2026-09-30, which named PTAG without its DOMES number.
+_NATIONAL = ["AAAA AAAA", "BBBB BBBB", "CCCC CCCC", "PTAG 22006M005", "OLD1 OLD1", "OLD2 OLD2"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+@pytest.mark.parametrize("newline", ["\r\n", "\n"], ids=["CRLF", "LF"])
+@pytest.mark.parametrize(
+    ("ptag_header", "code", "verdict"),
+    [
+        ("PTAG 22006M005", 0, None),
+        ("PTAG", 2, "PROBLEM: PHNAT.ATL: PTAG: RINEX on DOY 152-153 but header 'PTAG' "
+                    "!= 'PTAG 22006M005'"),
+    ],
+    ids=["full-name-runs", "bare-ptag-blocks"],
+)  # fmt: skip
+def test_atl_coverage_on_a_shared_national_reference_set(
+    cli_env, monkeypatch, capsys, newline, ptag_header, code, verdict
+) -> None:
+    import bernese_workflow.run_year as ry
+
+    pcf = cli_env / "U" / "PCF" / "PHREF_DLY.PCF"
+    pcf.write_text(
+        pcf.read_text()
+        .replace("V_STAINF = PHR;", "V_STAINF = PHNAT;")
+        .replace("V_CRDINF = PHR;", "V_CRDINF = PHNAT;")
+        .replace("V_ATLINF = ;", "V_ATLINF = PHNAT;")
+    )
+    rows = [(n, "1980 01 06 00 00 00", "") for n in _NATIONAL]
+    _ref(cli_env, "PHNAT.STA").write_bytes(sta_text(rows, newline).encode("ascii"))
+    crd = "".join(
+        f"{i:3d}  {n:<16} -3442268.43853  5197451.98331  1343779.24890{newline}"
+        for i, n in enumerate(_NATIONAL, start=1)
+    )
+    _ref(cli_env, "PHNAT.CRD").write_bytes(crd.encode("ascii"))
+    # The stations with data are in the ABB and ATL; OLD1/OLD2, which have
+    # none, are in neither.
+    active = ["AAAA AAAA", "BBBB BBBB", "CCCC CCCC", "PTAG 22006M005"]
+    _ref(cli_env, "PHNAT.ABB").write_bytes(abb_text(active, newline).encode("ascii"))
+    atl = atl_text([*active[:3], ptag_header], newline)
+    _ref(cli_env, "PHNAT.ATL").write_bytes(atl.encode("ascii"))
+    for doy in (152, 153):
+        (cli_env / "D" / "RINEX" / f"ptag{doy}0.25o").write_text("")
+    seen = _capture_run_year(monkeypatch)
+
+    assert ry.main(ARGS) == code
+    out = capsys.readouterr().out
+    assert "WARNING: PHNAT.ATL: -: 2 STA station(s) with no RINEX in this run" in out
+    if verdict is None:
+        assert "PROBLEM" not in out
+        assert seen["plan"].todo == [152, 153]
+    else:
+        assert verdict in out
+        assert seen == {}
+        # One finding for PTAG, not a second atl_name line saying the same.
+        assert [ln for ln in out.splitlines() if "PHNAT.ATL: PTAG" in ln] == [f"  {verdict}"]
+        assert "is not the STA name" not in out
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
@@ -664,7 +730,7 @@ def test_check_stations_lists_the_findings_in_both_clis(cli_env, monkeypatch, ca
     _capture_run_year(monkeypatch)
     assert ry.main([*ARGS[:-1], "--plan", "--check-stations"]) == 1
     ours = capsys.readouterr().out
-    assert "station files: 2 finding(s)" in ours
+    assert "station files: 2 finding(s)" in ours  # PHR.ABB lists every STA station
     assert "PROBLEM  missing_crd          PHR.CRD: EEEE: RINEX on DOY 152 but absent" in ours
     assert (
         "PROBLEM  missing_sta          PHR.STA: EEEE: RINEX on DOY 152 but no TYPE 002 row" in ours
