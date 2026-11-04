@@ -483,6 +483,28 @@ def test_parse_rinex_headers_filters_by_session(tmp_path):
     assert "BOST" not in only_086
 
 
+def test_parse_rinex_headers_session_filter_checks_rinex2_year(tmp_path):
+    """A RINEX 2 short name carries its year in the extension, and it must match.
+
+    LUZON January 2026 halted on DOY 005: the staged datapool still held 2025
+    files, and GUNG0050.25o (its 2025 Leica receiver) was validated against
+    GUNG's 2026 STA entry (a Trimble). The day number alone matched it.
+    """
+    leica = _rinex2_obs("GUNG", "LEICA GRX1200+GNSS", "LEIAT504        NONE")
+    trimble = _rinex2_obs("GUNG", "TRIMBLE NETR9", "TRM57971.00     NONE")
+    _write_rinex(tmp_path, "gung0050.25o", leica)
+    _write_rinex(tmp_path, "gung0040.25o", leica)
+    _write_rinex(tmp_path, "gung0040.26o", trimble)
+
+    # Only last year's file exists for this day: nothing to validate, not a mismatch.
+    assert _parse_rinex_headers(tmp_path, year=2026, session="0050") == {}
+    # Both years exist: this year's header wins, whatever order the scan finds them in.
+    this_year = _parse_rinex_headers(tmp_path, year=2026, session="0040")
+    last_year = _parse_rinex_headers(tmp_path, year=2025, session="0040")
+    assert this_year["GUNG"]["receiver"] == "TRIMBLE NETR9"
+    assert last_year["GUNG"]["receiver"] == "LEICA GRX1200+GNSS"
+
+
 def test_parse_rinex_headers_session_filter_matches_rinex3_longname(tmp_path):
     """RINEX 3 long names (YYYYDDD) also honour the session filter."""
     _write_rinex(

@@ -196,13 +196,23 @@ def _file_matches_session(path: Path, year: int, session: str) -> bool:
     Matches the naming schemes seen in a live PAGENET campaign:
       * RINEX 2 short name  ``pzam0870.26o`` -> chars [4:7] == DOY ("087")
                             (station(4) + DOY(3) + session/hour char)
+                            and the extension's two-digit year == "26". The
+                            year matters: a datapool can hold last year's
+                            ``pzam0870.25o`` beside this year's, possibly
+                            with different equipment.
       * RINEX 3 long name   ``CUSV..._20260870000_...`` -> contains "2026087" (year+DOY)
       * Bernese .RXO copy   ``PLG2..._20260870.RXO``    -> contains "20260870" (year+session)
     """
     name = path.name
     doy = session[:3]  # Bernese daily session ssss = DOY(3) + session-index(1)
-    # RINEX 2 short name: 4-char station + 3-digit DOY + 1 session/hour char
-    if len(name) >= 7 and name[4:7] == doy:
+    # RINEX 2 short name: 4-char station + 3-digit DOY + 1 session/hour char,
+    # then ".yy" + type, e.g. pzam0870.26o / pzam0870.26d.gz
+    if (
+        len(name) >= 11
+        and name[4:7] == doy
+        and name[8] == "."
+        and name[9:11] == f"{year % 100:02d}"
+    ):
         return True
     # RINEX 3 long name (year+DOY) or Bernese .RXO copy (year+session)
     if f"{year}{doy}" in name or f"{year}{session}" in name:
