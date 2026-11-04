@@ -46,6 +46,8 @@ from pogf_geodetic_suite.qc.completeness import Coverage, days_in_year, scan
 
 from .month_driver import fin_banked, session_for
 from .panel_sanitizer import find_dangling_jumps, find_dangling_waits
+from .station_files import Finding, check_station_files
+from .station_files import read_text as read_station_file
 
 MIN_REFERENCES = 3
 
@@ -74,6 +76,7 @@ class RunPlan:
     station_counts: dict[int, int] = field(default_factory=dict)
     maxpar: dict[str, int | None] = field(default_factory=dict)  # option dir -> value
     problems: list[str] = field(default_factory=list)  # each one blocks the run
+    warnings: list[str] = field(default_factory=list)  # printed, never block
 
     @property
     def blocks(self) -> list[tuple[int, int]]:
@@ -177,14 +180,73 @@ def result_dir(
     return _pcf_dir(pcf_text, "V_RESULT", env, year, fallback)
 
 
-def sta_file(pcf_text: str, env: Mapping[str, str], year: int, fallback_dir: Path) -> Path | None:
-    """The station information file R2S_COP copies into the campaign:
-    ${V_REFDIR}/${V_STAINF}.STA. None when the PCF names no V_STAINF."""
-    name = pcf_variable(pcf_text, "V_STAINF")
+def ref_file(
+    pcf_text: str, variable: str, ext: str, env: Mapping[str, str], year: int, fallback_dir: Path
+) -> Path | None:
+    """A reference file R2S_COP copies into the campaign: ${V_REFDIR}/${variable}.ext.
+    None when the PCF leaves ``variable`` blank or does not have it."""
+    name = pcf_variable(pcf_text, variable)
     if not name:
         return None
     refdir, _ = _pcf_dir(pcf_text, "V_REFDIR", env, year, fallback_dir)
-    return refdir / f"{name}.STA"
+    return refdir / f"{name}.{ext}"
+
+
+def sta_file(pcf_text: str, env: Mapping[str, str], year: int, fallback_dir: Path) -> Path | None:
+    """The station information file R2S_COP copies into the campaign:
+    ${V_REFDIR}/${V_STAINF}.STA. None when the PCF names no V_STAINF."""
+    return ref_file(pcf_text, "V_STAINF", "STA", env, year, fallback_dir)
+
+
+def check_station_files_for_pcf(
+    pcf_text: str,
+    env: Mapping[str, str],
+    year: int,
+    fallback_dir: Path,
+    sta: Path,
+    coverage: Coverage | None,
+    days: Iterable[int],
+) -> tuple[list[Finding], list[str], list[str]]:
+    """station_files' checks on the files this PCF's R2S_COP copies.
+
+    Returns (findings, problems the check itself hit, source lines). CRD comes
+    from V_CRDINF, which R2S_COP copies unconditionally, so a PCF without it is
+    a problem. BLQ and ATL are copied only when V_BLQINF / V_ATLINF are set, so
+    a blank one is not checked, as Bernese does not read it, and the source
+    lines say so.
+    """
+    problems: list[str] = []
+    sources: list[str] = []
+    files: dict[str, tuple[str, str] | None] = {}
+    for kind, var in (("CRD", "V_CRDINF"), ("BLQ", "V_BLQINF"), ("ATL", "V_ATLINF")):
+        path = ref_file(pcf_text, var, kind, env, year, fallback_dir)
+        files[kind] = None
+        if path is None:
+            if kind == "CRD":
+                problems.append(f"the PCF has no {var}: the CRD cannot be checked")
+            else:
+                sources.append(f"{kind}:      not used ({var} is blank)")
+            continue
+        try:
+            files[kind] = (path.name, read_station_file(path))
+        except OSError as exc:
+            problems.append(f"cannot read {path}: {exc}")
+            continue
+        sources.append(f"{kind}:      {path}")
+    try:
+        sta_text = read_station_file(sta)
+    except OSError as exc:
+        return [], [*problems, f"cannot read {sta}: {exc}"], sources
+    findings = check_station_files(
+        sta=(sta.name, sta_text),
+        crd=files["CRD"],
+        blq=files["BLQ"],
+        atl=files["ATL"],
+        coverage=coverage,
+        days=days,
+        year=year,
+    )
+    return findings, problems, sources
 
 
 # IGS long product name: centre (3), version (1), project (3), type (3), as in
@@ -341,6 +403,8 @@ def format_plan(plan: RunPlan, *, label: str = "") -> str:
         lines.append(f"  ADDNEQ2 MAXPAR {d}: {v if v is not None else 'no MAXPAR line'}")
     for p in plan.problems:
         lines.append(f"  PROBLEM: {p}")
+    for w in plan.warnings:
+        lines.append(f"  WARNING: {w}")
     return "\n".join(lines)
 
 
@@ -363,6 +427,18 @@ class PlannedRun:
     sta_file: Path | None  # ${V_REFDIR}/${V_STAINF}.STA: what it checks against
     sources: list[str]  # where the datapool and results directories came from
     label: str
+    station_findings: list[Finding] = field(default_factory=list)  # station_files'
+
+
+def format_station_findings(findings: Iterable[Finding]) -> str:
+    """The station-file findings grouped by file and kind, for --check-stations."""
+    findings = list(findings)
+    if not findings:
+        return "station files: no findings"
+    lines = [f"station files: {len(findings)} finding(s)"]
+    for f in sorted(findings, key=lambda f: (f.file, f.kind, f.station)):
+        lines.append(f"  {'PROBLEM' if f.blocking else 'WARNING'}  {f.kind:<20} {f}")
+    return "\n".join(lines)
 
 
 def plan_from_env(
@@ -439,10 +515,21 @@ def plan_from_env(
     )
     plan.problems[:0] = problems
     plan.problems += check_pcf(pcf_text)
+    findings: list[Finding] = []
+    if sta is not None and sta.is_file():
+        # Checked over the days that will run: a station missing from the CRD
+        # on a day already solved costs this run nothing.
+        findings, check_problems, check_sources = check_station_files_for_pcf(
+            pcf_text, env, year, d / "REF54", sta, coverage, plan.todo
+        )
+        plan.problems += check_problems
+        sources += check_sources
+        plan.problems += [str(f) for f in findings if f.blocking]
+        plan.warnings += [str(f) for f in findings if not f.blocking]
     plan.maxpar = addneq2_maxpar(u / "OPT", pcf_option_dirs(pcf_text))
     with_data = len(refs & set(coverage.stations if coverage else []))
     label = f"PCF {pcf}   references {refinf} ({with_data} with data)"
-    return PlannedRun(plan, pcf_path, pcf_text, sol_dir, datadir, sta, sources, label)
+    return PlannedRun(plan, pcf_path, pcf_text, sol_dir, datadir, sta, sources, label, findings)
 
 
 def parse_excludes(items: Iterable[str]) -> dict[int, str]:
@@ -477,6 +564,11 @@ def main(argv: list[str] | None = None) -> int:
         "fin: any FIN_* file, as scripts/ decides",
     )
     ap.add_argument("--session-char", default="0")
+    ap.add_argument(
+        "--check-stations",
+        action="store_true",
+        help="also list the station-file findings (STA, BLQ, ATL, CRD) by file and kind",
+    )
     args = ap.parse_args(argv)
 
     run = plan_from_env(
@@ -493,6 +585,8 @@ def main(argv: list[str] | None = None) -> int:
     for line in run.sources:
         print(line)
     print(format_plan(run.plan, label=run.label))
+    if args.check_stations:
+        print(format_station_findings(run.station_findings))
     return 0 if run.plan.ok else 1
 
 

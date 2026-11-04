@@ -21,6 +21,8 @@ import pytest
 from bernese_workflow.backends import SessionsResult, repr_campaign_name
 from bernese_workflow.run_year import SimplePlan, chunks, run_year
 
+from .station_fixtures import sta_text
+
 FIXTURES = Path(__file__).parent / "fixtures" / "bpe_errors"
 YEAR = 2025
 
@@ -345,12 +347,26 @@ def cli_env(tmp_path: Path, monkeypatch):
         "V_RESULT = ${S}/PHREF/$Y+0;\n"
         "V_REFDIR = ${D}/REF54;\n"
         "V_STAINF = PHR;\n"
+        "V_CRDINF = PHR;\n"
+        "V_BLQINF = ;\n"
+        "V_ATLINF = ;\n"
     )
     (tmp_path / "U" / "OPT" / "R2S_GEN").mkdir(parents=True)
     (tmp_path / "U" / "OPT" / "R2S_GEN" / "ADDNEQ2.INP").write_text('MAXPAR 1 "3000"\n')
     (tmp_path / "D" / "REF54").mkdir()
     (tmp_path / "D" / "REF54" / "IGS20.FIX").write_text("AAAA 1\nBBBB 2\nCCCC 3\n")
-    (tmp_path / "D" / "REF54" / "PHR.STA").write_text("")
+    # The station files the plan's station check reads: one open row and one
+    # coordinate per station, so the check runs and finds nothing.
+    codes = ("AAAA", "BBBB", "CCCC")
+    (tmp_path / "D" / "REF54" / "PHR.STA").write_text(
+        sta_text([(f"{c} {c}", "1980 01 06 00 00 00", "2099 12 31 00 00 00") for c in codes])
+    )
+    (tmp_path / "D" / "REF54" / "PHR.CRD").write_text(
+        "".join(
+            f"{i:3d}  {c} {c:<11} -3442268.43853  5197451.98331  1343779.24890\n"
+            for i, c in enumerate(codes, start=1)
+        )
+    )
     (tmp_path / "D" / "RINEX").mkdir()
     for doy in (152, 153):
         for sta in ("aaaa", "bbbb", "cccc"):
@@ -550,6 +566,114 @@ def test_plan_mode_and_run_plan_print_the_same_plan(cli_env, monkeypatch, capsys
     theirs = capsys.readouterr().out
     assert ours.replace("   MAXSESS 6", "") == theirs
     assert "DOY 152-153  (2 days)" in theirs
+
+
+# --- the station-file check: findings are plan problems or warnings ----------------------
+
+
+def _ref(cli_env: Path, name: str) -> Path:
+    return cli_env / "D" / "REF54" / name
+
+
+def _set_pcf(cli_env: Path, var: str, value: str) -> None:
+    pcf = cli_env / "U" / "PCF" / "PHREF_DLY.PCF"
+    pcf.write_text(pcf.read_text().replace(f"{var} = ;", f"{var} = {value};"))
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_an_overlap_in_the_sta_refuses_the_run(cli_env, monkeypatch, capsys) -> None:
+    """The gps3 failure: a row open to 2099 and a new receiver after it. Bernese
+    would drop BBBB for the whole day and finish; the plan refuses instead."""
+    import bernese_workflow.run_year as ry
+
+    rows = [(f"{c} {c}", "1980 01 06 00 00 00", "2099 12 31 00 00 00") for c in ("AAAA", "BBBB")]
+    rows += [("BBBB BBBB", "2024 01 01 00 00 00", "", "TRIMBLE ALLOY")]
+    _ref(cli_env, "PHR.STA").write_bytes(sta_text(rows, "\r\n").encode("ascii"))
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 2
+    assert seen == {}
+    out = capsys.readouterr().out
+    assert (
+        "PROBLEM: PHR.STA: BBBB BBBB: line 13 is open (TO 2099 12 31 00 00 00) but line 14" in out
+    )
+    # CCCC has RINEX and has lost its row: reported, not a crash or a pass.
+    assert "PROBLEM: PHR.STA: CCCC: RINEX on DOY 152-153 but no TYPE 002 row" in out
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_a_blq_block_after_end_table_refuses_the_run(cli_env, monkeypatch, capsys) -> None:
+    import bernese_workflow.run_year as ry
+
+    data = "  .01857 .00725 .00385 .00179 .00805 .00787 .00267 .00170 .00125 .00058 .00057\r\n"
+    block = "  {0}               {0}\r\n" + data * 6
+    _ref(cli_env, "PHR.BLQ").write_bytes(
+        ("$$ header\r\n" + block.format("AAAA") + block.format("BBBB")
+         + "$$ END TABLE\r\n" + block.format("CCCC")).encode("ascii")
+    )  # fmt: skip
+    _set_pcf(cli_env, "V_BLQINF", "PHR")
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 2
+    assert seen == {}
+    out = capsys.readouterr().out
+    assert f"BLQ:      {_ref(cli_env, 'PHR.BLQ')}" in out
+    assert "PROBLEM: PHR.BLQ: CCCC: line 17: block is after $$ END TABLE" in out
+    # The same station also has RINEX on the days to run, so it is reported as
+    # missing too, with the reason rather than a bare "absent".
+    assert "PROBLEM: PHR.BLQ: CCCC: RINEX on DOY 152-153 but after END TABLE" in out
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_an_atl_mismatch_without_data_warns_and_the_run_goes_ahead(
+    cli_env, monkeypatch, capsys
+) -> None:
+    import bernese_workflow.run_year as ry
+
+    sta = _ref(cli_env, "PHR.STA")
+    sta.write_text(sta_text([(f"{c} {c}", "1980 01 06 00 00 00", "") for c in
+                             ("AAAA", "BBBB", "CCCC", "DDDD")]))  # fmt: skip
+    _ref(cli_env, "PHR.ATL").write_text(
+        "DDDD\n      0.2799      0.0188     -0.5784     -0.9437\n\n"
+    )
+    _set_pcf(cli_env, "V_ATLINF", "PHR")
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 0
+    assert seen["plan"].todo == [152, 153]
+    out = capsys.readouterr().out
+    assert "WARNING: PHR.ATL: DDDD: line 1: header 'DDDD' is not the STA name 'DDDD DDDD'" in out
+    assert "PROBLEM" not in out
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_a_pcf_without_v_crdinf_cannot_pass_the_station_check(cli_env, monkeypatch, capsys) -> None:
+    import bernese_workflow.run_year as ry
+
+    pcf = cli_env / "U" / "PCF" / "PHREF_DLY.PCF"
+    pcf.write_text(pcf.read_text().replace("V_CRDINF = PHR;\n", ""))
+    _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 2
+    assert "PROBLEM: the PCF has no V_CRDINF: the CRD cannot be checked" in capsys.readouterr().out
+
+
+def test_check_stations_lists_the_findings_in_both_clis(cli_env, monkeypatch, capsys) -> None:
+    """Plain --plan already carries each finding as a PROBLEM line;
+    --check-stations adds the list by file and kind, with the kind named."""
+    import bernese_workflow.run_plan as rp
+    import bernese_workflow.run_year as ry
+
+    (cli_env / "D" / "RINEX" / "eeee1520.25o").write_text("")  # a station no file has
+    _capture_run_year(monkeypatch)
+    assert ry.main([*ARGS[:-1], "--plan", "--check-stations"]) == 1
+    ours = capsys.readouterr().out
+    assert "station files: 2 finding(s)" in ours
+    assert "PROBLEM  missing_crd          PHR.CRD: EEEE: RINEX on DOY 152 but absent" in ours
+    assert (
+        "PROBLEM  missing_sta          PHR.STA: EEEE: RINEX on DOY 152 but no TYPE 002 row" in ours
+    )
+    assert rp.main(["--campaign", "PHREF", "--year", "2025", "--pcf", "PHREF_DLY",
+                    "--from", "152", "--to", "153", "--check-stations"]) == 1  # fmt: skip
+    assert capsys.readouterr().out == ours.replace("   MAXSESS 6", "")
+    assert ry.main([*ARGS[:-1], "--plan"]) == 1
+    assert "station files:" not in capsys.readouterr().out
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")

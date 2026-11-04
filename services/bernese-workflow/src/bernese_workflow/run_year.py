@@ -571,7 +571,13 @@ def main(argv: list[str] | None = None) -> int:
     from .backends import LinuxBPEBackend
     from .bpe_lock import BPELock, BPELockHeld
     from .ledger import Ledger
-    from .run_plan import format_plan, parse_excludes, plan_from_env, product_tier
+    from .run_plan import (
+        format_plan,
+        format_station_findings,
+        parse_excludes,
+        plan_from_env,
+        product_tier,
+    )
 
     ap = argparse.ArgumentParser(
         description="Run a range of days as parallel BPE blocks, one campaign per session."
@@ -612,6 +618,12 @@ def main(argv: list[str] | None = None) -> int:
         "a FIN with the service's .done marker counts; redoing scripts/' days is then "
         "a deliberate choice",
     )
+    ap.add_argument(
+        "--check-stations",
+        action="store_true",
+        help="also list the station-file findings (STA, BLQ, ATL, CRD) by file and kind; "
+        "the blocking ones refuse a run either way",
+    )
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--plan", action="store_true", help="print what would run, run nothing")
     mode.add_argument("--run", action="store_true")
@@ -637,6 +649,8 @@ def main(argv: list[str] | None = None) -> int:
         for line in planned.sources:
             print(line)
         print(format_plan(planned.plan, label=f"{planned.label}   MAXSESS {args.maxsess}"))
+        if args.check_stations:
+            print(format_station_findings(planned.station_findings))
 
     if args.plan:
         planned = make_plan()

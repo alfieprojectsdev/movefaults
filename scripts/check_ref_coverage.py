@@ -53,88 +53,21 @@ import sys
 from pathlib import Path
 
 KINDS = ("CRD", "STA", "ABB", "BLQ", "ATL")
-_CRD_LINE = re.compile(r"^\s*\d+\s{2}(\S{4}.{12})\s*-?\d+\.\d+\s+-?\d+\.\d+\s+-?\d+\.\d+")
-_END_TABLE = "$$ END TABLE"
 
+# The readers live in the bernese-workflow service, which runs the same checks
+# inside a run plan; one copy, so the two cannot come to read a file differently.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "services" / "bernese-workflow" / "src"))
 
-def _lines(text: str) -> list[str]:
-    return [line.rstrip("\r") for line in text.split("\n")]
+from bernese_workflow.station_files import (  # noqa: E402
+    _lines,
+    atl_status,
+    blq_status,
+    crd_names,
+    name_listed,
+)
 
-
-def crd_names(text: str) -> dict[str, list[str]]:
-    """Code -> every full station name with that code (columns 6-21, blanks dropped).
-
-    A code is not unique: LUZON.CRD carries both `BILI 12363M001` (the IGS
-    fiducial) and `BILI BILI` (the PHIVOLCS site). Keeping only one would make
-    CRD line order decide which station gets checked.
-    """
-    names: dict[str, list[str]] = {}
-    for line in _lines(text):
-        m = _CRD_LINE.match(line)
-        if m:
-            full = m[1].rstrip()
-            names.setdefault(full[:4], []).append(full)
-    return names
-
-
-def name_listed(text: str, full_name: str) -> bool:
-    """True if some line starts with the full name and its name field ends there.
-
-    The name field is 16 wide and followed by at least two blanks in both STA
-    and ABB, while a name holds at most single blanks. So `PTAG 22006M005`
-    does not list the bare name `PTAG`, which is a different key to Bernese.
-    """
-    for line in _lines(text):
-        rest = line[len(full_name) :]
-        if line.startswith(full_name) and (not rest.strip() or rest.startswith("  ")):
-            return True
-    return False
-
-
-def blq_status(text: str, code: str) -> str:
-    """'ok', 'after END TABLE', 'indented 1 column' or 'absent'."""
-    seen_end = False
-    found_after = misindented = False
-    for line in _lines(text):
-        if line.startswith(_END_TABLE):
-            seen_end = True
-            continue
-        if line.startswith("$$"):
-            continue
-        if line[2:6] == code and line[:2] == "  " and line[6:7] in ("", " "):
-            if not seen_end:
-                return "ok"
-            found_after = True
-        elif (
-            line[1:5] == code
-            and line[:1] == " "
-            and line[1:2] != " "
-            and line[5:6] in ("", " ")
-            and not seen_end
-        ):
-            misindented = True
-    if found_after:
-        return "after END TABLE"
-    if misindented:
-        return "indented 1 column"
-    return "absent"
-
-
-def atl_status(text: str, full_name: str) -> str:
-    """'ok', "header 'X' != 'NAME'", or 'absent'. Headers are unindented."""
-    code = full_name[:4]
-    near = None
-    for line in _lines(text):
-        if not line or line.startswith(("$$", " ")):
-            continue
-        header = line.rstrip()
-        if header == full_name:
-            return "ok"
-        if header[:4] == code and near is None:
-            near = header
-    if near is not None:
-        return f"header '{near}' != '{full_name}'"
-    return "absent"
+__all__ = ["atl_status", "blq_status", "check", "crd_names", "name_listed", "pcf_sets"]
 
 
 def check(codes: list[str], files: dict[str, str]) -> list[tuple[str, str, str]]:
