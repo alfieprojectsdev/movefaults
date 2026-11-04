@@ -305,11 +305,13 @@ def run_year(
             )  # fmt: skip
             if halt is None and resume_from is not None:
                 queue.insert(0, (resume_from, b))
+        kind = str(reason["kind"]) if reason else ""
         for d in todo:
             if d not in out:
                 out[d] = DayOutcome(
-                    d, session_for(d, session_char), "not_run", note=f"stopped: {halt}"
-                )
+                    d, session_for(d, session_char), "not_run",
+                    note=f"stopped: {halt}", halt_kind=kind,
+                )  # fmt: skip
     except BaseException as exc:
         if halt is None:
             halt = f"interrupted: {type(exc).__name__}"
@@ -630,7 +632,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--check-stations",
         action="store_true",
-        help="also list the station-file findings (STA, BLQ, ATL, CRD) by file and kind; "
+        help="also list the station-file findings (STA, CRD, BLQ, ATL, ABB) by file and kind; "
         "the blocking ones refuse a run either way",
     )
     mode = ap.add_mutually_exclusive_group(required=True)

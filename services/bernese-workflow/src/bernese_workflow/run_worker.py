@@ -85,6 +85,12 @@ logger = logging.getLogger(__name__)
 
 MAX_AGE_DEFAULT_S = 24 * 3600.0
 POLL_DEFAULT_S = 5.0
+# Between runs, status.json is rewritten when what it says changes, and
+# otherwise once per this many seconds, so `updated` still shows the worker is
+# polling. Rewriting it every poll while idle was ~17,000 atomic writes (each an
+# fsync) a day for no new fact. During a run nothing polls: status.json is
+# written once at the start, so `updated` is then the run's start, not a pulse.
+HEARTBEAT_DEFAULT_S = 60.0
 
 
 @dataclass
@@ -157,6 +163,7 @@ class Worker:
         lock_path: Path | None = None,
         max_age_s: float = MAX_AGE_DEFAULT_S,
         poll_s: float = POLL_DEFAULT_S,
+        heartbeat_s: float = HEARTBEAT_DEFAULT_S,
         clock: Callable[[], dt.datetime] = now_utc,
         bpe_running: Callable[[], list[bpe_processes.BPEProcess]] = bpe_processes.find,
     ) -> None:
@@ -166,7 +173,9 @@ class Worker:
         self.lock_path = lock_path
         self.max_age_s = max_age_s
         self.poll_s = poll_s
+        self.heartbeat_s = heartbeat_s
         self.clock = clock
+        self._last_status: tuple[dict, dt.datetime] | None = None  # (body, when written)
         self.halted_path = queue.root / "HALTED"
         self.status_path = queue.root / "status.json"
         self._fh: IO[str] | None = None
@@ -199,18 +208,25 @@ class Worker:
     # --- status ----------------------------------------------------------------------------
 
     def _status(self, state: str, **fields: object) -> None:
+        """Write status.json if it would say something new, or the heartbeat is due."""
+        body = {
+            "state": state,
+            "pid": os.getpid(),
+            "host": socket.gethostname(),
+            "active": self._active_id,
+            **fields,
+        }
+        now = self.clock()
+        if self._last_status is not None:
+            last, at = self._last_status
+            # A wall clock stepped back (NTP) gives a negative age: write, rather
+            # than going silent until the clock catches up with the last write.
+            if last == body and 0 <= (now - at).total_seconds() < self.heartbeat_s:
+                return
         write_json_atomic(
-            self.status_path,
-            {
-                "state": state,
-                "pid": os.getpid(),
-                "host": socket.gethostname(),
-                "active": self._active_id,
-                "updated": self.clock().isoformat(),
-                **fields,
-            },
-            tmp_dir=self.queue.tmp,
+            self.status_path, {**body, "updated": now.isoformat()}, tmp_dir=self.queue.tmp
         )
+        self._last_status = (body, now)
 
     def _halt(self, why: str) -> None:
         self.halted_path.write_text(
@@ -448,10 +464,12 @@ class Worker:
         failed = [o for o in out if o.status == "failed"]
         not_run = [o for o in out if o.status == "not_run"]
         detail = "; ".join(f"DOY {o.doy:03d} {o.error or o.note}" for o in failed)
-        stopped = self._stop_reason or self._signal_reason
         # Stopped only if the stop is what left days not run: a SIGTERM that
         # arrives during a block the breaker then halts must not hide the halt.
-        if stopped and any(o.note == f"stopped: {stopped}" for o in not_run):
+        # The halt's kind says which, not the wording of a note.
+        by_stop = next((o for o in not_run if o.halt_kind == "stopped"), None)
+        if by_stop is not None:
+            stopped = self._stop_reason or self._signal_reason or by_stop.note
             return "stopped", "; ".join(x for x in (stopped, detail) if x), {"days": days}
         if failed or not_run:
             if not_run:
@@ -537,8 +555,8 @@ class Worker:
             )
         removed = self._restore(s.ledger, m, req)
         why = (day.error or day.note) if day else "run_year did not report the day"
-        stopped = self._stop_reason or self._signal_reason
-        outcome = "stopped" if day and day.status == "not_run" and stopped else "failed"
+        stopped = day is not None and day.status == "not_run" and day.halt_kind == "stopped"
+        outcome = "stopped" if stopped else "failed"
         return (
             outcome,
             f"{why}; the old set is back in place",

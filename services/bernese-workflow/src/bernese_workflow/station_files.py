@@ -17,8 +17,12 @@ WHAT IT REPORTS
        a row whose FROM is after its TO; a date column that does not parse.
        An end equal to the next start is the IGS convention, not an overlap.
   BLQ  every station block after `$$ END TABLE`.
-  ATL  every block header whose code is in the STA under a different full name,
+  ATL  every STA station with no block under its full STA name (atl_status:
+       absent, or only a header such as `PTAG` for `PTAG 22006M005`); and
+       every header whose code is in the STA under a different full name,
        unless the header is another station's name in the CRD.
+  ABB  every STA station with no abbreviation line under its full STA name,
+       from ${V_CRDINF}.ABB (see run_plan.check_station_files_for_pcf).
   RINEX  stations with RINEX on a day to be run but absent from the STA, the
        CRD or the BLQ (the BLQ check also says why: after END TABLE,
        indented one column, or absent).
@@ -35,17 +39,27 @@ these days, and blocking on it refused runs that solve. Without a datapool
 scan (the CLI with no --rinex-dir) every overlap blocks. Also blocking: every block
 after END TABLE, and a station with RINEX to run that the STA, CRD or BLQ does
 not have (the header validator already treats a station missing from the STA
-as an error, and a missing BLQ entry stops GPSEDT). An ATL name mismatch
-blocks only for a station with RINEX in the days to run, since GTATML stops
-the run on it; for other stations it is a warning. A reversed window and an
-unreadable date are warnings: what Bernese does with them has not been
-observed, so they are reported rather than allowed to refuse a run.
+as an error, and a missing BLQ entry stops GPSEDT). A station with no ATL
+block under its full name blocks when it has RINEX in the days to run, since
+GTATML stops the run with NOT FOUND (PHDEN DOY 200, docs/SETTLED.md section
+2); stations without data are one warning, and without a datapool scan every
+one blocks. A stray ATL header beside a correct block is a warning. A reversed
+window and an unreadable date are warnings: what Bernese does with them has
+not been observed, so they are reported rather than allowed to refuse a run.
+
+ABB IS WARNING ONLY, AND STAYS SO UNTIL A FAILURE IS RECORDED
+What Bernese does with a station missing from the abbreviation file has not
+been observed in any run here. A missing ABB line is therefore reported, never
+allowed to refuse a run. It becomes blocking only after a real failure caused
+by it is recorded in config/bernese/bpe_errors.yaml, with the run it came
+from; until then a block would rest on a guess.
 
 SHARED READERS
 The STA rows come from rinex_header_validator.sta_type002_rows, the RINEX
 station-days from the datapool scan run_plan already makes. The CRD, BLQ and
 ATL readers below were scripts/check_ref_coverage.py's and moved here so that
-script and this module read the files one way; it imports them from here.
+script and this module read the files one way; it imports them from here, and
+only public names.
 
 Nothing here writes a file. Files are read in text mode, which accepts CRLF
 and LF alike; since nothing is written back, the line endings on disk are
@@ -82,11 +96,14 @@ _BLQ_NAME_END = ("", " ", "_")
 
 
 # ---------------------------------------------------------------------------
-# Readers (moved from scripts/check_ref_coverage.py, which imports them)
+# Readers (moved from scripts/check_ref_coverage.py, which imports them;
+# all public, so the script depends on no private name)
 # ---------------------------------------------------------------------------
 
 
-def _lines(text: str) -> list[str]:
+def split_lines(text: str) -> list[str]:
+    """Lines split on ``\\n`` alone, a trailing ``\\r`` dropped: CRLF and LF both
+    work, and a stray U+0085 in a description column does not split a line."""
     return [line.rstrip("\r") for line in text.split("\n")]
 
 
@@ -98,7 +115,7 @@ def crd_names(text: str) -> dict[str, list[str]]:
     CRD line order decide which station gets checked.
     """
     names: dict[str, list[str]] = {}
-    for line in _lines(text):
+    for line in split_lines(text):
         m = _CRD_LINE.match(line)
         if m:
             full = m[1].rstrip()
@@ -113,7 +130,7 @@ def name_listed(text: str, full_name: str) -> bool:
     and ABB, while a name holds at most single blanks. So `PTAG 22006M005`
     does not list the bare name `PTAG`, which is a different key to Bernese.
     """
-    for line in _lines(text):
+    for line in split_lines(text):
         rest = line[len(full_name) :]
         if line.startswith(full_name) and (not rest.strip() or rest.startswith("  ")):
             return True
@@ -139,7 +156,7 @@ def blq_status(text: str, code: str) -> str:
     """'ok', 'after END TABLE', 'indented 1 column' or 'absent'."""
     seen_end = False
     found_after = misindented = False
-    for line in _lines(text):
+    for line in split_lines(text):
         if line.startswith(_END_TABLE):
             seen_end = True
             continue
@@ -168,7 +185,7 @@ def _blq_headers(text: str) -> list[tuple[str, int, bool]]:
     """(code, line number, after the first `$$ END TABLE`) for every block header."""
     out: list[tuple[str, int, bool]] = []
     seen_end = False
-    for number, line in enumerate(_lines(text), start=1):
+    for number, line in enumerate(split_lines(text), start=1):
         if line.startswith(_END_TABLE):
             seen_end = True
         elif code := _blq_header_code(line):
@@ -180,16 +197,21 @@ def atl_headers(text: str) -> list[tuple[str, int]]:
     """(header, line number) of every ATL block header: unindented, not `$$`."""
     return [
         (line.rstrip(), number)
-        for number, line in enumerate(_lines(text), start=1)
+        for number, line in enumerate(split_lines(text), start=1)
         if line and not line.startswith(("$$", " "))
     ]
 
 
 def atl_status(text: str, full_name: str) -> str:
     """'ok', "header 'X' != 'NAME'", or 'absent'. Headers are unindented."""
+    return _atl_status_in([h for h, _ in atl_headers(text)], full_name)
+
+
+def _atl_status_in(headers: list[str], full_name: str) -> str:
+    """atl_status over headers already read, so many names cost one pass."""
     code = full_name[:4]
     near = None
-    for header, _ in atl_headers(text):
+    for header in headers:
         if header == full_name:
             return "ok"
         if header[:4] == code and near is None:
@@ -232,6 +254,8 @@ KINDS = (
     "missing_sta",
     "missing_crd",
     "missing_blq",
+    "missing_atl",
+    "missing_abb",
 )
 
 
@@ -386,7 +410,6 @@ def check_atl(
     text: str,
     label: str,
     names: Mapping[str, set[str]],
-    active: Iterable[str] = (),
     other_stations: Iterable[str] = (),
 ) -> list[Finding]:
     """ATL headers whose code is a STA station but whose name is not its STA name.
@@ -397,10 +420,15 @@ def check_atl(
     left alone. ``other_stations``: full names known to be real stations (the
     CRD's), so a header naming one is another station that shares the code,
     not a misnamed one; LUZON.ATL's `BILI 12363M001` is the IGS fiducial beside
-    the STA's `BILI BILI`. ``active``: codes with RINEX to run; a mismatch
-    blocks only for those.
+    the STA's `BILI BILI`.
+
+    Always a warning. Whether the run can read the station is check_atl_presence's
+    question, and it blocks: a station whose only block is misnamed is reported
+    there with this same reason, and check_station_files drops the duplicate
+    here. What is left is a stray header beside a correct block, which Bernese
+    never reads.
     """
-    active, other = set(active), set(other_stations)
+    other = set(other_stations)
     out = []
     for header, number in atl_headers(text):
         code = header[:4]
@@ -410,9 +438,93 @@ def check_atl(
         want = " or ".join(f"'{n}'" for n in sorted(expected))
         out.append(
             Finding(label, "atl_name", code,
-                    f"line {number}: header '{header}' is not the STA name {want}",
-                    code in active)
+                    f"line {number}: header '{header}' is not the STA name {want}", False)
         )  # fmt: skip
+    return out
+
+
+def atl_missing(text: str, names: Mapping[str, set[str]]) -> dict[str, str]:
+    """Code -> atl_status's reason, for STA codes with no block under any STA name."""
+    headers = [h for h, _ in atl_headers(text)]
+    out = {}
+    for code in sorted(names):
+        statuses = [_atl_status_in(headers, n) for n in sorted(names[code])]
+        if "ok" not in statuses:
+            out[code] = statuses[0]
+    return out
+
+
+def check_atl_presence(
+    text: str,
+    label: str,
+    names: Mapping[str, set[str]],
+    active_days: Mapping[str, list[int]] | None,
+    missing: Mapping[str, str] | None = None,
+) -> list[Finding]:
+    """STA stations with no ATL block under their full STA name.
+
+    Bernese looks the station up by its full name and stops the run when it is
+    not there: `*** SR GTATML ... STATION NAME : PTAG 22006M005`, NOT FOUND,
+    with a block headed `PTAG` in the file (docs/SETTLED.md section 2). A code
+    the STA gives two names (BILI) passes when either has a block.
+
+    ``active_days``: code -> the days to run that have its RINEX. A station
+    with data blocks. Stations without data in the run cannot stop it and are
+    gathered into one warning, since a national STA can hold hundreds. None
+    means no datapool scan: every station blocks, as overlaps do. ``missing``:
+    atl_missing's result, when the caller already has it.
+    """
+    from pogf_geodetic_suite.qc.completeness import compress_ranges
+
+    if missing is None:
+        missing = atl_missing(text, names)
+    out: list[Finding] = []
+    quiet: list[str] = []
+    for code, why in missing.items():
+        if active_days is None:
+            out.append(
+                Finding(label, "missing_atl", code, f"no block under the STA name: {why}", True)
+            )
+        elif code in active_days:
+            days = compress_ranges(active_days[code])
+            out.append(Finding(label, "missing_atl", code, f"RINEX on DOY {days} but {why}", True))
+        else:
+            quiet.append(code if why == "absent" else f"{code} ({why})")
+    if quiet:
+        out.append(
+            Finding(label, "missing_atl", "-",
+                    f"{len(quiet)} STA station(s) with no RINEX in this run have no block "
+                    f"under their STA name (warning only): {', '.join(quiet)}", False)
+        )  # fmt: skip
+    return out
+
+
+def check_abb_presence(
+    text: str,
+    label: str,
+    names: Mapping[str, set[str]],
+    active_days: Mapping[str, list[int]] | None,
+) -> list[Finding]:
+    """STA stations with no abbreviation line under their full STA name. WARNING ONLY.
+
+    The test is check_ref_coverage's: a line that starts with the full name,
+    whose 16-column name field ends there (name_listed). Reported for stations
+    with RINEX in the run, or for every station without a datapool scan.
+    """
+    from pogf_geodetic_suite.qc.completeness import compress_ranges
+
+    out: list[Finding] = []
+    for code in sorted(names):
+        if any(name_listed(text, n) for n in names[code]):
+            continue
+        want = " or ".join(f"'{n}'" for n in sorted(names[code]))
+        if active_days is None:
+            why = f"no line for the STA name {want}"
+        elif code in active_days:
+            why = f"RINEX on DOY {compress_ranges(active_days[code])} but no line for {want}"
+        else:
+            continue
+        out.append(Finding(label, "missing_abb", code, f"{why} (warning only)", False))
     return out
 
 
@@ -478,15 +590,16 @@ def check_station_files(
     crd: tuple[str, str] | None = None,
     blq: tuple[str, str] | None = None,
     atl: tuple[str, str] | None = None,
+    abb: tuple[str, str] | None = None,
     coverage: Coverage | None = None,
     days: Iterable[int] = (),
     year: int | None = None,
 ) -> list[Finding]:
     """Every finding for one campaign's files. Each file is ``(label, text)``.
 
-    ``crd``/``blq``/``atl`` None: that file is not checked (a PCF with V_BLQINF
-    or V_ATLINF blank does not use it). ``coverage`` None: the RINEX checks are
-    skipped; the caller is expected to say so, as run_plan does.
+    ``crd``/``blq``/``atl``/``abb`` None: that file is not checked (a PCF with
+    V_BLQINF or V_ATLINF blank does not use it). ``coverage`` None: the RINEX
+    checks are skipped; the caller is expected to say so, as run_plan does.
     """
     sta_label, sta_text = sta
     days = list(days)
@@ -504,9 +617,25 @@ def check_station_files(
         out = [_scope_overlap(f, active, lo, hi) for f in out]
     if blq is not None:
         out += check_blq(blq[1], blq[0])
+    # code -> the days to run with its RINEX, for STA stations; None: no scan
+    active_days: dict[str, list[int]] | None = None
+    if coverage is not None:
+        active_days = {}
+        for d in sorted(set(days)):
+            for c in coverage.by_day.get(d, set()):
+                if c in names:
+                    active_days.setdefault(c, []).append(d)
     if atl is not None:
+        missing = atl_missing(atl[1], names)
         crd_full = [n for ns in crd_names(crd[1]).values() for n in ns] if crd else []
-        out += check_atl(atl[1], atl[0], names, active, other_stations=crd_full)
+        out += [
+            f
+            for f in check_atl(atl[1], atl[0], names, other_stations=crd_full)
+            if f.station not in missing  # reported below, with the same reason
+        ]
+        out += check_atl_presence(atl[1], atl[0], names, active_days, missing)
+    if abb is not None:
+        out += check_abb_presence(abb[1], abb[0], names, active_days)
     if coverage is not None:
         out += check_rinex_stations(
             coverage,
@@ -552,7 +681,7 @@ def main(argv: list[str] | None = None) -> int:
     from pogf_geodetic_suite.qc.completeness import scan
 
     ap = argparse.ArgumentParser(
-        description="Check a campaign's STA, BLQ, ATL and CRD the way Bernese reads them. "
+        description="Check a campaign's STA, CRD, BLQ, ATL and ABB the way Bernese reads them. "
         "Reads only; writes nothing. Inside a planned run the same findings appear "
         "in `bernese-run-year --plan` as PROBLEM and WARNING lines."
     )
@@ -560,6 +689,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--crd", type=Path, help="coordinate file (.CRD)")
     ap.add_argument("--blq", type=Path, help="ocean loading file (.BLQ)")
     ap.add_argument("--atl", type=Path, help="atmospheric loading file (.ATL)")
+    ap.add_argument("--abb", type=Path, help="abbreviation file (.ABB); missing lines only warn")
     ap.add_argument("--rinex-dir", type=Path, help="datapool directory (V_RNXDIR) to scan")
     ap.add_argument("--year", type=int, help="with --rinex-dir: the year to scan")
     ap.add_argument("--from", dest="doy_from", type=int, default=1)
@@ -576,7 +706,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         sta = (args.sta.name, read_text(args.sta))
-        files = {k: load(getattr(args, k)) for k in ("crd", "blq", "atl")}
+        files = {k: load(getattr(args, k)) for k in ("crd", "blq", "atl", "abb")}
     except OSError as e:
         print(f"cannot read: {e}", file=sys.stderr)
         return 2
@@ -588,7 +718,8 @@ def main(argv: list[str] | None = None) -> int:
         days=range(args.doy_from, args.doy_to + 1),
         year=args.year,
     )
-    checked = [args.sta.name] + [p.name for p in (args.crd, args.blq, args.atl) if p]
+    files_given = (args.crd, args.blq, args.atl, args.abb)
+    checked = [args.sta.name] + [p.name for p in files_given if p]
     if coverage is not None:
         checked.append(f"RINEX in {args.rinex_dir} ({len(coverage.stations)} stations)")
     print(f"checked: {', '.join(checked)}")
