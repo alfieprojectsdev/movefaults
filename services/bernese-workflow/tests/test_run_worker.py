@@ -932,6 +932,42 @@ def test_status_is_rewritten_when_the_clock_steps_back(env: Env) -> None:
 # --- review follow-ups: the heartbeat on the command line, and a stopped redo ------------
 
 
+def _bsw_env(monkeypatch, tmp_path: Path) -> None:
+    """Enough of LOADGPS.setvar for `run` to start; --once with an empty queue
+    never plans anything, so the directories need not hold a campaign."""
+    for v in ("P", "U", "C", "S", "D"):
+        monkeypatch.setenv(v, str(tmp_path / v))
+
+
+def test_cli_heartbeat_option_reaches_the_worker(env: Env, monkeypatch, tmp_path) -> None:
+    from bernese_workflow import run_worker
+
+    seen: list[float] = []
+
+    class Spy(run_worker.Worker):
+        def __init__(self, *a, **k) -> None:
+            super().__init__(*a, **k)
+            seen.append(self.heartbeat_s)
+
+    _bsw_env(monkeypatch, tmp_path)
+    monkeypatch.setattr(run_worker, "Worker", Spy)
+    monkeypatch.setattr(run_worker.bpe_processes, "find", lambda: [])
+    state = ["--state-dir", str(env.queue.root)]
+    assert main([*state, "run", "--once", "--heartbeat-s", "300"]) == 0
+    assert main([*state, "run", "--once"]) == 0
+    assert seen == [300.0, run_worker.HEARTBEAT_DEFAULT_S]
+
+
+@pytest.mark.parametrize("bad", ["0", "-5", "nan"])
+def test_cli_heartbeat_option_rejects_values_that_are_not_positive(
+    env: Env, bad: str, capsys
+) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["--state-dir", str(env.queue.root), "run", "--once", "--heartbeat-s", bad])
+    assert exc.value.code == 2
+    assert "--heartbeat-s must be a number of seconds greater than 0" in capsys.readouterr().err
+
+
 def test_redo_still_recognises_a_day_the_stop_left_not_run(env: Env) -> None:
     """A stop that arrives before the redo's one BPE call: the day is not_run with
     halt kind "stopped", the redo is recorded stopped (not failed), the old set is
