@@ -204,9 +204,14 @@ def atl_headers(text: str) -> list[tuple[str, int]]:
 
 def atl_status(text: str, full_name: str) -> str:
     """'ok', "header 'X' != 'NAME'", or 'absent'. Headers are unindented."""
+    return _atl_status_in([h for h, _ in atl_headers(text)], full_name)
+
+
+def _atl_status_in(headers: list[str], full_name: str) -> str:
+    """atl_status over headers already read, so many names cost one pass."""
     code = full_name[:4]
     near = None
-    for header, _ in atl_headers(text):
+    for header in headers:
         if header == full_name:
             return "ok"
         if header[:4] == code and near is None:
@@ -444,9 +449,10 @@ def check_atl(
 
 def atl_missing(text: str, names: Mapping[str, set[str]]) -> dict[str, str]:
     """Code -> atl_status's reason, for STA codes with no block under any STA name."""
+    headers = [h for h, _ in atl_headers(text)]
     out = {}
     for code in sorted(names):
-        statuses = [atl_status(text, n) for n in sorted(names[code])]
+        statuses = [_atl_status_in(headers, n) for n in sorted(names[code])]
         if "ok" not in statuses:
             out[code] = statuses[0]
     return out

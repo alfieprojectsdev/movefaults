@@ -876,3 +876,17 @@ def test_a_redo_plans_its_solved_day_as_unsolved_so_the_checks_see_it(cli_env) -
     as_fin = plan_from_env(**kw, done_mode="fin").plan
     assert as_fin.todo == [] and as_fin.excluded[0].reason == "solved"
     assert plan_from_env(**kw, done_mode="none").plan.todo == [152]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fcntl locks are POSIX")
+def test_an_unreadable_abb_warns_and_the_run_goes_ahead(cli_env, monkeypatch, capsys) -> None:
+    """ABB findings never block, including the file being absent."""
+    import bernese_workflow.run_year as ry
+
+    _ref(cli_env, "PHR.ABB").unlink()
+    seen = _capture_run_year(monkeypatch)
+    assert ry.main(ARGS) == 0
+    assert seen["plan"].todo == [152, 153]
+    out = capsys.readouterr().out
+    assert "WARNING: PHR.ABB: -: cannot read" in out
+    assert "PROBLEM" not in out
