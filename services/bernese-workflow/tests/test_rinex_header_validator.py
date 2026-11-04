@@ -1222,6 +1222,8 @@ def test_rows_under_two_full_names_are_not_an_overlap(tmp_path):
     )
     report = validate_rinex_headers(raw_dir, sta, day=dt.date(2025, 6, 1))
     assert not any("overlap" in w for w in report.warnings), report.warnings
+    # Not an overlap, but not silent either: the match accepts either name.
+    assert any("2 STA TYPE 002 names are valid" in w for w in report.warnings), report.warnings
 
 
 def test_both_checks_agree_on_the_same_rows(tmp_path):
@@ -1244,3 +1246,16 @@ def test_both_checks_agree_on_the_same_rows(tmp_path):
             for w in validate_rinex_headers(raw_dir, sta, day=dt.date(2025, 4, 15)).warnings
         )
         assert _overlap(a, b) is expected and header_says is expected, (to, frm)
+
+
+def test_a_row_with_an_unparseable_date_is_not_an_overlap(tmp_path):
+    """station_files reports such a row as sta_bad_date and leaves it out of
+    its overlap check; the header check must not call it an overlap either
+    (its None dates would otherwise read as open at both ends)."""
+    from bernese_workflow.station_files import check_sta
+
+    raw_dir, sta = _s01r_two_rows(tmp_path, "2025 04 14 00 00 00", "2025 99 99 00 00 00")
+    report = validate_rinex_headers(raw_dir, sta, day=dt.date(2025, 3, 1))
+    assert not any("overlap" in w for w in report.warnings), report.warnings
+    kinds = {f.kind for f in check_sta(sta.read_text(), "TEST.STA")}
+    assert "sta_bad_date" in kinds and "sta_overlap" not in kinds, kinds
