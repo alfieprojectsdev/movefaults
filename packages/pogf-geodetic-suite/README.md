@@ -16,6 +16,7 @@ MATLAB. Status as of 2026-10-14: about 75%, 18 modules, 260 tests.
 | `timeseries/plots.py`, `timeseries/cli.py` | network filter and PLOT-file writer. CLI `crd-to-plots`; networks in `timeseries/networks/networks.yml` |
 | `timeseries/analysis.py` | offset-aware segmented velocities, a port of `vel_line_v8_newvelduetooffset_v4.m`: 161 of 165 components agree with PHIVOLCS' published output to better than 5e-6 mm/yr. Joint step + rate estimation (`estimate_velocity_joint`) |
 | `timeseries/offsets_catalog.py` | load (sorted) and validate the `offsets` discontinuity catalog |
+| `timeseries/status.py` | read-only status of one station as a JSON-ready dict: ENU series, its offsets, segmented velocities with 1-sigma, and outliers **flagged, never dropped** (record-only by default). CLI `pogf-timeseries status`; shape in the module docstring |
 | `timeseries/gmt.py` | GMT `psvelo` files; sites whose final interval is under a year are withheld |
 | `modeling/disloc.py` | Okada 1985 surface dislocation, replacing `disloc.mexw64` |
 | `modeling/dc3d.py`, `modeling/disloc3d.py` | Okada 1992 DC3D and the `disloc3d` calling convention, replacing `disloc3d.mexw64`. No MATLAB binary is left in the modelling chain |

@@ -47,6 +47,8 @@ rinex-qc = "pogf_geodetic_suite.qc.rinex_qc:main"
 rinex-completeness = "pogf_geodetic_suite.qc.completeness:main"
 # The chain RUNX_v2.py drives: network filter -> XYZ -> ENU -> PLOT files.
 crd-to-plots = "pogf_geodetic_suite.timeseries.cli:main"
+# The same, plus `status`: read-only JSON for one station (the console reads it).
+pogf-timeseries = "pogf_geodetic_suite.timeseries.cli:group"
 igs-downloader = "pogf_geodetic_suite.igs_downloader:main"
 # A range of days as parallel BPE blocks, one campaign per session (step F).
 bernese-run-year = "bernese_workflow.run_year:main"

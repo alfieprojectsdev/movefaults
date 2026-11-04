@@ -683,6 +683,20 @@ worked on:
   covers what gps3 can run, and it reports nothing if its cron stops — check
   `scripts/local_ci.py status`, which exits 1 when the heartbeat is stale.
 
+- **Whether flagged outliers are excluded from the published velocity fit.**
+  Two documents record this as decided on 2026-08-13 in favour of excluding:
+  `velocity_outlier_policy_delta.md` ("publish the `exclude_outliers=True`
+  column") and `automation_stages.md` stage 3 item 1, and
+  `analysis.estimate_velocity` defaults to `exclude_outliers=True` on that
+  basis. On 2026-11-04 the project lead called it an open team decision. The
+  same `automation_stages.md` also lists "silently removing, correcting, or
+  excluding data" as out of scope, which an automatic exclusion arguably is.
+  Until it is settled, `timeseries/status.py` (the console's read-only status
+  API) defaults to **record only**, which is `exclude_outliers=False`, the
+  setting that reproduces PHIVOLCS' published velocities. It supports both
+  modes and echoes which one produced its numbers. `analysis.py`'s default is
+  unchanged, so the two currently disagree **on purpose**. When this closes,
+  align them and move this entry to §3.
 - **No production month has run through `services/bernese-workflow`.** Until one
   is compared byte-for-byte against `scripts/` output, its 229 tests are
   evidence about the service, not about the science.
