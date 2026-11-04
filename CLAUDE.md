@@ -328,6 +328,8 @@ uv run bernese-worker run                 # run queued requests under the BPE lo
 uv run bernese-worker submit start --campaign PHREF --repr-prefix PHR --year 2025 \
     --from 152 --to 181 --pcf PHREF_DLY  # also: preflight, redo --doy N --reason ..., stop
 uv run bernese-worker list                # queue, running request, recent outcomes
+uv run bernese-check-stations --sta X.STA --crd X.CRD --blq X.BLQ --atl X.ATL \
+    [--rinex-dir DIR --year 2025]                  # read-only; --plan --check-stations lists the same
 ```
 
 **`vadase-ingestor` does not exist**, and this file used to list it. The
