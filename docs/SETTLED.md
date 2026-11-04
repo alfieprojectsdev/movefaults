@@ -51,7 +51,7 @@ from `CLAUDE.md` because both duplicates were removed.
 |---|---|
 | Bernese 5.4 installed and verified on the **T420** (≤0.09 mm vs reference) and the **R740** (0.0000 mm, no `objcopy` patch needed) | 2026-02 / 2026-07-29. **BRN-001 is DONE** |
 | `services/bernese-workflow` **invokes BSW for real** — `backends.py` → `startBPE.pm` over Perl | verified in code |
-| **The service path gives the same solutions as `scripts/` on the same inputs** (shown on 3 days). `bernese-run-year` ran PHREF 2025 DOY 091–120 (30/30 days, MAXSESS 6, 1h15m, ledger and campaign cleanup as designed); a control run of DOY 094/096/098 through `phref_year.pl` from a PCF differing only in `V_RESULT` is identical to it, coordinates included (`compare_solutions.sh` after #306, and the STAX/STAY/STAZ lines byte-compared). The control ran each day alone (NUM_SESS 1, MAXSESS 1), so the identity also shows **parallel sessions (6 at a time, each in its own REPR campaign) give the same solutions as one session at a time**, for those days: the claim the §21 LZP test could not support (§5). Both differ from **production** PHREF 2025 (run 29 Aug) by up to 16 mm for single stations; that is the 29–30 Sep input fixes, not the service (see §6) | gps3, 2026-10-27; results in `SAVEDISK/PHRPAR` and `SAVEDISK/PHRCTL` |
+| **The service path gives the same solutions as `scripts/` on the same inputs** (shown on 3 days). `bernese-run-year` ran PHREF 2025 DOY 091–120 (30/30 days, MAXSESS 6, 1h15m, ledger and campaign cleanup as designed); a control run of DOY 094/096/098 through `phref_year.pl` from a PCF differing only in `V_RESULT` is identical to it, coordinates included (`compare_solutions.sh` after #306, and the STAX/STAY/STAZ lines byte-compared). The control ran each day alone (NUM_SESS 1, MAXSESS 1), so the identity also shows **parallel sessions (6 at a time, each in its own REPR campaign) give the same solutions as one session at a time**, for those days: the claim the §21 LZP test could not support (§5). Both differ from **production** PHREF 2025 (run 29 Aug) by up to 16 mm for single stations; that is the 29–30 Sep input fixes, not the service (see the PHREF reprocess row below) | gps3, 2026-10-27; results in `SAVEDISK/PHRPAR` and `SAVEDISK/PHRCTL` |
 | `timeseries/analysis.py` reproduces `vel_line_v8_newvelduetooffset_v4.m` — 161/165 components to <5e-6 mm/yr | verified against PHIVOLCS' own published MATLAB output |
 | The 2025 LUZON year is **358/365**, over three runs plus a DOY 036 recovery; the final run was **249 days in 476 min = 1.91 min/day** | session log §24.1, corrected in PR #138 after review |
 | **DOY 036** failed on wrongly-fixed integer ambiguities. Float RMS 1.68 mm vs fixed 37.98 mm; recovered as a float solution at 1.79 mm | §24.3, closed by controlled experiment |
@@ -80,11 +80,12 @@ from `CLAUDE.md` because both duplicates were removed.
 | **Nothing daily catches a bad a priori coordinate for a non-fiducial station.** The daily datum check verifies only fiducials, and weekly stacking does not reject a bad day. Observed once: MILA's a priori in `PHNAT.CRD` (from production's `WK_2405.CRD`) was 97 m off; it recovered on 6 of 7 days and failed on the one day its link was weak (DOY 199: AROY lost 332 observations, MILA joined via a 58 km baseline, 11 % of ambiguities resolved, MILA and MSBT floated ~10 m). That it fails *only* on weak days is one station and one week, not a rule. Check a priori offsets against a recent solution when a station set is new: every other station was within 0.44 m (median 0.036 m) | PHDEN week 2375, 2026-09-30/10-01. Fixed in `PHDEN.CRD` only (backup `.pre-mila-20261001`); DOY 199 rerun resolved 94 %. `PHNAT.CRD` unchanged, since PHREF shares it, and that is safe: MILA is in none of PHREF's 360 `FIN_*.SNX` and `$D/PHREF` has no MILA observations (checked 2026-10-04). `docs/phden_wk2375_densification_results.md` |
 | **Launch a long BPE run with `setsid nohup`, never as a Claude Code background Bash job.** Claude Code's background Bash has a time limit and kills the whole process tree at it, BPE server included; the workers keep computing but can no longer report, so no session can finish and it looks exactly like the hang in §4. A plain `cmd &` from a human shell has no such limit; the rule is about the tool | 2026-09-30: PHDEN DOY 194–199 killed at ~30 min; relaunched with `setsid nohup` it finished in 42.5 min. The six orphaned campaigns are kept as `PHD2519x0.orphaned1-bgkill` |
 
-| **The 2025 PHREF year is 360/360**, 47-station campaign, 846 min at MAXSESS=6, every block first-pass, zero errors after the MAXPAR fix | verified by full-population check 2026-08-30, `verify_phref_year.sh` |
+| **The 2025 PHREF year is 360/360**, 47-station campaign, 846 min at MAXSESS=6, every block first-pass, zero errors after the MAXPAR fix. **This is the 29 Aug run, superseded 2026-11-04** by the reprocess in the next row | verified by full-population check 2026-08-30, `verify_phref_year.sh` |
+| **PHREF 2025 was reprocessed with the corrected `PHNAT.BLQ` and `PHNAT.ATL`, and is 360/360 again.** Why: the 29 Aug run read a `PHNAT.BLQ` with the blocks for CUSV, GUUG, NTUS and PTAG after `$$ END TABLE`, where Bernese does not see them, and a `PHNAT.ATL` whose PTAG block was headed `PTAG` where the `.CRD` writes `PTAG 22006M005`, so PTAG had no S1/S2 loading either; both were fixed 29–30 Sep (rows above; backups `PHNAT.BLQ.pre-endtable-fix-20260930`, `PHNAT.ATL.pre-ptag-20260930`). Run `3341af5c` (started 2026-11-04 09:56, gps3 checkout at `e291737`) solved 214 days, then halted at DOY 218 on a LORE RINEX header mismatch against the station information; the header was corrected and run `0def7ca1` (started 17:49 the same day) solved 146 of 146 days, 0 failed, no halt. The other 5 days of 2025 were never in the plan: their data is missing. Before the run the 29 Aug results were **moved, not deleted**, to `$S/PHREF/2025/SUPERSEDED/20261104-0953-blq-atl-fix`. **The new solutions have not been compared with the superseded ones** (§6): the 16 mm / 0.01–0.3 mm figures in the parity row above are from the parity run, not from this reprocess | gps3's run ledger, `SAVEDISK/PHREF/2025/ledger.jsonl`, runs `3341af5c` and `0def7ca1` |
 | **No 2025 daily solutions exist on the file server.** `F1_` dailies are retained for 2012, 2015–17, 2019, 2026 only. 2025 has 53/53 weeklies and 12/12 monthlies | surveyed 2026-08-29; comparison must run at weekly cadence |
 | **BSWMAIL is an announcement list, not a support forum** — 429 messages over 31 years (~5–11/yr), and it contains **zero** hits for `neqckdim`, `MAXPAR` or `DIMENSION TOO SMALL`. The AIUB **FAQ** is the real precedent: 11 error entries with causes and remedies | measured against a local mirror 2026-08-29 |
 
-| **PHREF 2025 agrees with PHIVOLCS production at 1.26 mm N / 2.28 mm E / 6.99 mm U (median, 53 of 53 weeks)** after 7-parameter Helmert alignment, outliers rejected on local N/E. An agreement test, not reproduction — different BSW version, network and constraints | `phref_vs_production_comparison_results.md`, 2026-09-01, unpatched build; revised 2026-10-11 (was 1.29 / 2.37 / 7.09 with the ECEF X/Y outlier test) |
+| **PHREF 2025 agrees with PHIVOLCS production at 1.26 mm N / 2.28 mm E / 6.99 mm U (median, 53 of 53 weeks)** after 7-parameter Helmert alignment, outliers rejected on local N/E. An agreement test, not reproduction — different BSW version, network and constraints | `phref_vs_production_comparison_results.md`, 2026-09-01, unpatched build; revised 2026-10-11 (was 1.29 / 2.37 / 7.09 with the ECEF X/Y outlier test). Measured on the 29 Aug solutions, superseded 2026-11-04; not re-measured on the reprocess |
 | **A single day's ADDNEQ2 NEQ needs ~1000–1040 EXPLICIT parameters** (coords + site troposphere) for 33–35 stations, i.e. **~30 per station**; adjusted total incl. pre-eliminated ambiguities is 2153–2448. `neqckdim` checks the *explicit* count | measured from a successful stack, `WKG_2375.OUT`, 2026-09-01 |
 | **Outliers in the comparison are East-dominated: 17 of 18 station-weeks over 15 mm.** Overall RMS N 1.86 vs E 7.47 mm. The asymmetry points at ambiguity resolution, not metadata or site motion | 1,979 station-weeks |
 
@@ -626,6 +627,7 @@ Old documents and older memory still assert these. They are wrong.
 | `CLAUDE.md` maturity table at 229 (`bernese-workflow`) and 102 + 253 (field-ops) | **250 and 131 + 273** on `6f4ae62`, 2026-10-14 |
 | research brief: Nakagawa et al. (2009) is "in Japanese and **not reachable**" | **reachable** — it needed `pdftotext`, not a fetch. "Not reachable" meant "not tried hard enough" |
 | `CLAUDE.md`: repo-root `src/` is "`src/db/` alone, **four files**" (twice) | **two** tracked source files — `__init__.py` and `models.py`. The four counts `__pycache__/*.pyc`, which is not in the repository. Verified 2026-08-25 |
+| this file's own §6, until 2026-11-04: production PHREF 2025 was solved without ocean loading for four IGS fiducials, and "whether to reprocess the 360 days" was the project lead's decision, open | **decided and done.** Reprocessed 2026-11-04 with the corrected `PHNAT.BLQ`/`PHNAT.ATL` (runs `3341af5c` and `0def7ca1`), 360/360; the 29 Aug results are kept under `SUPERSEDED/` (§2, the PHREF reprocess row). What remains open is the comparison (§6) |
 | this file's own §6, until 2026-09-21: our BSW install has "none of its 7 published patches applied" | **applied and verified inert on 2026-09-02** — see §2. The §6 bullet was written 2026-08-29, three days before the patching, and outlived it. Re-verified on disk 2026-09-21: `IONOSP2.f90` carries IGRF14, `IGRF14SYN.f` is present, 12 `.pre-patch` copies remain in `SOURCE`, and all 88 executables in `SOURCE/PGM/EXE_GNU` are dated 2026-09-02 |
 
 ---
@@ -636,15 +638,17 @@ A settled-list that suppresses live questions is worse than none. These are
 genuinely unresolved as of 2026-09-24, re-checked 2026-10-14, and *should* be
 worked on:
 
-- **Production PHREF 2025 was solved without ocean loading for four IGS
-  fiducials.** Its 29 Aug run used a `PHNAT.BLQ` with `$$ END TABLE` above the
-  blocks for CUSV, GUUG, NTUS and PTAG, and a `PHNAT.ATL` that named PTAG as
-  `PTAG ` (ATL matches full names), so PTAG had no S1/S2 loading either. Both
-  were fixed 29–30 Sep (backups `PHNAT.BLQ.pre-endtable-fix-20260930`,
-  `PHNAT.ATL.pre-ptag-20260930`). These are datum stations, so the effect
-  spreads: up to 16 mm for single stations on single days, mostly 0.01–0.3 mm
-  (measured by the parity run, §2). Whether to reprocess the 360 days is
-  Alfie's decision; at the parity run's rate it is ~15 h on gps3.
+- **The reprocessed PHREF 2025 solutions have not been compared with the
+  ones they superseded.** The reprocess with the corrected `PHNAT.BLQ` and
+  `PHNAT.ATL` finished 2026-11-04 (§2); the 29 Aug results are in
+  `$S/PHREF/2025/SUPERSEDED/20261104-0953-blq-atl-fix`. Nobody has diffed the
+  two, so how far the coordinates moved, and whether any downstream velocity
+  moved with them, is unknown. The only effect sizes on record (up to 16 mm,
+  mostly 0.01–0.3 mm) are from the parity run (§2), not from this
+  reprocess. The comparison would also settle a disagreement in this file: the
+  BLQ row in §2 says none of production PHREF's 360 `FIN_*.SNX` contains CUSV,
+  GUUG, NTUS or PTAG, while the entry this one replaced called them datum
+  stations of that solution.
 
 - **GitHub Actions is ENABLED and still runs nothing: the account is
   billing-locked.** Enabled 2026-09-24 (it had been disabled repo-wide since
