@@ -32,6 +32,13 @@ WHAT IT DOES, per run (cron, every 10 minutes; see INSTALL below)
      exists to catch.
 
 WHAT IT DELIBERATELY DOES NOT DO
+- Test a PR from a fork, or one opened by an author not in
+  LOCAL_CI_TRUSTED_AUTHORS (default: the repository's owner). The repository
+  is public, and testing a PR means running its code on gps3 as the gps3 user,
+  which can read the gh token (repo scope), the DATAPOOL and the office LAN.
+  GitHub Actions gates fork PRs behind an approval; this has no such gate, so
+  it does not run them at all. A skipped PR gets no status, so merge_pr.sh
+  refuses it: the filter fails closed.
 - Run while a Bernese BPE is running. HANDOVER.md: don't compete with a BPE.
   The run is deferred and the heartbeat says so.
 - Run anything against the hosted database. The suite uses the local Postgres
@@ -86,6 +93,13 @@ CONTEXT = "local-ci/gps3"
 MAX_ERROR_ATTEMPTS = 3
 STALE_AFTER_S = 30 * 60
 BPE_PATTERN = r"startBPE|RUNBPE|_pcs\.pl"
+# Who may have their PRs run on gps3. Comma-separated logins; default the owner
+# in SLUG. See "WHAT IT DELIBERATELY DOES NOT DO".
+TRUSTED_AUTHORS = frozenset(
+    a.strip()
+    for a in os.environ.get("LOCAL_CI_TRUSTED_AUTHORS", SLUG.split("/")[0]).split(",")
+    if a.strip()
+)
 # The machine-wide BPE lock (bernese_workflow/bpe_lock.py, scripts/bpe_lock.sh).
 BPE_LOCK = Path(
     os.environ.get("BPE_LOCK") or Path.home() / ".local/state/bernese-workflow/bpe.lock"
@@ -302,6 +316,29 @@ def summarize_vitest(output: str) -> str:
     return m.group(1).strip() if m else ""
 
 
+def pr_targets(prs: list[dict], trusted: frozenset[str]) -> tuple[list[Target], list[str]]:
+    """The open PRs it is safe to run on gps3, and why each other one was skipped.
+
+    Runs a PR only when its head branch is in this repository AND its author is
+    trusted. Both, because either alone leaves a gap: a collaborator's fork is
+    cross-repository, and a branch pushed here by someone else with write
+    access would not be. A field missing from gh's answer counts against the
+    PR, so an API change cannot quietly turn the filter off.
+    """
+    targets: list[Target] = []
+    skipped: list[str] = []
+    for pr in prs:
+        label = f"#{pr.get('number')}"
+        login = (pr.get("author") or {}).get("login")
+        if pr.get("isCrossRepository") is not False:
+            skipped.append(f"{label}: head branch is not in this repository (a fork)")
+        elif login not in trusted:
+            skipped.append(f"{label}: author {login!r} is not in LOCAL_CI_TRUSTED_AUTHORS")
+        else:
+            targets.append(Target(pr["headRefOid"], label))
+    return targets, skipped
+
+
 def frontends_present(root: Path) -> list[tuple[str, Path]]:
     """The FRONTENDS this checkout contains, as (short name, absolute path)."""
     return [(k, root / p) for k, p in FRONTENDS if (root / p / "package.json").is_file()]
@@ -357,18 +394,16 @@ def gh_targets() -> list[Target]:
             "--limit",
             "200",
             "--json",
-            "number,headRefOid",
-            "--jq",
-            '.[]|"\\(.number) \\(.headRefOid)"',
+            "number,headRefOid,isCrossRepository,author",
         ],
         timeout=60,
     )
     if prs.returncode != 0:
         raise RuntimeError(f"gh pr list failed: {prs.stderr.strip()[:200]}")
-    for line in prs.stdout.strip().splitlines():
-        num, sha = line.split()
-        targets.append(Target(sha, f"#{num}"))
-    return targets
+    allowed, skipped = pr_targets(json.loads(prs.stdout or "[]"), TRUSTED_AUTHORS)
+    for why in skipped:
+        log(f"  not testing {why}")
+    return targets + allowed
 
 
 def post_status(sha: str, state: str, description: str) -> bool:
