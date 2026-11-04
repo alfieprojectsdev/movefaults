@@ -138,10 +138,18 @@ def code_version(where: Path | None = None) -> dict[str, object]:
 
     try:
         commit = git("rev-parse", "HEAD")
+        # An installed (non-editable) copy in a .venv inside the checkout is in
+        # the work tree but not tracked: HEAD would describe the checkout, not
+        # the code that was imported.
+        git("ls-files", "--error-unmatch", "--", ".")
     except (OSError, subprocess.SubprocessError):
         return {"commit": "unknown", "dirty": None}
     try:
-        dirty: bool | None = bool(git("status", "--porcelain", "--untracked-files=no"))
+        # --no-optional-locks: status must not take index.lock (and refresh the
+        # index) under an operator's own git command, or rewrite it as root.
+        dirty: bool | None = bool(
+            git("--no-optional-locks", "status", "--porcelain", "--untracked-files=no")
+        )
     except (OSError, subprocess.SubprocessError):
         dirty = None
     return {"commit": commit or "unknown", "dirty": dirty}
@@ -164,6 +172,15 @@ def halt_reason(kind: str, label: str, doy: int | None = None) -> dict[str, obje
     if kind not in HALT_KINDS:
         raise ValueError(f"unknown halt kind {kind!r}; one of {', '.join(HALT_KINDS)}")
     return {"kind": kind, "label": label, "doy": doy}
+
+
+# Every key a run_start line carries without ``extra``: the envelope _append
+# writes, then run_start's own fields.
+_RUN_START_FIELDS = frozenset(
+    {"v", "ts", "event", "run", "host", "pid", "campaign", "year", "doys", "banked",
+     "config", "user", "sudo_user", "command", "code", "pcf", "products",
+     "product_tier", "excluded"}
+)  # fmt: skip
 
 
 class Ledger:
@@ -199,9 +216,19 @@ class Ledger:
         products: str | None = None,
         product_tier: str | None = None,
         excluded: list[dict[str, object]] | None = None,
+        **extra: object,
     ) -> str:
         """Open a run. The arguments after ``config`` are its provenance (module
-        docstring); who, the command line and the code version are read here."""
+        docstring); who, the command line and the code version are read here.
+
+        ``extra`` is written as is, for a caller with more to say (the run
+        worker records who asked for the run). It may not reuse a field this
+        method writes: the envelope's ``v``/``ts``/``event``/``run`` would be
+        overwritten silently, and the rest would be ambiguous.
+        """
+        clash = sorted(set(extra) & _RUN_START_FIELDS)
+        if clash:
+            raise ValueError(f"run_start extra fields reuse reserved names: {', '.join(clash)}")
         self.run_id = uuid.uuid4().hex[:8]
         self._append(
             "run_start",
@@ -219,6 +246,7 @@ class Ledger:
             products=products,
             product_tier=product_tier,
             excluded=excluded,
+            **extra,
         )
         return self.run_id
 

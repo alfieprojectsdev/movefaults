@@ -76,10 +76,38 @@ def test_run_start_records_who_what_and_which_code(tmp_path: Path, monkeypatch) 
     ]
     # This test runs from the repository, so the version is real.
     head = subprocess.run(
-        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+        ["git", "-C", str(Path(ledger_mod.__file__).parent), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
     assert start["code"]["commit"] == head
     assert start["code"]["dirty"] in (True, False)
+
+
+def test_run_start_writes_extra_fields_as_given(tmp_path: Path) -> None:
+    """The run worker (#316) adds who asked for a run through ``extra``."""
+    led = Ledger(tmp_path / "l.jsonl")
+    led.run_start(campaign="PHREF", year=YEAR, doys=[152], banked=[], pcf="PHREF_DLY",
+                  request="q1", kind="range", submitted_by="console", reason="")  # fmt: skip
+    start = _only(read_entries(tmp_path / "l.jsonl")[0], "run_start")
+    assert (start["request"], start["kind"], start["submitted_by"]) == ("q1", "range", "console")
+    assert start["pcf"] == "PHREF_DLY" and start["run"] == led.run_id
+
+
+@pytest.mark.parametrize("name", ["run", "ts", "event", "host", "user", "code"])
+def test_run_start_extra_may_not_reuse_a_written_field(tmp_path: Path, name: str) -> None:
+    led = Ledger(tmp_path / "l.jsonl")
+    with pytest.raises(ValueError, match=name):
+        led.run_start(campaign="X", year=YEAR, doys=[1], banked=[], **{name: "spoof"})
+    assert not (tmp_path / "l.jsonl").exists(), "nothing is written"
+
+
+def test_the_reserved_set_matches_what_run_start_writes(tmp_path: Path) -> None:
+    led = Ledger(tmp_path / "l.jsonl")
+    led.run_start(campaign="X", year=YEAR, doys=[1], banked=[])
+    start = _only(read_entries(tmp_path / "l.jsonl")[0], "run_start")
+    assert set(start) == ledger_mod._RUN_START_FIELDS
 
 
 def test_without_sudo_the_sudo_user_is_null(monkeypatch) -> None:
@@ -276,6 +304,27 @@ def test_a_backend_raise_is_recorded_as_backend_not_as_the_breaker(dirs) -> None
        SimplePlan(YEAR, [152, 153]), camp, sol, led)  # fmt: skip
     end = led.events[-1][1]
     assert end["halt"].startswith("unknown failure (backend raised RuntimeError")
+    assert end["reason"] == {"kind": "backend", "label": "backend raised RuntimeError", "doy": None}
+
+
+def test_a_timeout_after_sessions_started_is_still_backend(dirs) -> None:
+    """A killed BPE leaves its sessions failed with no step error, which the
+    breaker halts on as unknown; the raise is still the reason, as in run_days."""
+    camp, sol = dirs
+
+    class Timeout:
+        def run_sessions(self, campaign, year, first_session, n, *, maxsess, repr_prefix):
+            from bernese_workflow.backends import repr_campaign_name
+
+            (camp / repr_campaign_name(repr_prefix, year, first_session) / "BPE").mkdir(
+                parents=True
+            )
+            raise RuntimeError("BPE timed out after 7200s")
+
+    led = Recording()
+    go(Timeout(), SimplePlan(YEAR, [152, 153]), camp, sol, led)
+    assert led.ends()[152]["outcome"] == "failed"
+    end = led.events[-1][1]
     assert end["reason"] == {"kind": "backend", "label": "backend raised RuntimeError", "doy": None}
 
 

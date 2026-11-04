@@ -78,6 +78,7 @@ from .month_driver import (
     _write_marker,
     fin_banked,
     session_for,
+    validation_halt,
 )
 
 logger = logging.getLogger(__name__)
@@ -280,8 +281,7 @@ def run_year(
             campaign=campaign, year=year, doys=days, banked=banked, config=config,
             pcf=pcf, products=products, product_tier=product_tier,
             excluded=[
-                {"doy": e.doy, "reason": e.reason, "detail": e.detail}
-                for e in getattr(plan, "excluded", [])
+                {"doy": e.doy, "reason": e.reason, "detail": e.detail} for e in plan.excluded
             ],
         )  # fmt: skip
     try:
@@ -444,10 +444,12 @@ def _run_chunk(
             continue
         if first_not_started is None:
             first_not_started = d
-    if halt is None and raised is not None:
-        # A raise (timeout, refused pre-flight) is unknown whatever a step left
-        # behind, as in month_driver: another block would cost another timeout.
-        halt = f"unknown failure (backend raised {raised}); no remedy on file"
+    if raised is not None:
+        # A raise (a timeout) is unknown whatever a step left behind, as in
+        # month_driver: another block would cost another timeout. The breaker may
+        # already have halted on a day the killed BPE left failed, but the raise
+        # is the cause, so the reason is "backend" whichever sentence stands.
+        halt = halt or f"unknown failure (backend raised {raised}); no remedy on file"
         reason = halt_reason("backend", f"backend raised {raised_type}")
     if halt is None and out_of_order is not None:
         halt = (
@@ -508,8 +510,7 @@ def _refused(
     # A refusal that does not name one of this block's sessions is put on the
     # block's first day, the earliest it can be.
     d = by_session.get(session or "", days[0])
-    halt = f"pre-BPE validation refused DOY {d:03d} ({label}); no BPE was started"
-    reason = halt_reason("validation", label, d)
+    halt, reason = validation_halt(label, d)
     logger.error("stopping: %s\n%s", halt, message)
     for day in days:
         s = sessions[day]

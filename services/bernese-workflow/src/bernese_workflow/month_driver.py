@@ -196,6 +196,15 @@ def _write_marker(marker: Path, fin: Path) -> None:
     _fsync(marker.parent)
 
 
+def validation_halt(label: str, doy: int) -> tuple[str, dict[str, object]]:
+    """run_end's ``halt`` and ``halt_reason`` for a day the pre-BPE header check
+    refused (circuit_breaker.preflight_refusal). Shared with run_year."""
+    return (
+        f"pre-BPE validation refused DOY {doy:03d} ({label}); no BPE was started",
+        halt_reason("validation", label, doy),
+    )
+
+
 def run_days(
     backend: BPEBackend,
     campaign: str,
@@ -329,8 +338,7 @@ def run_days(
             logger.warning("DOY %03d failed: %s; %s", doy, note, label)
             if refused is not None:
                 # Stops the run, as any raise does, but says what the check found.
-                halt = f"pre-BPE validation refused DOY {doy:03d} ({label}); no BPE was started"
-                reason = halt_reason("validation", label, doy)
+                halt, reason = validation_halt(label, doy)
             else:
                 halt = breaker.failure(diagnosis)
                 if result is None:
