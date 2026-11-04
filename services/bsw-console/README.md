@@ -1,0 +1,77 @@
+# bsw-console: the Bernese processing console
+
+A web page served from gps3 that shows what BSW 5.4 processing is doing, checks
+a plan before it runs, and later starts one. It is the screens of the design
+canvas *Bernese Processing Console* (26 October 2026), built on
+`services/bernese-workflow`, following the design brief of the same date.
+
+It makes no decisions. Every number on a screen comes from the processing
+service's own code, the code its command line uses: the ledger, `run_plan`, the
+scanner and known-errors list, `diagnose_day` and the BPE lock record. If the
+console and `bernese-run-year --plan` ever disagree, the console is wrong.
+
+## Run it
+
+```bash
+uv sync --extra bsw-console
+cd services/bsw-console/frontend && npm install && npm run build && cd -
+uv run bsw-console          # http://127.0.0.1:8002
+```
+
+It reads `$U`, `$D`, `$S` and `$P` from `~/BERN54/LOADGPS.setvar` (or the
+environment, or `BSW_SETVAR`). It binds to 127.0.0.1 only, because sign-in
+does not exist yet. From an office PC, tunnel to it:
+`ssh -N -L 8002:localhost:8002 gps3@<gps3>`.
+
+| Variable | Default | What it sets |
+|---|---|---|
+| `BSW_CONSOLE_CAMPAIGNS` | `LUZON:LUZON_DLY:LZY:LZFLT_DLY,PHREF:PHREF_DLY:PHR,PHDEN:PHDEN_DLY:PHD` | campaign, daily PCF, per-day campaign prefix, float PCF |
+| `BSW_CONSOLE_HOST`, `PORT` | `127.0.0.1`, `8002` | where it listens |
+| `BSW_CONSOLE_KB` | `config/bernese/bpe_errors.yaml` | the known-errors list |
+| `BPE_LOCK` | bernese-workflow's default | the lock file it reads |
+| `BSW_CONSOLE_STATE` | `~/.local/state/bsw-console` | where saved plans go |
+| `BSW_CONSOLE_TRUSTED_PROXIES` | empty | comma-separated addresses of reverse proxies allowed to name the user in `X-Remote-User`. Empty: the header is ignored |
+
+For frontend work, `npm run dev` proxies `/api` to the running server.
+
+## What is wired, and what is a stub
+
+| Screen | State |
+|---|---|
+| Campaigns | Wired: fixed, float and failed counts per year, last run and its state, recent activity from every ledger |
+| Calendar | Wired: fixed and float from SAVEDISK, failed, running and queued from the ledger. **Excluded** is never shown, because the ledger does not record plans |
+| Runs | Wired: days × PCF step groups, the failed PID from the protocol file, the running PID from the live BPE folder, the circuit breaker's counters. **Stop** is a stub |
+| Day | Wired: attempts, the seven archived results with their 5.2 names, a text viewer with search and highlighting, stations in the solution and drops since the day before, HELMCHK RMS. **Not recorded by the service yet:** who started a run, the command, the code version, the IGS product tier. **Not available:** the ambiguity fixing rate, because the AMB summaries are not archived |
+| Failure | Wired: `diagnose_day` on the day's BPE folder, the known-errors entry, the raw lines with earlier attempts greyed. Falls back to the ledger's recorded label once a solved day's campaign is removed |
+| Plan | Wired: `run_plan.plan_from_env`, PCF groups with a check of the skips chosen, products per day, MAXPAR. **Save plan** writes one JSON file. **Queue preflight** and **Start** are stubs |
+| Redo | Wired preview: every file that would move, and where. **The move** is a stub |
+| Known errors | Wired: the whole list, with how often each fired in the last 30 days and failures with no entry |
+| Station files (stage 4) | Read-only and wired: station × file coverage of the eight files the PCF names, codes with two names, stations missing from the BLQ (anything after `$$ END TABLE` counts as missing). Add a site, use a CRD as a priori and the BLQ paste check are not built |
+| Time series (stage 5) | Stub: it waits on a status endpoint from the timeseries package |
+
+Stubs answer HTTP 501 with the reason, and the page shows it. Stage 3 waits on
+the two prerequisites in the brief: a run worker on gps3 that holds the BPE
+lock, and personal accounts so every action carries a name.
+
+## Safety
+
+- The browser never sends a path. A request names a campaign, a year and a
+  day, and the server builds paths from the PCF. The file viewer serves only
+  names it listed for that day.
+- The BPE lock is read from `/proc/locks`, never taken. Taking it to test it
+  would make a BPE starting at that instant find it held.
+- The only write is a saved plan, under the console's own state directory. It
+  accepts only a same-origin `application/json` body of at most 4 KB with known,
+  typed fields. Any other content type is refused (415): `text/plain` and form
+  posts are what a page on another site can send without a CORS preflight.
+- `X-Remote-User` is believed only from `BSW_CONSOLE_TRUSTED_PROXIES`. Any
+  client can send the header, so with no proxy in front it would let anyone on
+  the network sign as anyone.
+
+## Tests
+
+```bash
+uv run pytest services/bsw-console/tests             # API against a synthetic BSW tree
+cd services/bsw-console/frontend && npm test          # every screen renders; routes
+uv run python services/bsw-console/tests/make_frontend_fixture.py   # after an API change
+```

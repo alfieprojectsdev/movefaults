@@ -22,7 +22,8 @@ WHAT IT DOES, per run (cron, every 10 minutes; see INSTALL below)
      the main checkout's code (SETTLED.md §4), which would report the wrong
      commit's result as this one's.
   4. Runs ruff on the Python files the commit changes, the whole pytest suite,
-     and the field-ops frontend (npm ci, vitest, tsc).
+     and every frontend in FRONTENDS that the commit contains (npm ci, vitest,
+     tsc for each): field-ops and the BSW console.
   5. Posts `local-ci/gps3` as a commit status: pending at the start, then
      success, failure, or error. "error" means the harness broke (checkout,
      sync, the import check), which is not the same thing as the code failing.
@@ -89,7 +90,13 @@ BPE_PATTERN = r"startBPE|RUNBPE|_pcs\.pl"
 BPE_LOCK = Path(
     os.environ.get("BPE_LOCK") or Path.home() / ".local/state/bernese-workflow/bpe.lock"
 )
-FRONTEND = "services/field-ops/frontend"
+# (short name, path). The short name labels the steps in the commit status,
+# which GitHub caps at 140 characters. A frontend the commit does not contain
+# (an older SHA) is skipped, not failed.
+FRONTENDS = (
+    ("fo", "services/field-ops/frontend"),
+    ("bsw", "services/bsw-console/frontend"),
+)
 
 
 # --- pure logic (unit-tested) ----------------------------------------------------
@@ -295,6 +302,11 @@ def summarize_vitest(output: str) -> str:
     return m.group(1).strip() if m else ""
 
 
+def frontends_present(root: Path) -> list[tuple[str, Path]]:
+    """The FRONTENDS this checkout contains, as (short name, absolute path)."""
+    return [(k, root / p) for k, p in FRONTENDS if (root / p / "package.json").is_file()]
+
+
 def describe(outcome: Outcome) -> str:
     """Commit-status description; GitHub caps it at 140 characters."""
     if outcome.state == "error":
@@ -304,7 +316,9 @@ def describe(outcome: Outcome) -> str:
             f"{s.name} {'ok' if s.ok else 'FAILED'}" + (f" ({s.summary})" if s.summary else "")
             for s in outcome.steps
         ]
-        text = "; ".join(parts)
+        # Failures first, so truncation never hides the step that failed.
+        order = sorted(range(len(parts)), key=lambda i: outcome.steps[i].ok)
+        text = "; ".join(parts[i] for i in order)
     return text if len(text) <= 140 else text[:137] + "..."
 
 
@@ -628,6 +642,31 @@ def run_step(
     return StepResult(name, ok, summarize(out), round(time.monotonic() - t0, 1))
 
 
+def frontend_steps(root: Path, env: dict, logdir: Path) -> tuple[list[StepResult], str | None]:
+    """npm ci, vitest and tsc for each frontend `root` contains.
+
+    Returns the steps, and an error string when npm ci itself broke (a harness
+    error, not a code failure).
+    """
+    steps: list[StepResult] = []
+    for key, fe in frontends_present(root):
+        npm_ci = run_step(
+            f"npm-ci-{key}",
+            ["npm", "ci", "--no-audit", "--no-fund"],
+            fe,
+            env,
+            logdir,
+            timeout=900,
+        )
+        if not npm_ci.ok:
+            return steps, f"npm ci failed in {fe.relative_to(root)}"
+        steps += [
+            run_step(f"vitest-{key}", ["npm", "test"], fe, env, logdir, summarize_vitest),
+            run_step(f"tsc-{key}", ["npx", "tsc", "--noEmit"], fe, env, logdir),
+        ]
+    return steps, None
+
+
 def test_sha(sha: str, logdir: Path) -> Outcome:
     err = prepare_worktree(sha)
     if err:
@@ -641,7 +680,6 @@ def test_sha(sha: str, logdir: Path) -> Outcome:
     if err:
         return Outcome("error", reason=err)
 
-    fe = WORKTREE / FRONTEND
     changed = changed_python_files(sha)
     if changed:
         ruff = run_step(
@@ -670,15 +708,10 @@ def test_sha(sha: str, logdir: Path) -> Outcome:
             summarize_pytest_with_skips,
         ),
     ]
-    npm_ci = run_step(
-        "npm-ci", ["npm", "ci", "--no-audit", "--no-fund"], fe, env, logdir, timeout=900
-    )
-    if not npm_ci.ok:
-        return Outcome("error", steps, reason="npm ci failed")
-    steps += [
-        run_step("vitest", ["npm", "test"], fe, env, logdir, summarize_vitest),
-        run_step("tsc", ["npx", "tsc", "--noEmit"], fe, env, logdir),
-    ]
+    fe_steps, err = frontend_steps(WORKTREE, env, logdir)
+    steps += fe_steps
+    if err:
+        return Outcome("error", steps, reason=err)
     return Outcome("success" if all(s.ok for s in steps) else "failure", steps)
 
 
