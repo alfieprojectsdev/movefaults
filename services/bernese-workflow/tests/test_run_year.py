@@ -790,3 +790,23 @@ def test_a_pcf_without_v_orb_records_no_tier(cli_env, monkeypatch) -> None:
     seen = _capture_run_year(monkeypatch)
     assert ry.main(ARGS) == 0
     assert (seen["products"], seen["product_tier"]) == (None, None)
+
+
+def test_a_redo_plans_its_solved_day_as_unsolved_so_the_checks_see_it(cli_env) -> None:
+    """The run worker's redo plans with done_mode="none". As "fin" the day is
+    excluded as solved, and build_plan then checks nothing else about it."""
+    from bernese_workflow.run_plan import plan_from_env
+
+    kw: dict = {
+        "campaign": "PHREF",
+        "year": 2025,
+        "pcf": "PHREF_DLY",
+        "doy_from": 152,
+        "doy_to": 152,
+    }
+    sol = plan_from_env(**kw, done_mode="fin").sol_dir
+    sol.mkdir(parents=True, exist_ok=True)
+    (sol / "FIN_20251520.NQ0.gz").write_bytes(b"x")
+    as_fin = plan_from_env(**kw, done_mode="fin").plan
+    assert as_fin.todo == [] and as_fin.excluded[0].reason == "solved"
+    assert plan_from_env(**kw, done_mode="none").plan.todo == [152]

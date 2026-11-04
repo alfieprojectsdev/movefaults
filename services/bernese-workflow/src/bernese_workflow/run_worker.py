@@ -65,6 +65,7 @@ from .bpe_knowledge import KnowledgeBase
 from .bpe_lock import BPELock, BPELockHeld
 from .month_driver import DayOutcome
 from .run_queue import (
+    MAXSESS_DEFAULT,
     PREFLIGHT,
     REDO,
     RUN_KINDS,
@@ -98,6 +99,9 @@ class Setup:
     ledger: object | None = None  # ledger.Ledger, or anything with its methods
     config: str | None = None
     kb: KnowledgeBase | None = None
+    # The PCF's V_ORB and its tier, recorded in run_start as bernese-run-year does.
+    products: str | None = None
+    product_tier: str | None = None
 
 
 SetupFactory = Callable[[dict], Setup]
@@ -368,6 +372,9 @@ class Worker:
         try:
             if self._orphans(f"next request {req['id']}"):
                 return "blocked"
+            if self._signal_reason:  # arrived while choosing: leave the request queued
+                self._status("exiting", reason=self._signal_reason)
+                return "exiting"
             try:
                 active = self.queue.claim(path)
             except FileNotFoundError:
@@ -433,6 +440,7 @@ class Worker:
             campaign_dir=s.campaign_dir, sol_dir=s.sol_dir, maxsess=req["maxsess"],
             kb=s.kb, preflight=preflight, ledger=ledger, config=s.config,
             station_counts=counts, stop=self._should_stop,
+            pcf=req["pcf"], products=s.products, product_tier=s.product_tier,
         )  # fmt: skip
 
     def _summary(self, out: list[DayOutcome]) -> tuple[str, str, dict]:
@@ -632,7 +640,7 @@ def bsw_setup(req: dict) -> Setup:
     ``bernese-run-year --run`` does, and build the real BSW backend."""
     from .backends import LinuxBPEBackend
     from .ledger import Ledger
-    from .run_plan import plan_from_env
+    from .run_plan import plan_from_env, product_tier
     from .run_year import default_ledger_path, run_config_hash
 
     env = {}
@@ -642,11 +650,15 @@ def bsw_setup(req: dict) -> Setup:
                 f"${name} is not set: start the worker after sourcing LOADGPS.setvar"
             )
         env[name] = Path(os.environ[name])
-    a, b = (req["doy"], req["doy"]) if req["kind"] == REDO else (req["from"], req["to"])
+    redo = req["kind"] == REDO
+    a, b = (req["doy"], req["doy"]) if redo else (req["from"], req["to"])
+    # A redo's day is solved by definition; planned as solved it would skip the
+    # reference-coverage and station-file checks that every other run gets.
     planned = plan_from_env(
         campaign=req["campaign"], year=req["year"], pcf=req["pcf"],
-        doy_from=a, doy_to=b, done_mode="fin",
+        doy_from=a, doy_to=b, done_mode="none" if redo else "fin",
     )  # fmt: skip
+    products, tier = product_tier(planned.pcf_text)
     backend = LinuxBPEBackend(
         env["C"], env["U"], env["P"], pcf_file=req["pcf"],
         rinex_source_dir=planned.rinex_dir, sta_file=planned.sta_file,
@@ -659,6 +671,8 @@ def bsw_setup(req: dict) -> Setup:
         campaign_dir=env["P"],
         ledger=Ledger(default_ledger_path(req["campaign"], req["year"], planned.sol_dir)),
         config=run_config_hash(env["U"], planned.pcf_path, planned.pcf_text),
+        products=products,
+        product_tier=tier,
     )
 
 
@@ -694,6 +708,15 @@ def _list(q: Queue, n_done: int) -> None:
         print(line("done", p))
 
 
+def _login() -> str | None:
+    """The submitting account; None (refused by validate) rather than a crash
+    of every subcommand when there is no login name, as ledger.started_by."""
+    try:
+        return getpass.getuser()
+    except (OSError, KeyError):
+        return None
+
+
 def _add_run_fields(sp: argparse.ArgumentParser, *, redo: bool) -> None:
     sp.add_argument("--campaign", required=True, help="base campaign under $P, e.g. PHREF")
     sp.add_argument("--repr-prefix", required=True, help="per-session campaign prefix, e.g. PHR")
@@ -704,7 +727,7 @@ def _add_run_fields(sp: argparse.ArgumentParser, *, redo: bool) -> None:
         sp.add_argument("--from", dest="doy_from", type=int, required=True)
         sp.add_argument("--to", dest="doy_to", type=int, required=True)
     sp.add_argument("--pcf", required=True)
-    sp.add_argument("--maxsess", type=int, default=6)
+    sp.add_argument("--maxsess", type=int, default=MAXSESS_DEFAULT)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -730,7 +753,7 @@ def main(argv: list[str] | None = None) -> int:
     stop = kinds.add_parser("stop", help="stop the running request after its current BPE call")
     stop.add_argument("--target", help="a request id: cancels it if queued, stops it if running")
     for sp in kinds.choices.values():
-        sp.add_argument("--by", default=getpass.getuser(), help="who is asking (default: you)")
+        sp.add_argument("--by", default=_login(), help="who is asking (default: you)")
         sp.add_argument("--reason", default="", help="why; required for a redo")
 
     ls = sub.add_parser("list", help="the queue, the running request and recent results")

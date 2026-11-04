@@ -293,7 +293,7 @@ def run_year(
     try:
         while queue and halt is None:
             if stop is not None and (asked := stop()):
-                halt = asked
+                halt, reason = asked, halt_reason("stopped", asked)
                 break
             a, b = queue.pop(0)
             halt, reason, resume_from = _run_chunk(

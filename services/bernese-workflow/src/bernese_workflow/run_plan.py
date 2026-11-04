@@ -498,11 +498,15 @@ def plan_from_env(
     sources.append(f"results:  {sol_dir}  ({res_from})")
     sol = sol_dir
     sc = session_char
-    done = (
-        (lambda doy: fin_banked(sol, year, doy, sc))
-        if done_mode == "banked"
-        else (lambda doy: fin_present(sol, year, doy, sc))
-    )
+    # "none" treats no day as solved: a redo plans its day as if it had never
+    # run, so the coverage and station-file checks see it (build_plan reports
+    # a solved day as solved before it checks anything else).
+    if done_mode == "none":
+        done: Callable[[int], bool] = lambda doy: False  # noqa: E731
+    elif done_mode == "banked":
+        done = lambda doy: fin_banked(sol, year, doy, sc)  # noqa: E731
+    else:
+        done = lambda doy: fin_present(sol, year, doy, sc)  # noqa: E731
     plan = build_plan(
         year,
         doy_from,

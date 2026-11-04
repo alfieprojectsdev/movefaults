@@ -412,3 +412,5 @@ def test_run_start_extra_fields_and_other_events_are_written_and_status_ignores_
     assert run_status(entries).state == run_status(known).state == "finished"
     with pytest.raises(ValueError):
         led.event("run_end", halt=None)
+    with pytest.raises(ValueError, match="envelope"):
+        led.event("restored", run="someone-elses-run")

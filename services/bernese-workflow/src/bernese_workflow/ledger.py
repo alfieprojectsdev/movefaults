@@ -59,6 +59,8 @@ in the known-errors list. Kinds:
   order        sessions finished out of order (run_year)
   no_start     no session of a block started (run_year)
   interrupted  a signal or exception ended the driver
+  stopped      the caller's stop hook ended the run between BPE calls (the
+               run worker's Stop, or its SIGTERM); label is the stop's reason
 
 THE VERSION, ``v``
 ``v`` changes when a reader written for the previous format would misread a
@@ -164,7 +166,7 @@ def started_by() -> dict[str, str | None]:
     return {"user": user, "sudo_user": os.environ.get("SUDO_USER") or None}
 
 
-HALT_KINDS = ("breaker", "validation", "backend", "order", "no_start", "interrupted")
+HALT_KINDS = ("breaker", "validation", "backend", "order", "no_start", "interrupted", "stopped")
 
 
 def halt_reason(kind: str, label: str, doy: int | None = None) -> dict[str, object]:
@@ -291,6 +293,9 @@ class Ledger:
         """
         if event in ("run_start", "attempt_start", "attempt_end", "run_end"):
             raise ValueError(f"{event} has its own method")
+        clash = sorted({"v", "ts", "run"} & fields.keys())
+        if clash:  # as run_start's extra: the envelope must not be overwritten silently
+            raise ValueError(f"event fields reuse the envelope's names: {', '.join(clash)}")
         self._append(event, **fields)
 
 

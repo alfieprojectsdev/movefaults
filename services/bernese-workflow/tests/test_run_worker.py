@@ -242,6 +242,8 @@ def test_the_ledger_records_who_asked_for_the_run(env: Env) -> None:
     assert start["submitted_by"] == USER
     assert start["kind"] == START
     assert start["reason"] == "monthly"
+    # The same provenance bernese-run-year records: a worker run is not anonymous.
+    assert start["pcf"] == "PHREF_DLY"
 
 
 def test_a_malformed_file_is_rejected_and_kept_not_run(env: Env) -> None:
@@ -341,7 +343,10 @@ def test_stop_ends_the_run_after_the_block_in_progress_never_inside_it(env: Env)
     assert all(rec["days"][f"{d:03d}"] == "not_run" for d in range(14, 20))
     assert env.done(stops[0])["outcome"] == "applied"
     entries, _ = read_entries(env.year_dir / "ledger.jsonl")
-    assert "stopped by" in next(e for e in entries if e["event"] == "run_end")["halt"]
+    end = next(e for e in entries if e["event"] == "run_end")
+    assert "stopped by" in end["halt"]
+    # ledger.py: halt_reason is null only when halt is.
+    assert end["halt_reason"]["kind"] == "stopped"
 
 
 def test_a_stop_naming_a_queued_request_cancels_it_ahead_of_its_turn(env: Env) -> None:
