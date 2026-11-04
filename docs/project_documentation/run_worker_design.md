@@ -217,7 +217,10 @@ waits, and nothing new is claimed until it has run):
 **Stale requests.** A request still in `queue/` when it is more than
 `--max-age-hours` old (default 24) is moved to `done/` as `expired` instead of
 run. A start somebody pressed yesterday, while the worker was down, should not
-begin today without them knowing. Files left in `tmp/` by a submitter that
+begin today without them knowing. The age counts from submission whatever the
+request was waiting for, so a request queued behind a long run expires too: a
+whole PHREF year takes about 14 hours, which is inside the default but not by
+much. Raise the limit if longer runs become normal. Files left in `tmp/` by a submitter that
 died mid-write are not requests and are ignored; the worker removes them once
 they are an hour old.
 
@@ -239,7 +242,8 @@ directory) before restarting the worker.
   filter on event names they know, so the new entries are invisible to them.
 - `SUPERSEDED/<stamp>/MANIFEST_*.json`: what was moved, its checksums, and
   each state the redo passed through, with times.
-- The BPE lock record: `worker <id> <kind> <campaign> <year> <days> by <user>`,
+- The BPE lock record's purpose, e.g.
+  `worker <id> start PHREF 2025 DOY 152-181 (PHREF_DLY) by <user>`,
   which is what the console shows as the holder.
 
 ## Not in scope

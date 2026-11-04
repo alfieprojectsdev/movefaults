@@ -50,6 +50,8 @@ crd-to-plots = "pogf_geodetic_suite.timeseries.cli:main"
 igs-downloader = "pogf_geodetic_suite.igs_downloader:main"
 # A range of days as parallel BPE blocks, one campaign per session (step F).
 bernese-run-year = "bernese_workflow.run_year:main"
+# Runs queued BPE requests one at a time under the BPE lock; `submit` queues one.
+bernese-worker = "bernese_workflow.run_worker:main"
 field-ops-api = "field_ops.main:start"
 velocity-reviewer = "velocity_reviewer.cli:main"
 
