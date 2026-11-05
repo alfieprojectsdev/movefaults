@@ -107,6 +107,7 @@ looks exactly like success (`CLAUDE.md`, Branching & Merge Policy).
 | `gh_retarget.sh` | change a PR's base branch |
 | `git_merge_main.sh`, `git_merge_ref.sh` | merge `origin/main` or another ref into the current branch |
 | `local_ci.py` | the CI that actually runs while GitHub Actions is locked: cron on gps3, posts `local-ci/gps3` |
+| `console_screenshots.py` | retake the BSW console screenshots in the work instruction, on the test suite's synthetic tree |
 | `audit_doc_references.py` | find documentation citing files that no longer exist |
 | `gnss_mirror_update.sh` | refresh the PHIVOLCS-held mirror of this repository |
 

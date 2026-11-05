@@ -88,7 +88,7 @@ export default function Calendar({ campaign, year }: { campaign: string; year: n
                 <dt>Session</dt><dd className="mono">{s.session}</dd>
                 <dt>State</dt><dd>{WORDS[s.state]}</dd>
               </dl>
-              {s.note && <p style={{ fontSize: 13 }}>{s.note}</p>}
+              {s.note && <p style={{ fontSize: 13, overflowWrap: 'anywhere' }}>{s.note}</p>}
               <div className="stack" style={{ fontSize: 13 }}>
                 <a href={href.day(campaign, year, s.doy)}>Open this day</a>
                 {s.state === 'failed' && <a href={href.failure(campaign, year, s.doy)}>Why it failed</a>}

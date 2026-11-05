@@ -71,6 +71,7 @@ main { width:100%; max-width:1320px; margin:0 auto; box-sizing:border-box; paddi
 .stack { display:flex; flex-direction:column; gap:12px; }
 .row { display:flex; flex-wrap:wrap; gap:12px 16px; align-items:center; }
 .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:16px; }
+.cards > * { min-width:0; overflow-wrap:anywhere; }
 .cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); gap:20px; align-items:start; }
 .cols > * { min-width:0; }
 

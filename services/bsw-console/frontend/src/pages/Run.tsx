@@ -98,7 +98,7 @@ export default function Run({ campaign, year, run }: { campaign: string; year: n
                     </div>
                   </td>
                 ))}
-                <td>
+                <td style={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
                   {x.outcome === 'failed' ? <a href={href.failure(campaign, year, x.doy)}>failed · {x.error}</a> : x.outcome}
                   {x.outcome.startsWith('not started') && x.note && <span className="faint" title={x.note}> ⓘ</span>}
                 </td>
