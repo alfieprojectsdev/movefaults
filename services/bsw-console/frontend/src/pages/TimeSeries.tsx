@@ -17,6 +17,20 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
   const one = useApi<TsStation>(station && station !== reference ? `${base}/${station}${q}` : null)
   const candidates = sum.data && sum.data.configured ? sum.data.all_stations ?? [] : []
   const chosen = sum.data && sum.data.configured ? sum.data.reference : null
+  // A default the files do not hold is no choice: show the placeholder, so every
+  // real candidate stays pickable.
+  const shown = chosen && candidates.includes(chosen) ? chosen : ''
+  // useApi keeps the last answer while a new URL loads, or after the URL goes
+  // away. Show a station only when the answer is for this station AND this
+  // reference, never an old pair under a new heading.
+  const current =
+    one.data && one.data.configured && one.data.available && station && one.data.station === station && one.data.reference === chosen
+      ? one.data
+      : null
+  const currentProblem =
+    one.data && one.data.configured && !one.data.available && station && one.data.station === station && one.data.reference === chosen
+      ? one.data.message
+      : null
   const pickReference = (r: string) => { setReference(r); if (r === station) setStation('') }
 
   return (
@@ -35,8 +49,8 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
       {candidates.length > 0 && (
         <label className="row" style={{ fontSize: 13 }}>
           Reference station
-          <select aria-label="Reference station" value={chosen ?? ''} onChange={(e) => pickReference(e.target.value)}>
-            {!chosen && <option value="">Choose a reference…</option>}
+          <select aria-label="Reference station" value={shown} onChange={(e) => pickReference(e.target.value)}>
+            {!shown && <option value="">Choose a reference…</option>}
             {candidates.map((s) => <option key={s} value={s}>{s}{sum.data && sum.data.configured && s === sum.data.default_reference ? ' (default)' : ''}</option>)}
           </select>
           <span className="muted">Every series is relative to it; changing it re-fits every station.</span>
@@ -61,9 +75,9 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
             </select>
           </label>
           {one.error && <Failed error={one.error} />}
-          {station && !one.data && !one.error && <Loading what={`${station}'s time series`} />}
-          {one.data && one.data.configured && !one.data.available && <div className="banner warn" role="status">{one.data.message}</div>}
-          {one.data && one.data.configured && one.data.available && <Station data={one.data} />}
+          {station && !current && !currentProblem && !one.error && <Loading what={`${station}'s time series`} />}
+          {currentProblem && <div className="banner warn" role="status">{currentProblem}</div>}
+          {current && <Station data={current} />}
         </section>
       )}
       <p className="faint" style={{ fontSize: 13 }}>Open team decision: whether a flagged outlier is excluded from the velocity fit, or only recorded. The mode above says which produced these numbers.</p>

@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pogf_geodetic_suite.timeseries.crd_pipeline import crd_directory_to_enu, read_crd_file
+from pogf_geodetic_suite.timeseries.crd_pipeline import crd_directory_to_enu, crd_station_codes
 from pogf_geodetic_suite.timeseries.status import OutlierMode, station_status
 
 from .settings import Settings
@@ -55,15 +55,29 @@ def _not_configured(s: Settings) -> dict | None:
     }
 
 
-def stations_in(crd_dir: Path) -> list[str]:
-    """Every estimated station in the directory's CRD files: the reference candidates."""
-    codes: set[str] = set()
+# Candidates per CRD directory, keyed on what changes when a file is added,
+# removed or rewritten: the directory's mtime and each file's name, size and
+# mtime. A reference pick then reads the CRDs once (the ENU pass), not twice.
+_CANDIDATES: dict[Path, tuple[tuple, list[str]]] = {}
+
+
+def _fingerprint(crd_dir: Path) -> tuple:
     files = sorted(crd_dir.glob("*.CRD"))
-    for path in files:
-        codes.update(code for code, *_ in read_crd_file(path))
-    if not codes:
-        raise ValueError(f"No usable *.CRD files found in {crd_dir}")
-    return sorted(codes)
+    return (
+        crd_dir.stat().st_mtime_ns,
+        tuple((f.name, (st := f.stat()).st_size, st.st_mtime_ns) for f in files),
+    )
+
+
+def stations_in(crd_dir: Path) -> list[str]:
+    """The reference candidates: exactly what crd_directory_to_enu accepts."""
+    key = _fingerprint(crd_dir)
+    hit = _CANDIDATES.get(crd_dir)
+    if hit is not None and hit[0] == key:
+        return hit[1]
+    codes = crd_station_codes(crd_dir)
+    _CANDIDATES[crd_dir] = (key, codes)
+    return codes
 
 
 def _reference(s: Settings, requested: str | None) -> str | None:

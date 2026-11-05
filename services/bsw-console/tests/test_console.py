@@ -586,3 +586,25 @@ def test_a_reference_is_four_characters_never_a_path(client) -> None:
         assert (
             client.get(f"/api/campaigns/LUZON/time-series/SYN1?reference={ref}").status_code == 422
         )
+
+
+def test_a_station_only_in_an_undated_crd_is_not_offered_as_a_reference(bsw) -> None:
+    """An a priori or combined CRD sits in the same directory with no YYDDD in its
+    name. The ENU pipeline skips it, so its stations must not be candidates
+    either: a reference the pipeline would then refuse."""
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    some = next(iter(sorted(bsw.ts_crd_dir.glob("*.CRD"))))
+    (bsw.ts_crd_dir / "APRIORI.CRD").write_text(some.read_text().replace("SYN1", "XTRA"))
+    body = TestClient(create_app(bsw)).get("/api/campaigns/LUZON/time-series").json()
+    assert body["all_stations"] == ["REF0", "SYN1"]
+
+
+def test_candidates_follow_the_directory_when_a_file_is_added(bsw) -> None:
+    from bsw_console import timeseries
+
+    assert timeseries.stations_in(bsw.ts_crd_dir) == ["REF0", "SYN1"]
+    some = next(iter(sorted(bsw.ts_crd_dir.glob("*.CRD"))))
+    (bsw.ts_crd_dir / "F1_22001.CRD").write_text(some.read_text().replace("SYN1", "NEW1"))
+    assert timeseries.stations_in(bsw.ts_crd_dir) == ["NEW1", "REF0", "SYN1"]
