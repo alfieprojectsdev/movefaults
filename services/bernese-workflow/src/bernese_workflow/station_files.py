@@ -364,7 +364,10 @@ def check_sta(text: str, label: str, rows: list[StaRow] | None = None) -> list[F
                 if a.text == b.text or not _overlap(a, b):
                     continue
                 later = b.start is not None and (a.start is None or b.start > a.start)
-                if _is_open(a) and later:
+                # Not for a later single-instant row: closing ``a`` at its FROM
+                # would still leave ``a`` ending at that instant, which
+                # ``windows_overlap`` counts as an overlap.
+                if _is_open(a) and later and b.start != b.end:
                     # Closing ``a`` at the first later start also ends its
                     # overlap with every row that starts after that one; a
                     # finding per later row would advise closing it at each.

@@ -506,3 +506,19 @@ def test_a_single_instant_overlap_at_the_runs_first_midnight_blocks():
     )
     (f,) = [f for f in findings if f.kind == "sta_overlap"]
     assert not f.blocking, f
+
+
+def test_an_open_row_then_a_later_single_instant_is_a_plain_overlap():
+    """``sta_open_then_later`` advises closing the open row at the later row's
+    FROM. For a single-instant row that advice does not clear the overlap:
+    a row ending at an instant still overlaps a single-instant row there
+    (``windows_overlap``). So report it as a plain overlap, and check that
+    following the old advice really would have left one."""
+    instant = "2025 04 15 00 00 00"
+    rows = [
+        ("S01R S01R", "2020 01 01 00 00 00", ""),
+        ("S01R S01R", instant, instant, "TRIMBLE ALLOY"),
+    ]
+    assert _kinds(sf.check_sta(sta_text(rows), "X.STA")) == [("sta_overlap", "S01R S01R")]
+    closed = [("S01R S01R", "2020 01 01 00 00 00", instant), rows[1]]
+    assert _kinds(sf.check_sta(sta_text(closed), "X.STA")) == [("sta_overlap", "S01R S01R")]
