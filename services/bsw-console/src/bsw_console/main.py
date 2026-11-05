@@ -24,6 +24,7 @@ without a CORS preflight; refusing every other content type is what stops that.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import subprocess
@@ -56,6 +57,12 @@ def _version() -> str:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     s = settings or Settings.from_env()
+    if s.actions_enabled and s.worker_state is None:
+        logging.getLogger(__name__).warning(
+            "BSW_CONSOLE_ACTIONS is on but BERNESE_WORKER_STATE is not set: the console "
+            "looks for the worker under its own user's home. Set it to the directory "
+            "`bernese-worker run` uses, writable by this user, on a local filesystem."
+        )
     app = FastAPI(title="BSW 5.4 processing console", version="0.1")
     version = _version()
 
@@ -69,7 +76,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         client = request.client.host if request.client else ""
         if client not in s.trusted_proxies:
             return ""
-        return (request.headers.get("x-remote-user") or "").strip()[:64]
+        name = (request.headers.get("x-remote-user") or "").strip()
+        # The proxy must send a bare username, the form run_queue records. An
+        # email or anything else is nobody, not a name cut to fit.
+        return name if actions.USERNAME.fullmatch(name) else ""
 
     @app.get("/api/session")
     def session(request: Request) -> dict:
@@ -176,11 +186,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         skipped = {int(x) for x in skip.split(",") if x.strip().isdigit()}
         out = plans.build(s, c, year, start, end, pcf=pcf, skipped=skipped, rnxgra=rnxgra)
         why = list(out["start_blocked_because"])
-        if (pcf or c.pcf) != c.pcf or skipped or rnxgra != "continuous":
-            why.append(
-                f"the console starts {c.pcf} whole with continuous RNXGRA; "
-                "this plan runs from the command line"
-            )
+        mismatch = actions.plan_mismatch(c, pcf, skipped, rnxgra)
+        if mismatch:
+            why.append(mismatch)
+        elif not actions.preflight_done(s, c, year, start, end):
+            why.append("the preflight for these days has not finished ok")
         why += actions.blockers(s, who(request))
         return {**out, "start_blocked_because": why, "can_start": not why}
 
@@ -190,14 +200,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/plans")
     async def save(request: Request) -> dict:
-        _same_origin_json(request)
-        raw = await request.body()
-        if len(raw) > MAX_PLAN_BYTES:
-            raise HTTPException(413, f"a plan is at most {MAX_PLAN_BYTES} bytes")
-        try:
-            body = json.loads(raw)
-        except ValueError:
-            raise HTTPException(422, "the body is not JSON") from None
+        body = await _json_body(request)
         clean = _valid_plan(s, body)
         return plans.save_plan(s, clean, who(request) or "not signed in")
 
@@ -220,52 +223,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             status_code=501,
         )
 
-    # Stage 3: each queues one request for the run worker, behind actions.gate.
-    async def action_body(request: Request) -> dict:
-        _same_origin_json(request)
-        raw = await request.body()
-        if len(raw) > MAX_PLAN_BYTES:
-            raise HTTPException(413, f"a request is at most {MAX_PLAN_BYTES} bytes")
-        try:
-            body = json.loads(raw)
-        except ValueError:
-            raise HTTPException(422, "the body is not JSON") from None
-        if not isinstance(body, dict):
-            raise HTTPException(422, "the body is a JSON object")
-        return body
+    # Stage 3: each queues one request for the run worker. The gate runs first,
+    # before the body is read or the campaign looked up, so a refused caller
+    # learns nothing else (actions.py, THE GATE).
+    def off() -> JSONResponse:
+        return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
 
-    def act(fn, request: Request, body: dict, *args) -> JSONResponse:
+    async def gated(request: Request, fn, *args) -> JSONResponse:
+        user = who(request)
         try:
-            return JSONResponse(
-                fn(s, campaign(str(body.get("campaign", ""))), who(request), *args, body),
-                status_code=202,
-            )
+            actions.gate(s, user)
         except actions.ActionsOff:
-            return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
+            return off()
+        body = await _json_body(request)
+        c = campaign(str(body.get("campaign", "")))
+        return JSONResponse(fn(s, c, user, *args, body), status_code=202)
 
     @app.post("/api/runs/start")
     async def run_start(request: Request) -> JSONResponse:
-        if not s.actions_enabled:
-            return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
-        return act(actions.start, request, await action_body(request), "start")
+        return await gated(request, actions.start, "start")
 
     @app.post("/api/preflight")
     async def preflight(request: Request) -> JSONResponse:
-        if not s.actions_enabled:
-            return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
-        return act(actions.start, request, await action_body(request), "preflight")
+        return await gated(request, actions.start, "preflight")
 
     @app.post("/api/redo")
     async def redo(request: Request) -> JSONResponse:
-        if not s.actions_enabled:
-            return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
-        return act(actions.redo, request, await action_body(request))
+        return await gated(request, actions.redo)
 
     @app.post("/api/runs/stop")
     async def run_stop(request: Request) -> JSONResponse:
-        if not s.actions_enabled:
-            return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
-        return act(actions.stop, request, await action_body(request))
+        return await gated(request, actions.stop)
 
     @app.get("/api/worker")
     def worker(request: Request) -> dict:
@@ -384,3 +372,24 @@ def start() -> None:
 
 if __name__ == "__main__":
     start()
+
+
+async def _json_body(request: Request) -> dict:
+    """A same-origin JSON object of at most MAX_PLAN_BYTES, read as it streams.
+
+    Reading the stream with a cutoff caps a chunked upload that declares no
+    Content-Length; request.body() would buffer the whole of it first.
+    """
+    _same_origin_json(request)
+    raw = bytearray()
+    async for chunk in request.stream():
+        raw += chunk
+        if len(raw) > MAX_PLAN_BYTES:
+            raise HTTPException(413, f"a request body is at most {MAX_PLAN_BYTES} bytes")
+    try:
+        body = json.loads(bytes(raw))
+    except ValueError:
+        raise HTTPException(422, "the body is not JSON") from None
+    if not isinstance(body, dict):
+        raise HTTPException(422, "the body must be a JSON object")
+    return body

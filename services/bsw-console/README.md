@@ -66,10 +66,25 @@ order (`bsw_console/actions.py`):
 3. they are in `BSW_CONSOLE_OPERATORS`, else 403;
 4. a worker holds the queue's `worker.lock`, else 503 and nothing is queued.
 
+The gate runs before the body is read or the campaign looked up. The proxy
+must send a bare username (`[A-Za-z0-9._-]`, as the queue records it); anything
+else counts as nobody signed in.
+
 Start and preflight run the campaign's daily PCF whole: a plan that skips steps,
 changes RNXGRA or names another PCF is refused (422) and runs from the command
-line. Stop applies only to a request the worker is running; a run started with
-`bernese-run-year` is stopped where it was started (409). `GET /api/worker`
+line. The server re-runs the plan's checks and refuses a plan that fails them
+(409). **Start needs a preflight for exactly those days that finished ok in the
+last 7 days**, as the brief requires (409 otherwise). Stop applies only when the
+run on the page is the one the worker is running, matched through the request
+id the worker writes into the ledger's `run_start`; any other run, such as one
+started with `bernese-run-year`, is stopped where it was started (409). Queued
+requests are not listed in the console yet; cancel one on gps3 with
+`bernese-worker submit stop --target <id>`.
+
+The console and the worker must agree on the queue: set `BERNESE_WORKER_STATE`
+for both (the console warns at start-up when actions are on and it is unset),
+run them as the same user, and keep it on a local filesystem, since the
+worker-alive check matches `worker.lock` in `/proc/locks` by device and inode. `GET /api/worker`
 says whether a worker is alive and why the buttons are off.
 
 ## Safety

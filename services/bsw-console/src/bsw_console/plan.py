@@ -156,7 +156,6 @@ def build(
     steps = pcf_steps(planned.pcf_text)
     dangling = dangling_from_skips(steps, skipped)
     prod = products(s, year, p.todo)
-    lock = lock_status(s)
     checks = []
     short = [e for e in p.excluded if e.reason == "short"]
     solved = [e for e in p.excluded if e.reason == "solved"]
@@ -224,8 +223,6 @@ def build(
     why = []
     if blocking:
         why.append("fix the checks marked above")
-    if lock["held"]:
-        why.append(f"the BPE lock is held: {lock['holder']}")
     return {
         "campaign": c.name,
         "year": year,

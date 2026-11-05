@@ -32,12 +32,16 @@ stop              the request the worker is running, after its current block.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
+import re
 from pathlib import Path
 
 from bernese_workflow import run_queue
 from fastapi import HTTPException
 
+from . import plan as plans
+from . import status
 from .settings import Campaign, Settings
 from .status import flock_held
 
@@ -51,6 +55,15 @@ STAGE3_REASON = (
 
 class ActionsOff(Exception):
     """Actions are switched off; the endpoint answers 501 with STAGE3_REASON."""
+
+
+# run_queue's own rule for submitted_by. A name the queue would refuse is not a
+# signed-in user here either, so the gate and the queue cannot disagree.
+USERNAME = re.compile(r"[A-Za-z0-9._-]{1,64}")
+
+# A preflight older than this no longer opens Start: the products, station
+# files or panels it checked may have changed since.
+PREFLIGHT_MAX_AGE = dt.timedelta(days=7)
 
 
 def queue(s: Settings) -> run_queue.Queue:
@@ -68,34 +81,89 @@ def worker_status(s: Settings) -> dict:
     return {"alive": alive, "status": last if isinstance(last, dict) else None}
 
 
-def blockers(s: Settings, user: str) -> list[str]:
-    """Why the gate would refuse ``user`` now, in the gate's order; empty if it would not."""
+def gate_failures(s: Settings, user: str) -> list[tuple[int, str]]:
+    """THE GATE, as (status, message) pairs in order; empty when ``user`` may act.
+
+    The one statement of the rule: gate() raises the first, blockers() lists
+    them all for the Plan page.
+    """
     if not s.actions_enabled:
-        return ["starting runs from the console is switched off until personal accounts exist"]
-    why = []
+        return [
+            (501, "starting runs from the console is switched off until personal accounts exist")
+        ]
+    out: list[tuple[int, str]] = []
     if not user:
-        why.append("nobody is signed in")
+        out.append((403, "nobody is signed in: every run is recorded with who started it"))
     elif user not in s.operators:
-        why.append(f"{user} is not one of the console's operators")
+        out.append((403, f"{user} is not one of the console's operators"))
     if not worker_status(s)["alive"]:
-        why.append("no run worker is running on gps3")
-    return why
+        out.append(
+            (503, "no run worker is running on gps3, so nothing can be queued "
+                  "(sudo systemctl start bernese-worker)")
+        )  # fmt: skip
+    return out
+
+
+def blockers(s: Settings, user: str) -> list[str]:
+    return [msg for _, msg in gate_failures(s, user)]
 
 
 def gate(s: Settings, user: str) -> None:
     """Raise unless ``user`` may queue a request now (see THE GATE)."""
-    if not s.actions_enabled:
+    failures = gate_failures(s, user)
+    if not failures:
+        return
+    code, msg = failures[0]
+    if code == 501:
         raise ActionsOff
-    if not user:
-        raise HTTPException(403, "Sign in first: every run is recorded with who started it.")
-    if user not in s.operators:
-        raise HTTPException(403, f"{user} is not one of the console's operators.")
-    if not worker_status(s)["alive"]:
-        raise HTTPException(
-            503,
-            "No run worker is running on gps3, so nothing was queued. "
-            "Start it with: sudo systemctl start bernese-worker",
+    raise HTTPException(code, msg[0].upper() + msg[1:] + ".")
+
+
+def plan_mismatch(c: Campaign, pcf: object, skipped: object, rnxgra: object) -> str | None:
+    """Why the worker would run this plan differently from what the page shows, or None."""
+    if not c.prefix:
+        return f"{c.name} has no per-day campaign prefix configured, so it cannot run in parallel sessions"
+    if pcf not in (None, "", c.pcf):
+        return f"the console starts {c.name}'s daily PCF, {c.pcf}, only; run {pcf} from the command line"
+    if skipped:
+        return "the worker runs the whole PCF; a plan that skips steps runs from the command line"
+    if rnxgra not in (None, "", "continuous"):
+        return (
+            "the worker runs RNXGRA as the PCF sets it; another preset runs from the command line"
         )
+    return None
+
+
+def preflight_done(s: Settings, c: Campaign, year: object, a: object, b: object) -> dict | None:
+    """The newest successful preflight for exactly these days, if recent enough."""
+    q = queue(s)
+    if not q.done.is_dir():
+        return None
+    now = run_queue.now_utc()
+    best = None
+    for p in q.done.glob("*.json"):
+        try:
+            r = json.loads(p.read_text())
+            finished = dt.datetime.fromisoformat(r["finished"])
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        if (
+            r.get("kind") == run_queue.PREFLIGHT
+            and r.get("outcome") == "ok"
+            and (r.get("campaign"), r.get("year"), r.get("pcf")) == (c.name, year, c.pcf)
+            and (r.get("from"), r.get("to")) == (a, b)
+            and now - finished <= PREFLIGHT_MAX_AGE
+            and (best is None or r["finished"] > best["finished"])
+        ):
+            best = r
+    return best
+
+
+def _int(body: dict, key: str) -> int:
+    v = body.get(key)
+    if not isinstance(v, int) or isinstance(v, bool):
+        raise HTTPException(422, f"{key} must be a whole number")
+    return v
 
 
 def _submit(s: Settings, kind: str, user: str, **fields: object) -> dict:
@@ -107,69 +175,56 @@ def _submit(s: Settings, kind: str, user: str, **fields: object) -> dict:
     return {"queued": req["id"], "kind": kind, "by": user, "file": path.name}
 
 
-def _runnable(c: Campaign, pcf: object, skipped: object, rnxgra: object) -> None:
-    if not c.prefix:
-        raise HTTPException(
-            422,
-            f"{c.name} has no per-day campaign prefix configured, so it cannot run in parallel sessions.",
-        )
-    if pcf not in (None, "", c.pcf):
-        raise HTTPException(
-            422,
-            f"The console starts {c.name}'s daily PCF, {c.pcf}, only. "
-            f"Run {pcf} from the command line with bernese-run-year.",
-        )
-    if skipped:
-        raise HTTPException(
-            422,
-            "The worker runs the whole PCF; a plan that skips steps runs from the command line.",
-        )
-    if rnxgra not in (None, "", "continuous"):
-        raise HTTPException(
-            422,
-            "The worker runs RNXGRA as the PCF sets it; another preset runs from the command line.",
-        )
-
-
 def start(s: Settings, c: Campaign, user: str, kind: str, body: dict) -> dict:
-    """Queue a start or a preflight for ``body``'s days."""
-    gate(s, user)
-    _runnable(c, body.get("pcf"), body.get("skipped"), body.get("rnxgra"))
+    """Queue a start or a preflight for ``body``'s days. The caller has passed gate()."""
+    why = plan_mismatch(c, body.get("pcf"), body.get("skipped"), body.get("rnxgra"))
+    if why:
+        raise HTTPException(422, why[0].upper() + why[1:] + ".")
+    year, a, b = _int(body, "year"), _int(body, "from"), _int(body, "to")
+    try:
+        planned = plans.build(s, c, year, a, b)
+    except (OSError, ValueError, KeyError, SystemExit) as exc:
+        raise HTTPException(422, f"The plan could not be built: {exc}") from None
+    bad = [x["title"] for x in planned["checks"] if x["level"] == "bad"]
+    if bad:
+        raise HTTPException(409, "The plan's checks fail: " + "; ".join(bad) + ".")
+    if kind == run_queue.START and not preflight_done(s, c, year, a, b):
+        raise HTTPException(
+            409,
+            "Queue a preflight for these days first; Start opens once it has finished ok "
+            f"(within the last {PREFLIGHT_MAX_AGE.days} days).",
+        )
     return _submit(
-        s,
-        kind,
-        user,
-        campaign=c.name,
-        repr_prefix=c.prefix,
-        pcf=c.pcf,
-        year=body.get("year"),
-        reason=str(body.get("reason") or ""),
-        **{"from": body.get("from"), "to": body.get("to")},
-    )
+        s, kind, user, campaign=c.name, repr_prefix=c.prefix, pcf=c.pcf, year=year,
+        reason=str(body.get("reason") or ""), **{"from": a, "to": b},
+    )  # fmt: skip
 
 
 def redo(s: Settings, c: Campaign, user: str, body: dict) -> dict:
-    gate(s, user)
-    _runnable(c, None, None, None)
+    """Queue a redo of one day. The caller has passed gate()."""
+    why = plan_mismatch(c, None, None, None)
+    if why:
+        raise HTTPException(422, why[0].upper() + why[1:] + ".")
     return _submit(
-        s,
-        run_queue.REDO,
-        user,
-        campaign=c.name,
-        repr_prefix=c.prefix,
-        pcf=c.pcf,
-        year=body.get("year"),
-        doy=body.get("doy"),
-        reason=str(body.get("reason") or ""),
-    )
+        s, run_queue.REDO, user, campaign=c.name, repr_prefix=c.prefix, pcf=c.pcf,
+        year=body.get("year"), doy=body.get("doy"), reason=str(body.get("reason") or ""),
+    )  # fmt: skip
 
 
 def stop(s: Settings, c: Campaign, user: str, body: dict) -> dict:
-    """Queue a stop for the request the worker is running, if it is this campaign's."""
-    gate(s, user)
-    q = queue(s)
+    """Queue a stop for the worker's running request, if it is the run the page shows.
+
+    The page names a ledger run. The worker tags the run_start it writes with
+    its request id, so the stop goes ahead only when that run is the one the
+    worker is running; any other run (a command-line one, or a stale page) is
+    stopped where it was started.
+    """
+    run = body.get("run")
+    if not isinstance(run, str) or not run:
+        raise HTTPException(422, "name the run to stop")
+    year = _int(body, "year")
     active = (worker_status(s)["status"] or {}).get("active")
-    found = q.find(active) if isinstance(active, str) else None
+    found = queue(s).find(active) if isinstance(active, str) else None
     if not found or found[0] != "active":
         raise HTTPException(
             409,
@@ -180,9 +235,19 @@ def stop(s: Settings, c: Campaign, user: str, body: dict) -> dict:
         req = json.loads(found[1].read_text())
     except (OSError, ValueError):
         raise HTTPException(409, "The running request could not be read.") from None
-    if req.get("campaign") != c.name or req.get("year") != body.get("year"):
+    if req.get("campaign") != c.name or req.get("year") != year:
+        raise HTTPException(
+            409, f"The worker is running {req.get('campaign')} {req.get('year')}, not this run."
+        )
+    mine = [
+        e.get("run")
+        for e in status.read_ledger(status.ledger_path(s, c, year))
+        if e.get("event") == "run_start" and e.get("request") == active
+    ]
+    if run not in mine:
         raise HTTPException(
             409,
-            f"The worker is running {req.get('campaign')} {req.get('year')}, not this run.",
+            f"Run {run} is not the one the worker is running, so it was not stopped. "
+            "A run started from the command line is stopped there.",
         )
     return _submit(s, run_queue.STOP, user, target=active, reason=str(body.get("reason") or ""))

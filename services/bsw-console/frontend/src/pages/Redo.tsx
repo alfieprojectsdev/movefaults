@@ -63,7 +63,7 @@ export default function Redo({ campaign, year, doy, lock }: { campaign: string; 
         <div className="row">
           <a className="btn2" href={href.day(campaign, year, doy)}>Cancel</a>
           <button type="submit" className="btn" disabled={!ready}>Move aside and queue the redo</button>
-          <span className="muted" style={{ fontSize: 13 }}>{ready ? 'Queued redos are listed on the Runs page and can be cancelled until they start.' : 'Give a reason and type the DOY to enable.'}</span>
+          <span className="muted" style={{ fontSize: 13 }}>{ready ? 'The redo waits in the run worker\'s queue until the worker starts it. Until then it can be cancelled on gps3: bernese-worker submit stop --target <id>.' : 'Give a reason and type the DOY to enable.'}</span>
         </div>
         {msg && <div className="banner idle" role="status">{msg.off && <span className="stub">not enabled yet</span>} {msg.text}{!msg.ok && ' Nothing was moved.'}</div>}
       </form>
