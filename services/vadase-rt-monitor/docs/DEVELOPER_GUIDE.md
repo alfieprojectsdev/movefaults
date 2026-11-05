@@ -50,5 +50,5 @@ The repository includes two template notebooks for high-level research. They are
 - **Type Hinting**: All new code should use Python type hints to ensure compatibility with `mypy`.
 - **Async Safety**: Since the system is highly concurrent, avoid blocking calls (like `time.sleep()`) in the core; always use `await asyncio.sleep()`.
 - **Logging**: Use the `self.logger` (powered by `structlog`) to emit structured logs.
-- **Imports**: Use the bare `src.` prefix (`from src.parsers.nmea_parser import parse_lvm`), and never add an `__init__.py` to `src/`: it is a namespace package shared with the repo-root `src/db/`. `CLAUDE.md` explains why.
+- **Imports**: Use the bare `src.` prefix (`from src.parsers.nmea_parser import parse_lvm`), and never add an `__init__.py` to `src/`: it is a namespace package shared with the repo-root `src/db/`. This service's [`CLAUDE.md`](../CLAUDE.md) explains why.
 - **Tests**: `uv run pytest services/vadase-rt-monitor/tests` from the repo root.

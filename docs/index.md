@@ -10,7 +10,9 @@ Start here instead:
 - [`../README.md`](../README.md): what the repository contains and how to run it.
 - [`SETTLED.md`](SETTLED.md): what is already established, and what is still open.
 - [`../CLAUDE.md`](../CLAUDE.md): architecture, what actually runs in production,
-  measured component maturity, and the branching and merge rules.
+  and the branching and merge rules.
+- [`project_documentation/implementation_maturity.md`](project_documentation/implementation_maturity.md):
+  measured component maturity and test totals.
 - [`project_documentation/roadmap.md`](project_documentation/roadmap.md): deliverables and status.
 - [`project_documentation/automation_stages.md`](project_documentation/automation_stages.md):
   the three processing stages and how far each is automated.

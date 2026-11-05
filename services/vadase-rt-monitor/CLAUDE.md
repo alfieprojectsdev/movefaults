@@ -1,6 +1,6 @@
 # VADASE-RT-Monitor: architecture notes
 
-**Read this section carefully** — it contains multi-file architectural context that isn't obvious from any single file.
+**Read this file carefully** — it contains multi-file architectural context that isn't obvious from any single file.
 
 ## One processor, one input pattern (this used to be two of each)
 
@@ -8,7 +8,8 @@
 through **`src/ports/`** (InputPort, OutputPort) with **`src/adapters/inputs/`**
 (TCPAdapter, DirectoryAdapter) — queue-based, via `asyncio.Queue`.
 
-Earlier versions of this file opened with a section headed "Dual-Processor
+Earlier versions of the repo-root `CLAUDE.md`, where these notes used to live,
+opened with a section headed "Dual-Processor
 Architecture (Important!)", warning you to check whether you were editing
 `IngestionCore` or a second `IngestionProcessor` in `src/stream/processor.py`,
 and likewise between `src/ports/` and a parallel `src/sources/` DataSource
@@ -25,7 +26,7 @@ integrate velocity itself. That decision is `ReceiverMode` (`RECEIVER` |
 `STREAK_THRESHOLD = 5`, `GOOD_THRESHOLD = 30`, `SUSPECT_THRESHOLD = 3` — and
 it moves in **both** directions.
 
-Earlier versions of this file recorded a "**Known bug**: the one-way latch at
+Earlier versions of the repo-root `CLAUDE.md` recorded a "**Known bug**: the one-way latch at
 line 130 (`self.manual_integration_active = True`) never resets — once
 activated, it stays on permanently". That was true, and it was fixed: reset in
 `934f8b3`, then replaced wholesale by the state machine in `a74c109`.
@@ -86,13 +87,13 @@ dispatch) and a "Known bug" one-way latch on `manual_integration_active`
 (fixed in `934f8b3`, then removed entirely by `a74c109`). See *Receiver mode: a
 state machine, not a latch* above for what the code does now.
 
-Line numbers in this file have proven to be the first thing to rot. Name the
+Line numbers in these notes have proven to be the first thing to rot. Name the
 symbol, not the line.
 
 ## How many stations, really
 
-**`config/stations.yml` defines 4.** Earlier versions of this file described it
-as "35+" in two places, which conflated two different numbers:
+**`config/stations.yml` defines 4.** Earlier versions of the repo-root `CLAUDE.md`
+described it as "35+" in two places, which conflated two different numbers:
 
 - **35+** is roughly what PHIVOLCS *operates* as a CORS network. It is a fact
   about the agency, not about this repository.
@@ -103,6 +104,15 @@ as "35+" in two places, which conflated two different numbers:
 Both numbers are real and neither is a typo for the other. Quote the one you
 mean, and check the file rather than this sentence, because the configured
 count is the one that will drift.
+
+## Where the thresholds live
+
+`threshold_mm_s` is set per station in `config/stations.yml`. `config/thresholds.yml`
+is **0 bytes**, so it is not where the value is.
+
+`scripts/threshold_evidence.py` measures the alarm threshold against real captures,
+which are not committed. It produces every figure in
+`docs/project_documentation/vadase_threshold_evidence.md` at the repo root.
 
 ## Local testing
 

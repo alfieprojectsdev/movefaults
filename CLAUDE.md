@@ -219,7 +219,7 @@ production runs above used.
   and `models.py`; "four" in earlier versions counted `__pycache__`); anything pointed at it
   (coverage, mypy) is therefore measuring near-nothing. Note that `src/` means
   something different inside vadase-rt-monitor, where it is the service's own
-  package root — see *Import Paths* below.
+  package root — see *Import Paths* in `services/vadase-rt-monitor/CLAUDE.md`.
 - **The file server is the system of record**, not this repo and not gps3.
   `\\192.168.48.99` holds the national campaign (`CAMPAIGN52/PHIVOLCS`, 439
   stations catalogued / ~52 estimated daily) and 476 GiB of observations back
@@ -245,7 +245,8 @@ CLI entry points and ruff settings are in `pyproject.toml`. What isn't obvious:
   `cd services/field-ops/frontend && npm test`, and the same in
   `services/bsw-console/frontend`. `uv run pytest` passing says nothing about these.
 - **Compare the total, not the passed count.** Skips differ by machine: Postgres on
-  5433, gps3's DATAPOOL, teqc or gfzrnx.
+  5433, gps3's DATAPOOL, teqc or gfzrnx. The last measured total is in
+  `implementation_maturity.md`, under *Test totals*.
 - **`--cov=src` measures almost nothing**, because the repo-root `src/` is down to
   `src/db/`. Name what you want: `uv run pytest --cov=packages --cov=services
   --cov=tools --cov-report=html`. Same for type checking:
@@ -272,11 +273,7 @@ Code is quicker to find by searching. These are the ones a search won't explain.
 
 | Purpose | Path |
 |---|---|
-| Station definitions (**4 configured**) | `services/vadase-rt-monitor/config/stations.yml` |
-| Event thresholds (**`threshold_mm_s`, per station**) | `services/vadase-rt-monitor/config/stations.yml` |
-| ~~Event thresholds~~ `config/thresholds.yml` | **0 bytes — empty.** The value lives in `stations.yml` above |
 | Run worker (the console's Start/Stop/Redo/Preflight) | `services/bernese-workflow/src/bernese_workflow/run_worker.py`, `run_queue.py`, `redo.py`; design in `docs/project_documentation/run_worker_design.md` |
-| VADASE threshold evidence | `services/vadase-rt-monitor/scripts/threshold_evidence.py` → `docs/project_documentation/vadase_threshold_evidence.md` |
 | PHIVOLCS event catalog | `docs/bern52/phivolcs-scripts/event-catalog/offsets` |
 | Reprocessing runbook | `docs/bernese54_luzon_reprocessing_runbook.md` |
 | Field deployment runbook | `services/field-ops/FIELD_RUNBOOK.md` |
