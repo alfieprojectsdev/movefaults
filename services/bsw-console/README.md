@@ -104,6 +104,22 @@ says whether a worker is alive and why the buttons are off.
   client can send the header, so with no proxy in front it would let anyone on
   the network sign as anyone.
 
+## Deploying on gps3
+
+Three scripts in `scripts/sudo/`, each with its usage and undo in its header. All
+need sudo, and each records what it did in the log you send it to.
+
+1. `install_bernese_worker_gps3.sh`: the run worker as a service.
+2. `setup_bsw_console_login_gps3.sh`: Caddy, HTTPS and one login per person. Takes
+   `--lan <address>/<prefix>`, so gps3's address stays out of this public repository.
+3. `deploy_bsw_console_gps3.sh`: moves `~/repos/mf_run` to `origin/main` and serves the
+   console from it. The buttons go on only when the worker, Caddy and `--operators`
+   are all in place; otherwise the log says which is missing. The operator list is
+   an argument too.
+
+To update a running console, run only step 3. On a new machine, run step 1, then
+step 3 to write the console's unit, then step 2, then step 3 again.
+
 ## Tests
 
 ```bash
