@@ -671,3 +671,24 @@ def test_the_year_routes_are_gone(client) -> None:
 def _ts_dir(bsw):
     """Where conftest files the second year of the synthetic series."""
     return bsw.savedisk / "LUZON" / "2021" / "STA"
+
+
+def test_the_summary_says_where_stations_are_and_how_far_from_the_reference(client) -> None:
+    body = client.get("/api/campaigns/LUZON/time-series").json()
+    assert set(body["positions"]) == {"REF0", "SYN1"}
+    assert -90 <= body["positions"]["SYN1"]["lat"] <= 90
+    assert body["reference_warn_deg"] == 5.0
+    assert set(body["distances"]) == {"SYN1"}, "the reference has no distance from itself"
+    one = client.get("/api/campaigns/LUZON/time-series/SYN1").json()
+    assert abs(body["distances"]["SYN1"] - one["reference_distance_deg"]) < 0.01
+
+
+def test_with_no_reference_positions_are_given_and_distances_are_not(bsw) -> None:
+    import dataclasses
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(dataclasses.replace(bsw, ts_reference=None)))
+    body = c.get("/api/campaigns/LUZON/time-series").json()
+    assert set(body["positions"]) == {"REF0", "SYN1"} and body["distances"] == {}

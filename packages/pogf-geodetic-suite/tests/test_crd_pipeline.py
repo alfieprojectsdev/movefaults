@@ -477,3 +477,13 @@ def test_a_station_that_never_shares_a_day_with_the_reference_is_named_as_that(t
     _write_crd(tmp_path / "F1_23002.CRD", [pbis, other])
     with pytest.raises(ValueError, match="on any day the reference BOST has"):
         station_status(tmp_path, "PBIS", "BOST")
+
+
+def test_a_stations_position_is_from_the_newest_file_that_holds_it(tmp_path):
+    from pogf_geodetic_suite.timeseries.crd_pipeline import crd_station_xyz
+
+    _moving(tmp_path)
+    xyz = crd_station_xyz(tmp_path)
+    assert set(xyz) == {"BOST", "PBIS"}
+    assert xyz["BOST"][0] == pytest.approx(BOST_X + 0.0005 * 31, abs=1e-4)
+

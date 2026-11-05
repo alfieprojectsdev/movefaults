@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import App from './App'
+import { coreStations } from './stationMap'
 import { popupPlace } from './pages/OutlierDecision'
 import api from './__fixtures__/api.json'
 
@@ -515,5 +516,71 @@ describe('where the popup goes', () => {
   })
   it('on a plot narrower than the popup, starts at its edge', () => {
     expect(popupPlace({ x: 100, y: 50 }, size, { width: 320, height: 600 }).left).toBe(0)
+  })
+})
+
+describe('the station map', () => {
+  const leaflet = () => (globalThis as any).__leaflet
+  const mark = (label: RegExp) => leaflet().markers.find((m: { label: string }) => label.test(m.label))
+
+  beforeEach(() => { leaflet().fits.length = 0 })
+
+  it('draws every station, names the reference and each distance, and rings the warning distance', async () => {
+    serve()
+    await page()
+    const sum = responses[BASE] as { all_stations: string[]; reference_warn_deg: number; distances: Record<string, number> }
+    expect(leaflet().markers).toHaveLength(sum.all_stations.length)
+    expect(mark(/^REF0, reference$/).permanent).toBe(true)
+    expect(mark(/^SYN1, \d+\.\d° from REF0$/)).toBeTruthy()
+    const { opts } = leaflet().circles[0]
+    expect(opts.radius).toBe(sum.reference_warn_deg * 111_195)
+    expect(leaflet().fits.length).toBe(1)
+  })
+
+  it('a click sets the station, and with Reference pressed sets the reference; the dropdowns follow', async () => {
+    const urls: string[] = []
+    serve()
+    const get = globalThis.fetch as unknown as (u: string) => Promise<Response>
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => { urls.push(u); return get(u) }))
+    await page()
+    await act(async () => { mark(/^SYN1/).handlers.click() })
+    await settle()
+    expect(urls.some((u) => u.split('?')[0] === `${BASE}/SYN1`)).toBe(true)
+    expect((screen.getByRole('heading', { name: /SYN1 · east/ }))).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reference' }))
+    await act(async () => { mark(/^SYN1/).handlers.click() })
+    await settle()
+    expect(urls.some((u) => u.endsWith(`${BASE}?reference=SYN1`))).toBe(true)
+    expect(screen.getByRole('button', { name: 'Station' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('a click on the reference itself does not make it the station', async () => {
+    serve()
+    await page()
+    await act(async () => { mark(/^REF0/).handlers.click() })
+    await settle()
+    expect(screen.queryByRole('heading', { name: /REF0 · east/ })).toBeNull()
+  })
+
+  it('a station past the warning distance is coloured apart', async () => {
+    const sum = responses[BASE] as object
+    serve({ [BASE]: { ...sum, distances: { SYN1: 19.4 } } })
+    await page()
+    expect(mark(/^SYN1, 19\.4°/).opts.fillColor).not.toBe(mark(/^REF0/).opts.fillColor)
+  })
+})
+
+describe('coreStations', () => {
+  it('leaves out far fiducials, which the median cannot be pulled by', () => {
+    const p = {
+      A: { lat: 14, lon: 121 }, B: { lat: 15, lon: 120 }, C: { lat: 16, lon: 122 },
+      ALIC: { lat: -23, lon: 134 }, DAEJ: { lat: 36, lon: 127 },
+    }
+    expect(coreStations(p).sort()).toEqual(['A', 'B', 'C'])
+  })
+  it('never leaves nothing', () => {
+    expect(coreStations({})).toEqual([])
+    expect(coreStations({ A: { lat: 0, lon: 0 } })).toEqual(['A'])
   })
 })

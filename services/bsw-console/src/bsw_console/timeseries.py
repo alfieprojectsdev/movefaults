@@ -31,10 +31,13 @@ available=false and the reason.
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
+import pymap3d
 from fastapi import HTTPException
-from pogf_geodetic_suite.timeseries.crd_pipeline import crd_station_codes
+from pogf_geodetic_suite.timeseries.crd_pipeline import crd_station_codes, crd_station_xyz
+from pogf_geodetic_suite.timeseries.gmt import REFERENCE_WARN_DEG, arc_degrees
 from pogf_geodetic_suite.timeseries.status import (
     OutlierMode,
     session_date_to_decimal_year,
@@ -104,6 +107,23 @@ def _reference(s: Settings, requested: str | None) -> str | None:
     return (requested or s.ts_reference or "").upper() or None
 
 
+def _map(dirs: list[Path], reference: str | None) -> dict:
+    """Where each station is, for the page's map, and how far from the reference by
+    the same measure the station's own warning uses."""
+    xyz = crd_station_xyz(dirs)
+    positions = {}
+    for code, (x, y, z) in xyz.items():
+        lat, lon, _ = pymap3d.ecef2geodetic(x, y, z, deg=True)
+        positions[code] = {"lat": float(lat), "lon": float(lon)}
+    origin = xyz.get(reference) if reference else None
+    distances = (
+        {code: arc_degrees(math.dist(origin, p)) for code, p in xyz.items() if code != reference}
+        if origin
+        else {}
+    )
+    return {"positions": positions, "distances": distances, "reference_warn_deg": REFERENCE_WARN_DEG}
+
+
 def crd_dirs(s: Settings, c: Campaign) -> list[Path]:
     """Where the campaign's daily final CRDs are: <V_RESULT>/STA of each year
     that has one, oldest first. A V_RESULT with no year in it gives the same
@@ -139,7 +159,12 @@ def summary(s: Settings, c: Campaign, reference: str | None = None) -> dict:
         candidates = stations_in(dirs)
     except (OSError, ValueError) as exc:
         return {**base, "available": False, "message": str(exc)}
-    out = {**base, "all_stations": candidates, "outlier_mode": DEFAULT_MODE}
+    out = {
+        **base,
+        "all_stations": candidates,
+        "outlier_mode": DEFAULT_MODE,
+        **_map(crd_dirs(s, c), ref),
+    }
     if ref is None:
         return {**out, "available": True, "stations": [],
                 "message": "Choose a reference station: every series is relative to it."}  # fmt: skip

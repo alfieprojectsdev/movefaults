@@ -4,6 +4,7 @@ import type { Enu, Session, TsStation, TsSummary } from '../types'
 import { Failed, Loading } from './common'
 import TsPlot, { type PlotPoint } from './TsPlot'
 import OutlierDecision from './OutlierDecision'
+import StationMap from './StationMap'
 
 const mm = (v: number) => v.toFixed(2)
 const rate = (v: Enu, s: Enu, c: keyof Enu) => `${mm(v[c])} ± ${mm(s[c])}`
@@ -47,6 +48,10 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
       {!sum.data && !sum.error && <Loading what="the time series" />}
       {sum.data && !sum.data.configured && (
         <div className="banner idle" role="status"><strong>Not configured.</strong> <span>{sum.data.message}</span></div>
+      )}
+      {sum.data && sum.data.configured && sum.data.positions && (
+        <StationMap positions={sum.data.positions} distances={sum.data.distances ?? {}} reference={shown} station={station}
+          warnDeg={sum.data.reference_warn_deg ?? 5} onReference={pickReference} onStation={setStation} />
       )}
       {candidates.length > 0 && (
         <label className="row" style={{ fontSize: 13 }}>
