@@ -4,6 +4,7 @@
   "accounts": "pending",
   "version": "ca4c551",
   "actions_enabled": false,
+  "can_act": false,
   "campaigns": [
    "LUZON"
   ]
@@ -4334,8 +4335,7 @@
   "can_start": false,
   "start_blocked_because": [
    "fix the checks marked above",
-   "the preflight has not run",
-   "starting runs from the console is not enabled yet"
+   "starting runs from the console is switched off until personal accounts exist"
   ],
   "pcfs": [
    "LUZON_DLY"

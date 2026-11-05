@@ -25,8 +25,12 @@ export default function Plan({ campaign, year, from, to }: { campaign: string; y
     saved.reload()
   }
   const stage3 = async (what: 'preflight' | 'runs/start') => {
-    const r = await post<{ reason?: string }>(`/api/${what}`, { campaign, year, from: start, to: end, pcf: data?.pcf, skipped })
-    setMsg({ kind: 'warn', text: r.body.reason ?? `Answered ${r.status}` })
+    const r = await post<{ reason?: string; detail?: string; queued?: string; by?: string }>(`/api/${what}`, { campaign, year, from: start, to: end, pcf: data?.pcf, skipped, rnxgra })
+    setMsg(
+      r.ok
+        ? { kind: 'info', text: `${what === 'preflight' ? 'Preflight' : 'Run'} queued as ${r.body.queued} by ${r.body.by}. The run worker on gps3 starts it when the BPE lock is free; follow it on the Runs page.` }
+        : { kind: 'warn', text: r.body.reason ?? r.body.detail ?? `Answered ${r.status}` },
+    )
   }
 
   return (
@@ -104,7 +108,7 @@ export default function Plan({ campaign, year, from, to }: { campaign: string; y
                 <button type="button" className="btn" onClick={save}>Save plan</button>
                 <button type="button" className="btn" disabled={!data.can_start} onClick={() => stage3('runs/start')}>Start</button>
               </div>
-              <p className="muted" style={{ fontSize: 13 }}>Start is off: {data.start_blocked_because.join('; ')}.</p>
+              {!data.can_start && <p className="muted" style={{ fontSize: 13 }}>Start is off: {data.start_blocked_because.join('; ')}.</p>}
               {msg && <div className={`banner ${msg.kind}`} role="status">{msg.text}</div>}
             </>
           )}

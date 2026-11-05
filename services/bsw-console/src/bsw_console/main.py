@@ -2,13 +2,13 @@
 
 Stages 1 and 2 are wired: every GET reads the processing service's records,
 and saving a plan writes one file in the console's own state directory.
-Stage 3 (start, stop, redo, preflight) answers 501 with the reason. The run
-worker that will carry those requests out under the BPE lock exists
-(bernese_workflow.run_worker, `bernese-worker`, #316), but this console is not
-wired to it yet, no worker runs as a service on gps3, and per-person accounts,
-so every action is recorded with a name, are still pending. The browser never
-sends a filesystem path: it names a campaign, a year and a day, and the file
-viewer takes only a name the server listed for that day.
+Stage 3 (start, stop, redo, preflight) queues requests for the run worker
+(bernese-worker) through bsw_console/actions.py. It is off unless
+BSW_CONSOLE_ACTIONS=on, and even then only for a signed-in user listed in
+BSW_CONSOLE_OPERATORS, and only while a worker is running; otherwise each
+endpoint says why and queues nothing. The browser never sends a filesystem
+path: it names a campaign, a year and a day, and the file viewer takes only a
+name the server listed for that day.
 
 Sign-in is pending too (personal accounts on gps3 are a prerequisite in the
 brief). Until then the server binds to 127.0.0.1 by default and says nobody is
@@ -34,16 +34,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import actions, stations, status
 from . import plan as plans
-from . import stations, status
+from .actions import STAGE3_REASON
 from .settings import Settings
-
-STAGE3_REASON = (
-    "Not enabled yet. The run worker that starts, stops and redoes runs under the BPE "
-    "lock exists on gps3 (bernese-worker), but this console is not connected to it yet, "
-    "and personal accounts, so every action is recorded with a name, are still pending. "
-    "Until then, runs are started on gps3 from the command line with bernese-run-year."
-)
 
 
 def _version() -> str:
@@ -84,6 +78,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "accounts": "pending",
             "version": version,
             "actions_enabled": s.actions_enabled,
+            "can_act": not actions.blockers(s, who(request)),
             "campaigns": [c.name for c in s.campaigns],
         }
 
@@ -158,6 +153,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/campaigns/{name}/years/{year}/plan")
     def plan(
+        request: Request,
         name: str,
         year: int,
         start: int,
@@ -178,7 +174,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ):
             raise HTTPException(404, f"no PCF {pcf}")
         skipped = {int(x) for x in skip.split(",") if x.strip().isdigit()}
-        return plans.build(s, c, year, start, end, pcf=pcf, skipped=skipped, rnxgra=rnxgra)
+        out = plans.build(s, c, year, start, end, pcf=pcf, skipped=skipped, rnxgra=rnxgra)
+        why = list(out["start_blocked_because"])
+        if (pcf or c.pcf) != c.pcf or skipped or rnxgra != "continuous":
+            why.append(
+                f"the console starts {c.pcf} whole with continuous RNXGRA; "
+                "this plan runs from the command line"
+            )
+        why += actions.blockers(s, who(request))
+        return {**out, "start_blocked_because": why, "can_start": not why}
 
     @app.get("/api/plans")
     def saved_plans() -> dict:
@@ -216,12 +220,60 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             status_code=501,
         )
 
-    # Stage 3. Each answers 501 until the console is wired to the run worker.
-    for route in ("/api/runs/start", "/api/runs/stop", "/api/preflight", "/api/redo"):
+    # Stage 3: each queues one request for the run worker, behind actions.gate.
+    async def action_body(request: Request) -> dict:
+        _same_origin_json(request)
+        raw = await request.body()
+        if len(raw) > MAX_PLAN_BYTES:
+            raise HTTPException(413, f"a request is at most {MAX_PLAN_BYTES} bytes")
+        try:
+            body = json.loads(raw)
+        except ValueError:
+            raise HTTPException(422, "the body is not JSON") from None
+        if not isinstance(body, dict):
+            raise HTTPException(422, "the body is a JSON object")
+        return body
 
-        @app.post(route)
-        def not_yet() -> JSONResponse:
+    def act(fn, request: Request, body: dict, *args) -> JSONResponse:
+        try:
+            return JSONResponse(
+                fn(s, campaign(str(body.get("campaign", ""))), who(request), *args, body),
+                status_code=202,
+            )
+        except actions.ActionsOff:
             return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
+
+    @app.post("/api/runs/start")
+    async def run_start(request: Request) -> JSONResponse:
+        if not s.actions_enabled:
+            return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
+        return act(actions.start, request, await action_body(request), "start")
+
+    @app.post("/api/preflight")
+    async def preflight(request: Request) -> JSONResponse:
+        if not s.actions_enabled:
+            return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
+        return act(actions.start, request, await action_body(request), "preflight")
+
+    @app.post("/api/redo")
+    async def redo(request: Request) -> JSONResponse:
+        if not s.actions_enabled:
+            return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
+        return act(actions.redo, request, await action_body(request))
+
+    @app.post("/api/runs/stop")
+    async def run_stop(request: Request) -> JSONResponse:
+        if not s.actions_enabled:
+            return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
+        return act(actions.stop, request, await action_body(request))
+
+    @app.get("/api/worker")
+    def worker(request: Request) -> dict:
+        return {
+            **actions.worker_status(s),
+            "actions_enabled": s.actions_enabled,
+            "blocked_because": actions.blockers(s, who(request)),
+        }
 
     if s.static_dir is not None:
         index = s.static_dir / "index.html"

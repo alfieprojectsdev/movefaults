@@ -224,11 +224,8 @@ def build(
     why = []
     if blocking:
         why.append("fix the checks marked above")
-    why.append("the preflight has not run")
     if lock["held"]:
         why.append(f"the BPE lock is held: {lock['holder']}")
-    if not s.actions_enabled:
-        why.append("starting runs from the console is not enabled yet")
     return {
         "campaign": c.name,
         "year": year,
@@ -247,7 +244,7 @@ def build(
         "rnxgra": rnxgra,
         "rnxgra_presets": RNXGRA_PRESETS,
         "checks": checks,
-        "can_start": False,
+        "can_start": not why,
         "start_blocked_because": why,
         "pcfs": campaign_pcfs(s, c),
     }

@@ -8,13 +8,17 @@ export default function Redo({ campaign, year, doy, lock }: { campaign: string; 
   const { data, error } = useApi<R>(`/api/campaigns/${campaign}/years/${year}/days/${doy}/redo`)
   const [reason, setReason] = useState('')
   const [typed, setTyped] = useState('')
-  const [msg, setMsg] = useState('')
+  const [msg, setMsg] = useState<{ ok: boolean; off: boolean; text: string } | null>(null)
   if (error) return <Failed error={error} />
   if (!data) return <Loading what="the day's results" />
   const ready = reason.trim().length > 0 && typed.trim() === pad3(doy) && data.files.length > 0
   const go = async () => {
-    const r = await post<{ reason?: string }>('/api/redo', { campaign, year, doy, reason })
-    setMsg(r.body.reason ?? `Answered ${r.status}`)
+    const r = await post<{ reason?: string; detail?: string; queued?: string }>('/api/redo', { campaign, year, doy, reason })
+    setMsg(
+      r.ok
+        ? { ok: true, off: false, text: `Redo queued as ${r.body.queued}. The files move aside only when the run worker starts it, and come back if the redo fails.` }
+        : { ok: false, off: r.status === 501, text: r.body.reason ?? r.body.detail ?? `Answered ${r.status}` },
+    )
   }
 
   return (
@@ -61,7 +65,7 @@ export default function Redo({ campaign, year, doy, lock }: { campaign: string; 
           <button type="submit" className="btn" disabled={!ready}>Move aside and queue the redo</button>
           <span className="muted" style={{ fontSize: 13 }}>{ready ? 'Queued redos are listed on the Runs page and can be cancelled until they start.' : 'Give a reason and type the DOY to enable.'}</span>
         </div>
-        {msg && <div className="banner idle" role="status"><span className="stub">not enabled yet</span> {msg} Nothing was moved.</div>}
+        {msg && <div className="banner idle" role="status">{msg.off && <span className="stub">not enabled yet</span>} {msg.text}{!msg.ok && ' Nothing was moved.'}</div>}
       </form>
     </>
   )

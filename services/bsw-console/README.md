@@ -31,6 +31,9 @@ does not exist yet. From an office PC, tunnel to it:
 | `BPE_LOCK` | bernese-workflow's default | the lock file it reads |
 | `BSW_CONSOLE_STATE` | `~/.local/state/bsw-console` | where saved plans go |
 | `BSW_CONSOLE_TRUSTED_PROXIES` | empty | comma-separated addresses of reverse proxies allowed to name the user in `X-Remote-User`. Empty: the header is ignored |
+| `BSW_CONSOLE_ACTIONS` | off | `on` lets the stage 3 buttons queue requests for the run worker. Leave off until personal accounts exist |
+| `BSW_CONSOLE_OPERATORS` | empty | comma-separated signed-in users who may press them. Empty: nobody, even with actions on |
+| `BERNESE_WORKER_STATE` | the worker's default | the run worker's queue; must be the directory `bernese-worker run` reads |
 
 For frontend work, `npm run dev` proxies `/api` to the running server.
 
@@ -40,20 +43,34 @@ For frontend work, `npm run dev` proxies `/api` to the running server.
 |---|---|
 | Campaigns | Wired: fixed, float and failed counts per year, last run and its state, recent activity from every ledger |
 | Calendar | Wired: fixed and float from SAVEDISK, failed, running and queued from the ledger. **Excluded** is never shown, because the ledger does not record plans |
-| Runs | Wired: days × PCF step groups, the failed PID from the protocol file, the running PID from the live BPE folder, the circuit breaker's counters. **Stop** is a stub |
+| Runs | Wired: days × PCF step groups, the failed PID from the protocol file, the running PID from the live BPE folder, the circuit breaker's counters. **Stop** queues a stop for the request the run worker is running (stage 3; off by default) |
 | Day | Wired: attempts, the seven archived results with their 5.2 names, a text viewer with search and highlighting, stations in the solution and drops since the day before, HELMCHK RMS. **Recorded by the service but not shown yet:** who started a run, the command, the code version and the IGS product tier are in the ledger's `run_start` since #318, but the console still fills them with `None` (`bsw_console/status.py`). **Not available:** the ambiguity fixing rate, because the AMB summaries are not archived |
 | Failure | Wired: `diagnose_day` on the day's BPE folder, the known-errors entry, the raw lines with earlier attempts greyed. Falls back to the ledger's recorded label once a solved day's campaign is removed |
-| Plan | Wired: `run_plan.plan_from_env`, PCF groups with a check of the skips chosen, products per day, MAXPAR. **Save plan** writes one JSON file. **Queue preflight** and **Start** are stubs |
-| Redo | Wired preview: every file that would move, and where. **The move** is a stub |
+| Plan | Wired: `run_plan.plan_from_env`, PCF groups with a check of the skips chosen, products per day, MAXPAR. **Save plan** writes one JSON file. **Queue preflight** and **Start** queue requests for the run worker (stage 3; off by default) |
+| Redo | Wired preview: every file that would move, and where. **Redo** queues the move and the rerun for the run worker (stage 3; off by default) |
 | Known errors | Wired: the whole list, with how often each fired in the last 30 days and failures with no entry |
 | Station files (stage 4) | Read-only and wired: station × file coverage of the eight files the PCF names, codes with two names, stations missing from the BLQ (anything after `$$ END TABLE` counts as missing). Add a site, use a CRD as a priori and the BLQ paste check are not built |
 | Time series (stage 5) | Stub. The read-only status it waited on exists since #319 (`pogf_geodetic_suite/timeseries/status.py`, `uv run pogf-timeseries status`); the console does not call it yet |
 
-Stubs answer HTTP 501 with the reason, and the page shows it. Stage 3 waits on
-the two prerequisites in the brief: a run worker on gps3 that holds the BPE
-lock, and personal accounts so every action carries a name. The run worker
-exists since #316 (`bernese_workflow/run_worker.py`, `uv run bernese-worker`,
-taking the lock in `bpe_lock.BPELock`), but the console is not wired to it yet.
+Stubs answer HTTP 501 with the reason, and the page shows it.
+
+**Stage 3** (Start, Queue preflight, Stop, Redo) writes one request into the
+run worker's queue (`bernese_workflow.run_queue`) and returns its id; the worker
+(`bernese-worker run`, a systemd service on gps3) carries it out under the BPE
+lock. The console never runs a BPE. Every button passes one gate, in this
+order (`bsw_console/actions.py`):
+
+1. `BSW_CONSOLE_ACTIONS=on`, else 501 with the reason. **Off by default**, and
+   off on gps3 until personal accounts exist.
+2. someone is signed in (a trusted proxy's `X-Remote-User`), else 403;
+3. they are in `BSW_CONSOLE_OPERATORS`, else 403;
+4. a worker holds the queue's `worker.lock`, else 503 and nothing is queued.
+
+Start and preflight run the campaign's daily PCF whole: a plan that skips steps,
+changes RNXGRA or names another PCF is refused (422) and runs from the command
+line. Stop applies only to a request the worker is running; a run started with
+`bernese-run-year` is stopped where it was started (409). `GET /api/worker`
+says whether a worker is alive and why the buttons are off.
 
 ## Safety
 

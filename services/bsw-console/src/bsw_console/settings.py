@@ -84,9 +84,17 @@ class Settings:
     lock_path: Path | None = None  # None: bernese_workflow's own default
     state_dir: Path = field(default_factory=lambda: Path.home() / ".local/state/bsw-console")
     static_dir: Path | None = None
-    # Stage 3 actions (start, stop, redo, preflight) need a run worker that does
-    # not exist yet. Off until it does; the endpoints say why.
+    # Stage 3 actions (start, stop, redo, preflight) queue requests for the run
+    # worker (bernese-worker). Off unless BSW_CONSOLE_ACTIONS=on; while off the
+    # endpoints answer 501 and say why. See bsw_console/actions.py.
     actions_enabled: bool = False
+    # The run worker's queue: the same directory `bernese-worker run` reads.
+    # None: bernese_workflow.run_queue's default ($BERNESE_WORKER_STATE or
+    # ~/.local/state/bernese-workflow/worker).
+    worker_state: Path | None = None
+    # Signed-in users who may press the stage 3 buttons. Empty: nobody, even
+    # with actions on; the list has to be set on purpose.
+    operators: frozenset[str] = frozenset()
     # Addresses of reverse proxies allowed to name the signed-in user in
     # X-Remote-User. Empty (the default): the header is ignored from everyone,
     # because without a proxy any client on the network could send it.
@@ -131,7 +139,13 @@ class Settings:
             lock_path=Path(lock) if lock else None,
             state_dir=Path(os.environ.get("BSW_CONSOLE_STATE", home / ".local/state/bsw-console")),
             static_dir=static if static.is_dir() else None,
-            actions_enabled=False,
+            actions_enabled=os.environ.get("BSW_CONSOLE_ACTIONS", "").strip().lower() == "on",
+            worker_state=Path(ws) if (ws := os.environ.get("BERNESE_WORKER_STATE")) else None,
+            operators=frozenset(
+                x.strip()
+                for x in os.environ.get("BSW_CONSOLE_OPERATORS", "").split(",")
+                if x.strip()
+            ),
             trusted_proxies=frozenset(
                 x.strip()
                 for x in os.environ.get("BSW_CONSOLE_TRUSTED_PROXIES", "").split(",")
