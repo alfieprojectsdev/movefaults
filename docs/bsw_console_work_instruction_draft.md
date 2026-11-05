@@ -274,7 +274,7 @@ segment under the one-year minimum shows crossed out.
 | 6.2 note: horizontal only, usually | Unchanged. The page shows Up as well; read it with the same care |
 | 6.3 Outlier removal: `outlier_input-site.py`, right-click, hand-edit PLOT files, re-run MATLAB | Click an epoch on the plot; a drag doesn't pick one. A small popup opens beside the point, with the rule's flag and any decision so far. A flagged epoch offers **Confirm outlier**, or **Keep it: not an outlier** with a reason. An unflagged one offers **Mark as outlier** with a reason. **Undo decision** takes a decision back. Recording closes the popup, so you can go straight to the next epoch; Escape, the close button or a click elsewhere closes it too. Each decision is kept with your name, the reference station and a hash of the day's CRD files, and no file is edited. Rings mark decided epochs. A dashed line and a row marked "not published" show the fit without the confirmed outliers. A decision made against another reference station, or on a day since reprocessed, is shown as such and not applied. The page's outlier mode stays `record`: flagged epochs are reported and kept in the fit. Decisions don't reach PLOT files or production plots; for those, keep using `tools/velocity-reviewer` |
 
-The map opens on the campaign's own stations. The dashed ring is 5 degrees around
+The map opens on the stations near the middle of the network. The dashed ring is 5 degrees around
 the reference, and stations outside it are orange. **All stations** also brings in
 the far ones.
 

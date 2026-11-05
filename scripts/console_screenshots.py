@@ -13,9 +13,11 @@ an image is published. The console runs here on the test suite's made-up tree
 (services/bsw-console/tests/conftest.py) plus a made-up time series below, in a
 scratch folder, on a free port, with its own state, signed in as "demo". It never
 reads gps3's data and cannot queue a real run or write to the real decision record.
-One thing on screen is real: the Failure page's protocol file is the HELMR1 failure
+Two things on screen are real: the Failure page's protocol file is the HELMR1 failure
 captured from LZY250360, a fixture already committed under
-services/bernese-workflow/tests/fixtures/bpe_errors, with gps3's paths in it.
+services/bernese-workflow/tests/fixtures/bpe_errors, with gps3's paths in it, and the
+Known errors page lists the entries of config/bernese/bpe_errors.yaml, with made-up
+counts.
 """
 
 from __future__ import annotations
@@ -88,7 +90,8 @@ def _xyz(lat: float, lon: float) -> tuple[float, float, float]:
 
 def time_series(savedisk: Path, root: Path) -> Path:
     """Three years of noisy daily positions for a made-up station, one step at an
-    earthquake and one large spike. Seeded, so a retake draws the same plot."""
+    earthquake and one large spike, beside REF0 and OTHERS, which do not move. Seeded,
+    so a retake draws the same plot."""
     rng = random.Random(20261105)
     others = {code: _xyz(*where) for code, where in OTHERS.items()}
     for old in ("2020", "2021"):
@@ -244,18 +247,23 @@ def shoot(page: Page, url: str, route: str, out: Path, wait_for: str, click_day:
     print(f"{out}  {out.stat().st_size // 1024} KB")
 
 
+def pick_station(page: Page, code: str) -> None:
+    """The Station dropdown. "Reference station" matches the label too, and comes first."""
+    page.locator("label", has_text="Station").locator("select").last.select_option(code)
+
+
 def map_shots(page: Page, url: str, out: Path) -> None:
     """The map with its ring around a nearby reference, then a far reference: every
     station orange and the warning above the plot. Nothing here records a decision."""
     open_route(page, url, f"#/c/LUZON/{YEAR}/time-series")
     # SYN5 is outside the ring, and far enough from REF0 for both labels to read.
-    page.locator("label", has_text="Station").locator("select").last.select_option("SYN5")
+    pick_station(page, "SYN5")
     page.wait_for_selector("[data-testid=ts-plot] canvas", timeout=20000)
     page.wait_for_load_state("networkidle")
     panel = page.get_by_role("region", name="Map of the stations")
     page.wait_for_timeout(600)  # the map's move to its opening view is animated
     panel.screenshot(path=out / "station_map.png")
-    page.locator("label", has_text="Station").locator("select").last.select_option("SYN1")
+    pick_station(page, "SYN1")
     page.locator("label", has_text="Reference station").locator("select").select_option("FAR1")
     panel.get_by_role("button", name="All stations").click()
     banner = page.locator(".banner.warn").first
@@ -303,7 +311,7 @@ def time_series_shots(page: Page, url: str, out: Path) -> None:
     """The decision form on the flagged spike, then the whole page once it is
     recorded, on this scratch console, so the ring and the not-published fit show."""
     open_route(page, url, f"#/c/LUZON/{YEAR}/time-series")
-    page.locator("label", has_text="Station").locator("select").last.select_option("SYN1")
+    pick_station(page, "SYN1")
     page.wait_for_selector("[data-testid=ts-plot] canvas", timeout=20000)
     page.wait_for_load_state("networkidle")
     page.get_by_role("button", name=str(SPIKE[0]), exact=True).click()
@@ -327,7 +335,9 @@ def time_series_shots(page: Page, url: str, out: Path) -> None:
         path=out / "outlier_decision.png"
     )
     page.get_by_role("button", name="Confirm outlier").click()
-    page.get_by_text("(not published)").first.wait_for(timeout=20000)
+    # The velocity row, which comes with the reload. The same words are in the plot's
+    # help text, on screen all along, so waiting for them alone shoots the page too early.
+    page.locator("th", has_text="not published").wait_for(timeout=20000)
     page.get_by_role("button", name="All years").click()
     page.wait_for_timeout(300)
     page.screenshot(path=out / "time_series.png", full_page=True)
@@ -352,8 +362,14 @@ def main() -> int:
             )
             page = context.new_page()
             base = f"#/c/LUZON/{YEAR}"
-            shoot(page, url, "#/", args.out / "campaigns.png", "Campaigns")
-            shoot(page, url, "#/known-errors", args.out / "known_errors.png", "Known errors")
+            shoot(page, url, "#/", args.out / "campaigns.png", "Recent activity")
+            shoot(
+                page,
+                url,
+                "#/known-errors",
+                args.out / "known_errors.png",
+                "The list the run looks failures up in",
+            )
             shoot(page, url, base, args.out / "calendar.png", "Fixed", click_day=36)
             shoot(
                 page,
