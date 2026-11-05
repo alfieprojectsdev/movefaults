@@ -43,6 +43,7 @@ computation supports.
 """
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -83,6 +84,35 @@ class VelocityVector:
 #: the shortest span over which the annual signal common to GNSS height and
 #: horizontal series averages out rather than aliasing into the trend.
 MIN_SPAN_YEARS = 1.0
+
+# East, North and Up are the reference's axes, as in RUNX_v2.py, so a far-away
+# reference rotates a station's motion between them. A judgement, not a physical
+# limit: at 5 degrees about 9% of a station's motion relative to the reference is
+# rotated, which for 30 mm/yr is about 2.6 mm/yr, as large as a typical 1-sigma on
+# Up. Measured for ALAB: at most 0.4 mm/yr with a reference 1.1 degrees away, 7.7
+# mm/yr at 19.4 degrees. The method is kept and the reader told (docs/SETTLED.md
+# section 3). It lives here beside MIN_SPAN_YEARS because status imports from gmt.
+REFERENCE_WARN_DEG = 5.0
+_EARTH_RADIUS_M = 6_371_000.0
+
+
+def arc_degrees(chord_m: float) -> float:
+    """Degrees of arc for a straight-line distance through the Earth."""
+    return math.degrees(2 * math.asin(min(1.0, chord_m / (2 * _EARTH_RADIUS_M))))
+
+
+def reference_distances(crd_path: Path, reference: str) -> dict[str, float] | None:
+    """Degrees of arc from `reference` to every other station in one CRD file.
+    None when the file has no such reference, so nothing can be said."""
+    rows = {name.upper(): (x, y, z) for name, x, y, z in read_crd_file(crd_path)}
+    origin = rows.get(reference.upper())
+    if origin is None:
+        return None
+    return {
+        name: arc_degrees(math.dist(origin, xyz))
+        for name, xyz in rows.items()
+        if name != reference.upper()
+    }
 
 
 def short_final_interval(
