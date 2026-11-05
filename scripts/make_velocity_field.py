@@ -79,10 +79,11 @@ def main() -> int:
     ap.add_argument("--offsets", type=Path, default=None,
                     help="offsets catalog (default: <data>/offsets)")
     ap.add_argument("--crd", type=Path, required=True,
-                    help="any Bernese CRD file, used for station lon/lat")
+                    help="any Bernese CRD file, used for station lon/lat and for each "
+                         "station's distance from --ref, which it must hold to be checked")
     ap.add_argument("--ref", required=True,
-                    help="reference station the ENU series is relative to; "
-                         "recorded in every output header")
+                    help="reference station the ENU series is relative to; recorded in "
+                         "every output header, and stations far from it are named")
     ap.add_argument("--out", type=Path, required=True, help="output basename")
     ap.add_argument("--joint", action="store_true",
                     help="joint step+rate fit instead of independent segments")
@@ -172,6 +173,7 @@ def main() -> int:
     ref = args.ref.upper()
     distances = reference_distances(args.crd, ref)
     far: dict[str, float] = {}
+    axes = f"East, North and Up are {ref}'s axes, so motion is rotated between them"
     if distances is None:
         reference_note = (f"reference distance not checked: {ref} is not an estimated "
                           f"station in {args.crd.name}")
@@ -179,13 +181,11 @@ def main() -> int:
         far = {v.station: distances[v.station] for v in vectors
                if distances.get(v.station, 0.0) > REFERENCE_WARN_DEG}
         reference_note = (f"over {REFERENCE_WARN_DEG:g} degrees from {ref}: {len(far)} of "
-                          f"{len(vectors)} stations"
-                          + (f" ({' '.join(sorted(far))})" if far else "")
-                          + (f". East, North and Up are {ref}'s axes, so their motion is "
-                             "rotated between components" if far else ""))
+                          f"{len(vectors)} stations")
+        if far:
+            reference_note += f" ({' '.join(sorted(far))}). {axes}"
     notes.append(reference_note)
-    log.extend(f"{site}: NOTE — {deg:.1f} degrees from reference {ref}; East, North and Up "
-               f"are its axes, so this motion is rotated between them"
+    log.extend(f"{site}: NOTE — {deg:.1f} degrees from reference {ref}; {axes}"
                for site, deg in far.items())
 
     # `--out` is a basename, so the extension is APPENDED. with_suffix would
@@ -213,7 +213,8 @@ def main() -> int:
     logfile.write_text(
         "\n".join([f"# velocity field: {args.out}",
                    f"# reference station: {args.ref}",
-                   f"# {fit}", ""] + sorted(log)) + "\n",
+                   f"# {fit}",
+                   f"# {reference_note}", ""] + sorted(log)) + "\n",
         encoding="utf-8",
     )
 

@@ -103,15 +103,18 @@ def arc_degrees(chord_m: float) -> float:
 
 def reference_distances(crd_path: Path, reference: str) -> dict[str, float] | None:
     """Degrees of arc from `reference` to every other station in one CRD file.
-    None when the file has no such reference, so nothing can be said."""
+    None when the file has no such reference, so nothing can be said. CRD rows are
+    keyed on four characters, so `reference` is cut to four as crd_directory_to_enu
+    cuts it."""
+    code = reference.upper()[:4]
     rows = {name.upper(): (x, y, z) for name, x, y, z in read_crd_file(crd_path)}
-    origin = rows.get(reference.upper())
+    origin = rows.get(code)
     if origin is None:
         return None
     return {
         name: arc_degrees(math.dist(origin, xyz))
         for name, xyz in rows.items()
-        if name != reference.upper()
+        if name != code
     }
 
 

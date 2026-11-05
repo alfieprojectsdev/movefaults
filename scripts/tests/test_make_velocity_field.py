@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from pogf_geodetic_suite.timeseries.gmt import reference_distances
+
 SCRIPT = Path(__file__).resolve().parents[1] / "make_velocity_field.py"
 REF = (-3186000.0, 5345000.0, 1640000.0)
 
@@ -86,3 +88,10 @@ def test_a_reference_not_in_the_crd_says_it_could_not_check(tmp_path) -> None:
     done, out = _run(tmp_path, ROWS, ref="GONE")
     assert "reference distance not checked: GONE is not an estimated station" in _text(out, ".psvelo")
     assert "not checked" in done.stdout
+    assert "not checked" in _text(out, ".log"), "the log is read alone; silence would read as a pass"
+
+
+def test_a_long_reference_name_is_the_four_character_code_the_crd_is_keyed_on(tmp_path) -> None:
+    crd = _crd(tmp_path / "F1_20001.CRD", ROWS)
+    distances = reference_distances(crd, "ref000phl")
+    assert distances is not None and set(distances) == {"NEAR", "AWAY"}
