@@ -4,7 +4,7 @@
 export type DayInfo = { year: number; doy: number; date: string; gps_week: number; gps_day: number; session: string }
 export type DayState = 'fixed' | 'float' | 'failed' | 'running' | 'queued' | 'excluded' | 'none'
 
-export type Session = { user: string | null; accounts: string; version: string; actions_enabled: boolean; campaigns: string[] }
+export type Session = { user: string | null; accounts: string; version: string; actions_enabled: boolean; can_act: boolean; campaigns: string[] }
 export type Lock = {
   held: boolean
   holder: string

@@ -8,7 +8,7 @@ const MARK: Record<string, string> = { done: '✓', failed: '✕', running: '●
 
 export default function Run({ campaign, year, run }: { campaign: string; year: number; run?: string }) {
   const { data, error } = useApi<RunDetail>(`/api/campaigns/${campaign}/years/${year}/runs${run ? `?run=${run}` : ''}`)
-  const [stopMsg, setStopMsg] = useState('')
+  const [stopMsg, setStopMsg] = useState<{ off: boolean; text: string } | null>(null)
   if (error) return <Failed error={error} />
   if (!data) return <Loading what="the run record" />
   const r = data.run
@@ -28,8 +28,12 @@ export default function Run({ campaign, year, run }: { campaign: string; year: n
   const span = r.doys.length ? `DOY ${pad3(Math.min(...r.doys))}–${pad3(Math.max(...r.doys))}` : ''
 
   const stop = async () => {
-    const res = await post<{ reason?: string }>('/api/runs/stop', { campaign, year, run: r.run })
-    setStopMsg(res.body.reason ?? `Answered ${res.status}`)
+    const res = await post<{ reason?: string; detail?: string; queued?: string }>('/api/runs/stop', { campaign, year, run: r.run })
+    setStopMsg(
+      res.ok
+        ? { off: false, text: `Stop queued as ${res.body.queued}. The run ends after the block in progress; no BPE is killed.` }
+        : { off: res.status === 501, text: res.body.reason ?? res.body.detail ?? `Answered ${res.status}` },
+    )
   }
 
   return (
@@ -53,10 +57,10 @@ export default function Run({ campaign, year, run }: { campaign: string; year: n
               </select>
             </label>
           )}
-          {live && <button type="button" className="btn2" onClick={stop}>Stop after this day</button>}
+          {live && <button type="button" className="btn2" onClick={stop}>Stop after the current block</button>}
         </div>
       </div>
-      {stopMsg && <div className="banner idle" role="status"><span className="stub">not enabled yet</span> {stopMsg}</div>}
+      {stopMsg && <div className="banner idle" role="status">{stopMsg.off && <span className="stub">not enabled yet</span>} {stopMsg.text}</div>}
       {r.state === 'halted' && (
         <div className="banner warn" role="alert">
           <strong>Halted</strong>

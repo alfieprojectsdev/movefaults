@@ -2,13 +2,13 @@
 
 Stages 1 and 2 are wired: every GET reads the processing service's records,
 and saving a plan writes one file in the console's own state directory.
-Stage 3 (start, stop, redo, preflight) answers 501 with the reason. The run
-worker that will carry those requests out under the BPE lock exists
-(bernese_workflow.run_worker, `bernese-worker`, #316), but this console is not
-wired to it yet, no worker runs as a service on gps3, and per-person accounts,
-so every action is recorded with a name, are still pending. The browser never
-sends a filesystem path: it names a campaign, a year and a day, and the file
-viewer takes only a name the server listed for that day.
+Stage 3 (start, stop, redo, preflight) queues requests for the run worker
+(bernese-worker) through bsw_console/actions.py. It is off unless
+BSW_CONSOLE_ACTIONS=on, and even then only for a signed-in user listed in
+BSW_CONSOLE_OPERATORS, and only while a worker is running; otherwise each
+endpoint says why and queues nothing. The browser never sends a filesystem
+path: it names a campaign, a year and a day, and the file viewer takes only a
+name the server listed for that day.
 
 Sign-in is pending too (personal accounts on gps3 are a prerequisite in the
 brief). Until then the server binds to 127.0.0.1 by default and says nobody is
@@ -24,6 +24,7 @@ without a CORS preflight; refusing every other content type is what stops that.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import subprocess
@@ -34,16 +35,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import equipment, stations, status, timeseries
+from . import actions, equipment, stations, status, timeseries
 from . import plan as plans
+from .actions import STAGE3_REASON
 from .settings import Settings
-
-STAGE3_REASON = (
-    "Not enabled yet. The run worker that starts, stops and redoes runs under the BPE "
-    "lock exists on gps3 (bernese-worker), but this console is not connected to it yet, "
-    "and personal accounts, so every action is recorded with a name, are still pending. "
-    "Until then, runs are started on gps3 from the command line with bernese-run-year."
-)
 
 
 def _version() -> str:
@@ -62,6 +57,12 @@ def _version() -> str:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     s = settings or Settings.from_env()
+    if s.actions_enabled and s.worker_state is None:
+        logging.getLogger(__name__).warning(
+            "BSW_CONSOLE_ACTIONS is on but BERNESE_WORKER_STATE is not set: the console "
+            "looks for the worker under its own user's home. Set it to the directory "
+            "`bernese-worker run` uses, writable by this user, on a local filesystem."
+        )
     app = FastAPI(title="BSW 5.4 processing console", version="0.1")
     version = _version()
 
@@ -75,7 +76,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         client = request.client.host if request.client else ""
         if client not in s.trusted_proxies:
             return ""
-        return (request.headers.get("x-remote-user") or "").strip()[:64]
+        name = (request.headers.get("x-remote-user") or "").strip()
+        # The proxy must send a bare username, the form run_queue records. An
+        # email or anything else is nobody, not a name cut to fit.
+        return name if actions.USERNAME.fullmatch(name) else ""
 
     @app.get("/api/session")
     def session(request: Request) -> dict:
@@ -84,6 +88,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "accounts": "pending",
             "version": version,
             "actions_enabled": s.actions_enabled,
+            "can_act": not actions.blockers(s, who(request)),
             "campaigns": [c.name for c in s.campaigns],
         }
 
@@ -158,6 +163,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/campaigns/{name}/years/{year}/plan")
     def plan(
+        request: Request,
         name: str,
         year: int,
         start: int,
@@ -178,7 +184,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ):
             raise HTTPException(404, f"no PCF {pcf}")
         skipped = {int(x) for x in skip.split(",") if x.strip().isdigit()}
-        return plans.build(s, c, year, start, end, pcf=pcf, skipped=skipped, rnxgra=rnxgra)
+        out = plans.build(s, c, year, start, end, pcf=pcf, skipped=skipped, rnxgra=rnxgra)
+        why = list(out["start_blocked_because"])
+        mismatch = actions.plan_mismatch(c, pcf, skipped, rnxgra)
+        if mismatch:
+            why.append(mismatch)
+        elif not actions.preflight_done(s, c, year, start, end):
+            why.append("the preflight for these days has not finished ok")
+        why += actions.blockers(s, who(request))
+        return {**out, "start_blocked_because": why, "can_start": not why}
 
     @app.get("/api/plans")
     def saved_plans() -> dict:
@@ -186,14 +200,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/plans")
     async def save(request: Request) -> dict:
-        _same_origin_json(request)
-        raw = await request.body()
-        if len(raw) > MAX_PLAN_BYTES:
-            raise HTTPException(413, f"a plan is at most {MAX_PLAN_BYTES} bytes")
-        try:
-            body = json.loads(raw)
-        except ValueError:
-            raise HTTPException(422, "the body is not JSON") from None
+        body = await _json_body(request)
         clean = _valid_plan(s, body)
         return plans.save_plan(s, clean, who(request) or "not signed in")
 
@@ -232,12 +239,45 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(422, "a station code is four letters or digits")
         return timeseries.for_station(s, station)
 
-    # Stage 3. Each answers 501 until the console is wired to the run worker.
-    for route in ("/api/runs/start", "/api/runs/stop", "/api/preflight", "/api/redo"):
+    # Stage 3: each queues one request for the run worker. The gate runs first,
+    # before the body is read or the campaign looked up, so a refused caller
+    # learns nothing else (actions.py, THE GATE).
+    def off() -> JSONResponse:
+        return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
 
-        @app.post(route)
-        def not_yet() -> JSONResponse:
-            return JSONResponse({"enabled": False, "reason": STAGE3_REASON}, status_code=501)
+    async def gated(request: Request, fn, *args) -> JSONResponse:
+        user = who(request)
+        try:
+            actions.gate(s, user)
+        except actions.ActionsOff:
+            return off()
+        body = await _json_body(request)
+        c = campaign(str(body.get("campaign", "")))
+        return JSONResponse(fn(s, c, user, *args, body), status_code=202)
+
+    @app.post("/api/runs/start")
+    async def run_start(request: Request) -> JSONResponse:
+        return await gated(request, actions.start, "start")
+
+    @app.post("/api/preflight")
+    async def preflight(request: Request) -> JSONResponse:
+        return await gated(request, actions.start, "preflight")
+
+    @app.post("/api/redo")
+    async def redo(request: Request) -> JSONResponse:
+        return await gated(request, actions.redo)
+
+    @app.post("/api/runs/stop")
+    async def run_stop(request: Request) -> JSONResponse:
+        return await gated(request, actions.stop)
+
+    @app.get("/api/worker")
+    def worker(request: Request) -> dict:
+        return {
+            **actions.worker_status(s),
+            "actions_enabled": s.actions_enabled,
+            "blocked_because": actions.blockers(s, who(request)),
+        }
 
     if s.static_dir is not None:
         index = s.static_dir / "index.html"
@@ -348,3 +388,24 @@ def start() -> None:
 
 if __name__ == "__main__":
     start()
+
+
+async def _json_body(request: Request) -> dict:
+    """A same-origin JSON object of at most MAX_PLAN_BYTES, read as it streams.
+
+    Reading the stream with a cutoff caps a chunked upload that declares no
+    Content-Length; request.body() would buffer the whole of it first.
+    """
+    _same_origin_json(request)
+    raw = bytearray()
+    async for chunk in request.stream():
+        raw += chunk
+        if len(raw) > MAX_PLAN_BYTES:
+            raise HTTPException(413, f"a request body is at most {MAX_PLAN_BYTES} bytes")
+    try:
+        body = json.loads(bytes(raw))
+    except ValueError:
+        raise HTTPException(422, "the body is not JSON") from None
+    if not isinstance(body, dict):
+        raise HTTPException(422, "the body must be a JSON object")
+    return body

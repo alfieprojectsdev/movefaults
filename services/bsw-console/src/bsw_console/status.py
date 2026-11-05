@@ -341,6 +341,24 @@ def day_states(s: Settings, c: Campaign, year: int) -> dict:
 # --------------------------------------------------------------------------- lock
 
 
+def flock_held(path: Path, proc_locks: Path = Path("/proc/locks")) -> bool:
+    """Whether any process holds an flock on ``path``, read from /proc/locks.
+
+    Testing by taking the lock would, for that instant, make its real owner
+    find it held and refuse to start. False when the file does not exist.
+    """
+    try:
+        st = path.stat()
+        want = f"{os.major(st.st_dev):02x}:{os.minor(st.st_dev):02x}:{st.st_ino}"
+        for line in proc_locks.read_text().splitlines():
+            f = line.split()
+            if "FLOCK" in f and "->" not in f and want in f:
+                return True
+    except OSError:
+        pass
+    return False
+
+
 def lock_status(s: Settings, proc_locks: Path = Path("/proc/locks")) -> dict:
     """Who holds the BPE lock, read without taking it.
 
@@ -349,17 +367,7 @@ def lock_status(s: Settings, proc_locks: Path = Path("/proc/locks")) -> dict:
     way, for the same reason).
     """
     path = s.lock_path or default_lock_path()
-    held = False
-    try:
-        st = path.stat()
-        want = f"{os.major(st.st_dev):02x}:{os.minor(st.st_dev):02x}:{st.st_ino}"
-        for line in proc_locks.read_text().splitlines():
-            f = line.split()
-            if "FLOCK" in f and "->" not in f and want in f:
-                held = True
-                break
-    except OSError:
-        pass
+    held = flock_held(path, proc_locks)
     holder = BPELock.describe_holder(path) if path.exists() else ""
     return {
         "held": held,

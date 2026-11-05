@@ -149,8 +149,8 @@ $P  CAMPAIGN54/<CAMPAIGN>  ◄── scripts/derive_luzon_pcf.py  (generates the
     │  bernese-run-year --plan|--run plan, BPE lock, ledger, circuit breaker,
     │                                banking (services/bernese-workflow)
     │  bernese-worker                the same run, for queued requests
-    │                                (`submit`; the BSW console's run buttons
-    │                                still answer 501, not yet wired to it)
+    │                                (`submit`, or the BSW console's run
+    │                                buttons, which are off until accounts exist)
     │     run_year → LinuxBPEBackend.run_sessions
     │       → perl $U/SCRIPT/sessions_pcs.pl → startBPE.pm → BSW BPE
     ▼

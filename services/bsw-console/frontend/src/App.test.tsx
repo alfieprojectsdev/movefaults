@@ -52,5 +52,27 @@ it('names the failed PID and the known remedy', async () => {
 it('keeps Start disabled and says why', async () => {
   await at('#/c/LUZON/2025/plan?from=35&to=40')
   expect((screen.getByRole('button', { name: 'Start' }) as HTMLButtonElement).disabled).toBe(true)
-  expect(screen.getByText(/Start is off/).textContent).toMatch(/not enabled yet/)
+  expect(screen.getByText(/Start is off/).textContent).toMatch(/switched off until personal accounts exist/)
+})
+
+describe('stage 3 buttons', () => {
+  function answer(status: number, body: unknown) {
+    const get = (globalThis.fetch as unknown as (u: string) => Promise<Response>)
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) =>
+      init?.method === 'POST' ? new Response(JSON.stringify(body), { status }) : get(url)))
+  }
+
+  it('says what was queued, and by whom, when the worker accepts', async () => {
+    answer(202, { queued: '20261105T021500.000000Z-0a1b2c3d', kind: 'preflight', by: 'abc' })
+    await at('#/c/LUZON/2025/plan?from=35&to=40')
+    await act(async () => { screen.getByRole('button', { name: 'Queue preflight' }).click() })
+    expect(screen.getByRole('status').textContent).toMatch(/Preflight queued as 20261105T021500\.000000Z-0a1b2c3d by abc/)
+  })
+
+  it('shows the gate\'s reason when nothing was queued', async () => {
+    answer(503, { detail: 'No run worker is running on gps3, so nothing was queued.' })
+    await at('#/c/LUZON/2025/plan?from=35&to=40')
+    await act(async () => { screen.getByRole('button', { name: 'Queue preflight' }).click() })
+    expect(screen.getByRole('status').textContent).toMatch(/No run worker is running on gps3/)
+  })
 })

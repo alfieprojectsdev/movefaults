@@ -369,9 +369,9 @@ def test_a_report_removed_after_reading_does_not_raise(bsw, monkeypatch) -> None
     assert r.json()["available"] is True
 
 
-def test_stage3_says_the_run_worker_exists_but_is_not_wired(client) -> None:
-    """The run worker exists (bernese-worker, #316); the console is not wired to
-    it, so stage 3 still answers 501. The body keeps its shape; only the text says so."""
+def test_stage3_is_off_by_default_and_says_why(client) -> None:
+    """Actions default to off: every stage-3 route answers 501 with the reason and
+    queues nothing. The body keeps the shape it had before the worker was wired."""
     for route in ("/api/runs/start", "/api/runs/stop", "/api/preflight", "/api/redo"):
         r = client.post(route, json={})
         body = r.json()
@@ -379,7 +379,7 @@ def test_stage3_says_the_run_worker_exists_but_is_not_wired(client) -> None:
         assert set(body) == {"enabled", "reason"}
         assert body["enabled"] is False
         assert "bernese-worker" in body["reason"]
-        assert "not connected" in body["reason"]
+        assert "switched off" in body["reason"]
 
 
 # --- run provenance on the Day page (ledger run_start, #318) ---------------------------
