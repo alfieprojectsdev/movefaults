@@ -3,11 +3,18 @@
 A Python orchestrator for the Bernese GNSS Software 5.4 Processing Engine (BPE).
 It invokes BSW for real, through the Perl `startBPE.pm` API.
 
-**It is not the production path yet.** Every production solution to date (LUZON
-2025, 358 days; PHREF 2025, 360 days) came from the shell and Perl drivers in the
-repo-root `scripts/`. Moving production onto this service is the standing
-direction; no production day has run through it (`docs/SETTLED.md` §2 and §6).
-Status as of 2026-10-14: about 60%, 12 modules, 250 tests.
+**Production's BPE step runs through this service since 2026-11-04**, via
+`bernese-run-year`. The first production run was LUZON January 2026 (run
+`7ca9ccb9`, 31/31 days ok in 53 min); PHREF 2025 was then reprocessed through
+it (runs `3341af5c` and `0def7ca1`, all 360 planned days solved); its
+coordinates differ from the solutions it superseded on every day (median
+0.02 mm, maximum 40.5 mm), for a cause not yet attributed. Before 2026-11-04 every
+production solution (LUZON 2025, 358 days; PHREF 2025, 360 days) came from the
+shell and Perl drivers in the repo-root `scripts/`, which still do everything
+around the BPE: staging, product fetch, BLQ merge, QC and comparison
+(`docs/SETTLED.md` §2). The service still drives BSW through a Perl driver,
+`sessions_pcs.pl`, and `startBPE.pm`. Status as of 2026-10-14: about 60%,
+12 modules, 250 tests.
 
 ## What is here
 
@@ -83,17 +90,21 @@ the roadmap (deliverable 1.3) listed are built:
    busiest day, that day as the preflight (`run_plan.py`, #299);
 5. parallel sessions, `REPR_MODE` and `MAXSESS` (`run_year.py`, #302).
 
-**The parity run is done** (gps3, 2026-10-27): PHREF 2025 DOY 091–120 through
-`bernese-run-year`, 30/30 days; the three days re-run through the `scripts/`
-path on the same inputs are identical (`docs/SETTLED.md` §2). The `scripts/`
-drivers take the same machine-wide BPE lock (`scripts/bpe_lock.sh`, #308), so a
-service run and a shell run cannot share a machine, and `local_ci.py`'s
-`bpe_running()` reads it from `/proc/locks`. What is left is the cutover itself:
-production ranges move from `scripts/` to `bernese-run-year`.
+**The parity run is done** (gps3, 2026-10-27, #307): PHREF 2025 DOY 091–120
+through `bernese-run-year`, 30/30 days ok in 1h15m, into a separate result tree
+(PHRPAR). It was not identical to the August production run, and the cause is
+not yet attributed. The control is what shows the service reproduces
+`scripts/`: the `scripts/` driver re-ran DOY 094, 096 and 098 with the same
+configuration, and its SNX and CRD files were identical to the service's, 3 of
+3 (`docs/SETTLED.md` §2). The `scripts/` drivers take the same machine-wide BPE
+lock (`scripts/bpe_lock.sh`, #308), so a service run and a shell run cannot
+share a machine, and `local_ci.py`'s `bpe_running()` reads it from
+`/proc/locks`. **The cutover is done too:** production ranges moved from
+`scripts/` to `bernese-run-year` on 2026-11-04.
 
 ## Related documents
 
 - `docs/bernese_orchestration_explainer.md`: for processing staff
 - `docs/project_documentation/bpe_orchestration_design.md`: the decision layer
 - `docs/project_documentation/bernese_orchestrator_r740_readiness.md`: the RH-00x gaps
-- `docs/bernese54_luzon_reprocessing_runbook.md`: how production runs today
+- `docs/bernese54_luzon_reprocessing_runbook.md`: how LUZON was reprocessed through the `scripts/` drivers, before the 2026-11-04 cutover

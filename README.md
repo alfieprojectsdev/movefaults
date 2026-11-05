@@ -19,7 +19,7 @@ movefaults_clean/
 ├── tools/
 │   ├── drive-archaeologist/     # CLI for excavating legacy GNSS data
 │   └── velocity-reviewer/       # Web UI for interactive time series outlier review
-├── scripts/                     # The production path today: staging, PCF derivation, BPE drivers, QC
+├── scripts/                     # Around the BPE in production: staging, PCF derivation, fetch, BLQ merge, QC
 ├── analysis/                    # Legacy research scripts (being ported) + epb_discriminator research
 ├── config/bernese/              # Captured Bernese panels and PCFs, ocean-loading requests
 └── docs/                        # Roadmap, runbooks, decision records; start with docs/SETTLED.md
@@ -27,12 +27,17 @@ movefaults_clean/
 
 ### What actually runs in production
 
-Bernese processing in production runs through **`scripts/`** (shell and Perl
-drivers around BSW 5.4 on the gps3 server), not through `services/bernese-workflow`.
-The service invokes BSW for real and is tested, but no production month has
-run through it yet; moving production onto it is the current direction. Nothing
-writes solutions into the database yet, and the ingestion pipeline is not in
-the production loop. `CLAUDE.md` ("How components connect") has the detail.
+Since 2026-11-04 the BPE step of production Bernese processing runs through
+**`services/bernese-workflow`** (`bernese-run-year`, on BSW 5.4 on the gps3
+server), which still drives BSW through a Perl driver and `startBPE.pm`. The
+first production run was LUZON January 2026 (31/31 days); PHREF 2025 has been
+reprocessed through it (all 360 planned days solved); its coordinates differ
+from the solutions it superseded on every day (median 0.02 mm, maximum
+40.5 mm), for a cause not yet attributed. Everything around the
+BPE, from staging and product fetch to QC and run comparison, is still
+**`scripts/`**. Nothing writes solutions into the database yet, and the
+ingestion pipeline is not in the production loop. `CLAUDE.md` ("How
+components connect") has the detail.
 
 ## 🛠️ Technical Implementation Details
 
@@ -73,7 +78,7 @@ the production loop. `CLAUDE.md` ("How components connect") has the detail.
 - **Orchestration:** Python wrapper for the **Bernese Processing Engine (BPE)**.
 - **Templating:** Uses **Jinja2** to dynamically generate `.INP` (Input) and `.PCF` (Process Control) files based on PHIVOLCS-specific processing strategies.
 - **Automation:** Interfaces with `startBPE.pm` for non-interactive execution of multi-step processing campaigns; `month_driver.run_days` runs a range of days with day-level resume.
-- **Status:** about 60%. Not yet the path production runs take (see above).
+- **Status:** about 60%. Runs production's BPE step since 2026-11-04 (see above).
 
 ### 🔍 Velocity Reviewer (`tools/velocity-reviewer`)
 - **Stack:** FastAPI, Uvicorn, Plotly.
@@ -125,7 +130,7 @@ The project is currently in a phased implementation:
 
 *   **Tier 1 (Foundational):** Geodetic Database ✅ (nothing writes solutions into it yet); Documentation Portal ⏳ (not started).
 *   **Tier 2 (Ingestion):** Field Ops ✅ (deployed); RINEX QC ✅ in practice (teqc first, gfzrnx fallback); IGS Downloader 🔄; Ingestion Pipeline 🔄 (about 30%); drive-archaeologist 🔄 (about 60%).
-*   **Tier 3 (Processing):** Bernese Workflow 🔄 (the service is built and tested; production still runs through `scripts/`).
+*   **Tier 3 (Processing):** Bernese Workflow 🔄 (runs production's BPE step since 2026-11-04; the reprocessed PHREF 2025 year differs from the solutions it superseded by a median 0.02 mm a day, maximum 40.5 mm, for a cause not yet attributed).
 *   **Tier 4 (Analysis):** Post-Processing Suite 🔄 (velocities verified against PHIVOLCS' MATLAB output; bootstrapping not ported); Public Data Portal and auto-docs ⏳ (not started).
 
 For a detailed breakdown, see [roadmap.md](./docs/project_documentation/roadmap.md).

@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # run_phref_year.sh — process a full PHREF year in parallel, in blocks (adapted from run_luzon_year.sh).
 #
+# NOT THE PRODUCTION PATH (since 2026-11-04)
+# Production year and month runs go through `bernese-run-year`
+# (services/bernese-workflow/src/bernese_workflow/run_year.py), which runs the
+# same parallel blocks through config/bernese/gpsuser/SCRIPT/sessions_pcs.pl
+# and adds the plan, the BPE lock, the ledger and the circuit breaker. This
+# script is kept for comparison runs against the service on the same inputs.
+# Its behaviour is unchanged.
+#
 # WHY BLOCKS RATHER THAN ONE CALL
 # BSW's multi-session mode takes a first session and a count, and runs that
 # many CONSECUTIVE sessions. It has no notion of "skip this day". Days that

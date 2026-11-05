@@ -91,9 +91,11 @@ tools/
   drive-archaeologist/         # CLI for excavating legacy GNSS data from old drives
   velocity-reviewer/           # Web replacement for the Windows-only velocity outlier GUI
 
-scripts/                       # THE PRODUCTION PATH TODAY — campaign staging, PCF
-                               # derivation, BPE drivers, product fetch, QC, the
-                               # file-server transfer. See "How components connect".
+scripts/                       # Everything around the BPE in production: campaign
+                               # staging, PCF derivation, product fetch, BLQ merge,
+                               # QC and comparison, the file-server transfer. Its
+                               # run_*.sh BPE drivers are no longer the production
+                               # path (since 2026-11-04). See "How components connect".
   sudo/                        #   privileged scripts, handed over by absolute path
                                #   (Claude Code has no tty; never pasted between shells)
 
@@ -122,14 +124,16 @@ today. They are not the same, and conflating them has cost real time.**
 6. **vadase-rt-monitor** independently ingests real-time NMEA from CORS
    stations for rapid earthquake detection — **not** part of the chain above
 
-#### What actually runs today (as of 2026-10-14)
+#### What actually runs today (as of 2026-11-05)
 
-The production path is **`scripts/` + Bernese**, not the service chain. Steps 2
-and 3 above are aspirational: nothing currently writes solutions into
+**Production Bernese runs go through `services/bernese-workflow`** since
+2026-11-04: the BPE step is the service's CLI, not a `scripts/` wrapper. The
+rest of the path, before and after the BPE, is still `scripts/`. Steps 2 and 3
+of the designed flow are still aspirational: nothing writes solutions into
 TimescaleDB, and the ingestion pipeline is not in the loop.
 
 ```
-\\192.168.48.99 (Windows file server, the system of record)
+Windows file server (the system of record)
     │  scripts/transfer_phivolcs_datapool.py   (SMB, sha256 at copy time)
     ▼
 $D  DATAPOOL ──── scripts/fetch_igs_products.sh   (CODE products; AIUB FTP is
@@ -140,9 +144,17 @@ $D  DATAPOOL ──── scripts/fetch_igs_products.sh   (CODE products; AIUB F
     ▼
 $P  CAMPAIGN54/<CAMPAIGN>  ◄── scripts/derive_luzon_pcf.py  (generates the PCF
     │                          from 5.4 stock; refuses dangling WAITs)
-    │  scripts/run_luzon_month.sh  →  perl $U/SCRIPT/*_pcs.pl  →  BSW BPE
+    │  bernese-check-stations        STA/CRD/BLQ/ATL/ABB read the way Bernese
+    │                                reads them; read-only
+    │  bernese-run-year --plan|--run plan, BPE lock, ledger, circuit breaker,
+    │                                banking (services/bernese-workflow)
+    │  bernese-worker                the same run, for queued requests
+    │                                (`submit`; the BSW console's run buttons
+    │                                still answer 501, not yet wired to it)
+    │     run_year → LinuxBPEBackend.run_sessions
+    │       → perl $U/SCRIPT/sessions_pcs.pl → startBPE.pm → BSW BPE
     ▼
-$S  SAVEDISK/<CAMPAIGN>/<year>/SOL/FIN_*.SNX|NQ0
+$S  SAVEDISK/<CAMPAIGN>/<year>/SOL/FIN_*.SNX|NQ0   (ledger.jsonl beside SOL/ by default)
     │  scripts/coord_repeatability.py      (precision QC)
     │  scripts/network_coherence_scan.py   (multi-station coherent motion)
     │  scripts/compare_solutions.sh        (bit-for-bit run comparison)
@@ -153,26 +165,54 @@ pogf_geodetic_suite.timeseries
                      PHIVOLCS' MATLAB output)
 ```
 
-`services/bernese-workflow` **does** now invoke BSW for real —
-`backends.py` calls `startBPE.pm` over Perl — but the month-long production
-runs to date have gone through `scripts/`. Moving that logic into the service
-is the standing direction, not a completed migration.
+**Still Perl underneath.** The service does not drive BSW's server itself.
+`bernese-run-year` and `bernese-worker` both go through `run_year.run_year`
+to `LinuxBPEBackend.run_sessions`, which runs `perl $U/SCRIPT/sessions_pcs.pl`
+(the repo copy is `config/bernese/gpsuser/SCRIPT/sessions_pcs.pl`, derived
+from gps3's `phref_year.pl`/`luzon_year.pl` with campaign, PCF and prefix as
+arguments), and that calls BSW through `startBPE.pm`. The single-session path,
+`LinuxBPEBackend.run` (used by `month_driver.run_days`), defaults to stock
+`rnx2snx_pcs.pl`. What moved is everything around the Perl: planning, the
+lock, the ledger, the breaker and banking.
 
-Since #268 and #271 the service has the two pieces of a multi-day run that only
-`scripts/` used to have: `month_driver.run_days` resumes at day level (a day is
-skipped when its `FIN_*.NQ0` is intact **and** carries a `.done` marker the
-driver wrote; failures stop the run through the circuit breaker, see
-`bpe_orchestration_design.md`), and a BPE timeout now
-kills the driver's whole process group instead of only the Perl child. Neither
-has run a production day. Parallel sessions (`REPR_MODE`, `MAXSESS`) are in
-the service since step F: `run_year.py` (`bernese-run-year`) runs blocks of
-consecutive days, each session in its own campaign, on run_days' banking and
-breaker rules, under a machine-wide BPE lock (`bpe_lock.py`). It has run
-EXAMPLE end to end (finch, 2026-10-27, 0.0000 mm against the reference), and
-**the PHREF parity run** (gps3, 2026-10-27): 30/30 days of PHREF 2025, DOY
-091–120, six sessions at a time; the three days re-run through the `scripts/`
-path on the same inputs (094, 096, 098) are identical (`docs/SETTLED.md` §2). Production ranges still go through
-`scripts/` until the cutover.
+**`scripts/` still in the path:** the file-server transfer, product fetch,
+BLQ merge, campaign staging, PCF derivation, and the QC and comparison scripts
+after the run. **No longer the production path:** `scripts/run_luzon_year.sh`,
+`scripts/run_phref_year.sh` (kept for comparison runs) and
+`scripts/run_luzon_month.sh`.
+
+**How the move was established:**
+
+- **Parity, 2026-10-27** (merged in #307): `bernese-run-year` ran PHREF 2025
+  DOY 091–120, 30/30 days ok in 1h15m, into a separate result tree (PHRPAR).
+  It was not identical to the August production run, and **the cause is not
+  yet attributed**. The cutover does not rest on that comparison.
+- **Control, the same day:** the `scripts/` driver ran DOY 094, 096 and 098
+  with the same configuration as the service, and its SNX and CRD files were
+  identical to the service's, 3 of 3. **That is the evidence that the
+  service reproduces `scripts/`.**
+- **First production run, 2026-11-04:** LUZON January 2026 through
+  `bernese-run-year`, run `7ca9ccb9`, 31/31 days ok in 53 min, 23–25 stations
+  a day.
+- **PHREF 2025 reprocessed, 2026-11-04 to 05:** runs `3341af5c` and
+  `0def7ca1`; all 360 planned days solved. Compared with the solutions they
+  superseded on 2026-11-05: the coordinates differ on every day (median of
+  each day's largest station difference 0.02 mm, maximum 40.5 mm), and **the
+  cause is not yet attributed** (`docs/SETTLED.md` §6).
+
+The run IDs are the ledger's `run` field. By default the ledger is
+`ledger.jsonl` beside the year's `SOL/`; `$BPE_LEDGER_DIR` moves it.
+
+Since #268 and #271 the service has resume at day level (a day is skipped
+when its `FIN_*.NQ0` is intact **and** carries a `.done` marker the driver
+wrote; failures stop the run through the circuit breaker, see
+`bpe_orchestration_design.md`), and a BPE timeout kills the driver's whole
+process group instead of only the Perl child. `run_year.py` runs blocks of
+consecutive days in parallel (`REPR_MODE`, `MAXSESS`), each session in its
+own campaign, under a machine-wide BPE lock (`bpe_lock.py`). It has also run
+EXAMPLE end to end (finch, 2026-10-27, 0.0000 mm against the reference).
+`month_driver.run_days`, the one-session-at-a-time driver, is not what the
+production runs above used.
 
 #### Corrections to earlier versions of this section
 
@@ -372,7 +412,7 @@ of a value nobody diffs is how every other stale claim in this file started.
 | Coordinate transforms | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/modeling/coordinates.py` |
 | BPE invocation (real) | `services/bernese-workflow/src/bernese_workflow/backends.py` |
 | PCF derivation | `scripts/derive_luzon_pcf.py` |
-| Month-long BPE driver | `scripts/run_luzon_month.sh` |
+| Multi-day BPE run (production, since 2026-11-04) | `bernese-run-year` → `services/bernese-workflow/src/bernese_workflow/run_year.py`. The earlier `scripts/run_luzon_month.sh` and `scripts/run_*_year.sh` are no longer the production path |
 | Day-level resume driver (service side) | `services/bernese-workflow/src/bernese_workflow/month_driver.py` |
 | Parallel multi-day driver (service side, step F) | `services/bernese-workflow/src/bernese_workflow/run_year.py` → `config/bernese/gpsuser/SCRIPT/sessions_pcs.pl` |
 | Machine-wide BPE lock | `services/bernese-workflow/src/bernese_workflow/bpe_lock.py` (`$BPE_LOCK`) |

@@ -1,9 +1,13 @@
 # scripts/
 
-**This directory is the production path today.** Every production Bernese
-solution so far was staged, run and checked by scripts here, not by
-`services/bernese-workflow`. `CLAUDE.md` ("How components connect") shows how
-they chain.
+**This directory is everything around the BPE in production.** Since
+2026-11-04 the BPE step itself runs through `services/bernese-workflow`
+(`bernese-run-year`; first production run LUZON January 2026). Staging, PCF
+derivation, product fetch, BLQ merge, and the QC and comparison scripts after
+the run are still here, and are still the production path. The `run_*` BPE
+drivers below are not: they are kept for comparison runs. Every production
+Bernese solution before 2026-11-04 was run by them. `CLAUDE.md` ("How
+components connect") shows how the pieces chain.
 
 Each script explains itself in its header (a docstring or the leading comment
 block). This index is one line per script, grouped by job. It was generated from
@@ -14,7 +18,7 @@ Three scripts have tests in `tests/` (`local_ci.py`, `match_rinex_to_site.py`,
 Privileged scripts live in `sudo/` and are handed over by absolute path, never
 pasted between shells (Claude Code has no tty).
 
-## Bernese production runs
+## Preparing and running Bernese
 
 | script | what it does |
 |---|---|
@@ -27,9 +31,9 @@ pasted between shells (Claude Code has no tty).
 | `merge_blq.py` | merge ocean-loading blocks into a BLQ file, above `$$ END TABLE` |
 | `fetch_igs_products.sh` | download IGS long-name final products for a day range (SWITCH S3 mirror; AIUB FTP is firewalled) |
 | `fetch_fiducial_obs.sh` | download RINEX 3 daily observations for the fiducial stations |
-| `run_luzon_month.sh` | one month through `LUZON_DLY`, skipping days whose `FIN` exists |
-| `run_luzon_year.sh` | a full year in parallel blocks |
-| `run_phref_year.sh` | the same for PHREF |
+| `run_luzon_month.sh` | one month through `LUZON_DLY`, skipping days whose `FIN` exists. **Not the production path since 2026-11-04** (`bernese-run-year` is) |
+| `run_luzon_year.sh` | a full year in parallel blocks. **Kept for comparison runs; not the production path since 2026-11-04** (`bernese-run-year` is) |
+| `run_phref_year.sh` | the same for PHREF. **Kept for comparison runs; not the production path since 2026-11-04** (`bernese-run-year` is). |
 | `run_pagenet_week.sh` | the PAGENET 7-day weekly run, unattended |
 | `pagenet_pcs.pl` | parameterised copy of the stock `rnx2snx_pcs.pl` driver |
 | `stack_phref_weekly.sh` | stack PHREF dailies into GPS-weekly solutions with ADDNEQ2 |
