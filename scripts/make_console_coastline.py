@@ -83,7 +83,7 @@ def thin(ring_: list[tuple[float, float]], digits: int) -> list[list[float]]:
 def main() -> int:
     coarse, fine = Path(sys.argv[1]), Path(sys.argv[2])
     # A ring that spans the area, Eurasia say, stays at 50m detail: only what lies
-    # wholly in the Philippine box is swapped for the finer outline.
+    # centred in the Philippine box is swapped for the finer outline.
     far = [r for r in rings(coarse) if inside(r, WIDE) and not centred_in(r, PHILIPPINES)]
     near = [r for r in rings(fine) if centred_in(r, PHILIPPINES) and len(r) >= 4]
     lines = [thin(r, 1) for r in far] + [thin(r, 3) for r in near]

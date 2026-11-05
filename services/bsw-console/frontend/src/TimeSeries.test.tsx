@@ -555,6 +555,32 @@ describe('the station map', () => {
     expect(screen.getByRole('button', { name: 'Station' }).getAttribute('aria-pressed')).toBe('true')
   })
 
+  it('a reference chosen in the dropdown leaves the next click for a station', async () => {
+    const sum = responses[BASE] as object
+    serve({ [BASE]: { ...sum, reference: null, stations: [], distances: {} } })
+    await page()
+    expect(screen.getByRole('button', { name: 'Reference' }).getAttribute('aria-pressed')).toBe('true')
+    serve()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Reference station' }), { target: { value: 'REF0' } })
+    await settle()
+    expect(screen.getByRole('button', { name: 'Station' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('the reference just picked cannot become the station while its summary loads', async () => {
+    serve()
+    await page()
+    let answer = (_: Response) => {}
+    const get = globalThis.fetch as unknown as (u: string) => Promise<Response>
+    vi.stubGlobal('fetch', vi.fn((u: string) => (u.endsWith('?reference=SYN1')
+      ? new Promise<Response>((res) => { answer = res })
+      : get(u))))
+    fireEvent.click(screen.getByRole('button', { name: 'Reference' }))
+    await act(async () => { mark(/^SYN1/).handlers.click() })
+    await act(async () => { mark(/^SYN1/).handlers.click() })
+    expect(screen.queryByText(/SYN1's time series/)).toBeNull()
+    await act(async () => { answer(new Response('{}', { status: 500 })) })
+  })
+
   it('a click on the reference itself does not make it the station', async () => {
     serve()
     await page()

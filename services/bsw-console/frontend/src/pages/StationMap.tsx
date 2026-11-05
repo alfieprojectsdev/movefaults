@@ -27,8 +27,13 @@ export default function StationMap({ positions, distances, reference, station, w
   const click = useRef<(code: string) => void>(() => {})
   click.current = (code) => {
     if (mode === 'reference') { onReference(code); setMode('station') }
-    else if (code !== reference) onStation(code)
+    else onStation(code)
   }
+  // However the reference was chosen, the dropdown included, the next click is for a
+  // station: gps3 has no default, so this is how the page opens.
+  useEffect(() => setMode(reference ? 'station' : 'reference'), [reference])
+  const opened = useRef(false)
+  const [noLand, setNoLand] = useState(false)
 
   const bounds = (codes: string[]) => L.latLngBounds(codes.map((c) => [positions[c].lat, positions[c].lon] as [number, number]))
   const fit = (codes: string[]) => { if (codes.length) map.current?.fitBounds(bounds(codes), { padding: [24, 24], maxZoom: 9 }) }
@@ -46,12 +51,12 @@ export default function StationMap({ positions, distances, reference, station, w
         // Leaflet's line simplifying wiped out whole coasts at this zoom; the file is small.
         style: { color: ink, weight: 1, fill: false, smoothFactor: 0 } as L.PolylineOptions, interactive: false,
       }).addTo(m).bringToBack()
-    })
-    return () => { gone = true; m.remove(); map.current = null; marks.current = null }
+    }).catch(() => { if (!gone) setNoLand(true) })
+    // opened too: StrictMode's second mount is a new map that has not been fitted.
+    return () => { gone = true; m.remove(); map.current = null; marks.current = null; opened.current = false }
   }, [])
 
   // Open on the network once it is known; later choices leave the view alone.
-  const opened = useRef(false)
   useEffect(() => {
     if (opened.current || Object.keys(positions).length === 0) return
     opened.current = true
@@ -108,6 +113,7 @@ export default function StationMap({ positions, distances, reference, station, w
       <div ref={host} data-testid="station-map" style={{ height: 340, background: 'var(--panel)', borderRadius: 4 }} />
       <p className="muted" style={{ fontSize: 12, margin: 0 }}>
         Orange stations are over {warnDeg}° from the reference, outside the dashed ring: East, North and Up are the reference's axes, so that far away they are tilted.
+        {noLand && <strong> The coastline did not load: reload the page.</strong>}
       </p>
     </section>
   )

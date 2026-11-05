@@ -284,11 +284,13 @@ def crd_station_xyz(
     *,
     session_extractor: Callable[[str], str | None] | None = None,
 ) -> dict[str, tuple[float, float, float]]:
-    """Each estimated station's ECEF position, from the newest file that holds it
-    in the order read. For where a station is on a map, not for a time series."""
+    """Each estimated station's ECEF position, from the newest day that holds it.
+    For where a station is on a map, not for a time series. Raises ValueError if no
+    usable CRD file is found."""
     out: dict[str, tuple[float, float, float]] = {}
     extractor = session_extractor or _extract_session_from_filename
-    for _, stations in _dated_crd_epochs(crd_dir, extractor):
+    # By date, not as read: files sort by name, and a directory can mix prefixes.
+    for _, stations in sorted(_dated_crd_epochs(crd_dir, extractor), key=lambda e: e[0]):
         for code, x, y, z in stations:
             out[code] = (x, y, z)
     return out

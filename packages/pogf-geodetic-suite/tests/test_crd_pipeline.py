@@ -487,3 +487,11 @@ def test_a_stations_position_is_from_the_newest_file_that_holds_it(tmp_path):
     assert set(xyz) == {"BOST", "PBIS"}
     assert xyz["BOST"][0] == pytest.approx(BOST_X + 0.0005 * 31, abs=1e-4)
 
+
+def test_a_stations_position_goes_by_date_not_by_file_name(tmp_path):
+    from pogf_geodetic_suite.timeseries.crd_pipeline import crd_station_xyz
+
+    row = {"name": "BOST", "y": BOST_Y, "z": BOST_Z}
+    _write_crd(tmp_path / "AB_23002.CRD", [{**row, "x": BOST_X + 2}])  # newer, and sorts first
+    _write_crd(tmp_path / "F1_23001.CRD", [{**row, "x": BOST_X + 1}])
+    assert crd_station_xyz(tmp_path)["BOST"][0] == pytest.approx(BOST_X + 2, abs=1e-4)

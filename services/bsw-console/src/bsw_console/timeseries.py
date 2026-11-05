@@ -31,16 +31,14 @@ available=false and the reason.
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
-import pymap3d
 from fastapi import HTTPException
-from pogf_geodetic_suite.timeseries.crd_pipeline import crd_station_codes, crd_station_xyz
-from pogf_geodetic_suite.timeseries.gmt import REFERENCE_WARN_DEG, arc_degrees
+from pogf_geodetic_suite.timeseries.crd_pipeline import crd_station_xyz
 from pogf_geodetic_suite.timeseries.status import (
     OutlierMode,
     session_date_to_decimal_year,
+    station_positions,
     station_status,
 )
 
@@ -65,10 +63,11 @@ def _not_configured(s: Settings) -> dict | None:
     }
 
 
-# Candidates per CRD directory, keyed on what changes when a file is added,
-# removed or rewritten: the directory's mtime and each file's name, size and
-# mtime. A reference pick then reads the CRDs once (the ENU pass), not twice.
-_CANDIDATES: dict[Path, tuple[tuple, list[str]]] = {}
+# Each station's position per CRD directory, which is also the candidate list,
+# keyed on what changes when a file is added, removed or rewritten: the directory's
+# mtime and each file's name, size and mtime. A reference pick then reads the CRDs
+# once (the ENU pass), not twice.
+_XYZ: dict[Path, tuple[tuple, dict[str, tuple[float, float, float]]]] = {}
 
 
 def _fingerprint(crd_dir: Path) -> tuple:
@@ -79,49 +78,39 @@ def _fingerprint(crd_dir: Path) -> tuple:
     )
 
 
-def _stations_in_one(crd_dir: Path) -> list[str]:
+def _xyz_in_one(crd_dir: Path) -> dict[str, tuple[float, float, float]]:
     key = _fingerprint(crd_dir)
-    hit = _CANDIDATES.get(crd_dir)
+    hit = _XYZ.get(crd_dir)
     if hit is not None and hit[0] == key:
         return hit[1]
     try:
-        codes = crd_station_codes(crd_dir)
+        xyz = crd_station_xyz(crd_dir)
     except ValueError:  # a year's folder with no usable file adds nothing
-        codes = []
-    _CANDIDATES[crd_dir] = (key, codes)
-    return codes
+        xyz = {}
+    _XYZ[crd_dir] = (key, xyz)
+    return xyz
+
+
+def _xyz_in(dirs: list[Path]) -> dict[str, tuple[float, float, float]]:
+    """Each station's newest position: `dirs` run oldest first, so later years win."""
+    xyz: dict[str, tuple[float, float, float]] = {}
+    for d in dirs:
+        xyz.update(_xyz_in_one(d))
+    if not xyz:
+        raise ValueError("No usable *.CRD files found in " + ", ".join(map(str, dirs)))
+    return xyz
 
 
 def stations_in(dirs: list[Path]) -> list[str]:
     """The reference candidates: exactly what crd_directory_to_enu accepts. The
     stations to plot are these minus the reference, so nothing else needs the
     coordinates read to list them."""
-    codes = sorted({code for d in dirs for code in _stations_in_one(d)})
-    if not codes:
-        raise ValueError("No usable *.CRD files found in " + ", ".join(map(str, dirs)))
-    return codes
+    return sorted(_xyz_in(dirs))
 
 
 def _reference(s: Settings, requested: str | None) -> str | None:
     """The page's choice, else the configured default, else None."""
     return (requested or s.ts_reference or "").upper() or None
-
-
-def _map(dirs: list[Path], reference: str | None) -> dict:
-    """Where each station is, for the page's map, and how far from the reference by
-    the same measure the station's own warning uses."""
-    xyz = crd_station_xyz(dirs)
-    positions = {}
-    for code, (x, y, z) in xyz.items():
-        lat, lon, _ = pymap3d.ecef2geodetic(x, y, z, deg=True)
-        positions[code] = {"lat": float(lat), "lon": float(lon)}
-    origin = xyz.get(reference) if reference else None
-    distances = (
-        {code: arc_degrees(math.dist(origin, p)) for code, p in xyz.items() if code != reference}
-        if origin
-        else {}
-    )
-    return {"positions": positions, "distances": distances, "reference_warn_deg": REFERENCE_WARN_DEG}
 
 
 def crd_dirs(s: Settings, c: Campaign) -> list[Path]:
@@ -156,14 +145,15 @@ def summary(s: Settings, c: Campaign, reference: str | None = None) -> dict:
     if not dirs:
         return {**base, "available": False, "stations": [], "message": _no_dirs(c)}
     try:
-        candidates = stations_in(dirs)
+        xyz = _xyz_in(dirs)
     except (OSError, ValueError) as exc:
         return {**base, "available": False, "message": str(exc)}
+    candidates = sorted(xyz)
     out = {
         **base,
         "all_stations": candidates,
         "outlier_mode": DEFAULT_MODE,
-        **_map(crd_dirs(s, c), ref),
+        **station_positions(xyz, ref),
     }
     if ref is None:
         return {**out, "available": True, "stations": [],
