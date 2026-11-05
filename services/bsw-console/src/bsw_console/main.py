@@ -31,8 +31,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import equipment, stations, status
 from . import plan as plans
-from . import stations, status
 from .settings import Settings
 
 STAGE3_REASON = (
@@ -201,6 +201,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/campaigns/{name}/years/{year}/station-files")
     def station_files(name: str, year: int) -> dict:
         return stations.coverage(s, campaign(name), year)
+
+    # Read-only: what bernese-check-equipment reported. The browser names a
+    # four-character code; the report file is the server's setting, never a path
+    # from the request.
+    @app.get("/api/equipment-report")
+    def equipment_report() -> dict:
+        return equipment.summary(s)
+
+    @app.get("/api/stations/{code}/equipment")
+    def station_equipment(code: str) -> dict:
+        if not re.fullmatch(r"[A-Za-z0-9]{4}", code):
+            raise HTTPException(422, "a station code is four letters or digits")
+        return equipment.for_station(s, code)
 
     @app.get("/api/campaigns/{name}/time-series/{station}")
     def time_series(name: str, station: str) -> JSONResponse:

@@ -249,3 +249,75 @@ def test_setvar_and_campaign_specs(tmp_path):
     c = parse_campaigns("luzon:LUZON_DLY:lzy:LZFLT_DLY, PHREF")
     assert c[0] == Campaign("LUZON", "LUZON_DLY", "LZY", "LZFLT_DLY")
     assert c[1] == Campaign("PHREF", "PHREF_DLY", "", "")
+
+
+# --- the equipment report panel (read-only) ----------------------------------------------
+
+# conftest.equipment_report writes this into the synthetic export. A literal: under
+# --import-mode=importlib, `import conftest` finds the repo-root conftest.py.
+EXPORTED_AT = "2026-11-05T17:41:00+00:00"
+
+
+def test_equipment_report_summary_names_the_sta_and_the_export_time(client) -> None:
+    r = client.get("/api/equipment-report")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["configured"] is True and body["available"] is True
+    assert body["exported_at"] == EXPORTED_AT
+    assert body["sta"]["path"].endswith("PHNAT.STA")
+    assert body["summary"]["different"] == 1
+
+
+def test_equipment_report_for_one_station_carries_only_that_station(client) -> None:
+    body = client.get("/api/stations/albu/equipment").json()
+    assert body["station"] == "ALBU"
+    assert body["exported_at"] == EXPORTED_AT
+    [cur] = body["current"]
+    assert cur["category"] == "different"
+    assert cur["fields"]["antenna"]["source_igs"] == "LEIAT504GG"
+    [v] = body["visits"]
+    assert v["after_status"] == "no STA row for the change"
+    assert {c["station"] for c in body["current"] + body["visits"]} == {"ALBU"}
+
+
+def test_a_station_the_report_does_not_mention_has_empty_lists(client) -> None:
+    body = client.get("/api/stations/ZZZZ/equipment").json()
+    assert body["available"] is True
+    assert body["current"] == [] and body["visits"] == [] and body["names"] == []
+
+
+def test_without_a_configured_report_the_console_says_so_plainly(bsw) -> None:
+    import dataclasses
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(dataclasses.replace(bsw, equipment_report=None)))
+    for url in ("/api/equipment-report", "/api/stations/ALBU/equipment"):
+        r = c.get(url)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["configured"] is False
+        assert "No equipment report is configured" in body["message"]
+        assert "current" not in body
+
+
+def test_an_unreadable_report_is_reported_not_raised(bsw) -> None:
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    bsw.equipment_report.write_text("{not json")
+    c = TestClient(create_app(bsw))
+    body = c.get("/api/stations/ALBU/equipment").json()
+    assert body["configured"] is True and body["available"] is False
+    assert "could not be read" in body["message"]
+
+
+def test_a_station_code_is_four_letters_or_digits_never_a_path(client) -> None:
+    for code in ("ALBUX", "AL", "..%2F..", "AL-U"):
+        assert client.get(f"/api/stations/{code}/equipment").status_code in (404, 422)
+
+
+def test_the_equipment_endpoints_are_read_only(client) -> None:
+    assert client.post("/api/equipment-report").status_code == 405
+    assert client.post("/api/stations/ALBU/equipment").status_code == 405

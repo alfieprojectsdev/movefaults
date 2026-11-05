@@ -31,6 +31,7 @@ does not exist yet. From an office PC, tunnel to it:
 | `BPE_LOCK` | bernese-workflow's default | the lock file it reads |
 | `BSW_CONSOLE_STATE` | `~/.local/state/bsw-console` | where saved plans go |
 | `BSW_CONSOLE_TRUSTED_PROXIES` | empty | comma-separated addresses of reverse proxies allowed to name the user in `X-Remote-User`. Empty: the header is ignored |
+| `BSW_CONSOLE_EQUIPMENT_REPORT` | unset | the JSON written by `bernese-check-equipment --json`, shown on the Station files page. Unset: the page says there is no equipment report |
 
 For frontend work, `npm run dev` proxies `/api` to the running server.
 
@@ -46,7 +47,7 @@ For frontend work, `npm run dev` proxies `/api` to the running server.
 | Plan | Wired: `run_plan.plan_from_env`, PCF groups with a check of the skips chosen, products per day, MAXPAR. **Save plan** writes one JSON file. **Queue preflight** and **Start** are stubs |
 | Redo | Wired preview: every file that would move, and where. **The move** is a stub |
 | Known errors | Wired: the whole list, with how often each fired in the last 30 days and failures with no entry |
-| Station files (stage 4) | Read-only and wired: station × file coverage of the eight files the PCF names, codes with two names, stations missing from the BLQ (anything after `$$ END TABLE` counts as missing). Add a site, use a CRD as a priori and the BLQ paste check are not built |
+| Station files (stage 4) | Read-only and wired: station × file coverage of the eight files the PCF names, codes with two names, stations missing from the BLQ (anything after `$$ END TABLE` counts as missing). Add a site, use a CRD as a priori and the BLQ paste check are not built. **Equipment panel** (read-only): one station's part of the `bernese-check-equipment` report, with the field-ops export's time; it reads the report file and never the field-ops database |
 | Time series (stage 5) | Stub. The read-only status it waited on exists since #319 (`pogf_geodetic_suite/timeseries/status.py`, `uv run pogf-timeseries status`); the console does not call it yet |
 
 Stubs answer HTTP 501 with the reason, and the page shows it. Stage 3 waits on
