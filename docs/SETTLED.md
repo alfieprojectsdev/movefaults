@@ -114,7 +114,8 @@ from `CLAUDE.md` because both duplicates were removed.
 
 ### Do not quote the "implementation maturity" table as current
 
-`CLAUDE.md`'s table has been re-measured three times (2026-08-18, 2026-09-22,
+The table in `docs/project_documentation/implementation_maturity.md` (moved there
+from `CLAUDE.md`) has been re-measured three times (2026-08-18, 2026-09-22,
 2026-10-14), and **every time some rows had drifted** since the last: in the
 first gap `bernese-workflow` went 198 → 229 and `pogf-geodetic-suite` 124 → 144,
 measured independently on the T420 and the R740 and agreeing exactly; in the

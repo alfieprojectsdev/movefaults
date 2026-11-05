@@ -75,36 +75,12 @@ Before giving me the git commands, ask me **3 to 5 specific questions** about th
 
 ## Monorepo Architecture
 
-```
-packages/                      # Shared libraries
-  pogf-geodetic-suite/         #   Coordinate transforms, RINEX QC, IGS downloader, velocity estimation
-  CORS-dashboard/              #   Legacy React/GraphQL dashboard (forensic reference only)
+`ls` shows the layout. What it doesn't show:
 
-services/                      # Long-running deployable services
-  field-ops/                   #   Field logsheet PWA — FastAPI + React, offline-first.
-                               #   The only component a non-programmer uses directly.
-  vadase-rt-monitor/           #   Real-time NMEA earthquake detection (hexagonal arch, async)
-  ingestion-pipeline/          #   Celery-based RINEX ingestion (early stage, stubs)
-  bernese-workflow/            #   Bernese BPE orchestrator (real BSW invocation; ~60%)
-
-tools/
-  drive-archaeologist/         # CLI for excavating legacy GNSS data from old drives
-  velocity-reviewer/           # Web replacement for the Windows-only velocity outlier GUI
-
-scripts/                       # Everything around the BPE in production: campaign
-                               # staging, PCF derivation, product fetch, BLQ merge,
-                               # QC and comparison, the file-server transfer. Its
-                               # run_*.sh BPE drivers are no longer the production
-                               # path (since 2026-11-04). See "How components connect".
-  sudo/                        #   privileged scripts, handed over by absolute path
-                               #   (Claude Code has no tty; never pasted between shells)
-
-analysis/                      # Numbered research scripts (01-10): RINEX conversion, time series, dislocation models, bootstrapping
-  epb_discriminator/           #   Research: telling plasma-bubble artefacts from ground motion (synthetic data so far; has its own test suite)
-
-config/bernese/                # Captured Bernese panels and PCFs (gpsuser*/), ocean-loading requests (otl/)
-docs/                          # Runbooks, decision records, session logs; docs/SETTLED.md first
-```
+- `services/field-ops/` is the only component a non-programmer uses directly.
+- `packages/CORS-dashboard/` is legacy, kept as a forensic reference only.
+- `scripts/sudo/` holds privileged scripts, handed over by absolute path (Claude
+  Code has no tty; never pasted between shells).
 
 ### How components connect
 
@@ -243,7 +219,7 @@ production runs above used.
   and `models.py`; "four" in earlier versions counted `__pycache__`); anything pointed at it
   (coverage, mypy) is therefore measuring near-nothing. Note that `src/` means
   something different inside vadase-rt-monitor, where it is the service's own
-  package root — see *Import Paths* below.
+  package root — see *Import Paths* in `services/vadase-rt-monitor/CLAUDE.md`.
 - **The file server is the system of record**, not this repo and not gps3.
   `\\192.168.48.99` holds the national campaign (`CAMPAIGN52/PHIVOLCS`, 439
   stations catalogued / ~52 estimated daily) and 476 GiB of observations back
@@ -251,136 +227,33 @@ production runs above used.
 
 ### Implementation maturity
 
-*Measured 2026-11-05 on `b2ff3de`, not estimated. Re-measure when you update
-this: on 2026-08-18 three of five rows had drifted from being carried forward
-by hand, by 2026-09-22 three had drifted again (`pogf-geodetic-suite`'s tests
-had more than doubled, field-ops' frontend had gone from 69 tests to 253),
-by 2026-10-14 two more had (`bernese-workflow` 229 → 250, field-ops 102 + 253 →
-131 + 273), and by 2026-11-05 four more had (`bernese-workflow` 250 → 609,
-`pogf-geodetic-suite` 260 → 292, vadase 51 → 55, ingestion LOC 632 → 634) and
-a seventh component, `bsw-console`, had joined `testpaths` (#315).*
-
-*Size is `modules / LOC / test files`, and the definition is exact so the next
-measurement is comparable: **modules** = every tracked `.py` under the
-component's `src/`, `__init__.py` included; **LOC** = total lines in those
-files; **test files** = tracked `test_*.py` under its `tests/`; **Tests** =
-`uv run pytest <component>/tests --collect-only -q`. Checked against the
-2026-08-18 tree (`33d6f8e`) before use, where it reproduces the old
-figures exactly.*
-
-```bash
-c=services/field-ops   # any component
-git ls-files -- $c/src | grep -c '\.py$'                          # modules
-git ls-files -- $c/src | grep '\.py$' | xargs cat | wc -l          # LOC
-git ls-files -- $c/tests | grep -c 'test_.*\.py$'                  # test files
-uv run pytest $c/tests --collect-only -q | tail -1                # tests
-```
-
-| Component | Size | Tests | Status |
-|---|---|---|---|
-| drive-archaeologist | 25 / 2998 / 15 | 133 | ~60% — Phase 1 scanner works, archive support partial |
-| **bernese-workflow** | 24 / 8610 / 22 | 609 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config, day-level resume driver (`month_driver.py`, #268) and process-group kill on timeout (#271) all implemented. **Production's BPE step runs through it since 2026-11-04** (`bernese-run-year`; see "What actually runs today" above). **BRN-001 done 2026-07-29** — Bernese 5.4 verified on the R740; LUZON reprocessed 30/30 days unattended 2026-08-06 (5m33s/day) *via `scripts/`*, before the service took over production |
-| vadase-rt-monitor | 19 / 1387 / 8 | 55 | ~80% — parser, handler, core logic, leaky integrator, `ReceiverMode` state machine (replaced the old one-way integration latch) |
-| **pogf-geodetic-suite** | 19 / 3948 / 14 | 292 | ~75% — coordinates, IGS downloader, RINEX QC (teqc-first, gfzrnx fallback), and `timeseries/`: CRD→ENU, segmented velocities **verified against PHIVOLCS' production MATLAB output**, joint step+rate estimation, GMT velocity-field output |
-| **field-ops** | 14 / 3420 / 7 | 131 + 273 | ~90% — offline-first logsheet PWA, exercised on a real handset; `/health` refuses a deploy whose database schema is behind (`schema_check.py`, #249, #256). 131 backend tests (5 of them skip without Postgres) plus **273 frontend (vitest)**; with `bsw-console`'s 16 these are the only frontend tests that run — `packages/CORS-dashboard` carries one 2017 React test file that nothing executes. The frontend count is not in `uv run pytest`: see below |
-| ingestion-pipeline | 7 / 634 / 3 | 36 | ~30% — architecture defined, not in the production loop |
-| velocity-reviewer | 6 / 424 / 0 | 0 | Working web tool, **no tests** and not in `testpaths` |
-| bsw-console | 6 / 1719 / 1 | 19 + 16 | Not yet assessed: merged in #315 after the previous measurement. Web console over `bernese-workflow`, stages 1–2 wired and stage 3 stubbed, per the commit that added it (`e53b531`). 19 backend tests plus **16 frontend (vitest)**, which `local_ci.py` runs alongside field-ops'; not in `uv run pytest` |
-
-Two suites are not components and are not in the table: `scripts/tests` (110)
-and `analysis/epb_discriminator/tests` (33).
-
-**The maturity that matters is not module count.** `bernese-workflow` was
-listed at ~10% for months while carrying 198 tests, and the genuinely
-incomplete part was different from what that number implied: the code existed
-and was tested, but the month-long runs went through `scripts/`. That changed
-on 2026-11-04, when production's BPE step moved to the service (see "What
-actually runs today"). Treat "does production use it?" as the real axis.
+Measured sizes, test counts and status per component are in
+[`docs/project_documentation/implementation_maturity.md`](docs/project_documentation/implementation_maturity.md).
+**Treat "does production use it?" as the real axis, not module count:**
+`bernese-workflow` was listed at ~10% for months while carrying 198 tests.
 
 ---
 
 ## Build & Test Commands
 
-```bash
-# Install all dependencies (from repo root)
-uv sync
-uv sync --all-extras                          # everything (dev + all services)
-uv sync --extra dev                           # dev tools only
-uv sync --extra drive-archaeologist           # drive-arch deps
-uv sync --extra vadase-rt-monitor             # vadase deps
+`uv sync --all-extras`, `uv run pytest`, `ruff check .` and `ruff format .`. Extras,
+CLI entry points and ruff settings are in `pyproject.toml`. What isn't obvious:
 
-# Run all tests -- all nine suites (seven components, scripts/tests and
-# analysis/epb_discriminator/tests): 1418 tests on b2ff3de, 2026-11-05,
-# measured OFF gps3: 1410 passed / 8 skipped. The eight: five field-ops tests
-# need Postgres at localhost:5433, two bernese-workflow tests need gps3's
-# DATAPOOL, and one ingestion-pipeline test needs teqc or gfzrnx on PATH.
-# Last full run ON gps3 (Postgres on 5433, the real DATAPOOL, teqc):
-# 942 passed / 0 skipped on 6f4ae62, 2026-10-14. Off gps3, tests also skip when
-# gps3-only files (real panels, the production offsets catalog) or tools
-# (teqc/gfzrnx, gzip, zcat) are absent.
-# Skips change the split, not the total. Compare the TOTAL, not the passed count.
-#
-# History: "six suites, 785 / 3" until scripts/tests joined testpaths (#233);
-# "seven suites, 836" until analysis/epb_discriminator/tests joined (#266);
-# "eight suites, 942" until services/bsw-console/tests joined (#315).
-# The per-component counts in the maturity table plus the two non-component
-# suites sum to the total (133+609+55+292+131+36+19 + 110 + 33 = 1418); if they
-# stop summing, one is stale.
-# Suite selection is `testpaths` in pyproject.toml, not discovery, so a new
-# suite has to be added there to be run.
-uv run pytest
-
-# Run tests for a specific service
-uv run pytest services/vadase-rt-monitor/tests/
-uv run pytest tools/drive-archaeologist/tests/
-uv run pytest services/field-ops/tests/        # needs `uv sync --all-extras`
-
-# Frontend tests (field-ops PWA) — vitest, NOT collected by pytest.
-# `uv run pytest` passing says nothing about these.
-cd services/field-ops/frontend && npm test
-
-# Run a single test file or test
-uv run pytest services/vadase-rt-monitor/tests/test_nmea_parser.py
-uv run pytest -k "test_rinex"
-
-# Coverage. NOTE: `--cov=src` measures almost nothing — the repo-root `src/`
-# is down to `src/db/` (4 files) and the real code lives in packages/,
-# services/ and tools/. Name what you actually want measured:
-uv run pytest --cov=packages --cov=services --cov=tools --cov-report=html
-
-# Lint & format
-ruff check .
-ruff check --fix .
-ruff format .
-
-# Type checking — same caveat as coverage: point it at real code.
-mypy packages/ services/ tools/
-
-# Infrastructure (TimescaleDB + Redis)
-docker compose up -d
-```
-
-### CLI entry points (defined in root pyproject.toml)
-
-```bash
-uv run drive-archaeologist scan <path>    # or drive-arch
-uv run rinex-qc <file>                    # RINEX quality check
-uv run igs-downloader                     # IGS product downloader
-uv run rinex-completeness                 # which days can be processed at all (preflight)
-uv run crd-to-plots                       # CRD -> XYZ -> ENU -> PLOT files (the RUNX_v2.py chain)
-uv run field-ops-api                      # field logsheet API ($PORT, default 8001)
-uv run velocity-reviewer --plots-dir DIR  # web outlier reviewer for PLOT files
-uv run bernese-run-year --campaign PHREF --repr-prefix PHR --year 2025 \
-    --from 152 --to 181 --pcf PHREF_DLY --plan   # or --run; source LOADGPS.setvar first
-uv run bernese-worker run                 # run queued requests under the BPE lock (LOADGPS.setvar first)
-uv run bernese-worker submit start --campaign PHREF --repr-prefix PHR --year 2025 \
-    --from 152 --to 181 --pcf PHREF_DLY  # also: preflight, redo --doy N --reason ..., stop
-uv run bernese-worker list                # queue, running request, recent outcomes
-uv run bernese-check-stations --sta X.STA --crd X.CRD --blq X.BLQ --atl X.ATL --abb X.ABB \
-    [--rinex-dir DIR --year 2025]                  # read-only; --plan --check-stations lists the same
-uv run bernese-check-equipment --sta X.STA --equipment-csv data/network_inventory/equipment.csv \
-    [--logsheet-export FILE.json] [--json]          # advisory, read-only; .STA equipment vs field-ops, exits 0
-```
+- **Suite selection is `testpaths` in `pyproject.toml`, not discovery**, so a new
+  suite has to be added there to be run.
+- **Frontend tests are vitest and pytest doesn't collect them:**
+  `cd services/field-ops/frontend && npm test`, and the same in
+  `services/bsw-console/frontend`. `uv run pytest` passing says nothing about these.
+- **Compare the total, not the passed count.** Skips differ by machine: Postgres on
+  5433, gps3's DATAPOOL, teqc or gfzrnx. The last measured total is in
+  `implementation_maturity.md`, under *Test totals*.
+- **`--cov=src` measures almost nothing**, because the repo-root `src/` is down to
+  `src/db/`. Name what you want: `uv run pytest --cov=packages --cov=services
+  --cov=tools --cov-report=html`. Same for type checking:
+  `mypy packages/ services/ tools/`.
+- `docker compose up -d` starts TimescaleDB on **5433** and Redis on **6380**, not
+  their default ports.
+- `bernese-run-year` and `bernese-worker run` need `LOADGPS.setvar` sourced first.
 
 **`vadase-ingestor` does not exist**, and this file used to list it. The
 vadase service deliberately has no console entry point: the hatch wheel maps
@@ -392,173 +265,29 @@ directory instead:
 cd services/vadase-rt-monitor && PYTHONPATH=. uv run python scripts/run_ingestor.py
 ```
 
-**Ruff settings are in `pyproject.toml` under `[tool.ruff]`**, and are not
-restated here. This file used to carry a copy of the line length, target
-version and rule list. It was accurate, which is the problem: a second copy
-of a value nobody diffs is how every other stale claim in this file started.
-
 ---
 
 ## Key Files Reference
 
+Code is quicker to find by searching. These are the ones a search won't explain.
+
 | Purpose | Path |
 |---|---|
-| Root config & all deps | `pyproject.toml` |
-| Infrastructure | `docker-compose.yml` (TimescaleDB on 5433, Redis on 6380) |
-| NMEA parser | `services/vadase-rt-monitor/src/parsers/nmea_parser.py` |
-| Ingestion domain core | `services/vadase-rt-monitor/src/domain/processor.py` |
-| Station definitions (**4 configured**) | `services/vadase-rt-monitor/config/stations.yml` |
-| Event thresholds (**`threshold_mm_s`, per station**) | `services/vadase-rt-monitor/config/stations.yml` |
-| ~~Event thresholds~~ `config/thresholds.yml` | **0 bytes — empty.** The value lives in `stations.yml` above |
-| Drive scanner | `tools/drive-archaeologist/src/drive_archaeologist/scanner.py` |
-| File classifier profiles | `tools/drive-archaeologist/src/drive_archaeologist/profiles.py` |
-| Coordinate transforms | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/modeling/coordinates.py` |
-| BPE invocation (real) | `services/bernese-workflow/src/bernese_workflow/backends.py` |
-| PCF derivation | `scripts/derive_luzon_pcf.py` |
-| Multi-day BPE run (production, since 2026-11-04) | `bernese-run-year` → `services/bernese-workflow/src/bernese_workflow/run_year.py`. The earlier `scripts/run_luzon_month.sh` and `scripts/run_*_year.sh` are no longer the production path |
-| Day-level resume driver (service side) | `services/bernese-workflow/src/bernese_workflow/month_driver.py` |
-| Parallel multi-day driver (service side, step F) | `services/bernese-workflow/src/bernese_workflow/run_year.py` → `config/bernese/gpsuser/SCRIPT/sessions_pcs.pl` |
-| Machine-wide BPE lock | `services/bernese-workflow/src/bernese_workflow/bpe_lock.py` (`$BPE_LOCK`) |
 | Run worker (the console's Start/Stop/Redo/Preflight) | `services/bernese-workflow/src/bernese_workflow/run_worker.py`, `run_queue.py`, `redo.py`; design in `docs/project_documentation/run_worker_design.md` |
-| Local CI (the merge gate while Actions is locked) | `scripts/local_ci.py` |
-| Deploy-time schema check (`/health`) | `services/field-ops/src/field_ops/schema_check.py` |
-| VADASE threshold evidence | `services/vadase-rt-monitor/scripts/threshold_evidence.py` → `docs/project_documentation/vadase_threshold_evidence.md` |
-| Segmented velocities | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/timeseries/analysis.py` |
-| CRD → ENU pipeline | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/timeseries/crd_pipeline.py` |
 | PHIVOLCS event catalog | `docs/bern52/phivolcs-scripts/event-catalog/offsets` |
 | Reprocessing runbook | `docs/bernese54_luzon_reprocessing_runbook.md` |
-| GMT velocity field output | `packages/pogf-geodetic-suite/src/pogf_geodetic_suite/timeseries/gmt.py` |
-| Velocity field CLI | `scripts/make_velocity_field.py` |
-| Field-ops API | `services/field-ops/src/field_ops/main.py` |
-| Field-ops logsheet form | `services/field-ops/frontend/src/components/LogSheetForm.tsx` |
-| Field-ops offline queue | `services/field-ops/frontend/src/hooks/useOfflineQueue.ts` |
 | Field deployment runbook | `services/field-ops/FIELD_RUNBOOK.md` |
 | Project roadmap | `docs/project_documentation/roadmap.md` |
 
 ---
 
-## VADASE-RT-Monitor: Deep Architecture
+## VADASE-RT-Monitor
 
-**Read this section carefully** — it contains multi-file architectural context that isn't obvious from any single file.
-
-### One processor, one input pattern (this used to be two of each)
-
-`IngestionCore` in `src/domain/processor.py` is **the** processor. Input goes
-through **`src/ports/`** (InputPort, OutputPort) with **`src/adapters/inputs/`**
-(TCPAdapter, DirectoryAdapter) — queue-based, via `asyncio.Queue`.
-
-Earlier versions of this file opened with a section headed "Dual-Processor
-Architecture (Important!)", warning you to check whether you were editing
-`IngestionCore` or a second `IngestionProcessor` in `src/stream/processor.py`,
-and likewise between `src/ports/` and a parallel `src/sources/` DataSource
-protocol. **Both duplicates are gone** — `src/stream/` and `src/sources/` no
-longer exist, and neither `IngestionProcessor` nor `DataSource` appears
-anywhere in the tree. The consolidation the old section called "the intended
-architecture going forward" happened. There is nothing to choose between.
-
-### Receiver mode: a state machine, not a latch
-
-`IngestionCore` decides whether to trust the receiver's own displacement or
-integrate velocity itself. That decision is `ReceiverMode` (`RECEIVER` |
-`MANUAL`) in `src/domain/processor.py`, driven by streak counters —
-`STREAK_THRESHOLD = 5`, `GOOD_THRESHOLD = 30`, `SUSPECT_THRESHOLD = 3` — and
-it moves in **both** directions.
-
-Earlier versions of this file recorded a "**Known bug**: the one-way latch at
-line 130 (`self.manual_integration_active = True`) never resets — once
-activated, it stays on permanently". That was true, and it was fixed: reset in
-`934f8b3`, then replaced wholesale by the state machine in `a74c109`.
-`manual_integration_active` no longer exists. Do not go looking for it, and do
-not re-report the bug.
-
-The leaky integrator is real and still there — `handle_velocity` integrates
-velocity as `disp = disp * decay_factor + vel * dt`, a high-pass filter that
-bleeds off accumulated drift. Two things about it are worth knowing before you
-touch it: `decay_factor` **defaults to 1.0**, which is no leak at all (pure
-integration), so the decay is opt-in per station rather than always on; and
-integration is skipped entirely when the epoch gap is outside `0 < dt < 5s`,
-so an outage cannot inject a step.
-
-### Import Paths (Non-Obvious)
-
-Due to Hatch source mappings in `pyproject.toml`, imports within vadase-rt-monitor use **bare `src.` prefixes**, not fully-qualified monorepo paths:
-
-```python
-# Correct (inside vadase-rt-monitor code):
-from src.parsers.nmea_parser import parse_lvm
-from src.ports.outputs import OutputPort
-
-# WRONG (this won't resolve):
-from services.vadase_rt_monitor.src.parsers.nmea_parser import parse_lvm
-```
-
-This is because `pyproject.toml` maps `"services/vadase-rt-monitor/src" = ""` in `[tool.hatch.build.targets.wheel.sources]`.
-
-**`src` is a namespace package and must stay one.** Two directories supply
-portions of it: `src/db/` at the repo root, which the ingestion pipeline
-imports as `src.db.models`, and this service's `src/`. Neither may contain an
-`__init__.py` — a regular package wins the path scan outright and hides the
-other portion, so adding one here makes `src.db` unimportable in any process
-that also has this service on its path. `services/vadase-rt-monitor/src/__init__.py`
-was exactly that, an empty marker; removing it is what lets a repo-root
-`uv run pytest` collect both suites. It was also being mapped to a top-level
-`__init__.py` at the wheel root by the `sources` rule above, which made the
-whole wheel root a package.
-
-The service's own path is added by `services/vadase-rt-monitor/conftest.py`,
-so `src.*` resolves from the repo root as well as from the service directory.
-
-### Three-State Receiver Model (Domain Knowledge)
-
-The CORS receivers (Leica) operate in three behavioral states — understanding these is critical for Smart Integration logic:
-
-1. **Quiet-time**: Velocity is the default output. Displacement data echoes velocity values (`vel == disp`).
-2. **Event-time**: Receiver's internal threshold crossed → sends real integrated displacement (`vel != disp`).
-3. **Anomalous spikes**: Receiver behavior during anomalous (non-seismic) spikes is empirically unconfirmed.
-
-The three states above are receiver behaviour and still hold — that is domain
-knowledge about the hardware, not about our code.
-
-**The implementation notes that used to follow here were stale and are gone.**
-They cited `domain/processor.py:120-133` (today that range is sentence
-dispatch) and a "Known bug" one-way latch on `manual_integration_active`
-(fixed in `934f8b3`, then removed entirely by `a74c109`). See *Receiver mode: a
-state machine, not a latch* above for what the code does now.
-
-Line numbers in this file have proven to be the first thing to rot. Name the
-symbol, not the line.
-
-### How many stations, really
-
-**`config/stations.yml` defines 4.** Earlier versions of this file described it
-as "35+" in two places, which conflated two different numbers:
-
-- **35+** is roughly what PHIVOLCS *operates* as a CORS network. It is a fact
-  about the agency, not about this repository.
-- **4** is what this service is *configured to ingest* today, all on
-  `192.168.1.10x:5017` — LAN addresses that only mean anything inside one
-  building.
-
-Both numbers are real and neither is a typo for the other. Quote the one you
-mean, and check the file rather than this sentence, because the configured
-count is the one that will drift.
-
-### NMEA Sentence Types
-
-- `$GNLVM`/`$GPLVM` — velocity (East, North, Up in m/s)
-- `$GNLDM`/`$GPLDM` — displacement (East, North, Up in meters)
-- All use XOR checksum validation (`NMEAChecksumError` on failure)
-
-### Testing & Replay Tools
-
-All scripts live in `services/vadase-rt-monitor/scripts/`:
-- `mock_ntrip_caster.py` — fake TCP server for NTRIP client testing
-- `replay_events.py` — replay historical earthquake `.rtl`/`.nmea` files at 1Hz
-- `stress_test_parallel.py` — simulate multi-station concurrent load
-- `run_ingestor.py` — main entry point for the real-time ingestor
-- `threshold_evidence.py` — measures the alarm threshold against real captures (not committed); produces every figure in `docs/project_documentation/vadase_threshold_evidence.md`
-
-Config files in `services/vadase-rt-monitor/config/`. Use `stations_local_test.yml` for local dev.
+Its architecture notes are in `services/vadase-rt-monitor/CLAUDE.md`, which loads
+when working there. One rule applies from anywhere: **`src` is a namespace package
+and must stay one. Never add an `__init__.py` to the repo-root `src/` or to
+`services/vadase-rt-monitor/src/`.** A regular package hides the other portion, and
+`src.db` stops importing.
 
 ## Branching & Merge Policy
 

@@ -151,8 +151,8 @@ they remain in history.)
 
 ## Documentation
 
-[docs/INDEX.md](docs/INDEX.md) lists the rest. `CLAUDE.md` at the repo root has
-the architecture notes that span files (receiver mode, import paths, the `src`
+[docs/INDEX.md](docs/INDEX.md) lists the rest. This service's [`CLAUDE.md`](CLAUDE.md)
+has the architecture notes that span files (receiver mode, import paths, the `src`
 namespace package).
 
 ## License
