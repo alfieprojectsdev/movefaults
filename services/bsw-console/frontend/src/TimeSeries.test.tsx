@@ -50,8 +50,8 @@ it('not configured: the page says so and names the settings, instead of failing'
   serve({
     [BASE]: {
       configured: false,
-      missing: ['BSW_CONSOLE_TS_CRD_DIR', 'BSW_CONSOLE_TS_REFERENCE', 'BSW_CONSOLE_TS_OFFSETS'],
-      message: 'The time series is not configured for this console: set BSW_CONSOLE_TS_CRD_DIR, BSW_CONSOLE_TS_REFERENCE, BSW_CONSOLE_TS_OFFSETS (the daily final CRD directory, the reference station and the offsets catalog).',
+      missing: ['BSW_CONSOLE_TS_CRD_DIR', 'BSW_CONSOLE_TS_OFFSETS'],
+      message: 'The time series is not configured for this console: set BSW_CONSOLE_TS_CRD_DIR, BSW_CONSOLE_TS_OFFSETS (the daily final CRD directory and the offsets catalog).',
     },
   })
   await page()
@@ -60,4 +60,48 @@ it('not configured: the page says so and names the settings, instead of failing'
   expect(status.textContent).toMatch(/BSW_CONSOLE_TS_CRD_DIR/)
   expect(screen.queryByLabelText(/Station/)).toBeNull()
   expect(screen.queryByText(/Could not read this/)).toBeNull()
+})
+
+it('a default reference the files do not hold leaves every candidate pickable', async () => {
+  const sum = responses[BASE] as Record<string, unknown>
+  serve({ [BASE]: { ...sum, reference: 'GONE', default_reference: 'GONE', available: false, stations: [], message: 'GONE is not an estimated station in these CRD files.' } })
+  await page()
+  const pick = screen.getByLabelText('Reference station') as HTMLSelectElement
+  expect(pick.value).toBe('')
+  expect(screen.getByRole('option', { name: 'Choose a reference…' })).toBeTruthy()
+})
+
+it('a station is never shown under a reference it was not fitted against', async () => {
+  serve()
+  await page()
+  fireEvent.change(screen.getByLabelText('Station'), { target: { value: 'SYN1' } })
+  await settle()
+  expect(screen.getByRole('heading', { name: /SYN1 · velocity/ })).toBeTruthy()
+  // Make the shown station the reference: its old panel must go, not linger.
+  fireEvent.change(screen.getByLabelText('Reference station'), { target: { value: 'SYN1' } })
+  expect(screen.queryByRole('heading', { name: /SYN1 · velocity/ })).toBeNull()
+  await settle()
+  expect(screen.queryByRole('heading', { name: /SYN1 · velocity/ })).toBeNull()
+})
+
+it('after a reference change, the old fit is not shown while the new one fails', async () => {
+  const sum = responses[BASE] as Record<string, unknown>
+  const syn1 = responses[`${BASE}/SYN1`] as Record<string, unknown>
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    const [path, qs] = url.split('?')
+    const ref = new URLSearchParams(qs ?? '').get('reference') ?? 'REF0'
+    if (path === BASE) {
+      return new Response(JSON.stringify({ ...sum, reference: ref, all_stations: ['OTH1', 'REF0', 'SYN1'], stations: ['OTH1', 'REF0', 'SYN1'].filter((s) => s !== ref) }), { status: 200 })
+    }
+    if (path === `${BASE}/SYN1` && ref === 'REF0') return new Response(JSON.stringify({ ...syn1, reference: 'REF0' }), { status: 200 })
+    return new Response(JSON.stringify({ detail: 'boom' }), { status: 500 })
+  }))
+  await page()
+  fireEvent.change(screen.getByLabelText('Station'), { target: { value: 'SYN1' } })
+  await settle()
+  expect(screen.getByRole('heading', { name: /SYN1 · velocity/ })).toBeTruthy()
+  fireEvent.change(screen.getByLabelText('Reference station'), { target: { value: 'OTH1' } })
+  await settle()
+  await settle()
+  expect(screen.queryByRole('heading', { name: /SYN1 · velocity/ })).toBeNull()
 })

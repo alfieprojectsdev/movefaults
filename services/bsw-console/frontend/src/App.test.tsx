@@ -76,3 +76,22 @@ describe('stage 3 buttons', () => {
     expect(screen.getByRole('status').textContent).toMatch(/No run worker is running on gps3/)
   })
 })
+
+
+describe('time series reference', () => {
+  it('starts on the default and re-asks the server when another reference is chosen', async () => {
+    const urls: string[] = []
+    const get = (globalThis.fetch as unknown as (u: string) => Promise<Response>)
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => { urls.push(url); return get(url) }))
+    await at('#/c/LUZON/time-series')
+    const pick = screen.getByLabelText('Reference station') as HTMLSelectElement
+    expect(pick.value).toBe('REF0')
+    expect(screen.getByRole('option', { name: 'REF0 (default)' })).toBeTruthy()
+    await act(async () => {
+      pick.value = 'SYN1'
+      pick.dispatchEvent(new Event('change', { bubbles: true }))
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    expect(urls.some((u) => u.endsWith('/api/campaigns/LUZON/time-series?reference=SYN1'))).toBe(true)
+  })
+})

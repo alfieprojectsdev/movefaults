@@ -7,6 +7,7 @@ import pytest
 from pogf_geodetic_suite.timeseries.crd_pipeline import (
     _extract_session_from_filename,
     crd_directory_to_enu,
+    crd_station_codes,
     read_crd_file,
     session_to_decimal_year,
 )
@@ -384,3 +385,22 @@ class TestAPrioriStationsAreNotObservations:
         assert len(rows) == 1
         assert rows[0][0] == "PIMO"
         assert rows[0][1] == pytest.approx(-3186293.42891)
+
+
+def test_crd_station_codes_are_exactly_the_references_the_pipeline_accepts(tmp_path):
+    """An undated CRD (an a priori or combined file) is skipped by the pipeline,
+    so a station only there is not a code, and refused as a reference."""
+    _write_crd(tmp_path / "F1_23001.CRD", [
+        {"name": "BOST", "x": BOST_X, "y": BOST_Y, "z": BOST_Z},
+        {"name": "PBIS", "x": PBIS_X, "y": PBIS_Y, "z": PBIS_Z},
+    ])
+    _write_crd(tmp_path / "APRIORI.CRD", [{"name": "XTRA", "x": BOST_X, "y": BOST_Y, "z": BOST_Z}])
+    assert crd_station_codes(tmp_path) == ["BOST", "PBIS"]
+    with pytest.raises(ValueError, match="XTRA"):
+        crd_directory_to_enu(tmp_path, reference_station="XTRA")
+
+
+def test_crd_station_codes_with_no_dated_crd_raises(tmp_path):
+    _write_crd(tmp_path / "APRIORI.CRD", [{"name": "BOST", "x": BOST_X, "y": BOST_Y, "z": BOST_Z}])
+    with pytest.raises(ValueError, match="No usable"):
+        crd_station_codes(tmp_path)

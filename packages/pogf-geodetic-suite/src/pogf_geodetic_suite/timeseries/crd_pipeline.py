@@ -199,6 +199,46 @@ def _extract_session_from_filename(filename: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+def _dated_crd_epochs(
+    crd_dir: Path, session_extractor: Callable[[str], str | None]
+) -> list[tuple[float, list[tuple[str, float, float, float]]]]:
+    """Every *.CRD whose name carries a valid session date, read once.
+
+    The one file filter: a CRD with no YYDDD in its name, or an invalid date,
+    is not an epoch (an a priori or combined CRD in the same directory), so
+    nothing built on these epochs sees it.
+    """
+    epochs: list[tuple[float, list[tuple[str, float, float, float]]]] = []
+    for crd_path in sorted(crd_dir.glob("*.CRD")):
+        session = session_extractor(crd_path.name)
+        if session is None:
+            continue
+        try:
+            decimal_year = session_to_decimal_year(session)
+        except ValueError:
+            continue
+        stations = read_crd_file(crd_path)
+        if stations:
+            epochs.append((decimal_year, stations))
+    if not epochs:
+        raise ValueError(f"No usable *.CRD files found in {crd_dir}")
+    return epochs
+
+
+def crd_station_codes(
+    crd_dir: Path,
+    *,
+    session_extractor: Callable[[str], str | None] | None = None,
+) -> list[str]:
+    """The estimated stations in the files crd_directory_to_enu would read.
+
+    Exactly the stations it would accept as a reference: same file filter,
+    same parser. Raises ValueError if no usable CRD file is found.
+    """
+    epochs = _dated_crd_epochs(crd_dir, session_extractor or _extract_session_from_filename)
+    return sorted({code for _, stations in epochs for code, *_ in stations})
+
+
 def crd_directory_to_enu(
     crd_dir: Path,
     reference_station: str,
@@ -233,21 +273,7 @@ def crd_directory_to_enu(
     ref = reference_station.upper()[:4]
 
     # Pass 1: collect all epochs
-    epochs: list[tuple[float, list[tuple[str, float, float, float]]]] = []
-    for crd_path in sorted(crd_dir.glob("*.CRD")):
-        session = session_extractor(crd_path.name)
-        if session is None:
-            continue
-        try:
-            decimal_year = session_to_decimal_year(session)
-        except ValueError:
-            continue
-        stations = read_crd_file(crd_path)
-        if stations:
-            epochs.append((decimal_year, stations))
-
-    if not epochs:
-        raise ValueError(f"No usable *.CRD files found in {crd_dir}")
+    epochs = _dated_crd_epochs(crd_dir, session_extractor)
 
     # Pass 2: locate reference station geodetic coordinates
     ref_lat = ref_lon = ref_alt = None

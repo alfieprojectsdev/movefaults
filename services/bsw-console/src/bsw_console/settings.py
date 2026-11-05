@@ -101,8 +101,10 @@ class Settings:
     trusted_proxies: frozenset[str] = frozenset()
     # The time series (stage 5): pogf_geodetic_suite.timeseries.status reads
     # daily final CRD files relative to a reference station, and the offsets
-    # catalog. No defaults: unset, the page says the time series is not
-    # configured. BSW_CONSOLE_TS_CRD_DIR, _TS_REFERENCE, _TS_OFFSETS.
+    # catalog. BSW_CONSOLE_TS_CRD_DIR and _TS_OFFSETS have no defaults: unset,
+    # the page says the time series is not configured. The reference station
+    # is chosen on the page; BSW_CONSOLE_TS_REFERENCE is only the one it starts
+    # with, and may be unset.
     ts_crd_dir: Path | None = None
     ts_reference: str | None = None
     ts_offsets: Path | None = None

@@ -228,16 +228,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Stage 5, read-only: pogf_geodetic_suite.timeseries.status, in this process.
     # The inputs are the server's settings; the browser names a station code.
     @app.get("/api/campaigns/{name}/time-series")
-    def time_series_summary(name: str) -> dict:
+    def time_series_summary(name: str, reference: str | None = None) -> dict:
         campaign(name)
-        return timeseries.summary(s)
+        return timeseries.summary(s, _station_code(reference))
 
     @app.get("/api/campaigns/{name}/time-series/{station}")
-    def time_series(name: str, station: str) -> dict:
+    def time_series(name: str, station: str, reference: str | None = None) -> dict:
         campaign(name)
-        if not re.fullmatch(r"[A-Za-z0-9]{4}", station):
-            raise HTTPException(422, "a station code is four letters or digits")
-        return timeseries.for_station(s, station)
+        return timeseries.for_station(s, _station_code(station), _station_code(reference))
 
     # Stage 3: each queues one request for the run worker. The gate runs first,
     # before the body is read or the campaign looked up, so a refused caller
@@ -409,3 +407,12 @@ async def _json_body(request: Request) -> dict:
     if not isinstance(body, dict):
         raise HTTPException(422, "the body must be a JSON object")
     return body
+
+
+def _station_code(code: str | None) -> str | None:
+    """A four-character station code from the request, or None; never a path."""
+    if code is None or code == "":
+        return None
+    if not re.fullmatch(r"[A-Za-z0-9]{4}", code):
+        raise HTTPException(422, "a station code is four letters or digits")
+    return code.upper()
