@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
-import { COMPONENTS, panRange, panelData, sessionDate, zoomRange } from '../tsPlot'
-import type { TsSegment, TsSeries } from '../types'
+import { COMPONENTS, decisionMarks, lineAt, panRange, panelData, sessionDate, zoomRange } from '../tsPlot'
+import type { TsDecidedFit, TsDecision, TsSegment, TsSeries } from '../types'
 
 type Offset = { t: number; type: string; label: string; within_span: boolean }
 
@@ -18,11 +18,18 @@ type Offset = { t: number; type: string; label: string; within_span: boolean }
  * Marks: epochs in the fit (dots), epochs the outlier rule flagged (larger,
  * orange), epochs not in the fit for any other reason (hollow), the package's
  * fitted line per segment, and the catalogue's offsets as dashed verticals.
+ * Rings mark epochs a person decided on (confirmed outlier, or a flag overridden
+ * as real), and a dashed line is the fit without the confirmed outliers, which
+ * is not published. A click (not a drag) on a panel picks the nearest epoch.
  */
-export default function TsPlot({ series, segments, offsets, station }: {
+export default function TsPlot({ series, segments, offsets, station, decisions, decidedFit, onPick }: {
   series: TsSeries; segments: TsSegment[]; offsets: Offset[]; station: string
+  decisions?: TsDecision[]; decidedFit?: TsDecidedFit | null; onPick?: (index: number) => void
 }) {
   const host = useRef<HTMLDivElement>(null)
+  // Kept in a ref so a new callback does not rebuild the charts.
+  const pick = useRef(onPick)
+  pick.current = onPick
   const [hover, setHover] = useState<string>('')
   // Canvas colours are read from the CSS tokens when the charts are built, so a
   // switch between light and dark rebuilds them.
@@ -43,6 +50,7 @@ export default function TsPlot({ series, segments, offsets, station }: {
     const grid = color('--line2', '#E6E9E4')
     const accent = color('--accent', '#1F5E8C')
     const flag = color('--failed', '#E8833A')
+    const decided = color('--warn-strong', '#7A3300')
     const eq = color('--eq', '#C2570C')
     const faint = color('--faint', '#7A827C')
 
@@ -100,6 +108,22 @@ export default function TsPlot({ series, segments, offsets, station }: {
       },
     }
 
+    // A click picks the nearest epoch; a drag (zoom select) does not.
+    const clickPick: uPlot.Plugin = {
+      hooks: {
+        ready: (u) => {
+          let down: [number, number] | null = null
+          u.over.addEventListener('mousedown', (e: MouseEvent) => { down = [e.clientX, e.clientY] })
+          u.over.addEventListener('click', (e: MouseEvent) => {
+            const moved = down ? Math.hypot(e.clientX - down[0], e.clientY - down[1]) : 0
+            down = null
+            const i = u.cursor.idx
+            if (moved < 4 && i != null && i >= 0 && i < series.t.length) pick.current?.(i)
+          })
+        },
+      },
+    }
+
     COMPONENTS.forEach(({ key, label }, k) => {
       const d = panelData(series, segments, key)
       const div = document.createElement('div')
@@ -126,6 +150,9 @@ export default function TsPlot({ series, segments, offsets, station }: {
           { label: 'flagged', stroke: flag, width: 0, points: { show: true, size: 6, fill: flag, stroke: flag } },
           { label: 'not in fit', stroke: faint, width: 0, points: { show: true, size: 5, fill: 'transparent', stroke: faint } },
           { label: 'fit', stroke: ink, width: 1.5, points: { show: false }, spanGaps: false },
+          { label: 'confirmed outlier', stroke: decided, width: 0, points: { show: true, size: 12, width: 2, fill: 'transparent', stroke: decided } },
+          { label: 'kept by decision', stroke: accent, width: 0, points: { show: true, size: 12, width: 2, fill: 'transparent', stroke: accent } },
+          { label: 'fit without confirmed outliers (not published)', stroke: decided, width: 1.5, dash: [6, 4], points: { show: false }, spanGaps: false },
         ],
         hooks: {
           setScale: [
@@ -148,9 +175,11 @@ export default function TsPlot({ series, segments, offsets, station }: {
             },
           ],
         },
-        plugins: [offsetLines, wheelZoom],
+        plugins: [offsetLines, wheelZoom, clickPick],
       }
-      charts.push(new uPlot(opts, [d.t, d.kept, d.flagged, d.left, d.fit] as uPlot.AlignedData, div))
+      const m = decisionMarks(series, decisions, key)
+      const alt = decidedFit && decidedFit.available ? lineAt(series, decidedFit.segments, key) : series.t.map(() => null)
+      charts.push(new uPlot(opts, [d.t, d.kept, d.flagged, d.left, d.fit, m.confirmed, m.overridden, alt] as uPlot.AlignedData, div))
     })
 
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
@@ -162,13 +191,13 @@ export default function TsPlot({ series, segments, offsets, station }: {
       for (const c of charts) c.destroy()
       el.replaceChildren()
     }
-  }, [series, segments, offsets, station, scheme])
+  }, [series, segments, offsets, station, scheme, decisions, decidedFit])
 
   return (
     <section aria-labelledby="ts-plot" className="panel pad stack">
       <h2 id="ts-plot">{station} · east, north, up</h2>
       <p className="muted" style={{ fontSize: 13 }}>
-        Ctrl + mouse wheel (or pinch) zooms time around the cursor; Shift + wheel pans; drag to select a span; double-click shows everything. Dots are in the fit, orange marks were flagged by the outlier rule, hollow marks are not in the fit, the line is the fitted velocity per segment, and dashed lines are the catalogue's offsets.
+        Ctrl + mouse wheel (or pinch) zooms time around the cursor; Shift + wheel pans; drag to select a span; double-click shows everything. Dots are in the fit, orange marks were flagged by the outlier rule, hollow marks are not in the fit, the line is the fitted velocity per segment, and dashed vertical lines are the catalogue's offsets. Click an epoch to record a decision on it: rings mark decided epochs, and a dashed line is the fit without the confirmed outliers (not published).
       </p>
       <div ref={host} data-testid="ts-plot" />
       <p className="mono" style={{ fontSize: 12, minHeight: '1.4em' }} aria-live="polite">{hover}</p>

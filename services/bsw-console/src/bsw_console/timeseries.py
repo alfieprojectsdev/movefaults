@@ -34,6 +34,7 @@ from pathlib import Path
 from pogf_geodetic_suite.timeseries.crd_pipeline import crd_directory_to_enu, crd_station_codes
 from pogf_geodetic_suite.timeseries.status import OutlierMode, station_status
 
+from . import outliers
 from .settings import Campaign, Settings
 from .status import campaign_years, year_dir
 
@@ -154,4 +155,30 @@ def for_station(
         )
     except (OSError, ValueError) as exc:
         return {**base, "available": False, "message": str(exc)}
-    return {"configured": True, "available": True, **_inputs(s, c, year, ref), **result}
+    out = {"configured": True, "available": True, **_inputs(s, c, year, ref), **result}
+    decisions = outliers.current(s, c, year, code.upper(), crd_dir(s, c, year), ref)
+    out["decisions"] = decisions
+    out["decided_fit"] = None
+    leave_out = outliers.excluded_sessions(decisions)
+    if leave_out:
+        # The same fit with the epochs a person confirmed as outliers left out:
+        # shown beside the published one, never instead of it (SETTLED.md
+        # section 6 is open). station_status takes them as session dates.
+        try:
+            alt = station_status(
+                crd_dir(s, c, year), code.upper(), ref,
+                offsets_catalog=s.ts_offsets, exclude_sessions=leave_out,
+            )  # fmt: skip
+        except (OSError, ValueError) as exc:
+            out["decided_fit"] = {"available": False, "message": str(exc), "excluded": leave_out}
+        else:
+            out["decided_fit"] = {
+                "available": True,
+                "excluded": leave_out,
+                "velocity": alt["velocity"],
+                "segments": [
+                    {k: seg[k] for k in ("index", "n_fit", "velocity_mm_yr", "sigma_mm_yr", "line")}
+                    for seg in alt["segments"]
+                ],
+            }
+    return out

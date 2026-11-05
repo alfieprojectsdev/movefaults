@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApi } from '../lib'
 import { href } from '../route'
 import type { Enu, TsStation, TsSummary } from '../types'
 import { Failed, Loading } from './common'
 import TsPlot from './TsPlot'
+import OutlierDecision from './OutlierDecision'
 
 const mm = (v: number) => v.toFixed(2)
 const rate = (v: Enu, s: Enu, c: keyof Enu) => `${mm(v[c])} ± ${mm(s[c])}`
@@ -89,7 +90,7 @@ export default function TimeSeries({ campaign, year }: { campaign: string; year:
           {one.error && <Failed error={one.error} />}
           {station && !current && !currentProblem && !one.error && <Loading what={`${station}'s time series`} />}
           {currentProblem && <div className="banner warn" role="status">{currentProblem}</div>}
-          {current && <Station data={current} />}
+          {current && <Station key={`${current.station}-${current.reference}`} data={current} base={base} reload={one.reload} />}
         </section>
       )}
       <p className="faint" style={{ fontSize: 13 }}>Open team decision: whether a flagged outlier is excluded from the velocity fit, or only recorded. The mode above says which produced these numbers.</p>
@@ -97,18 +98,29 @@ export default function TimeSeries({ campaign, year }: { campaign: string; year:
   )
 }
 
-function Station({ data }: { data: Extract<TsStation, { available: true }> }) {
+function Station({ data, base, reload }: { data: Extract<TsStation, { available: true }>; base: string; reload: () => void }) {
   const v = data.velocity
   const flagged = data.series.outlier.filter(Boolean).length
+  const [picked, setPicked] = useState<number | null>(null)
+  useEffect(() => setPicked(null), [data.station, data.reference])
+  const fit = data.decided_fit
   return (
     <div className="stack">
-      <TsPlot series={data.series} segments={data.segments} offsets={data.offsets} station={data.station} />
+      <TsPlot series={data.series} segments={data.segments} offsets={data.offsets} station={data.station}
+        decisions={data.decisions} decidedFit={fit} onPick={setPicked} />
+      {picked !== null && data.reference && (
+        <OutlierDecision key={picked} base={base.split('?')[0]} station={data.station} reference={data.reference}
+          series={data.series} index={picked} decisions={data.decisions} onSaved={reload} />
+      )}
       <section aria-labelledby="ts-vel" className="panel pad stack">
         <h2 id="ts-vel">{data.station} · velocity (final segment)</h2>
         <table className="t">
           <thead><tr><th scope="col"></th><th scope="col">East</th><th scope="col">North</th><th scope="col">Up</th></tr></thead>
           <tbody>
             <tr><th scope="row">mm/yr ± 1σ</th>{(['e', 'n', 'u'] as const).map((c) => <td key={c} className="mono num" style={v.short_span ? { textDecoration: 'line-through' } : undefined}>{rate(v.velocity_mm_yr, v.sigma_mm_yr, c)}</td>)}</tr>
+            {fit && fit.available && (
+              <tr><th scope="row">without {fit.excluded.length} confirmed outlier{fit.excluded.length === 1 ? '' : 's'} <span className="muted">(not published)</span></th>{(['e', 'n', 'u'] as const).map((c) => <td key={c} className="mono num">{rate(fit.velocity.velocity_mm_yr, fit.velocity.sigma_mm_yr, c)}</td>)}</tr>
+            )}
           </tbody>
         </table>
         <p style={{ fontSize: 13 }}>

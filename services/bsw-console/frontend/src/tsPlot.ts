@@ -7,7 +7,7 @@
  * fitted line is the package's own (its segment-end values, interpolated along
  * the straight line between them), and the flags are the package's flags.
  */
-import type { TsSegment, TsSeries } from './types'
+import type { TsDecision, TsSegment, TsSeries } from './types'
 
 export type Component = 'e' | 'n' | 'u'
 export const COMPONENTS: { key: Component; label: string }[] = [
@@ -99,4 +99,39 @@ export function panRange(min: number, max: number, frac: number, lo: number, hi:
   if (nmin < lo) { nmin = lo; nmax = Math.min(hi, lo + span) }
   if (nmax > hi) { nmax = hi; nmin = Math.max(lo, hi - span) }
   return [nmin, nmax]
+}
+
+/** The decisions that apply to what is shown: same reference, same solution. */
+export function applicable(decisions: TsDecision[] | undefined): Map<string, TsDecision> {
+  return new Map((decisions ?? []).filter((d) => !d.superseded && !d.other_reference).map((d) => [d.epoch, d]))
+}
+
+/** Rings over epochs a person decided on: confirmed outliers, and flags overridden as real. */
+export function decisionMarks(series: TsSeries, decisions: TsDecision[] | undefined, c: Component) {
+  const by = applicable(decisions)
+  const ys = series[`${c}_mm`]
+  const confirmed: (number | null)[] = []
+  const overridden: (number | null)[] = []
+  series.t.forEach((t, i) => {
+    const d = by.get(sessionDate(t))
+    confirmed.push(d?.decision === 'outlier' ? ys[i] : null)
+    overridden.push(d?.decision === 'not_outlier' ? ys[i] : null)
+  })
+  return { confirmed, overridden }
+}
+
+/**
+ * The side-by-side fit's line at each epoch. Matched by time span, not by
+ * segment number: leaving epochs out can drop a short segment, and then the
+ * second fit's numbering no longer lines up with the series'.
+ */
+export function lineAt(series: TsSeries, segments: Pick<TsSegment, 'line'>[], c: Component): (number | null)[] {
+  const lines = segments.map((s) => s.line).filter((l): l is NonNullable<typeof l> => !!l)
+  return series.t.map((t) => {
+    const l = lines.find((x) => x.t[0] <= t && t <= x.t[1])
+    if (!l) return null
+    const [t0, t1] = l.t
+    const [a, b] = l[`${c}_mm`]
+    return t1 === t0 ? a : a + ((t - t0) / (t1 - t0)) * (b - a)
+  })
 }
