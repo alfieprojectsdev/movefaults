@@ -2,17 +2,20 @@
 """Retake the BSW console screenshots in the work instruction.
 
     (cd services/bsw-console/frontend && npm ci && npm run build)
-    uv run --extra bsw-console --with playwright==1.64.1 --with requests \
+    uv run --extra dev --extra bsw-console --with playwright==1.64.1 \
         python scripts/console_screenshots.py
 
 Run it when a screen the instruction shows has changed. It needs Playwright's
-Chromium (`playwright install chromium`).
+Chromium (`uv run --with playwright==1.64.1 playwright install chromium`).
 
-EVERYTHING SHOWN IS SYNTHETIC. This repository is public, so anything in an image
-is published. The console runs here on the test suite's made-up tree
+THE DATA IS THE TEST SUITE'S, NOT GPS3'S. This repository is public, so anything in
+an image is published. The console runs here on the test suite's made-up tree
 (services/bsw-console/tests/conftest.py) plus a made-up time series below, in a
 scratch folder, on a free port, with its own state, signed in as "demo". It never
 reads gps3's data and cannot queue a real run or write to the real decision record.
+One thing on screen is real: the Failure page's protocol file is the HELMR1 failure
+captured from LZY250360, a fixture already committed under
+services/bernese-workflow/tests/fixtures/bpe_errors, with gps3's paths in it.
 """
 
 from __future__ import annotations
@@ -28,7 +31,6 @@ import threading
 import time
 from pathlib import Path
 
-import requests
 import uvicorn
 from playwright.sync_api import Page, sync_playwright
 
@@ -147,6 +149,9 @@ def plan_inputs(s: Settings) -> None:
 
 
 def settings() -> Settings:
+    dist = REPO / "services/bsw-console/frontend/dist"
+    if not (dist / "index.html").is_file():
+        raise SystemExit(f"no frontend build in {dist}: see this script's header")
     shutil.rmtree(SCRATCH, ignore_errors=True)
     SCRATCH.mkdir(parents=True)
     s = build(SCRATCH)
@@ -156,9 +161,8 @@ def settings() -> Settings:
     return dataclasses.replace(
         s,
         ts_offsets=offsets,
-        ts_reference="REF0",
         trusted_proxies=frozenset({"127.0.0.1"}),
-        static_dir=REPO / "services/bsw-console/frontend/dist",
+        static_dir=dist,
         # The buttons as gps3 has them. Nothing here presses Start, and this
         # queue is in the scratch folder, so nothing would run if it did.
         actions_enabled=True,
@@ -184,19 +188,27 @@ def serve(s: Settings) -> tuple[str, uvicorn.Server]:
             create_app(s), host="127.0.0.1", port=port, proxy_headers=False, log_level="warning"
         )
     )
-    threading.Thread(target=server.run, daemon=True).start()
-    url = f"http://127.0.0.1:{port}"
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
     for _ in range(100):
-        try:
-            requests.get(f"{url}/api/session", timeout=1)
-            return url, server
-        except requests.ConnectionError:
-            time.sleep(0.1)
+        if server.started:
+            return f"http://127.0.0.1:{port}", server
+        if not thread.is_alive():
+            break
+        time.sleep(0.1)
     raise SystemExit("the console did not start")
 
 
-def shoot(page: Page, url: str, route: str, out: Path, wait_for: str, click_day: int = 0) -> None:
+def open_route(page: Page, url: str, route: str) -> None:
+    """Load the route from nothing. Going from one hash route to another is not a
+    navigation: goto returns at once, networkidle has already fired, and the previous
+    page is still on screen, so a wait for its text would pass and shoot the wrong page."""
+    page.goto("about:blank")
     page.goto(f"{url}/{route}")
+
+
+def shoot(page: Page, url: str, route: str, out: Path, wait_for: str, click_day: int = 0) -> None:
+    open_route(page, url, route)
     page.get_by_text(wait_for).first.wait_for(timeout=20000)
     page.wait_for_load_state("networkidle")
     if click_day:
@@ -209,7 +221,7 @@ def shoot(page: Page, url: str, route: str, out: Path, wait_for: str, click_day:
 def time_series_shots(page: Page, url: str, out: Path) -> None:
     """The decision form on the flagged spike, then the whole page once it is
     recorded, on this scratch console, so the ring and the not-published fit show."""
-    page.goto(f"{url}/#/c/LUZON/{YEAR}/time-series")
+    open_route(page, url, f"#/c/LUZON/{YEAR}/time-series")
     page.locator("label", has_text="Station").locator("select").last.select_option("SYN1")
     page.wait_for_selector("[data-testid=ts-plot] canvas", timeout=20000)
     page.wait_for_load_state("networkidle")
@@ -227,6 +239,8 @@ def time_series_shots(page: Page, url: str, out: Path) -> None:
             break
     else:
         raise SystemExit(f"could not click {epoch}")
+    # The buttons need /api/session, which the form only starts to fetch once it opens.
+    page.get_by_role("button", name="Confirm outlier").wait_for(timeout=20000)
     page.locator("#ts-decide").locator("..").screenshot(path=out / "outlier_decision.png")
     page.get_by_role("button", name="Confirm outlier").click()
     page.get_by_role("button", name="Undo decision").wait_for(timeout=20000)
@@ -271,6 +285,7 @@ def main() -> int:
     finally:
         server.should_exit = True
         worker.close()
+        shutil.rmtree(SCRATCH, ignore_errors=True)
     return 0
 
 

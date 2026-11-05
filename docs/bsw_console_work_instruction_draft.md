@@ -17,7 +17,9 @@ who does it.
 
 **The screenshots use made-up data**: synthetic stations (`SYN1`, `REF0`), days and
 run records, signed in as `demo`. They show what each page looks like, not any real
-result. `scripts/console_screenshots.py` retakes them when a page changes.
+result. The one exception is the protocol file on the Failure page, a real captured
+failure kept as a test fixture. `scripts/console_screenshots.py` retakes them when a
+page changes. Each one shows what one page looks like, so they don't add up to one consistent run: a day can read differently from one image to the next.
 
 ## 1. Objective and scope
 
@@ -111,7 +113,6 @@ shows them but does not edit them yet.
 | 5.3.4–5.3.9 Create STA (RNX2STA), CRD and ABB (RXOBV3), ATL (GRDS1S2), PLD (EDITPLD), VEL (NUVELO), CLU (EDITCLU) | Maintainer task on gps3. Open **Station files** to see, for each station, which of the eight files list it and which don't, and codes that appear under two names |
 | 5.3.10 BLQ from the Chalmers ocean-loading service | Still manual: the service is external and replies by email. The maintainer merges the reply with `scripts/merge_blq.py`. **Station files** lists stations missing from the BLQ, and counts anything after `$$ END TABLE` as missing |
 | 5.3.11 Copy the eight files into `DATAPOOL\REF52` | Maintainer task. On gps3 the reference folder is `REF54` |
-
 
 ![Station files page: one row per station, a tick for each of the eight files that lists it. NEW1 has a dash under BLQ and a note that ocean loading would fail.](images/bsw_console/station_files.png)
 
