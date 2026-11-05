@@ -164,6 +164,7 @@ from .gmt import MIN_SPAN_YEARS
 from .offsets_catalog import load_offsets_catalog
 
 __all__ = [
+    "REFERENCE_WARN_DEG",
     "SCHEMA",
     "OutlierMode",
     "series_status",
