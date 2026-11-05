@@ -9,9 +9,15 @@ const rate = (v: Enu, s: Enu, c: keyof Enu) => `${mm(v[c])} ± ${mm(s[c])}`
 /** Read-only: what pogf_geodetic_suite.timeseries.status returns, as it returns it. */
 export default function TimeSeries({ campaign }: { campaign: string }) {
   const base = `/api/campaigns/${campaign}/time-series`
-  const sum = useApi<TsSummary>(base)
+  // The reference is the viewer's choice; '' means the server's default, if any.
+  const [reference, setReference] = useState('')
+  const q = reference ? `?reference=${reference}` : ''
+  const sum = useApi<TsSummary>(`${base}${q}`)
   const [station, setStation] = useState('')
-  const one = useApi<TsStation>(station ? `${base}/${station}` : null)
+  const one = useApi<TsStation>(station && station !== reference ? `${base}/${station}${q}` : null)
+  const candidates = sum.data && sum.data.configured ? sum.data.all_stations ?? [] : []
+  const chosen = sum.data && sum.data.configured ? sum.data.reference : null
+  const pickReference = (r: string) => { setReference(r); if (r === station) setStation('') }
 
   return (
     <>
@@ -26,10 +32,23 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
       {sum.data && !sum.data.configured && (
         <div className="banner idle" role="status"><strong>Not configured.</strong> <span>{sum.data.message}</span></div>
       )}
+      {candidates.length > 0 && (
+        <label className="row" style={{ fontSize: 13 }}>
+          Reference station
+          <select aria-label="Reference station" value={chosen ?? ''} onChange={(e) => pickReference(e.target.value)}>
+            {!chosen && <option value="">Choose a reference…</option>}
+            {candidates.map((s) => <option key={s} value={s}>{s}{sum.data && sum.data.configured && s === sum.data.default_reference ? ' (default)' : ''}</option>)}
+          </select>
+          <span className="muted">Every series is relative to it; changing it re-fits every station.</span>
+        </label>
+      )}
       {sum.data && sum.data.configured && !sum.data.available && (
         <div className="banner warn" role="status"><strong>Cannot read the time series.</strong> <span>{sum.data.message}</span></div>
       )}
-      {sum.data && sum.data.configured && sum.data.available && (
+      {sum.data && sum.data.configured && sum.data.available && !sum.data.reference && (
+        <div className="banner idle" role="status">{sum.data.message ?? 'Choose a reference station.'}</div>
+      )}
+      {sum.data && sum.data.configured && sum.data.available && sum.data.reference && (
         <section className="stack">
           <p style={{ fontSize: 13 }}>
             Daily final CRDs from <span className="mono">{sum.data.crd_dir}</span>, relative to <span className="mono">{sum.data.reference}</span>; offsets from <span className="mono">{sum.data.offsets_path}</span>. Outlier mode: <strong>{sum.data.outlier_mode}</strong>.

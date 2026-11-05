@@ -543,3 +543,46 @@ def test_odd_ledger_field_types_do_not_break_the_day_page() -> None:
 
     p = run_provenance({"user": "u", "code": "abc123", "pcf": "X", "command": 5})
     assert p["recorded"] is True and p["code_version"] == "unknown"
+
+
+# --- the reference station is chosen on the page -----------------------------------------
+
+
+def test_the_reference_is_chosen_per_request_and_the_setting_is_only_the_default(client) -> None:
+    default = client.get("/api/campaigns/LUZON/time-series").json()
+    assert default["reference"] == "REF0" and default["default_reference"] == "REF0"
+    assert default["all_stations"] == ["REF0", "SYN1"], "every candidate, the default included"
+    flipped = client.get("/api/campaigns/LUZON/time-series?reference=syn1").json()
+    assert flipped["available"] is True and flipped["reference"] == "SYN1"
+    assert flipped["stations"] == ["REF0"], "relative to SYN1, REF0 is the one to plot"
+    one = client.get("/api/campaigns/LUZON/time-series/REF0?reference=SYN1").json()
+    assert one["available"] is True and one["reference"] == "SYN1"
+
+
+def test_without_a_default_the_page_is_asked_to_choose(bsw) -> None:
+    import dataclasses
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(dataclasses.replace(bsw, ts_reference=None)))
+    body = c.get("/api/campaigns/LUZON/time-series").json()
+    assert body["configured"] is True and body["available"] is True
+    assert body["reference"] is None and body["stations"] == []
+    assert body["all_stations"] == ["REF0", "SYN1"]
+    assert "Choose a reference" in body["message"]
+    one = c.get("/api/campaigns/LUZON/time-series/SYN1").json()
+    assert one["available"] is False and "reference" in one["message"]
+
+
+def test_a_reference_the_files_do_not_hold_is_explained(client) -> None:
+    body = client.get("/api/campaigns/LUZON/time-series?reference=NOPE").json()
+    assert body["available"] is False and "NOPE" in body["message"]
+
+
+def test_a_reference_is_four_characters_never_a_path(client) -> None:
+    for ref in ("REF00", "..%2F..", "R-F0"):
+        assert client.get(f"/api/campaigns/LUZON/time-series?reference={ref}").status_code == 422
+        assert (
+            client.get(f"/api/campaigns/LUZON/time-series/SYN1?reference={ref}").status_code == 422
+        )

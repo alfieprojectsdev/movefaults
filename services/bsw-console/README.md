@@ -35,8 +35,8 @@ does not exist yet. From an office PC, tunnel to it:
 | `BSW_CONSOLE_OPERATORS` | empty | comma-separated signed-in users who may press them. Empty: nobody, even with actions on |
 | `BERNESE_WORKER_STATE` | the worker's default | the run worker's queue; must be the directory `bernese-worker run` reads |
 | `BSW_CONSOLE_TS_CRD_DIR` | unset | the directory of daily final CRD files the Time series page reads |
-| `BSW_CONSOLE_TS_REFERENCE` | unset | the 4-character reference station the series are relative to |
-| `BSW_CONSOLE_TS_OFFSETS` | unset | the offsets catalog. Until all three time-series settings are set, the page says the time series is not configured |
+| `BSW_CONSOLE_TS_REFERENCE` | unset | the reference station the page starts with. The page lets each viewer choose any estimated station in the CRD files as the reference; this only sets the first choice |
+| `BSW_CONSOLE_TS_OFFSETS` | unset | the offsets catalog. Until the CRD directory and the offsets catalog are set, the page says the time series is not configured |
 | `BSW_CONSOLE_EQUIPMENT_REPORT` | unset | the JSON written by `bernese-check-equipment --json`, shown on the Station files page. Unset: the page says there is no equipment report |
 
 For frontend work, `npm run dev` proxies `/api` to the running server.
