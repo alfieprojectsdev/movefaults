@@ -378,6 +378,8 @@ uv run bernese-worker submit start --campaign PHREF --repr-prefix PHR --year 202
 uv run bernese-worker list                # queue, running request, recent outcomes
 uv run bernese-check-stations --sta X.STA --crd X.CRD --blq X.BLQ --atl X.ATL --abb X.ABB \
     [--rinex-dir DIR --year 2025]                  # read-only; --plan --check-stations lists the same
+uv run bernese-check-equipment --sta X.STA --equipment-csv data/network_inventory/equipment.csv \
+    [--logsheet-export FILE.json] [--json]          # advisory, read-only; .STA equipment vs field-ops, exits 0
 ```
 
 **`vadase-ingestor` does not exist**, and this file used to list it. The

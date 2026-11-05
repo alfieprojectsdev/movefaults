@@ -184,3 +184,26 @@ export type TsStation =
       velocity: { segment: number; velocity_mm_yr: Enu; sigma_mm_yr: Enu; span_yr: number; short_span: boolean; covers_latest_epoch: boolean }
       min_span_years: number; warnings: string[]
     }
+/** bernese-check-equipment's report, as the console serves it (bsw_console/equipment.py). */
+export type EquipmentField = { sta: string; source: string; status: string; source_igs: string | null; note: string }
+export type EquipmentCurrent = {
+  station: string; category: string; sta_name: string; sta_line: number | null; sta_from: string; sta_to: string
+  fields: Partial<Record<'receiver' | 'antenna' | 'radome', EquipmentField>>; note: string
+}
+export type EquipmentVisit = {
+  station: string; visit_date: string; visit_time: string; visit_time_source: string; equipment_changed: boolean
+  before_status: string; before_fields: Partial<Record<'receiver' | 'antenna', EquipmentField>>; before_row_line: number | null
+  after_status: string | null; after_fields: Record<string, string>; after_row_line: number | null; after_row_from: string; note: string
+}
+export type EquipmentAbout =
+  | { configured: false; message: string }
+  | { configured: true; available: false; message: string }
+  | {
+      configured: true; available: true; written: number; sta: { path: string; rows: number; codes: number }
+      exported_at: string | null; export_counts: Record<string, number> | null; equipment_csv: string | null
+      current_equipment_from: string | null
+    }
+export type EquipmentReport = EquipmentAbout & { summary?: Record<string, number> }
+export type StationEquipment = EquipmentAbout & {
+  station: string; current?: EquipmentCurrent[]; visits?: EquipmentVisit[]; names?: { station: string; problem: string; sta_names: string[] }[]
+}

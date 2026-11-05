@@ -251,6 +251,124 @@ def test_setvar_and_campaign_specs(tmp_path):
     assert c[1] == Campaign("PHREF", "PHREF_DLY", "", "")
 
 
+# --- the equipment report panel (read-only) ----------------------------------------------
+
+# conftest.equipment_report writes this into the synthetic export. A literal: under
+# --import-mode=importlib, `import conftest` finds the repo-root conftest.py.
+EXPORTED_AT = "2026-11-05T17:41:00+00:00"
+
+
+def test_equipment_report_summary_names_the_sta_and_the_export_time(client) -> None:
+    r = client.get("/api/equipment-report")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["configured"] is True and body["available"] is True
+    assert body["exported_at"] == EXPORTED_AT
+    assert body["sta"]["path"].endswith("PHNAT.STA")
+    assert body["summary"]["different"] == 1
+
+
+def test_equipment_report_for_one_station_carries_only_that_station(client) -> None:
+    body = client.get("/api/stations/albu/equipment").json()
+    assert body["station"] == "ALBU"
+    assert body["exported_at"] == EXPORTED_AT
+    [cur] = body["current"]
+    assert cur["category"] == "different"
+    assert cur["fields"]["antenna"]["source_igs"] == "LEIAT504GG"
+    [v] = body["visits"]
+    assert v["after_status"] == "no STA row for the change"
+    assert {c["station"] for c in body["current"] + body["visits"]} == {"ALBU"}
+
+
+def test_a_station_the_report_does_not_mention_has_empty_lists(client) -> None:
+    body = client.get("/api/stations/ZZZZ/equipment").json()
+    assert body["available"] is True
+    assert body["current"] == [] and body["visits"] == [] and body["names"] == []
+
+
+def test_without_a_configured_report_the_console_says_so_plainly(bsw) -> None:
+    import dataclasses
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(dataclasses.replace(bsw, equipment_report=None)))
+    for url in ("/api/equipment-report", "/api/stations/ALBU/equipment"):
+        r = c.get(url)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["configured"] is False
+        assert "No equipment report is configured" in body["message"]
+        assert "current" not in body
+
+
+def test_an_unreadable_report_is_reported_not_raised(bsw) -> None:
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    bsw.equipment_report.write_text("{not json")
+    c = TestClient(create_app(bsw))
+    body = c.get("/api/stations/ALBU/equipment").json()
+    assert body["configured"] is True and body["available"] is False
+    assert "could not be read" in body["message"]
+
+
+def test_a_station_code_is_four_letters_or_digits_never_a_path(client) -> None:
+    for code in ("ALBUX", "AL", "..%2F..", "AL-U"):
+        assert client.get(f"/api/stations/{code}/equipment").status_code in (404, 422)
+
+
+def test_the_equipment_endpoints_are_read_only(client) -> None:
+    assert client.post("/api/equipment-report").status_code == 405
+    assert client.post("/api/stations/ALBU/equipment").status_code == 405
+
+
+def test_a_report_with_the_right_keys_but_wrong_shapes_is_reported_not_raised(bsw) -> None:
+    """A report file with the five keys but values of the wrong type (a hand-edited
+    or truncated-and-rewritten file) must still answer 200 and say it can't be read."""
+    import json
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(bsw), raise_server_exceptions=False)
+    for bad in (
+        {"sta": {}, "sources": "x", "current": [], "visits": [], "names": []},
+        {"sta": {}, "sources": {}, "current": ["ALBU"], "visits": [], "names": []},
+        {"sta": {}, "sources": {}, "current": {"station": "ALBU"}, "visits": [], "names": []},
+        {"sta": {}, "sources": {"logsheet_export": "x"}, "current": [], "visits": [], "names": []},
+    ):
+        bsw.equipment_report.write_text(json.dumps(bad))
+        for url in ("/api/equipment-report", "/api/stations/ALBU/equipment"):
+            r = c.get(url)
+            assert r.status_code == 200, (bad, url, r.status_code)
+            body = r.json()
+            assert body["configured"] is True and body["available"] is False, (bad, url)
+
+
+def test_a_report_removed_after_reading_does_not_raise(bsw, monkeypatch) -> None:
+    """The report is read and its time taken in one step: a file replaced or removed
+    by the nightly job between the two must not turn into a 500."""
+    from pathlib import Path
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    real = Path.read_text
+
+    def read_then_remove(self, *a, **k):
+        text = real(self, *a, **k)
+        if self == bsw.equipment_report:
+            self.unlink()
+        return text
+
+    monkeypatch.setattr(Path, "read_text", read_then_remove)
+    c = TestClient(create_app(bsw), raise_server_exceptions=False)
+    r = c.get("/api/stations/ALBU/equipment")
+    assert r.status_code == 200
+    assert r.json()["available"] is True
+
+
 def test_stage3_says_the_run_worker_exists_but_is_not_wired(client) -> None:
     """The run worker exists (bernese-worker, #316); the console is not wired to
     it, so stage 3 still answers 501. The body keeps its shape; only the text says so."""

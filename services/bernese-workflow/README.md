@@ -35,8 +35,43 @@ around the BPE: staging, product fetch, BLQ merge, QC and comparison
 | `panel_sanitizer.py` | makes Windows-authored `OPT/*.INP` panels safe on Linux (RH-004) |
 | `cpu_config.py` | sizes `USER.CPU` `maxjobs` from physical cores and RAM (RH-006) |
 | `fiducial_set.py` | resolves and records the `.FIX` fiducial set that defines a solution's datum, with its sha256 (GEO-001) |
+| `equipment_check.py` | `bernese-check-equipment`: the `.STA` file's equipment against field-ops' records (the network inventory CSV, or a logsheet export). Advisory and read-only; see below |
 
 `templates/basic_processing.pcf.j2` is the one PCF template.
+
+### The equipment report (`bernese-check-equipment`)
+
+Stage 1 of `docs/project_documentation/field_ops_sta_reconciliation_design.md`.
+It lists where the `.STA` file and field-ops disagree about what is installed.
+It writes nothing and never blocks a run: it exits 0 whatever it finds, and 2
+only when an input cannot be read.
+
+```bash
+uv run bernese-check-equipment --sta $D/REF54/PHNAT.STA \
+    --equipment-csv data/network_inventory/equipment.csv \
+    --logsheet-export ~/.local/state/bernese-workflow/field_equipment.json [--json]
+```
+
+- **Current equipment:** each station's latest TYPE 002 row against the sheet
+  (or, with only an export, its `equipment_history` rows). Receiver, antenna
+  model and radome are judged separately, each as `equal`, `equal after name
+  map`, `different` or `unmapped name`. A station takes the worst of its
+  three; a code on one side only is `only in STA` or `only in source`.
+- **Visits** (logsheet export): the row valid at the visit against `*_before`.
+  When equipment was changed, it looks for a row from the visit's date on
+  with the `*_after` equipment, and reports a missing one.
+- **Station names:** a code with no `.STA` name, or more than one.
+
+Free text such as `Leica AR20` becomes an IGS name through
+`config/bernese/equipment_names.yaml`, which the processing lead owns. A name
+not in it is listed as unmapped, never guessed. The logsheet export is written
+by `scripts/export_field_equipment.py`, read-only, and its `exported_at` is
+printed with the report so stale data shows.
+
+It is a sibling of `bernese-check-stations` rather than an option on it
+because the exit codes mean different things. `bernese-check-stations` exits 1
+on a problem that refuses a run, while this report must exit 0 on any
+disagreement.
 
 ## Using it
 

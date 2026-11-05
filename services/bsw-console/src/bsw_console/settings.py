@@ -98,6 +98,9 @@ class Settings:
     ts_crd_dir: Path | None = None
     ts_reference: str | None = None
     ts_offsets: Path | None = None
+    # The JSON `bernese-check-equipment --json` wrote (BSW_CONSOLE_EQUIPMENT_REPORT).
+    # None: the station view says there is no equipment report.
+    equipment_report: Path | None = None
 
     @property
     def env(self) -> dict[str, str]:
@@ -131,6 +134,7 @@ class Settings:
         ts_crd = os.environ.get("BSW_CONSOLE_TS_CRD_DIR")
         ts_ref = os.environ.get("BSW_CONSOLE_TS_REFERENCE")
         ts_off = os.environ.get("BSW_CONSOLE_TS_OFFSETS")
+        report = os.environ.get("BSW_CONSOLE_EQUIPMENT_REPORT")
         return cls(
             gpsuser=var("U", home / "GPSUSER"),
             datapool=var("D", home / "GPSDATA" / "DATAPOOL"),
@@ -142,6 +146,7 @@ class Settings:
             ts_crd_dir=Path(ts_crd) if ts_crd else None,
             ts_reference=ts_ref.strip().upper() if ts_ref and ts_ref.strip() else None,
             ts_offsets=Path(ts_off) if ts_off else None,
+            equipment_report=Path(report) if report else None,
             state_dir=Path(os.environ.get("BSW_CONSOLE_STATE", home / ".local/state/bsw-console")),
             static_dir=static if static.is_dir() else None,
             actions_enabled=False,

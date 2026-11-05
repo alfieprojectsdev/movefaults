@@ -89,6 +89,7 @@ Launch long runs with `setsid nohup`, never as a Claude Code background job
 | `field_ops_dev.sh` | bring the field-ops stack up locally |
 | `extract_network_inventory.py` | site-inventory spreadsheet to two reviewable CSVs |
 | `seed_network_inventory.py` | seed `public.stations` and equipment history from those CSVs |
+| `export_field_equipment.py` | read-only export of logsheet equipment and `equipment_history` to JSON, for `bernese-check-equipment`; meant to run nightly on gps3 (its docstring has the cron line; nothing installs it) |
 | `seed_stations.py` | seed stations from a YAML file |
 | `seed_field_accounts.py` | one field account per staff member |
 | `reset_all_field_passwords.sh` | reissue every field password in one pass |
