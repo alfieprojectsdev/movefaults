@@ -190,8 +190,9 @@ movefaults_clean/
 > | 2026-11-04 | **First production run:** LUZON January 2026, run `7ca9ccb9`, 31/31 days ok in 53 min, 23–25 stations a day |
 > | 2026-11-04 to 05 | **PHREF 2025 reprocessed:** runs `3341af5c` and `0def7ca1`, all 360 planned days solved |
 >
-> **Not yet done:** comparing the reprocessed PHREF 2025 solutions with the
-> ones they superseded. Still true: nothing writes solutions to TimescaleDB,
+> **Compared 2026-11-05:** the reprocessed PHREF 2025 coordinates differ from
+> the superseded ones on every day (median 0.02 mm, maximum 40.5 mm). The
+> cause is not yet attributed, and downstream velocities are not yet measured. Still true: nothing writes solutions to TimescaleDB,
 > and the ingestion pipeline is not in the loop.
 >
 > The two status blocks below are kept as they were written: they record why

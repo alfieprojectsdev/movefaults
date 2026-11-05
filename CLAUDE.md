@@ -195,8 +195,10 @@ after the run. **No longer the production path:** `scripts/run_luzon_year.sh`,
   `bernese-run-year`, run `7ca9ccb9`, 31/31 days ok in 53 min, 23–25 stations
   a day.
 - **PHREF 2025 reprocessed, 2026-11-04 to 05:** runs `3341af5c` and
-  `0def7ca1`; all 360 planned days solved. **Not yet done:** comparing these
-  solutions with the ones they superseded.
+  `0def7ca1`; all 360 planned days solved. Compared with the solutions they
+  superseded on 2026-11-05: the coordinates differ on every day (median of
+  each day's largest station difference 0.02 mm, maximum 40.5 mm), and **the
+  cause is not yet attributed** (`docs/SETTLED.md` §6).
 
 The run IDs are the ledger's `run` field. By default the ledger is
 `ledger.jsonl` beside the year's `SOL/`; `$BPE_LEDGER_DIR` moves it.

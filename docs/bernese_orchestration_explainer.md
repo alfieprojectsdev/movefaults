@@ -29,8 +29,8 @@
 > **Since 4 November (2026-11-05).** Production now runs through the
 > processing service. The first production run was LUZON January 2026: 31 of 31
 > days, in 53 minutes. PHREF 2025 has been reprocessed through it, all 360
-> planned days. That reprocessed year has not yet been compared with the
-> solutions it replaced. Preparing a campaign (staging, products, ocean
+> planned days. Its positions differ from the ones it replaced: by 0.02 mm on
+> a typical day and by 40.5 mm at most. Why is not yet known. Preparing a campaign (staging, products, ocean
 > loading) and checking results afterwards still use the same scripts as
 > before.
 

@@ -31,8 +31,9 @@ Since 2026-11-04 the BPE step of production Bernese processing runs through
 **`services/bernese-workflow`** (`bernese-run-year`, on BSW 5.4 on the gps3
 server), which still drives BSW through a Perl driver and `startBPE.pm`. The
 first production run was LUZON January 2026 (31/31 days); PHREF 2025 has been
-reprocessed through it (all 360 planned days solved), and that year has not
-yet been compared with the solutions it superseded. Everything around the
+reprocessed through it (all 360 planned days solved); its coordinates differ
+from the solutions it superseded on every day (median 0.02 mm, maximum
+40.5 mm), for a cause not yet attributed. Everything around the
 BPE, from staging and product fetch to QC and run comparison, is still
 **`scripts/`**. Nothing writes solutions into the database yet, and the
 ingestion pipeline is not in the production loop. `CLAUDE.md` ("How
@@ -129,7 +130,7 @@ The project is currently in a phased implementation:
 
 *   **Tier 1 (Foundational):** Geodetic Database ✅ (nothing writes solutions into it yet); Documentation Portal ⏳ (not started).
 *   **Tier 2 (Ingestion):** Field Ops ✅ (deployed); RINEX QC ✅ in practice (teqc first, gfzrnx fallback); IGS Downloader 🔄; Ingestion Pipeline 🔄 (about 30%); drive-archaeologist 🔄 (about 60%).
-*   **Tier 3 (Processing):** Bernese Workflow 🔄 (runs production's BPE step since 2026-11-04; the reprocessed PHREF 2025 year is not yet compared with the solutions it superseded).
+*   **Tier 3 (Processing):** Bernese Workflow 🔄 (runs production's BPE step since 2026-11-04; the reprocessed PHREF 2025 year differs from the solutions it superseded by a median 0.02 mm a day, maximum 40.5 mm, for a cause not yet attributed).
 *   **Tier 4 (Analysis):** Post-Processing Suite 🔄 (velocities verified against PHIVOLCS' MATLAB output; bootstrapping not ported); Public Data Portal and auto-docs ⏳ (not started).
 
 For a detailed breakdown, see [roadmap.md](./docs/project_documentation/roadmap.md).

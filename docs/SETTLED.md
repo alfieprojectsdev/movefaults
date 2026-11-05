@@ -616,7 +616,7 @@ Old documents and older memory still assert these. They are wrong.
 |---|---|
 | headless BPE on the T420 hangs under concurrent `uv sync`/pytest I/O; keep the machine quiet | the hang was the hostname `t420` resolving through the office DNS wildcard to CloudFront; fixed in `/etc/hosts` 2026-10-27 (§4, "The cause, measured") |
 | `scripts/compare_solutions.sh` said "identical" (any verdict before 2026-10-27): the parallel-session test, LZP251210–LZP251250 "byte-identical to the sequential baseline" (session log §21), and the LUZON baseline restore "30 identical" | **those verdicts compared covariances and statistics, not coordinates.** The strip pattern for run timestamps (`YY:DDD:SSSSS`) also matched every SOLUTION/ESTIMATE line's reference epoch, deleting the estimates (10,983 of 11,331 lines of a real SINEX); and plain files (`.CRD`) went through `zcat 2>/dev/null` and compared empty. Binary files (`*.NQ0`) were stripped to grep's "binary file matches" line on both sides, so any NQ0 "identical" meant nothing. Fixed 2026-10-27, with tests; NQ0 is now reported `BINARY`, not compared. **Re-checked with the fixed script (gps3, 2026-10-27):** the LUZON baseline restore holds with coordinates (`LUZON_BASELINE_20260806` vs `LUZON`, identical 30). The parallel-session test **cannot be re-checked**: the LZP campaigns are gone and their outputs were overwritten by that restore, so it stays unverified for estimates. The PHREF parity run and its sequential control (2026-10-27, §2) are now the evidence that parallel REPR sessions give the same solutions as sequential ones. GEO-002 is unaffected: it rests on a full unstripped diff of four timestamp lines |
-| `bernese-workflow` is "~10% complete" | **~60%**, 229 tests, invokes BSW. The real gap is that production still runs through `scripts/` |
+| `bernese-workflow` is "~10% complete" | **~60%**, 229 tests, invokes BSW. The real gap was that production still ran through `scripts/`; closed 2026-11-04, when production's BPE step moved to the service (§2) |
 | `vel_line_v8.m` "remains to port" (`roadmap.md` Deliverable 2.4) | **done and verified** |
 | gfzrnx is "not wired into any module" | **wired**, on two triggers |
 | VADASE has a one-way integration latch bug | **fixed, then removed.** The `ReceiverMode` state machine moves both ways |
@@ -705,15 +705,6 @@ worked on:
   unchanged, so the two currently disagree **on purpose**. When this closes,
   align them and move this entry to §3.
 
-- **The PHREF 2025 solutions reprocessed through the service have not been
-  compared with the ones they superseded.** Production moved to
-  `services/bernese-workflow` on 2026-11-04 (§2: LUZON January 2026, run
-  `7ca9ccb9`; PHREF 2025, runs `3341af5c` and `0def7ca1`, all 360 planned
-  days solved). Until 2026-11-04 this bullet read "No production month has run
-  through `services/bernese-workflow`". The service reproduces `scripts/` on
-  the same configuration (the control run in §2: SNX and CRD identical on DOY
-  094, 096 and 098); the full reprocessed year has not been compared with the
-  production solutions it superseded.
 - **No solution reaches TimescaleDB.** Steps 2–3 of the designed flow are
   aspirational.
 - **Which ambiguities were wrongly fixed on DOY 036, and why that day.**

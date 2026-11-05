@@ -6,8 +6,9 @@ It invokes BSW for real, through the Perl `startBPE.pm` API.
 **Production's BPE step runs through this service since 2026-11-04**, via
 `bernese-run-year`. The first production run was LUZON January 2026 (run
 `7ca9ccb9`, 31/31 days ok in 53 min); PHREF 2025 was then reprocessed through
-it (runs `3341af5c` and `0def7ca1`, all 360 planned days solved), and has not
-yet been compared with the solutions it superseded. Before 2026-11-04 every
+it (runs `3341af5c` and `0def7ca1`, all 360 planned days solved); its
+coordinates differ from the solutions it superseded on every day (median
+0.02 mm, maximum 40.5 mm), for a cause not yet attributed. Before 2026-11-04 every
 production solution (LUZON 2025, 358 days; PHREF 2025, 360 days) came from the
 shell and Perl drivers in the repo-root `scripts/`, which still do everything
 around the BPE: staging, product fetch, BLQ merge, QC and comparison
