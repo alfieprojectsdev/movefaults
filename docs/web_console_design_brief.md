@@ -1,13 +1,18 @@
 # Design brief: Bernese processing console
 
 > **Status, 5 November 2026.** `services/bsw-console` was built from this brief
-> in #315. Stages 1 and 2 (read-only status, plans and checks) are wired.
-> Stage 3 (Start, Stop, Redo and preflight through the run worker) is wired in
-> #334 and is off by default until personal accounts exist. This brief is the
-> 26 October record and is not updated as the console changes; the console's
-> README says what is wired today.
+> in #315. Stages 1 and 2 (read-only status, plans and checks) are wired, and
+> so are the equipment panel (#333), each attempt's run provenance on the Day
+> page and the read-only Time series page (#335, #337). Stage 3 (Start, Stop,
+> Redo and preflight) queues requests for the run worker (#334); it is off by
+> default and is switched on per deployment, only for named operators, once
+> sign-in is in place. Sign-in is a per-person login front end on gps3 that
+> passes the user's name to the console, which trusts it only from that front
+> end (the console side fixed in #338). This brief is the 26 October
+> record and is not updated as the console changes; where it describes plans,
+> they are plans, and the console's README says what is wired today.
 
-*For Claude Design. Drafted 26 October 2026. Produce screens and a clickable
+*For the screen-design tool. Drafted 26 October 2026. Produce screens and a clickable
 prototype for the screens in section 7. The rest of this brief is the context
 those screens have to fit.*
 
