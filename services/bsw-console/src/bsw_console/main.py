@@ -264,7 +264,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         body = await _json_body(request)
         c = campaign(name)
         code = _station_code(station)
-        row = outliers.record(s, c, year, code, timeseries.crd_dir(s, c, year), user, body)
+        row = outliers.record(
+            s, c, year, code, timeseries.crd_dir(s, c, year), user, body,
+            lambda epoch, ref: timeseries.epoch_flag(s, c, year, code, ref, epoch),
+        )  # fmt: skip
         return JSONResponse(row, status_code=201)
 
     # Stage 3: each queues one request for the run worker. The gate runs first,

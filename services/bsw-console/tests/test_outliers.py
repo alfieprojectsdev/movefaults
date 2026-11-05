@@ -80,10 +80,9 @@ def test_going_against_the_flag_needs_a_reason(signed) -> None:
         ({"epoch": "2021-1", "decision": "outlier", "reference": "REF0", "auto_flag": True}, 422),
         ({"epoch": SPIKE, "decision": "delete", "reference": "REF0", "auto_flag": True}, 422),
         ({"epoch": SPIKE, "decision": "outlier", "reference": "../x", "auto_flag": True}, 422),
-        ({"epoch": SPIKE, "decision": "outlier", "reference": "REF0"}, 422),
         ({"epoch": "2021-200", "decision": "outlier", "reference": "REF0", "auto_flag": True}, 404),
     ],
-    ids=["bad-epoch", "bad-decision", "bad-reference", "no-flag", "no-crd-that-day"],
+    ids=["bad-epoch", "bad-decision", "bad-reference", "no-crd-that-day"],
 )
 def test_malformed_decisions_are_refused(signed, bsw, body, code) -> None:
     assert signed.post(f"{BASE}/decisions", json=body, headers=ME).status_code == code
@@ -130,3 +129,46 @@ def test_a_decision_made_against_another_reference_is_marked_and_not_applied(sig
     (d,) = outliers.current(bsw, c, 2021, "SYN1", timeseries.crd_dir(bsw, c, 2021), "XXXX")
     assert d["other_reference"] is True
     assert outliers.excluded_sessions([d]) == []
+
+
+def test_the_flag_is_the_servers_not_the_browsers(signed, bsw) -> None:
+    """The reason rule depends on the flag, so a browser claiming a quiet epoch
+    was flagged cannot skip the reason; the stored flag is the rule's."""
+    assert decide(signed, QUIET, "outlier", flag=True).status_code == 422
+    r = decide(signed, SPIKE, "outlier", flag=False)  # lies the other way
+    assert r.status_code == 201, r.text
+    assert r.json()["auto_flag"] is True
+    assert not decide(signed, QUIET, "not_outlier", flag=True).json()["auto_flag"]
+
+
+def test_a_day_without_the_station_is_refused(signed, bsw) -> None:
+    sta = bsw.savedisk / "LUZON" / "2021" / "STA"
+    lines = (sta / "F1_21196.CRD").read_text().splitlines()
+    (sta / "F1_21200.CRD").write_text(
+        "\n".join(x for x in lines if "SYN1" not in x) + "\n", encoding="ascii"
+    )
+    r = decide(signed, "2021-200", "outlier", flag=True, reason="x")
+    assert r.status_code == 404 and "no epoch" in r.json()["detail"]
+    assert not outliers.path(bsw).exists()
+
+
+def test_a_torn_last_line_does_not_swallow_the_next_decision(signed, bsw) -> None:
+    p = outliers.path(bsw)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text('{"campaign": "LUZON", "yea', encoding="utf-8")  # cut short
+    assert decide(signed, SPIKE, "outlier", flag=True).status_code == 201
+    (d,) = signed.get(f"{BASE}/decisions?reference=REF0").json()["decisions"]
+    assert d["epoch"] == SPIKE
+
+
+def test_both_files_of_a_doubled_day_are_hashed(signed, bsw) -> None:
+    """F1_ and FIN_ for one day both enter the series; re-solving either one
+    supersedes the decision."""
+    sta = bsw.savedisk / "LUZON" / "2021" / "STA"
+    fin = sta / "FIN_20211960.CRD"
+    fin.write_bytes((sta / "F1_21196.CRD").read_bytes())
+    r = decide(signed, SPIKE, "outlier", flag=True)
+    assert r.json()["source"]["files"] == ["F1_21196.CRD", "FIN_20211960.CRD"]
+    fin.write_text(fin.read_text() + "\n")
+    (d,) = signed.get(f"{BASE}/decisions?reference=REF0").json()["decisions"]
+    assert d["superseded"] is True

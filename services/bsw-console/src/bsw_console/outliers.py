@@ -28,6 +28,7 @@ import hashlib
 import json
 import os
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -44,20 +45,24 @@ def path(s: Settings) -> Path:
     return s.state_dir / "outlier_decisions.jsonl"
 
 
-def _crd_for(crd_dir: Path, epoch: str) -> Path | None:
-    """The daily CRD the epoch came from: the file whose name gives that session."""
+def _crds_for(crd_dir: Path, epoch: str) -> list[Path]:
+    """Every daily CRD whose name gives that session (F1_ and FIN_ can both be
+    present for one day; the series then carries both, so both are hashed)."""
     m = _EPOCH.fullmatch(epoch)
-    if not m:
-        return None
+    if not m or not crd_dir.is_dir():
+        return []
     want = f"{int(m[1]) % 100:02d}{m[2]}"
-    for f in sorted(crd_dir.glob("*.CRD")):
-        if _extract_session_from_filename(f.name) == want:
-            return f
-    return None
+    return [
+        f for f in sorted(crd_dir.glob("*.CRD")) if _extract_session_from_filename(f.name) == want
+    ]
 
 
-def _sha256(p: Path) -> str:
-    return hashlib.sha256(p.read_bytes()).hexdigest()
+def _sha256(files: list[Path]) -> str:
+    """One hash over the day's file(s), by name and content, in name order."""
+    h = hashlib.sha256()
+    for f in files:
+        h.update(f.name.encode() + b"\0" + f.read_bytes() + b"\0")
+    return h.hexdigest()
 
 
 def read_all(s: Settings) -> list[dict]:
@@ -98,13 +103,13 @@ def current(
     for epoch, row in sorted(latest.items()):
         if row["decision"] == "cleared":
             continue
-        crd = _crd_for(crd_dir, epoch)
+        crds = _crds_for(crd_dir, epoch)
         sha = (row.get("source") or {}).get("sha256")
         out.append(
             {
                 **row,
                 "history": count[epoch],
-                "superseded": crd is None or (sha is not None and _sha256(crd) != sha),
+                "superseded": not crds or (sha is not None and _sha256(crds) != sha),
                 "other_reference": row.get("reference") != reference,
             }
         )
@@ -129,13 +134,18 @@ def record(
     crd_dir: Path,
     user: str,
     body: dict,
+    flag_of: Callable[[str, str], bool],
 ) -> dict:
-    """Validate and append one decision. The caller has checked who is signed in."""
+    """Validate and append one decision. The caller has checked who is signed in.
+
+    `flag_of(epoch, reference)` is the rule's own flag for that epoch, computed
+    by the server: the browser's `auto_flag` is not trusted, because the reason
+    rule depends on it. It raises 404 when the station has no such epoch.
+    """
     epoch = body.get("epoch")
     decision = body.get("decision")
     reason = body.get("reason") or ""
     reference = body.get("reference")
-    auto_flag = body.get("auto_flag")
     if not isinstance(epoch, str) or not _EPOCH.fullmatch(epoch):
         raise HTTPException(422, "epoch is a session date, YYYY-DDD")
     if decision not in DECISIONS:
@@ -144,16 +154,15 @@ def record(
         raise HTTPException(422, f"reason is text of at most {MAX_REASON} characters")
     if not isinstance(reference, str) or not re.fullmatch(r"[A-Z0-9]{4}", reference):
         raise HTTPException(422, "name the reference station the decision was made against")
-    if not isinstance(auto_flag, bool):
-        raise HTTPException(422, "auto_flag says whether the rule flagged this epoch")
+    crds = _crds_for(crd_dir, epoch)
+    if not crds:
+        raise HTTPException(404, f"No daily CRD for {epoch} in {crd_dir}")
+    auto_flag = flag_of(epoch, reference)
     against = (decision == "outlier" and not auto_flag) or (decision == "not_outlier" and auto_flag)
     if against and not reason.strip():
         raise HTTPException(
             422, "A decision against the automatic flag needs a reason; it is kept with the epoch."
         )
-    crd = _crd_for(crd_dir, epoch)
-    if crd is None:
-        raise HTTPException(404, f"No daily CRD for {epoch} in {crd_dir}")
     row = {
         "v": 1,
         "ts": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
@@ -167,12 +176,24 @@ def record(
         "reference": reference,
         "auto_flag": auto_flag,
         "rule": {"method": "iqr", "factor": 3.0, "scope": "per_segment", "on": "raw_values"},
-        "source": {"crd_dir": str(crd_dir), "file": crd.name, "sha256": _sha256(crd)},
+        "source": {
+            "crd_dir": str(crd_dir),
+            "file": crds[0].name,
+            "files": [f.name for f in crds],
+            "sha256": _sha256(crds),
+        },
     }
     p = path(s)
     p.parent.mkdir(parents=True, exist_ok=True)
     with open(p, "a", encoding="utf-8") as fh:
         fcntl.flock(fh, fcntl.LOCK_EX)
+        # A write cut short (power loss) leaves a line with no newline; start a
+        # new line, so this decision is not glued onto it and lost with it.
+        if fh.tell() > 0:
+            with open(p, "rb") as rd:
+                rd.seek(-1, os.SEEK_END)
+                if rd.read(1) != b"\n":
+                    fh.write("\n")
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
         fh.flush()
         os.fsync(fh.fileno())
