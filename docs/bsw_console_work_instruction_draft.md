@@ -41,9 +41,9 @@ Two roles appear below.
 | Where Bernese runs | Each person's Windows PC | One Linux server, gps3. Nobody opens the Bernese menu program on it |
 | How you see it | The Bernese menu, File Explorer, Notepad++ | The console, in a browser on any office PC |
 | Campaign | One campaign, e.g. `PHIVOLCS`, selected in the menu | Configured campaigns (today LUZON, PHREF and PHDEN), picked in the console's header. Each day runs in its own working campaign (e.g. `LZY250360`), so several days run at once |
-| Final coordinates | `F1_$YSS+0.CRD` | `FIN_$YSS+0.CRD`. The Day page shows the 5.2 name beside each 5.4 name |
+| Final coordinates | `F1_$YSS+0.CRD`, two-digit year (`F1_251520.CRD`) | `FIN_` with a four-digit year (`FIN_20251520.CRD`). The Day page shows the 5.2 name beside each 5.4 name |
 | Orbits, clocks, ERP | IGS finals from CDDIS, or `FTP_DWLD` | CODE finals (`COD0OPSFIN`), fetched by the maintainer with `scripts/fetch_igs_products.sh` from a mirror, because the AIUB FTP server is blocked from gps3 |
-| Starting a run | RUNBPE 1 and 2 panels | **Queue preflight**, then **Start**, on the console's Plan page, for operators (section 5). A run that skips steps, changes RNXGRA or uses another PCF: the maintainer runs `bernese-run-year` on gps3 |
+| Starting a run | RUNBPE 1 and 2 panels | **Queue preflight**, then **Start**, on the console's Plan page, for operators (section 5). A run that skips steps, changes RNXGRA or uses another PCF is a maintainer task on the command line (see 5.6.1, step 5) |
 | When a run fails | Open `$YSS+0_$PID_$SUBID.LOG` in the BPE folder | The console's Failure page names the step, script and program, and shows the known-errors entry |
 
 ## 3. Opening the console
@@ -61,8 +61,8 @@ can use **Start**, **Queue preflight**, **Stop** and **Redo**; for anyone else t
 console refuses them. **The maintainer sets the operator list.**
 
 The pages are **Campaigns**, **Calendar**, **Runs**, **Plan**, **Known errors**,
-**Station files** and **Time series**. **Day**, **Failure** and **Redo** open
-from a day on the Calendar.
+**Station files** and **Time series**. Pick a day on the Calendar and **Open this
+day** for its **Day** page; **Failure** and **Redo** open from there.
 
 ## 4. Data conversion (5.2 §4)
 
@@ -101,7 +101,7 @@ shows them but does not edit them yet.
 
 | 5.2 step | With the console |
 |---|---|
-| 5.3.1 Copy RINEX into `DATAPOOL\<campaign>` | The maintainer puts the files in gps3's DATAPOOL. Check on the **Plan** page that every day you want has data |
+| 5.3.1 Copy RINEX into `DATAPOOL\<campaign>` | The maintainer puts the files in gps3's DATAPOOL. **Plan** checks only the reference stations: a day with too few of them is left out, but it does not tell you whether a given station's RINEX is there. Ask the maintainer, and after the run check the stations in the solution on **Day** |
 | 5.3.2 Set session | On **Plan**, choose the first and last day |
 | 5.3.3 Copy RINEX from DATAPOOL to RAW | Don't. The service stages each day's files itself. On gps3, RAW is working space and may hold leftovers from earlier runs |
 | 5.3.4–5.3.9 Create STA (RNX2STA), CRD and ABB (RXOBV3), ATL (GRDS1S2), PLD (EDITPLD), VEL (NUVELO), CLU (EDITCLU) | Maintainer task on gps3. Open **Station files** to see, for each station, which of the eight files list it and which don't, and codes that appear under two names |
@@ -122,13 +122,13 @@ replacing the a priori coordinates. On gps3 all of it is a maintainer task.
 
 | 5.2 step | With the console |
 |---|---|
-| 5.5.1 Run `FTP_DWLD` with every other script skipped | Not used. **Plan** lists, for each day, whether the orbits, clocks and ERP are present. The maintainer fetches missing ones |
+| 5.5.1 Run `FTP_DWLD` with every other script skipped | Not used. **Plan** checks the orbits, clocks, ERP, biases and ionosphere for the days that will run, and names the days missing each (the first ten). The maintainer fetches missing ones |
 | 5.5.2 Run 001 R2S_COP to 099 DUMMY | Not done as a separate step. The service runs the whole daily PCF |
 | 5.5.3 Update STA, CRD, ABB and CLU with the IGS stations | Maintainer task. Check the result on **Station files** |
 | 5.5.4 Run the BPE to the last script | See 5.6.1 below |
 | 5.5.4 note: Kill, then Reset CPU file | The console has no Kill button. **Stop after the current block** (operators) ends a run the console started, after the block of days in progress, and kills nothing. A run started from the command line is stopped there. A BPE that has to be killed is a maintainer task |
 | 5.5.5 Check SAVEDISK outputs | Open the day on **Calendar**. The **Day** page lists the seven archived results with their 5.2 names, opens each in a viewer with search, and shows the stations in the solution, the stations dropped since the day before, and the HELMCHK RMS |
-| 5.5.5 On error, open `$YSS+0_$PID_$SUBID.LOG` | A failed day opens on the **Failure** page: the failed step (PID), script and program, the matching known-errors entry if there is one, and the log lines, with earlier attempts greyed out |
+| 5.5.5 On error, open `$YSS+0_$PID_$SUBID.LOG` | **Why it failed**, on a failed day, opens the **Failure** page: the failed step (PID), script and program, the matching known-errors entry if there is one, and the log lines, with earlier attempts greyed out |
 | 5.5.6 Replace the a priori CRD with the final one | Maintainer task. A "use as a priori" action is planned but not built |
 
 ### 5.6 Routine processing
@@ -146,10 +146,13 @@ This replaces 5.6.1.1 to 5.6.1.7.
    before anything runs:
    - which days will run, and which won't: too few reference stations, or
      already solved;
-   - each day's products (orbits, clocks, ERP);
+   - the products (orbits, clocks, ERP, biases, ionosphere), naming days that
+     miss any;
    - the PCF steps, and whether the steps chosen leave any step waiting on one
      that won't run;
-   - MAXPAR headroom.
+   - MAXPAR in each ADDNEQ2 option directory, beside the busiest day's station
+     count. This is reported, not compared: a tick means the value was found,
+     not that it is large enough.
 
    Fix or report anything it marks.
 5. To run it, if you are an operator:
@@ -160,7 +163,9 @@ This replaces 5.6.1.1 to 5.6.1.7.
    The console only runs the campaign's daily PCF whole. It refuses a plan that
    skips steps, changes RNXGRA or names another PCF. For those, or if you are not
    an operator, use **Save plan**, which writes the plan to a file the maintainer
-   can read, and ask the maintainer to run it with `bernese-run-year`.
+   can read, and ask the maintainer to run it. `bernese-run-year` takes another
+   PCF with `--pcf`, but has no option to skip steps or change RNXGRA, and it does
+   not read a saved plan: the maintainer works out how to run those.
 6. Follow the run on **Runs**: days down the side, PCF step groups across, each
    cell not started, running, done or failed. The running or failed step's PID
    is named. Stopping the whole run after repeated failures (the circuit
@@ -214,8 +219,9 @@ which list a campaign uses with the maintainer.
 
 The console's **Time series** page runs the project's Python port of the
 velocity computation, `pogf_geodetic_suite.timeseries`. It reproduces the
-MATLAB `vel_line_v8` results to better than 5e-6 mm/yr on 161 of 165 velocity
-components (`docs/SETTLED.md` §2).
+MATLAB results of `vel_line_v8_newvelduetooffset_v4.m`, the variant of
+`vel_line_v8.m` held in this repository, to better than 5e-6 mm/yr on 161 of 165
+velocity components (`docs/SETTLED.md` §2).
 
 **It reads one campaign and one year at a time.** Pick the campaign in the header
 and the year on the page. It doesn't combine years yet, so a velocity here comes
@@ -228,8 +234,8 @@ show crossed out.
 | 6.1 Install Python and MATLAB; download the scripts and `offsets` from Google Drive | Nothing to install. The `offsets` catalogue is in this repository (`docs/bern52/phivolcs-scripts/event-catalog/offsets`). The page shows the catalogue's path and its sha256, so you can tell which version a result used |
 | 6.2.1–6.2.3 Copy `F1_*.CRD` files, run `filter-fncrd.bat` | Not needed. The page reads the daily final CRDs from the `STA` folder of the campaign's result folder for that year, and uses only the stations each solution estimated |
 | 6.2.4 `plot_v2.py`; enter the reference station (S01R) | Choose the **Reference station** on the page. It lists every estimated station in the CRD files. A configured default would be marked, but gps3 has none today, so you choose one. Changing it refits every station |
-| 6.2.5–6.2.6 Check the `123` file and the `offsets` file | Choose a **Station** from the list. The page shows the offsets that apply to it, and whether each falls inside the series |
-| 6.2.7 Run `vel_line_v8.m` | Shown for the station chosen. A plot of East, North and Up on one time axis replaces the JPG: epochs in the fit as dots, epochs the outlier rule flagged in orange, epochs left out of the fit for any other reason hollow, the fitted line for each segment, and the catalogue's offsets as dashed lines. Ctrl with the mouse wheel zooms, Shift with the wheel pans, dragging selects a span, and a double-click shows everything. Below it: the velocity of the final segment with its 1-sigma, East, North and Up, and the span it covers; then, for each segment between offsets, its dates, epochs, epochs in the fit, outliers and velocities. A final segment shorter than the minimum span (one year) is crossed out, because a rate from too little data means nothing |
+| 6.2.5–6.2.6 Check the `123` file and the `offsets` file | Choose a **Station** from the list. The page shows the offsets that apply to it, and whether each falls inside the series. **The catalogue on gps3 is the campaign snapshot in this repository, and the continuous stations' catalogue has not been copied (section 8).** A continuous station can show no offsets because they are missing, and its velocity is then fitted straight across any real step. Check those against your own list |
+| 6.2.7 Run `vel_line_v8.m` | Shown for the station chosen. A plot of East, North and Up on one time axis replaces the JPG: epochs in the fit as dots, epochs the outlier rule flagged in orange, epochs left out of the fit for any other reason hollow, the fitted line for each segment, and the catalogue's offsets as dashed lines. Ctrl with the mouse wheel zooms, Shift with the wheel pans, dragging selects a span, and a double-click shows everything. Below it: the velocity of the final segment with its 1-sigma, East, North and Up, and the span it covers, with a note when the newest epochs are too few to fit, so the rate is the one before the latest event; then, for each segment between offsets, its start and end as decimal years, epochs, epochs in the fit, outliers and velocities. A final segment shorter than the minimum span (one year) is crossed out, because a rate from too little data means nothing |
 | 6.2 note: horizontal only, usually | Unchanged. The page shows Up as well; read it with the same care |
 | 6.3 Outlier removal: `outlier_input-site.py`, right-click, hand-edit PLOT files, re-run MATLAB | Click an epoch on the plot; a drag doesn't pick one. A form shows the rule's flag and any decision so far. A flagged epoch offers **Confirm outlier**, or **Keep it: not an outlier** with a reason. An unflagged one offers **Mark as outlier** with a reason. **Undo decision** takes a decision back. Each decision is kept with your name, the reference station and a hash of the day's CRD files, and no file is edited. Rings mark decided epochs. A dashed line and a row marked "not published" show the fit without the confirmed outliers. A decision made against another reference station, or on a day since reprocessed, is shown as such and not applied. The page's outlier mode stays `record`: flagged epochs are reported and kept in the fit. Decisions don't reach PLOT files or production plots; for those, keep using `tools/velocity-reviewer` |
 
@@ -244,7 +250,7 @@ writes GMT `psvelo` input. It is not in the console.
 
 | | Where it stands |
 |---|---|
-| Listing queued requests | Not built. A queued redo can be cancelled only on gps3 |
+| Listing queued requests | Not built. A queued request can be cancelled only on gps3 |
 | Velocity over several years | Not built. The Time series page reads one year's CRD files at a time |
 | Start with skipped steps, another RNXGRA or another PCF | Refused on purpose: the console runs the PCF whole. These stay on the command line |
 | Editing station files, adding a site, "use as a priori", checking a BLQ reply | Planned (console stage 4). **Station files** is read-only today |
