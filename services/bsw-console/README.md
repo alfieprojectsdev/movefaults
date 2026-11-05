@@ -30,7 +30,7 @@ does not exist yet. From an office PC, tunnel to it:
 | `BSW_CONSOLE_KB` | `config/bernese/bpe_errors.yaml` | the known-errors list |
 | `BPE_LOCK` | bernese-workflow's default | the lock file it reads |
 | `BSW_CONSOLE_STATE` | `~/.local/state/bsw-console` | where saved plans go |
-| `BSW_CONSOLE_TRUSTED_PROXIES` | empty | comma-separated addresses of reverse proxies allowed to name the user in `X-Remote-User`. Empty: the header is ignored |
+| `BSW_CONSOLE_TRUSTED_PROXIES` | empty | comma-separated addresses of reverse proxies allowed to name the user in `X-Remote-User`, matched against the address that actually connects (the server ignores `X-Forwarded-For`; behind Caddy on gps3 this is `127.0.0.1`). Empty: the header is ignored |
 | `BSW_CONSOLE_ACTIONS` | off | `on` lets the stage 3 buttons queue requests for the run worker. Leave off until personal accounts exist |
 | `BSW_CONSOLE_OPERATORS` | empty | comma-separated signed-in users who may press them. Empty: nobody, even with actions on |
 | `BERNESE_WORKER_STATE` | the worker's default | the run worker's queue; must be the directory `bernese-worker run` reads |
