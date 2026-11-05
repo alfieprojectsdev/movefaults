@@ -11,8 +11,8 @@ of the browser console."
 
 | | Automatic flags | Person decides | Where the decision goes |
 |---|---|---|---|
-| Legacy (`outlier_input-site.py`, Windows GUI) | 3×IQR on residuals from a linear fit | right-click to mark | strips the epochs from the PLOT files; writes `OUTLIERS.txt` |
-| `tools/velocity-reviewer` (web) | the same rule, ported (mean-centred, cm) | click to mark | the same as legacy: strips the epochs from the PLOT files (first `.bak` kept) and writes `OUTLIERS.txt`. No name recorded, one analyst at a time, Plotly loaded from a CDN, no tests |
+| Legacy (`outlier_input-site.py`, Windows GUI; the copy in this repo is `docs/bern52/.../Outliers-input name.py`) | none in the GUI: it plots the linear fit. Automatic detection was the MATLAB's `rmoutliers` in `vel_line_v8`, whose mask the fit then ignored | right-click to mark | appends the epoch to `OUTLIERS.txt`; the work instruction then has the analyst delete those points by hand and re-run (`velocity_outlier_policy_delta.md`) |
+| `tools/velocity-reviewer` (web) | its own addition: 3×IQR on residuals from a linear fit (mean-centred, cm), drawn as suggestions | click to mark | strips the marked epochs from the PLOT files in place (first `.bak` kept) and writes `OUTLIERS.txt`. No name recorded, one analyst at a time, Plotly loaded from a CDN, no tests |
 | Console Time series page (#335, #337) | `pogf_geodetic_suite.timeseries.status`: 3×IQR per segment, on **raw values**, any of E/N/U | **nothing**: read-only | shows counts and the mode only |
 
 What the console already has. `station_status` returns every epoch's
@@ -65,15 +65,17 @@ its history.
 {"v": 1, "ts": "2026-11-05T09:12:00+08:00",
  "station": "LORE", "epoch": "2025-218", "decimal_year": 2025.5969,
  "decision": "outlier" | "not_outlier" | "cleared",
- "by": "ap", "reason": "multipath after the antenna swap",
+ "by": "abc", "reason": "multipath after the antenna swap",
  "reference": "MONT", "auto_flag": true,
  "rule": {"method": "iqr", "factor": 3.0, "scope": "per_segment", "on": "raw_values"},
  "source": {"crd_dir": "/home/gps3/GPSDATA/SAVEDISK/PHREF/2025/STA",
-            "file": "FIN_25218.CRD", "sha256": "..."}}
+            "file": "FIN_20252180.CRD", "sha256": "..."}}
 ```
 
-- **`epoch` is the session date (`YYYY-DDD`), not the float.** The decimal year
-  is derived (`year + DOY/365.25`, settled) and would invite float matching.
+- **`epoch` is the session date (`YYYY-DDD`), not the float.** The daily final
+  CRD's name carries it (`FIN_YYYYDDDS.CRD`, S the sub-session), and the decimal
+  year is derived from it (`year + DOY/365.25`, settled), so matching on the
+  float would invite rounding errors.
 - **`reference` is stored because an apparent outlier can be the reference's
   bad day**, which shows up at every station at once. A decision made relative
   to one reference is shown, labelled with that reference, when another is
