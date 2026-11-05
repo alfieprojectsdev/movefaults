@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApi } from '../lib'
 import type { StationFiles as SF } from '../types'
 import { Failed, Loading } from './common'
+import EquipmentPanel from './EquipmentPanel'
 
 export default function StationFiles({ campaign, year }: { campaign: string; year: number }) {
   const { data, error } = useApi<SF>(`/api/campaigns/${campaign}/years/${year}/station-files`)
@@ -51,6 +52,7 @@ export default function StationFiles({ campaign, year }: { campaign: string; yea
           </tbody>
         </table>
       </div>
+      <EquipmentPanel stations={data.rows.map((r) => r.station)} />
       <div className="panel pad stack" style={{ fontSize: 13 }}>
         <p><strong>BLQ, still by email.</strong> The console will write the coordinate block for the Chalmers ocean loading form for the stations missing from the BLQ, and check the emailed reply for missing stations and for anything after <span className="mono">$$ END TABLE</span> before it is merged.</p>
         <p className="faint">Not built yet (stage 4).</p>

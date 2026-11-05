@@ -35,6 +35,8 @@ URLS = [
     "/api/campaigns/LUZON/years/2025/plan?start=35&end=40",
     "/api/known-errors",
     "/api/campaigns/LUZON/years/2025/station-files",
+    "/api/equipment-report",
+    "/api/stations/ALBU/equipment",
 ]
 
 

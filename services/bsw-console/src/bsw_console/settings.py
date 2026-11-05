@@ -91,6 +91,9 @@ class Settings:
     # X-Remote-User. Empty (the default): the header is ignored from everyone,
     # because without a proxy any client on the network could send it.
     trusted_proxies: frozenset[str] = frozenset()
+    # The JSON `bernese-check-equipment --json` wrote (BSW_CONSOLE_EQUIPMENT_REPORT).
+    # None: the station view says there is no equipment report.
+    equipment_report: Path | None = None
 
     @property
     def env(self) -> dict[str, str]:
@@ -121,6 +124,7 @@ class Settings:
         static = Path(os.environ.get("BSW_CONSOLE_STATIC", here / "frontend" / "dist"))
         kb = os.environ.get("BSW_CONSOLE_KB")
         lock = os.environ.get("BPE_LOCK")
+        report = os.environ.get("BSW_CONSOLE_EQUIPMENT_REPORT")
         return cls(
             gpsuser=var("U", home / "GPSUSER"),
             datapool=var("D", home / "GPSDATA" / "DATAPOOL"),
@@ -129,6 +133,7 @@ class Settings:
             campaigns=parse_campaigns(os.environ.get("BSW_CONSOLE_CAMPAIGNS", DEFAULT_CAMPAIGNS)),
             kb_path=Path(kb) if kb else None,
             lock_path=Path(lock) if lock else None,
+            equipment_report=Path(report) if report else None,
             state_dir=Path(os.environ.get("BSW_CONSOLE_STATE", home / ".local/state/bsw-console")),
             static_dir=static if static.is_dir() else None,
             actions_enabled=False,
