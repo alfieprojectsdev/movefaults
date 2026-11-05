@@ -405,3 +405,23 @@ def test_time_series_station_is_four_characters_never_a_path(client) -> None:
     for code in ("SYN12", "S", "..%2F.."):
         assert client.get(f"/api/campaigns/LUZON/time-series/{code}").status_code in (404, 422)
     assert client.post("/api/campaigns/LUZON/time-series/SYN1").status_code == 405
+
+
+def test_a_worker_run_credits_who_asked_not_the_service_account() -> None:
+    """bernese-worker runs as the service account and tags run_start with the
+    request's submitted_by. The person who asked is who started it."""
+    from bsw_console.status import run_provenance
+
+    start = {"user": "gps3", "code": {"commit": "a" * 40, "dirty": False},
+             "pcf": "LUZON_DLY", "submitted_by": "abc", "request": "20261105T021500.000000Z-0a1b2c3d"}  # fmt: skip
+    who = run_provenance(start)["started_by"]
+    assert who.startswith("abc")
+    assert "gps3" in who and "20261105T021500.000000Z-0a1b2c3d" in who
+
+
+def test_odd_ledger_field_types_do_not_break_the_day_page() -> None:
+    """A hand-edited or foreign run_start (code not an object) is shown, not a 500."""
+    from bsw_console.status import run_provenance
+
+    p = run_provenance({"user": "u", "code": "abc123", "pcf": "X", "command": 5})
+    assert p["recorded"] is True and p["code_version"] == "unknown"

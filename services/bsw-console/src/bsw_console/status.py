@@ -228,10 +228,18 @@ def run_provenance(start: dict | None) -> dict:
     who = str(start.get("user") or "unknown")
     if start.get("sudo_user"):
         who += f" (sudo from {start['sudo_user']})"
+    if start.get("submitted_by"):
+        # bernese-worker runs as the service account and tags run_start with
+        # the request (run_worker._TaggedLedger): the person who asked started it.
+        who = f"{start['submitted_by']} (through the run worker as {who}"
+        who += f", request {start['request']})" if start.get("request") else ")"
     command = start.get("command")
     if isinstance(command, list):
         command = " ".join(str(a) for a in command)
-    code = start.get("code") or {}
+    elif command is not None and not isinstance(command, str):
+        command = str(command)
+    code = start.get("code")
+    code = code if isinstance(code, dict) else {}
     commit = str(code.get("commit") or "unknown")
     version = commit if commit == "unknown" else commit[:10]
     if commit != "unknown":
