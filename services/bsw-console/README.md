@@ -34,9 +34,8 @@ does not exist yet. From an office PC, tunnel to it:
 | `BSW_CONSOLE_ACTIONS` | off | `on` lets the stage 3 buttons queue requests for the run worker. Leave off until personal accounts exist |
 | `BSW_CONSOLE_OPERATORS` | empty | comma-separated signed-in users who may press them. Empty: nobody, even with actions on |
 | `BERNESE_WORKER_STATE` | the worker's default | the run worker's queue; must be the directory `bernese-worker run` reads |
-| `BSW_CONSOLE_TS_CRD_DIR` | unset | the directory of daily final CRD files the Time series page reads |
 | `BSW_CONSOLE_TS_REFERENCE` | unset | the reference station the page starts with. The page lets each viewer choose any estimated station in the CRD files as the reference; this only sets the first choice |
-| `BSW_CONSOLE_TS_OFFSETS` | unset | the offsets catalog. Until the CRD directory and the offsets catalog are set, the page says the time series is not configured |
+| `BSW_CONSOLE_TS_OFFSETS` | unset | the offsets catalog. Until it is set, the page says the time series is not configured. The daily final CRDs are not a setting: the page reads the chosen campaign year's `<V_RESULT>/STA` |
 | `BSW_CONSOLE_EQUIPMENT_REPORT` | unset | the JSON written by `bernese-check-equipment --json`, shown on the Station files page. Unset: the page says there is no equipment report |
 
 For frontend work, `npm run dev` proxies `/api` to the running server.
@@ -54,7 +53,7 @@ For frontend work, `npm run dev` proxies `/api` to the running server.
 | Redo | Wired preview: every file that would move, and where. **Redo** queues the move and the rerun for the run worker (stage 3; off by default) |
 | Known errors | Wired: the whole list, with how often each fired in the last 30 days and failures with no entry |
 | Station files (stage 4) | Read-only and wired: station × file coverage of the eight files the PCF names, codes with two names, stations missing from the BLQ (anything after `$$ END TABLE` counts as missing). Add a site, use a CRD as a priori and the BLQ paste check are not built. **Equipment panel** (read-only): one station's part of the `bernese-check-equipment` report, with the field-ops export's time; it reads the report file and never the field-ops database |
-| Time series (stage 5) | Read-only and wired: `pogf_geodetic_suite.timeseries.status` in-process on the daily final CRDs (`BSW_CONSOLE_TS_*`), per station the final-segment velocity with 1-sigma, each segment's epochs, fit and outlier counts, the offsets catalog's path and sha256, and the outlier mode (status's default, `record`). No plot yet; confirming or overriding an outlier is not built |
+| Time series (stage 5) | Read-only and wired: `pogf_geodetic_suite.timeseries.status` in-process on the chosen campaign year's daily final CRDs (`<V_RESULT>/STA`, with a year picker), per station the final-segment velocity with 1-sigma, each segment's epochs, fit and outlier counts, the offsets catalog's path and sha256, and the outlier mode (status's default, `record`). No plot yet; confirming or overriding an outlier is not built |
 
 Stubs answer HTTP 501 with the reason, and the page shows it.
 

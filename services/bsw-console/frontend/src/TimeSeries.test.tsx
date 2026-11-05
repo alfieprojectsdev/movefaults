@@ -50,14 +50,14 @@ it('not configured: the page says so and names the settings, instead of failing'
   serve({
     [BASE]: {
       configured: false,
-      missing: ['BSW_CONSOLE_TS_CRD_DIR', 'BSW_CONSOLE_TS_OFFSETS'],
-      message: 'The time series is not configured for this console: set BSW_CONSOLE_TS_CRD_DIR, BSW_CONSOLE_TS_OFFSETS (the daily final CRD directory and the offsets catalog).',
+      missing: ['BSW_CONSOLE_TS_OFFSETS'],
+      message: 'The time series is not configured for this console: set BSW_CONSOLE_TS_OFFSETS (the offsets catalog).',
     },
   })
   await page()
   const status = screen.getByRole('status')
   expect(status.textContent).toMatch(/Not configured\./)
-  expect(status.textContent).toMatch(/BSW_CONSOLE_TS_CRD_DIR/)
+  expect(status.textContent).toMatch(/BSW_CONSOLE_TS_OFFSETS/)
   expect(screen.queryByLabelText(/Station/)).toBeNull()
   expect(screen.queryByText(/Could not read this/)).toBeNull()
 })
