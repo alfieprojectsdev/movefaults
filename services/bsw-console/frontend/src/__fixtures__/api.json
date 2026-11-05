@@ -1,8 +1,7 @@
 {
  "/api/session": {
   "user": null,
-  "accounts": "pending",
-  "version": "ca4c551",
+  "version": "9a302b6",
   "actions_enabled": false,
   "can_act": false,
   "campaigns": [
@@ -30,12 +29,26 @@
       "float": 0,
       "failed": 1,
       "not_run": 363
+     },
+     {
+      "year": 2021,
+      "fixed": 0,
+      "float": 0,
+      "failed": 0,
+      "not_run": 365
+     },
+     {
+      "year": 2020,
+      "fixed": 0,
+      "float": 0,
+      "failed": 0,
+      "not_run": 366
      }
     ],
     "last_run": {
      "run": "r1",
-     "started": 1793841104.3633535,
-     "ended": 1793841705.3633535,
+     "started": 1793866408.4823098,
+     "ended": 1793867009.4823098,
      "host": "elsewhere",
      "pid": 1,
      "doys": [
@@ -59,7 +72,7 @@
      "halt": "configuration error (example)",
      "status_lines": [
       "run r1  LUZON 2025  host elsewhere pid 1  config abc",
-      "  started 2026-11-05 01:11; 3 days asked, 0 already banked",
+      "  started 2026-11-05 16:13; 3 days asked, 0 already banked",
       "  ok 1   failed 1   not run 0   not yet attempted 1",
       "  failed DOY 036: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
       "  typical day: 5.0 min (median of 1)",
@@ -71,7 +84,7 @@
   ],
   "activity": [
    {
-    "ts": 1793841705.3633535,
+    "ts": 1793867009.4823098,
     "who": "service",
     "campaign": "LUZON",
     "year": 2025,
@@ -80,7 +93,7 @@
     "text": "Run r1 halted: configuration error (example)"
    },
    {
-    "ts": 1793841704.3633535,
+    "ts": 1793867008.4823098,
     "who": "service",
     "campaign": "LUZON",
     "year": 2025,
@@ -89,7 +102,7 @@
     "text": "DOY 036 failed: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE"
    },
    {
-    "ts": 1793841104.3633535,
+    "ts": 1793866408.4823098,
     "who": "elsewhere",
     "campaign": "LUZON",
     "year": 2025,
@@ -3769,8 +3782,8 @@
   "year": 2025,
   "run": {
    "run": "r1",
-   "started": 1793841104.3633535,
-   "ended": 1793841705.3633535,
+   "started": 1793866408.4823098,
+   "ended": 1793867009.4823098,
    "host": "elsewhere",
    "pid": 1,
    "doys": [
@@ -3794,7 +3807,7 @@
    "halt": "configuration error (example)",
    "status_lines": [
     "run r1  LUZON 2025  host elsewhere pid 1  config abc",
-    "  started 2026-11-05 01:11; 3 days asked, 0 already banked",
+    "  started 2026-11-05 16:13; 3 days asked, 0 already banked",
     "  ok 1   failed 1   not run 0   not yet attempted 1",
     "  failed DOY 036: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
     "  typical day: 5.0 min (median of 1)",
@@ -3804,8 +3817,8 @@
   "runs": [
    {
     "run": "r1",
-    "started": 1793841104.3633535,
-    "ended": 1793841705.3633535,
+    "started": 1793866408.4823098,
+    "ended": 1793867009.4823098,
     "state": "halted",
     "halt": "configuration error (example)",
     "doys": [
@@ -3936,8 +3949,8 @@
     "run": "r1",
     "doy": 35,
     "session": "0350",
-    "started": 1793841105.3633535,
-    "ended": 1793841404.3633535,
+    "started": 1793866409.4823098,
+    "ended": 1793866708.4823098,
     "outcome": "ok",
     "seconds": 299.0,
     "error": "",
@@ -3965,7 +3978,7 @@
     "folder": "OUT",
     "what": "BPE processing summary",
     "size": 36,
-    "written": 1793844704.363344,
+    "written": 1793870008.4809759,
     "path": "OUT/R2S_20250350.PRC"
    },
    {
@@ -3974,7 +3987,7 @@
     "folder": "STA",
     "what": "Final coordinates (the target output)",
     "size": 2,
-    "written": 1793844704.3631537,
+    "written": 1793870008.4809759,
     "path": "STA/FIN_20250350.CRD"
    },
    {
@@ -3983,7 +3996,7 @@
     "folder": "SOL",
     "what": "SINEX, one-session solution",
     "size": 92,
-    "written": 1793844704.3629558,
+    "written": 1793870008.4809759,
     "path": "SOL/FIN_20250350.SNX.gz"
    },
    {
@@ -3992,7 +4005,7 @@
     "folder": "SOL",
     "what": "Normal equations, final",
     "size": 2,
-    "written": 1793844704.3630457,
+    "written": 1793870008.4809759,
     "path": "SOL/FIN_20250350.NQ0.gz"
    },
    {
@@ -4001,7 +4014,7 @@
     "folder": "SOL",
     "what": "Normal equations, reduced",
     "size": 2,
-    "written": 1793844704.3631,
+    "written": 1793870008.4809759,
     "path": "SOL/RED_20250350.NQ0.gz"
    },
    {
@@ -4010,7 +4023,7 @@
     "folder": "ATM",
     "what": "Troposphere, SINEX format",
     "size": 2,
-    "written": 1793844704.3632028,
+    "written": 1793870008.4809759,
     "path": "ATM/FIN_20250350.TRO"
    },
    {
@@ -4019,7 +4032,7 @@
     "folder": "ATM",
     "what": "Troposphere, Bernese format",
     "size": 2,
-    "written": 1793844704.3632498,
+    "written": 1793870008.4809759,
     "path": "ATM/FIN_20250350.TRP"
    }
   ],
@@ -4060,8 +4073,8 @@
    "run": "r1",
    "doy": 36,
    "session": "0360",
-   "started": 1793690052.6485233,
-   "ended": 1793690351.6485233,
+   "started": 1793866709.4823098,
+   "ended": 1793867008.4823098,
    "outcome": "failed",
    "seconds": 299.0,
    "error": "HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
@@ -4146,7 +4159,7 @@
   "session": "0350",
   "campaign": "LUZON",
   "from": "/srv/bsw/SAVEDISK/LUZON/2025",
-  "to": "/srv/bsw/SAVEDISK/LUZON/2025/SUPERSEDED/20261103-1609",
+  "to": "/srv/bsw/SAVEDISK/LUZON/2025/SUPERSEDED/20261105-1713",
   "files": [
    {
     "name": "R2S_20250350.PRC",
@@ -4154,7 +4167,7 @@
     "folder": "OUT",
     "what": "BPE processing summary",
     "size": 36,
-    "written": 1793693351.6478434,
+    "written": 1793870008.4809759,
     "path": "OUT/R2S_20250350.PRC"
    },
    {
@@ -4163,7 +4176,7 @@
     "folder": "STA",
     "what": "Final coordinates (the target output)",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793870008.4809759,
     "path": "STA/FIN_20250350.CRD"
    },
    {
@@ -4172,7 +4185,7 @@
     "folder": "SOL",
     "what": "SINEX, one-session solution",
     "size": 92,
-    "written": 1793693351.6478434,
+    "written": 1793870008.4809759,
     "path": "SOL/FIN_20250350.SNX.gz"
    },
    {
@@ -4181,7 +4194,7 @@
     "folder": "SOL",
     "what": "Normal equations, final",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793870008.4809759,
     "path": "SOL/FIN_20250350.NQ0.gz"
    },
    {
@@ -4190,7 +4203,7 @@
     "folder": "SOL",
     "what": "Normal equations, reduced",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793870008.4809759,
     "path": "SOL/RED_20250350.NQ0.gz"
    },
    {
@@ -4199,7 +4212,7 @@
     "folder": "ATM",
     "what": "Troposphere, SINEX format",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793870008.4809759,
     "path": "ATM/FIN_20250350.TRO"
    },
    {
@@ -4208,7 +4221,7 @@
     "folder": "ATM",
     "what": "Troposphere, Bernese format",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793870008.4809759,
     "path": "ATM/FIN_20250350.TRP"
    }
   ],
@@ -4260,7 +4273,9 @@
   "sources": [
    "datapool: /srv/bsw/DATAPOOL/LUZON  (from V_RNXDIR = ${D}/LUZON)",
    "STA:      /srv/bsw/DATAPOOL/REF54/LUZON.STA",
-   "results:  /srv/bsw/SAVEDISK/LUZON/2025/SOL  (from V_RESULT = ${S}/LUZON/$Y+0)"
+   "results:  /srv/bsw/SAVEDISK/LUZON/2025/SOL  (from V_RESULT = ${S}/LUZON/$Y+0)",
+   "CRD:      /srv/bsw/DATAPOOL/REF54/LUZON.CRD",
+   "BLQ:      /srv/bsw/DATAPOOL/REF54/LUZON.BLQ"
   ],
   "groups": [
    {
@@ -4330,8 +4345,8 @@
   "skipped": [],
   "rnxgra": "continuous",
   "rnxgra_presets": {
-   "continuous": "Continuous · min 200 obs, max 10 bad epochs, 3 obs per bad epoch",
-   "campaign": "Campaign survey · min 100 obs, max 70 bad epochs, 3 obs per bad epoch"
+   "continuous": "Continuous \u00b7 min 200 obs, max 10 bad epochs, 3 obs per bad epoch",
+   "campaign": "Campaign survey \u00b7 min 100 obs, max 70 bad epochs, 3 obs per bad epoch"
   },
   "checks": [
    {
@@ -4357,7 +4372,7 @@
    {
     "level": "bad",
     "title": "Problems the service found",
-    "detail": "cannot read the reference set /srv/bsw/DATAPOOL/REF54/IGS20.FIX: [Errno 2] No such file or directory: '/srv/bsw/DATAPOOL/REF54/IGS20.FIX'; no datapool directory /srv/bsw/DATAPOOL/LUZON; no datapool scan: reference-station coverage was not checked"
+    "detail": "cannot read the reference set /srv/bsw/DATAPOOL/REF54/IGS20.FIX: [Errno 2] No such file or directory: '/srv/bsw/DATAPOOL/REF54/IGS20.FIX'; no datapool directory /srv/bsw/DATAPOOL/LUZON; no datapool scan: reference-station coverage was not checked; cannot read /srv/bsw/DATAPOOL/REF54/LUZON.ATL: [Errno 2] No such file or directory: '/srv/bsw/DATAPOOL/REF54/LUZON.ATL'; LUZON.STA: -: no TYPE 002 rows were read; LUZON.BLQ: BILI: line 5: block is after $$ END TABLE; Bernese will report its coefficients NOT FOUND"
    },
    {
     "level": "info",
@@ -4368,7 +4383,8 @@
   "can_start": false,
   "start_blocked_because": [
    "fix the checks marked above",
-   "starting runs from the console is switched off until personal accounts exist"
+   "the preflight for these days has not finished ok",
+   "starting runs from this console is switched off (BSW_CONSOLE_ACTIONS)"
   ],
   "pcfs": [
    "LUZON_DLY"
@@ -4497,7 +4513,7 @@
      "campaign": "LUZON",
      "year": 2025,
      "doy": 36,
-     "ts": 1793690351.6485233
+     "ts": 1793867008.4823098
     }
    },
    {
@@ -4610,153 +4626,43 @@
    }
   ]
  },
- "/api/plans": {
-  "plans": []
- },
- "/api/equipment-report": {
+ "/api/campaigns/LUZON/time-series": {
   "configured": true,
-  "available": true,
-  "written": 1793843457.0587504,
-  "sta": {
-   "path": "/srv/bsw/equipment/PHNAT.STA",
-   "rows": 2,
-   "codes": 2
-  },
-  "exported_at": "2026-11-05T17:41:00+00:00",
-  "export_counts": {
-   "logsheets": 1,
-   "equipment_history": 0
-  },
-  "equipment_csv": "/srv/bsw/equipment/equipment.csv",
-  "current_equipment_from": "equipment CSV /srv/bsw/equipment/equipment.csv",
-  "summary": {
-   "equal": 0,
-   "equal after name map": 1,
-   "different": 1,
-   "unmapped name": 0,
-   "only in STA": 0,
-   "only in source": 1
-  }
- },
- "/api/stations/ALBU/equipment": {
-  "configured": true,
-  "available": true,
-  "written": 1793843457.0587504,
-  "sta": {
-   "path": "/srv/bsw/equipment/PHNAT.STA",
-   "rows": 2,
-   "codes": 2
-  },
-  "exported_at": "2026-11-05T17:41:00+00:00",
-  "export_counts": {
-   "logsheets": 1,
-   "equipment_history": 0
-  },
-  "equipment_csv": "/srv/bsw/equipment/equipment.csv",
-  "current_equipment_from": "equipment CSV /srv/bsw/equipment/equipment.csv",
-  "station": "ALBU",
-  "current": [
-   {
-    "station": "ALBU",
-    "category": "different",
-    "sta_name": "ALBU ALBU",
-    "sta_line": 6,
-    "sta_from": "2015 01 01 00 00 00",
-    "sta_to": "2099 12 31 00 00 00",
-    "fields": {
-     "receiver": {
-      "sta": "TRIMBLE NETR9",
-      "source": "Trimble NetR9",
-      "status": "equal after name map",
-      "source_igs": "TRIMBLE NETR9",
-      "note": ""
-     },
-     "antenna": {
-      "sta": "TRM57971.00",
-      "source": "AT504GG",
-      "status": "different",
-      "source_igs": "LEIAT504GG",
-      "note": ""
-     },
-     "radome": {
-      "sta": "NONE",
-      "source": "NONE",
-      "status": "equal",
-      "source_igs": "NONE",
-      "note": ""
-     }
-    },
-    "note": ""
-   }
+  "campaign": "LUZON",
+  "crd_dirs": [
+   "/srv/bsw/SAVEDISK/LUZON/2020/STA",
+   "/srv/bsw/SAVEDISK/LUZON/2021/STA",
+   "/srv/bsw/SAVEDISK/LUZON/2025/STA"
   ],
-  "visits": [
-   {
-    "station": "ALBU",
-    "visit_date": "2026-03-10",
-    "visit_time": "2026-03-10T01:30:00",
-    "visit_time_source": "arrival_time",
-    "equipment_changed": true,
-    "before_status": "equal after name map",
-    "before_fields": {
-     "receiver": {
-      "sta": "TRIMBLE NETR9",
-      "source": "Trimble NetR9",
-      "status": "equal after name map",
-      "source_igs": "TRIMBLE NETR9",
-      "note": ""
-     },
-     "antenna": {
-      "sta": "TRM57971.00",
-      "source": "TRM57971.00",
-      "status": "equal",
-      "source_igs": "TRM57971.00",
-      "note": ""
-     }
-    },
-    "before_row_line": 6,
-    "after_status": "no STA row for the change",
-    "after_fields": {
-     "receiver": "LEICA GR50"
-    },
-    "after_row_line": null,
-    "after_row_from": "",
-    "note": ""
-   }
-  ],
-  "names": []
- },
- "/api/campaigns/LUZON/years/2021/time-series": {
-  "configured": true,
-  "available": true,
-  "crd_dir": "/srv/bsw/timeseries/STA",
   "reference": "REF0",
   "default_reference": "REF0",
-  "offsets_path": "/srv/bsw/timeseries/offsets",
+  "offsets_path": "/srv/bsw/SAVEDISK/LUZON/offsets",
   "all_stations": [
    "REF0",
    "SYN1"
   ],
+  "outlier_mode": "record",
+  "available": true,
   "stations": [
    "SYN1"
-  ],
-  "outlier_mode": "record",
-  "campaign": "LUZON",
-  "year": 2021,
-  "years": [
-   2025,
-   2021
   ]
  },
- "/api/campaigns/LUZON/years/2021/time-series/SYN1": {
+ "/api/campaigns/LUZON/time-series/SYN1": {
   "configured": true,
   "available": true,
-  "crd_dir": "/srv/bsw/timeseries/STA",
+  "campaign": "LUZON",
+  "crd_dirs": [
+   "/srv/bsw/SAVEDISK/LUZON/2020/STA",
+   "/srv/bsw/SAVEDISK/LUZON/2021/STA",
+   "/srv/bsw/SAVEDISK/LUZON/2025/STA"
+  ],
   "reference": "REF0",
-  "offsets_path": "/srv/bsw/timeseries/offsets",
+  "default_reference": "REF0",
+  "offsets_path": "/srv/bsw/SAVEDISK/LUZON/offsets",
   "schema": "pogf.timeseries.status/1",
   "station": "SYN1",
   "offsets_catalog": {
-   "path": "/srv/bsw/timeseries/offsets",
+   "path": "/srv/bsw/SAVEDISK/LUZON/offsets",
    "sha256": "58ce5413670746f77d55e4d32aa39288f613bcb7573be5df200d60ed19e9d0a4"
   },
   "outlier_rule": {
@@ -5084,6 +4990,58 @@
     true,
     true
    ],
+   "excluded": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
    "segment": [
     0,
     0,
@@ -5250,10 +5208,130 @@
    "covers_latest_epoch": true
   },
   "min_span_years": 1.0,
+  "exclusions": {
+   "requested": 0,
+   "matched": 0,
+   "unmatched": []
+  },
   "warnings": [
    "final segment spans 360 days (< 1 yr): its velocity is not a secular rate"
   ],
-  "campaign": "LUZON",
-  "year": 2021
+  "decisions": [],
+  "decided_fit": null
+ },
+ "/api/equipment-report": {
+  "configured": true,
+  "available": true,
+  "written": 1793870008.4939759,
+  "sta": {
+   "path": "/srv/bsw/equipment/PHNAT.STA",
+   "rows": 2,
+   "codes": 2
+  },
+  "exported_at": "2026-11-05T17:41:00+00:00",
+  "export_counts": {
+   "logsheets": 1,
+   "equipment_history": 0
+  },
+  "equipment_csv": "/srv/bsw/equipment/equipment.csv",
+  "current_equipment_from": "equipment CSV /srv/bsw/equipment/equipment.csv",
+  "summary": {
+   "equal": 0,
+   "equal after name map": 1,
+   "different": 1,
+   "unmapped name": 0,
+   "only in STA": 0,
+   "only in source": 1
+  }
+ },
+ "/api/stations/ALBU/equipment": {
+  "configured": true,
+  "available": true,
+  "written": 1793870008.4939759,
+  "sta": {
+   "path": "/srv/bsw/equipment/PHNAT.STA",
+   "rows": 2,
+   "codes": 2
+  },
+  "exported_at": "2026-11-05T17:41:00+00:00",
+  "export_counts": {
+   "logsheets": 1,
+   "equipment_history": 0
+  },
+  "equipment_csv": "/srv/bsw/equipment/equipment.csv",
+  "current_equipment_from": "equipment CSV /srv/bsw/equipment/equipment.csv",
+  "station": "ALBU",
+  "current": [
+   {
+    "station": "ALBU",
+    "category": "different",
+    "sta_name": "ALBU ALBU",
+    "sta_line": 6,
+    "sta_from": "2015 01 01 00 00 00",
+    "sta_to": "2099 12 31 00 00 00",
+    "fields": {
+     "receiver": {
+      "sta": "TRIMBLE NETR9",
+      "source": "Trimble NetR9",
+      "status": "equal after name map",
+      "source_igs": "TRIMBLE NETR9",
+      "note": ""
+     },
+     "antenna": {
+      "sta": "TRM57971.00",
+      "source": "AT504GG",
+      "status": "different",
+      "source_igs": "LEIAT504GG",
+      "note": ""
+     },
+     "radome": {
+      "sta": "NONE",
+      "source": "NONE",
+      "status": "equal",
+      "source_igs": "NONE",
+      "note": ""
+     }
+    },
+    "note": ""
+   }
+  ],
+  "visits": [
+   {
+    "station": "ALBU",
+    "visit_date": "2026-03-10",
+    "visit_time": "2026-03-10T01:30:00",
+    "visit_time_source": "arrival_time",
+    "equipment_changed": true,
+    "before_status": "equal after name map",
+    "before_fields": {
+     "receiver": {
+      "sta": "TRIMBLE NETR9",
+      "source": "Trimble NetR9",
+      "status": "equal after name map",
+      "source_igs": "TRIMBLE NETR9",
+      "note": ""
+     },
+     "antenna": {
+      "sta": "TRM57971.00",
+      "source": "TRM57971.00",
+      "status": "equal",
+      "source_igs": "TRM57971.00",
+      "note": ""
+     }
+    },
+    "before_row_line": 6,
+    "after_status": "no STA row for the change",
+    "after_fields": {
+     "receiver": "LEICA GR50"
+    },
+    "after_row_line": null,
+    "after_row_from": "",
+    "note": ""
+   }
+  ],
+  "names": []
+ },
+ "/api/plans": {
+  "plans": []
  }
 }

@@ -9,8 +9,8 @@ THE GATE
 Every action passes the same checks, in this order; the first that fails is the
 answer, and nothing is queued:
 1. BSW_CONSOLE_ACTIONS is not "on" (the default): 501 with the stage-3 reason.
-   Off until personal accounts exist, because starting a BPE is the one thing
-   the console does that cannot be undone.
+   Off unless asked for, because starting a BPE is the one thing the console
+   does that cannot be undone.
 2. Nobody is signed in: 403. Each request records who asked, and only a name
    from a trusted proxy's X-Remote-User counts.
 3. The user is not in BSW_CONSOLE_OPERATORS: 403. An empty list lets nobody
@@ -46,10 +46,9 @@ from .settings import Campaign, Settings
 from .status import flock_held
 
 STAGE3_REASON = (
-    "Not enabled yet. The console queues runs for the run worker on gps3 "
-    "(bernese-worker), and that is switched off until personal accounts exist, so "
-    "every action is recorded with a name. Until then, runs are started on gps3 from "
-    "the command line with bernese-run-year."
+    "Not enabled on this console. The console queues runs for the run worker on "
+    "gps3 (bernese-worker), and that is switched off here (BSW_CONSOLE_ACTIONS). "
+    "Runs are started on gps3 from the command line with bernese-run-year."
 )
 
 
@@ -89,7 +88,7 @@ def gate_failures(s: Settings, user: str) -> list[tuple[int, str]]:
     """
     if not s.actions_enabled:
         return [
-            (501, "starting runs from the console is switched off until personal accounts exist")
+            (501, "starting runs from this console is switched off (BSW_CONSOLE_ACTIONS)")
         ]
     out: list[tuple[int, str]] = []
     if not user:

@@ -4,7 +4,7 @@
 export type DayInfo = { year: number; doy: number; date: string; gps_week: number; gps_day: number; session: string }
 export type DayState = 'fixed' | 'float' | 'failed' | 'running' | 'queued' | 'excluded' | 'none'
 
-export type Session = { user: string | null; accounts: string; version: string; actions_enabled: boolean; can_act: boolean; campaigns: string[] }
+export type Session = { user: string | null; version: string; actions_enabled: boolean; can_act: boolean; campaigns: string[] }
 export type Lock = {
   held: boolean
   holder: string
@@ -163,16 +163,16 @@ export type StationFiles = {
 export type Enu = { e: number; n: number; u: number }
 export type TsNotConfigured = { configured: false; missing: string[]; message: string }
 export type TsUnavailable = {
-  configured: true; available: false; message: string; crd_dir: string; reference: string | null; default_reference: string | null
-  offsets_path: string; station?: string; all_stations?: string[]; campaign?: string; year?: number; years?: number[]
+  configured: true; available: false; message: string; crd_dirs: string[]; reference: string | null; default_reference: string | null
+  offsets_path: string; station?: string; all_stations?: string[]; campaign?: string
 }
 export type TsSummary =
   | TsNotConfigured
   | TsUnavailable
   | {
-      configured: true; available: true; crd_dir: string; reference: string | null; default_reference: string | null
+      configured: true; available: true; crd_dirs: string[]; reference: string | null; default_reference: string | null
       offsets_path: string; all_stations: string[]; stations: string[]; outlier_mode: string; message?: string
-      campaign: string; year: number; years: number[]
+      campaign: string
     }
 export type TsSegment = {
   index: number; t_start: number; t_end: number; span_yr: number; n_epochs: number; n_fit: number; n_outliers: number

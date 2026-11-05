@@ -17,8 +17,10 @@ and which one is right is a science choice, not a deployment setting. The
 page lists every station the CRD files hold as a candidate;
 BSW_CONSOLE_TS_REFERENCE, if set, is only the one it starts with.
 
-The CRDs are read from the campaign year's result directory (<V_RESULT>/STA),
-so the page shows the campaign and year it names. The offsets catalog comes
+The CRDs are read from every yearly result directory the campaign has
+(<V_RESULT>/STA for each year, oldest first) as one series, so a velocity comes
+from the station's whole history in this campaign and offsets split it where
+they fall. The offsets catalog comes
 from a setting with no default (settings.py). Until it is set, both endpoints answer 200 with
 configured=false and the names of the missing settings. With no reference
 chosen and no default, the summary lists the candidates and says to choose
@@ -32,7 +34,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import HTTPException
-from pogf_geodetic_suite.timeseries.crd_pipeline import crd_directory_to_enu, crd_station_codes
+from pogf_geodetic_suite.timeseries.crd_pipeline import crd_station_codes
 from pogf_geodetic_suite.timeseries.status import (
     OutlierMode,
     session_date_to_decimal_year,
@@ -74,14 +76,26 @@ def _fingerprint(crd_dir: Path) -> tuple:
     )
 
 
-def stations_in(crd_dir: Path) -> list[str]:
-    """The reference candidates: exactly what crd_directory_to_enu accepts."""
+def _stations_in_one(crd_dir: Path) -> list[str]:
     key = _fingerprint(crd_dir)
     hit = _CANDIDATES.get(crd_dir)
     if hit is not None and hit[0] == key:
         return hit[1]
-    codes = crd_station_codes(crd_dir)
+    try:
+        codes = crd_station_codes(crd_dir)
+    except ValueError:  # a year's folder with no usable file adds nothing
+        codes = []
     _CANDIDATES[crd_dir] = (key, codes)
+    return codes
+
+
+def stations_in(dirs: list[Path]) -> list[str]:
+    """The reference candidates: exactly what crd_directory_to_enu accepts. The
+    stations to plot are these minus the reference, so nothing else needs the
+    coordinates read to list them."""
+    codes = sorted({code for d in dirs for code in _stations_in_one(d)})
+    if not codes:
+        raise ValueError("No usable *.CRD files found in " + ", ".join(map(str, dirs)))
     return codes
 
 
@@ -90,39 +104,39 @@ def _reference(s: Settings, requested: str | None) -> str | None:
     return (requested or s.ts_reference or "").upper() or None
 
 
-def crd_dir(s: Settings, c: Campaign, year: int) -> Path:
-    """Where that campaign year's daily final CRDs are: <V_RESULT>/STA."""
-    return year_dir(s, c.pcf, c.name, year) / "STA"
+def crd_dirs(s: Settings, c: Campaign) -> list[Path]:
+    """Where the campaign's daily final CRDs are: <V_RESULT>/STA of each year
+    that has one, oldest first. A V_RESULT with no year in it gives the same
+    folder for every year, which is read once."""
+    dirs = [year_dir(s, c.pcf, c.name, y) / "STA" for y in sorted(campaign_years(s, c))]
+    return [d for d in dict.fromkeys(dirs) if d.is_dir()]
 
 
-def _inputs(s: Settings, c: Campaign, year: int, reference: str | None) -> dict:
+def _inputs(s: Settings, c: Campaign, dirs: list[Path], reference: str | None) -> dict:
     return {
         "campaign": c.name,
-        "year": year,
-        "crd_dir": str(crd_dir(s, c, year)),
+        "crd_dirs": [str(d) for d in dirs],
         "reference": reference,
         "default_reference": s.ts_reference,
         "offsets_path": str(s.ts_offsets),
     }
 
 
-def _missing(s: Settings, c: Campaign, year: int) -> str | None:
-    d = crd_dir(s, c, year)
-    if d.is_dir():
-        return None
-    return f"No daily final CRDs for {c.name} {year}: {d} does not exist."
+def _no_dirs(c: Campaign) -> str:
+    return f"No daily final CRDs for {c.name}: none of its years has an STA folder."
 
 
-def summary(s: Settings, c: Campaign, year: int, reference: str | None = None) -> dict:
+def summary(s: Settings, c: Campaign, reference: str | None = None) -> dict:
     """The reference candidates, the stations relative to the chosen one, and the mode."""
     if (no := _not_configured(s)) is not None:
         return no
     ref = _reference(s, reference)
-    base = {"configured": True, **_inputs(s, c, year, ref), "years": campaign_years(s, c)}
-    if (why := _missing(s, c, year)) is not None:
-        return {**base, "available": False, "stations": [], "message": why}
+    dirs = crd_dirs(s, c)
+    base = {"configured": True, **_inputs(s, c, dirs, ref)}
+    if not dirs:
+        return {**base, "available": False, "stations": [], "message": _no_dirs(c)}
     try:
-        candidates = stations_in(crd_dir(s, c, year))
+        candidates = stations_in(dirs)
     except (OSError, ValueError) as exc:
         return {**base, "available": False, "message": str(exc)}
     out = {**base, "all_stations": candidates, "outlier_mode": DEFAULT_MODE}
@@ -132,36 +146,31 @@ def summary(s: Settings, c: Campaign, year: int, reference: str | None = None) -
     if ref not in candidates:
         return {**out, "available": False, "stations": [],
                 "message": f"{ref} is not an estimated station in these CRD files."}  # fmt: skip
-    try:
-        epochs = crd_directory_to_enu(crd_dir(s, c, year), ref)
-    except (OSError, ValueError) as exc:
-        return {**out, "available": False, "stations": [], "message": str(exc)}
-    return {**out, "available": True, "stations": sorted({e.station for e in epochs} - {ref})}
+    return {**out, "available": True, "stations": [x for x in candidates if x != ref]}
 
 
-def for_station(
-    s: Settings, c: Campaign, year: int, code: str, reference: str | None = None
-) -> dict:
+def for_station(s: Settings, c: Campaign, code: str, reference: str | None = None) -> dict:
     """What station_status returns for one station, relative to the chosen reference."""
     if (no := _not_configured(s)) is not None:
         return no
     ref = _reference(s, reference)
-    base = {"configured": True, **_inputs(s, c, year, ref), "station": code.upper()}
+    dirs = crd_dirs(s, c)
+    base = {"configured": True, **_inputs(s, c, dirs, ref), "station": code.upper()}
     if ref is None:
         return {**base, "available": False, "message": "Choose a reference station first."}
-    if (why := _missing(s, c, year)) is not None:
-        return {**base, "available": False, "message": why}
+    if not dirs:
+        return {**base, "available": False, "message": _no_dirs(c)}
     try:
         result = station_status(
-            crd_dir(s, c, year),
+            dirs,
             code.upper(),
             ref,
             offsets_catalog=s.ts_offsets,
         )
     except (OSError, ValueError) as exc:
         return {**base, "available": False, "message": str(exc)}
-    out = {"configured": True, "available": True, **_inputs(s, c, year, ref), **result}
-    decisions = outliers.current(s, c, year, code.upper(), crd_dir(s, c, year), ref)
+    out = {**base, "available": True, **result}
+    decisions = outliers.current(s, c, code.upper(), dirs, ref)
     out["decisions"] = decisions
     out["decided_fit"] = None
     leave_out = outliers.excluded_sessions(decisions)
@@ -171,7 +180,7 @@ def for_station(
         # section 6 is open). station_status takes them as session dates.
         try:
             alt = station_status(
-                crd_dir(s, c, year), code.upper(), ref,
+                dirs, code.upper(), ref,
                 offsets_catalog=s.ts_offsets, exclude_sessions=leave_out,
             )  # fmt: skip
         except (OSError, ValueError) as exc:
@@ -189,9 +198,7 @@ def for_station(
     return out
 
 
-def epoch_flag(
-    s: Settings, c: Campaign, year: int, station: str, reference: str, epoch: str
-) -> bool:
+def epoch_flag(s: Settings, c: Campaign, station: str, reference: str, epoch: str) -> bool:
     """Whether the rule flags `epoch` of `station` relative to `reference`, as
     the page shows it. 404 when the station has no epoch on that date."""
     if (no := _not_configured(s)) is not None:
@@ -199,7 +206,7 @@ def epoch_flag(
     try:
         t_epoch = session_date_to_decimal_year(epoch)
         result = station_status(
-            crd_dir(s, c, year), station, reference, offsets_catalog=s.ts_offsets
+            crd_dirs(s, c), station, reference, offsets_catalog=s.ts_offsets
         )
     except (OSError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from None

@@ -150,7 +150,7 @@ $P  CAMPAIGN54/<CAMPAIGN>  ◄── scripts/derive_luzon_pcf.py  (generates the
     │                                banking (services/bernese-workflow)
     │  bernese-worker                the same run, for queued requests
     │                                (`submit`, or the BSW console's run
-    │                                buttons, which are off until accounts exist)
+    │                                buttons, for its named operators)
     │     run_year → LinuxBPEBackend.run_sessions
     │       → perl $U/SCRIPT/sessions_pcs.pl → startBPE.pm → BSW BPE
     ▼

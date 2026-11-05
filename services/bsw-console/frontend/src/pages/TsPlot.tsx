@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
-import { COMPONENTS, decisionMarks, lineAt, panRange, panelData, sessionDate, zoomRange } from '../tsPlot'
+import { COMPONENTS, decisionMarks, lineAt, panRange, panelData, sessionDate, axisDigits, yearRange, yearsIn, zoomRange } from '../tsPlot'
 import type { TsDecidedFit, TsDecision, TsSegment, TsSeries } from '../types'
 
 type Offset = { t: number; type: string; label: string; within_span: boolean }
@@ -13,7 +13,9 @@ type Offset = { t: number; type: string; label: string; within_span: boolean }
  * Shift with the wheel pans; dragging selects a span; double-click shows
  * everything. A plain wheel still scrolls the page: the three panels fill most
  * of the screen, and taking the plain wheel would trap the reader in them.
- * The panels share their cursor and their time range.
+ * The panels share their cursor and their time range. The year buttons jump to
+ * one calendar year; the velocities below still come from the whole series. A
+ * rebuild (a decision recorded, a colour scheme change) keeps the range in view.
  *
  * Marks: epochs in the fit (dots), epochs the outlier rule flagged (larger,
  * orange), epochs not in the fit for any other reason (hollow), the package's
@@ -31,6 +33,8 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
   const pick = useRef(onPick)
   pick.current = onPick
   const [hover, setHover] = useState<string>('')
+  const chartsRef = useRef<uPlot[]>([])
+  const view = useRef<[number, number] | null>(null)
   // Canvas colours are read from the CSS tokens when the charts are built, so a
   // switch between light and dark rebuilds them.
   const [scheme, setScheme] = useState(0)
@@ -58,7 +62,9 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
     const hi = series.t[series.t.length - 1]
     const pad = Math.max((hi - lo) * 0.01, 1 / 365.25)
     const charts: uPlot[] = []
+    const restore = view.current
     let syncing = false
+    let built = false // uPlot sets its scales while it is built: that is not the reader's range
     const syncKey = `ts-${station}-${Math.random().toString(36).slice(2)}`
     const width = () => Math.max(el.clientWidth || 800, 320)
 
@@ -141,7 +147,7 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
         scales: { x: { time: false, min: lo - pad, max: hi + pad } },
         axes: [
           { stroke: ink, grid: { stroke: grid }, ticks: { stroke: grid }, show: true, size: last ? 40 : 24,
-            values: last ? (_u, vals) => vals.map((v) => v.toFixed(2)) : (_u, vals) => vals.map(() => '') },
+            values: last ? (_u, vals, _axis, _space, incr) => vals.map((v) => v.toFixed(axisDigits(incr))) : (_u, vals) => vals.map(() => '') },
           { stroke: ink, grid: { stroke: grid }, ticks: { stroke: grid }, label, labelSize: 18, size: 60 },
         ],
         series: [
@@ -160,6 +166,7 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
               if (scaleKey !== 'x' || syncing) return
               syncing = true
               const { min, max } = u.scales.x
+              if (built) view.current = [min!, max!]
               for (const other of charts) if (other !== u) other.setScale('x', { min: min!, max: max! })
               syncing = false
             },
@@ -182,16 +189,26 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
       charts.push(new uPlot(opts, [d.t, d.kept, d.flagged, d.left, d.fit, m.confirmed, m.overridden, alt] as uPlot.AlignedData, div))
     })
 
+    chartsRef.current = charts
+    built = true
+    if (restore) charts[0]?.setScale('x', { min: restore[0], max: restore[1] })
+
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
       for (const c of charts) c.setSize({ width: width(), height: 190 })
     })
     ro?.observe(el)
     return () => {
       ro?.disconnect()
+      chartsRef.current = []
       for (const c of charts) c.destroy()
       el.replaceChildren()
     }
   }, [series, segments, offsets, station, scheme, decisions, decidedFit])
+
+  const years = yearsIn(series.t)
+  const lo = series.t[0]
+  const hi = series.t[series.t.length - 1]
+  const show = (min: number, max: number) => chartsRef.current[0]?.setScale('x', { min, max })
 
   return (
     <section aria-labelledby="ts-plot" className="panel pad stack">
@@ -199,6 +216,15 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
       <p className="muted" style={{ fontSize: 13 }}>
         Ctrl + mouse wheel (or pinch) zooms time around the cursor; Shift + wheel pans; drag to select a span; double-click shows everything. Dots are in the fit, orange marks were flagged by the outlier rule, hollow marks are not in the fit, the line is the fitted velocity per segment, and dashed vertical lines are the catalogue's offsets. Click an epoch to record a decision on it: rings mark decided epochs, and a dashed line is the fit without the confirmed outliers (not published).
       </p>
+      {years.length > 1 && (
+        <div className="seg" role="group" aria-label="Show on the plot">
+          <button type="button" onClick={() => show(lo, hi)}>All years</button>
+          {years.map((y) => {
+            const [a, b] = yearRange(y, lo, hi)
+            return <button key={y} type="button" onClick={() => show(a, b)}>{y}</button>
+          })}
+        </div>
+      )}
       <div ref={host} data-testid="ts-plot" />
       <p className="mono" style={{ fontSize: 12, minHeight: '1.4em' }} aria-live="polite">{hover}</p>
     </section>

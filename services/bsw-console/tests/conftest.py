@@ -172,9 +172,9 @@ def build(tmp_path: Path) -> Settings:
     (ref / "LUZON.BLQ").write_text(
         "$$ header\n  ALBU               ALBU\n  .01 .02\n$$ END TABLE\n  BILI   after the table, unread\n"
     )
-    # The time series reads <V_RESULT>/STA of the campaign year: LUZON 2021 here,
-    # a year of its own so the 2025 day fixtures are not part of the series.
-    _, ts_offsets = time_series_inputs(s / "LUZON" / str(TS_YEAR))
+    # The time series reads <V_RESULT>/STA of every year: LUZON 2020 and 2021
+    # here. The 2025 day fixtures hold no estimated station, so they add nothing.
+    ts_offsets = time_series_inputs(s / "LUZON")
     return Settings(
         gpsuser=u,
         datapool=d,
@@ -271,7 +271,6 @@ def client(bsw: Settings) -> TestClient:
 
 TS_REF_XYZ = (-3_150_000.0, 5_350_000.0, 1_600_000.0)
 TS_STEP_T = 2021.0
-TS_YEAR = 2021  # the result-directory year the synthetic series is filed under
 TS_SPIKE = (2021, 196)  # the one epoch the IQR rule must flag
 
 
@@ -280,13 +279,11 @@ def _ts_crd_line(i: int, name: str, xyz: tuple[float, float, float]) -> str:
     return f"  {i:3d}  {name} 00000S000  {x:>15.5f} {y:>15.5f}  {z:>15.5f}    A   G"
 
 
-def time_series_inputs(root: Path) -> tuple[Path, Path]:
-    """Two years of synthetic daily CRDs for REF0 and SYN1, in the layout
-    pogf_geodetic_suite's own tests write, and an offsets catalog with one
+def time_series_inputs(root: Path) -> Path:
+    """Two years of synthetic daily CRDs for REF0 and SYN1, each year in its own
+    <year>/STA as a campaign's are, and an offsets catalog with one
     earthquake. SYN1 moves steadily, steps at the earthquake, and has one
     large spike. Deterministic: no random noise, a small alternating wobble."""
-    crd = root / "STA"
-    crd.mkdir(parents=True)
     header = (
         "SYNTHETIC TEST NETWORK                                          05-NOV-26 00:00\n"
         "--------------------------------------------------------------------------------\n"
@@ -295,6 +292,8 @@ def time_series_inputs(root: Path) -> tuple[Path, Path]:
     )
     k = 0
     for year in (2020, 2021):
+        crd = root / str(year) / "STA"
+        crd.mkdir(parents=True)
         for doy in range(1, 366, 15):
             t = year + doy / 365.25
             wobble = 0.0008 if k % 2 else -0.0008
@@ -314,4 +313,4 @@ def time_series_inputs(root: Path) -> tuple[Path, Path]:
             )
     offsets = root / "offsets"
     offsets.write_text(f"# synthetic\nSYN1  {TS_STEP_T:.4f}  EQ\n", encoding="utf-8")
-    return crd, offsets
+    return offsets

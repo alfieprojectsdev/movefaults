@@ -1,4 +1,4 @@
-import { panRange, panelData, sessionDate, zoomRange } from './tsPlot'
+import { axisDigits, panRange, panelData, sessionDate, yearRange, yearsIn, zoomRange } from './tsPlot'
 import type { TsSegment, TsSeries } from './types'
 
 const seg = (index: number, t: [number, number], e: [number, number]): TsSegment => ({
@@ -96,4 +96,33 @@ it('draws the side-by-side fit by time span, whatever its segment numbers', () =
   expect(got[3]).toBeCloseTo(12)
   expect(got[4]).toBeCloseTo(15)
   expect(got[5]).toBeCloseTo(20)
+})
+
+describe('the year buttons', () => {
+  it('lists every calendar year the series touches, gaps included', () => {
+    expect(yearsIn([2020.1, 2020.9, 2023.2])).toEqual([2020, 2021, 2022, 2023])
+    expect(yearsIn([2025.5])).toEqual([2025])
+    expect(yearsIn([])).toEqual([])
+    expect(yearsIn([2023.5, 2024 + 366 / 365.25]), 'DOY 366 is still 2024').toEqual([2023, 2024])
+  })
+
+  it('a year stays inside the data', () => {
+    expect(yearRange(2026, 2025.0, 2026.08)).toEqual([2026.0024, 2026.08])
+    expect(yearRange(2025, 2025.2, 2026.08)).toEqual([2025.2, 2026.0024])
+  })
+
+  it('a leap year keeps its DOY 366, and the next year starts at its DOY 1', () => {
+    const [a, b] = yearRange(2024, 2020, 2030)
+    expect(a).toBeLessThan(2024 + 1 / 365.25)
+    expect(b).toBeGreaterThan(2024 + 366 / 365.25)
+    expect(b).toBeLessThan(2025 + 1 / 365.25)
+  })
+})
+
+it('axis ticks keep enough digits to stay different when zoomed in', () => {
+  expect(axisDigits(0.05)).toBe(2)
+  expect(axisDigits(0.01)).toBe(2)
+  expect(axisDigits(0.005)).toBe(3)
+  expect(axisDigits(0.0005)).toBe(4)
+  expect(axisDigits(1)).toBe(2)
 })

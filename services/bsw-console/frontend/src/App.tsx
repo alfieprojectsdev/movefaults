@@ -84,7 +84,7 @@ export default function App() {
     case 'plan': page = <Plan campaign={route.campaign} year={route.year} from={route.from} to={route.to} />; break
     case 'known-errors': page = <KnownErrors />; break
     case 'stations': page = <StationFiles campaign={route.campaign} year={route.year} />; break
-    case 'time-series': page = <TimeSeries key={`${route.campaign}-${route.year}`} campaign={route.campaign} year={route.year} />; break
+    case 'time-series': page = <TimeSeries key={route.campaign} campaign={route.campaign} />; break
   }
 
   return (
@@ -105,7 +105,6 @@ export default function App() {
         <LockPill lock={lock.data} />
         <span className="who">
           {session.data?.user ?? 'Not signed in'}
-          {session.data && !session.data.user && <span className="faint"> · personal accounts pending</span>}
         </span>
       </header>
       <main>{page}</main>

@@ -18,7 +18,7 @@ from bsw_console.main import create_app
 from bsw_console.settings import Settings
 from fastapi.testclient import TestClient
 
-BASE = "/api/campaigns/LUZON/years/2021/time-series/SYN1"
+BASE = "/api/campaigns/LUZON/time-series/SYN1"
 SPIKE = "2021-196"  # flagged by the rule
 QUIET = "2021-016"  # not flagged
 ME = {"X-Remote-User": "abc"}
@@ -126,7 +126,7 @@ def test_a_decision_made_against_another_reference_is_marked_and_not_applied(sig
     from bsw_console import timeseries
 
     c = bsw.campaign("LUZON")
-    (d,) = outliers.current(bsw, c, 2021, "SYN1", timeseries.crd_dir(bsw, c, 2021), "XXXX")
+    (d,) = outliers.current(bsw, c, "SYN1", timeseries.crd_dirs(bsw, c), "XXXX")
     assert d["other_reference"] is True
     assert outliers.excluded_sessions([d]) == []
 
@@ -172,3 +172,17 @@ def test_both_files_of_a_doubled_day_are_hashed(signed, bsw) -> None:
     fin.write_text(fin.read_text() + "\n")
     (d,) = signed.get(f"{BASE}/decisions?reference=REF0").json()["decisions"]
     assert d["superseded"] is True
+
+
+def test_a_decision_in_each_year_is_one_list_and_keeps_its_own_year(signed, bsw) -> None:
+    """The series spans years; an epoch names its own, and each day's hash is
+    taken from the folder that holds it."""
+    assert decide(signed, SPIKE, "outlier", flag=True).status_code == 201
+    assert decide(signed, "2020-016", "outlier", flag=False, reason="multipath").status_code == 201
+    rows = {d["epoch"]: d for d in signed.get(f"{BASE}/decisions?reference=REF0").json()["decisions"]}
+    assert set(rows) == {SPIKE, "2020-016"}
+    assert (rows[SPIKE]["year"], rows["2020-016"]["year"]) == (2021, 2020)
+    assert rows["2020-016"]["source"]["crd_dir"].endswith("/2020/STA")
+    assert not rows["2020-016"]["superseded"]
+    body = signed.get(f"{BASE}?reference=REF0").json()
+    assert sorted(body["decided_fit"]["excluded"]) == ["2020-016", SPIKE]

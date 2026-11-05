@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useApi } from '../lib'
-import { href } from '../route'
 import type { Enu, TsStation, TsSummary } from '../types'
 import { Failed, Loading } from './common'
 import TsPlot from './TsPlot'
@@ -10,8 +9,8 @@ const mm = (v: number) => v.toFixed(2)
 const rate = (v: Enu, s: Enu, c: keyof Enu) => `${mm(v[c])} ± ${mm(s[c])}`
 
 /** Read-only: what pogf_geodetic_suite.timeseries.status returns, as it returns it. */
-export default function TimeSeries({ campaign, year }: { campaign: string; year: number }) {
-  const base = `/api/campaigns/${campaign}/years/${year}/time-series`
+export default function TimeSeries({ campaign }: { campaign: string }) {
+  const base = `/api/campaigns/${campaign}/time-series`
   // The reference is the viewer's choice; '' means the server's default, if any.
   const [reference, setReference] = useState('')
   const q = reference ? `?reference=${reference}` : ''
@@ -39,25 +38,15 @@ export default function TimeSeries({ campaign, year }: { campaign: string; year:
   return (
     <>
       <div className="stack">
-        <h1>Time series · {campaign} {year}</h1>
+        <h1>Time series · {campaign}</h1>
         <p className="muted" style={{ maxWidth: '80ch' }}>
-          East, north and up per station relative to a reference station, with the offset-aware velocity from the timeseries package (the port of <span className="mono">vel_line_v8.m</span> verified against PHIVOLCS' output) and the offsets from the offsets catalogue. Outliers arrive flagged by the package. Click an epoch on the plot to confirm or override its flag: decisions are recorded with who made them and feed only a side-by-side fit, never the published velocity.
+          East, north and up per station relative to a reference station, over every year of the campaign, with the offset-aware velocity from the timeseries package (the port of <span className="mono">vel_line_v8.m</span> verified against PHIVOLCS' output) and the offsets from the offsets catalogue. Outliers arrive flagged by the package. Click an epoch on the plot to confirm or override its flag: decisions are recorded with who made them and feed only a side-by-side fit, never the published velocity.
         </p>
       </div>
       {sum.error && <Failed error={sum.error} />}
       {!sum.data && !sum.error && <Loading what="the time series" />}
       {sum.data && !sum.data.configured && (
         <div className="banner idle" role="status"><strong>Not configured.</strong> <span>{sum.data.message}</span></div>
-      )}
-      {sum.data && sum.data.configured && (sum.data.years ?? []).length > 0 && (
-        <label className="row" style={{ fontSize: 13 }}>
-          Year
-          <select aria-label="Year" value={year} onChange={(e) => { window.location.hash = href.timeSeries(campaign, Number(e.target.value)) }}>
-            {!(sum.data.years ?? []).includes(year) && <option value={year}>{year}</option>}
-            {(sum.data.years ?? []).map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <span className="muted">Daily final CRDs of {campaign} {year}, from <span className="mono">{sum.data.crd_dir}</span>.</span>
-        </label>
       )}
       {candidates.length > 0 && (
         <label className="row" style={{ fontSize: 13 }}>
@@ -78,7 +67,7 @@ export default function TimeSeries({ campaign, year }: { campaign: string; year:
       {sum.data && sum.data.configured && sum.data.available && sum.data.reference && (
         <section className="stack">
           <p style={{ fontSize: 13 }}>
-            Daily final CRDs from <span className="mono">{sum.data.crd_dir}</span>, relative to <span className="mono">{sum.data.reference}</span>; offsets from <span className="mono">{sum.data.offsets_path}</span>. Outlier mode: <strong>{sum.data.outlier_mode}</strong>.
+            Daily final CRDs from <span className="mono">{sum.data.crd_dirs.join(', ')}</span>, relative to <span className="mono">{sum.data.reference}</span>; offsets from <span className="mono">{sum.data.offsets_path}</span>. Outlier mode: <strong>{sum.data.outlier_mode}</strong>.
           </p>
           <label className="row" style={{ fontSize: 13 }}>
             Station

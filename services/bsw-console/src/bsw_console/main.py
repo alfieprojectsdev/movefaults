@@ -10,9 +10,9 @@ endpoint says why and queues nothing. The browser never sends a filesystem
 path: it names a campaign, a year and a day, and the file viewer takes only a
 name the server listed for that day.
 
-Sign-in is pending too (personal accounts on gps3 are a prerequisite in the
-brief). Until then the server binds to 127.0.0.1 by default and says nobody is
-signed in. X-Remote-User is believed only from an address listed in
+Sign-in comes from a login proxy in front of the console (Caddy, on gps3). The
+server binds to 127.0.0.1 by default and, with no proxy, says nobody is signed
+in. X-Remote-User is believed only from an address listed in
 BSW_CONSOLE_TRUSTED_PROXIES (none by default): any client can send the header,
 so without a proxy in front it proves nothing.
 
@@ -85,7 +85,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def session(request: Request) -> dict:
         return {
             "user": who(request) or None,
-            "accounts": "pending",
             "version": version,
             "actions_enabled": s.actions_enabled,
             "can_act": not actions.blockers(s, who(request)),
@@ -226,47 +225,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return equipment.for_station(s, code)
 
     # Stage 5, read-only: pogf_geodetic_suite.timeseries.status, in this process.
-    # The browser names a campaign, a year and station codes; the CRDs are that
-    # campaign year's result directory, never a path from the request.
-    @app.get("/api/campaigns/{name}/years/{year}/time-series")
-    def time_series_summary(name: str, year: int, reference: str | None = None) -> dict:
-        _check_year(year)
-        return timeseries.summary(s, campaign(name), year, _station_code(reference))
+    # The browser names a campaign and station codes; the CRDs are that
+    # campaign's yearly result directories, never a path from the request.
+    @app.get("/api/campaigns/{name}/time-series")
+    def time_series_summary(name: str, reference: str | None = None) -> dict:
+        return timeseries.summary(s, campaign(name), _station_code(reference))
 
-    @app.get("/api/campaigns/{name}/years/{year}/time-series/{station}")
-    def time_series(name: str, year: int, station: str, reference: str | None = None) -> dict:
-        _check_year(year)
+    @app.get("/api/campaigns/{name}/time-series/{station}")
+    def time_series(name: str, station: str, reference: str | None = None) -> dict:
         c = campaign(name)
-        return timeseries.for_station(s, c, year, _station_code(station), _station_code(reference))
+        return timeseries.for_station(s, c, _station_code(station), _station_code(reference))
 
     # Outlier decisions (outlier_review_design.md): a signed-in person confirms
     # or overrides the rule's flag on one epoch. Appended, never edited; no CRD
     # or PLOT file is touched. Reading needs no sign-in, recording does.
-    @app.get("/api/campaigns/{name}/years/{year}/time-series/{station}/decisions")
-    def outlier_decisions(name: str, year: int, station: str, reference: str | None = None) -> dict:
-        _check_year(year)
+    @app.get("/api/campaigns/{name}/time-series/{station}/decisions")
+    def outlier_decisions(name: str, station: str, reference: str | None = None) -> dict:
         c = campaign(name)
         code = _station_code(station)
         return {
             "decisions": outliers.current(
-                s, c, year, code, timeseries.crd_dir(s, c, year), _station_code(reference)
+                s, c, code, timeseries.crd_dirs(s, c), _station_code(reference)
             )
         }
 
-    @app.post("/api/campaigns/{name}/years/{year}/time-series/{station}/decisions")
-    async def record_outlier_decision(
-        request: Request, name: str, year: int, station: str
-    ) -> JSONResponse:
+    @app.post("/api/campaigns/{name}/time-series/{station}/decisions")
+    async def record_outlier_decision(request: Request, name: str, station: str) -> JSONResponse:
         user = who(request)
         if not user:
             raise HTTPException(403, "Sign in first: every decision is recorded with who made it.")
-        _check_year(year)
         body = await _json_body(request)
         c = campaign(name)
         code = _station_code(station)
         row = outliers.record(
-            s, c, year, code, timeseries.crd_dir(s, c, year), user, body,
-            lambda epoch, ref: timeseries.epoch_flag(s, c, year, code, ref, epoch),
+            s, c, code, timeseries.crd_dirs(s, c), user, body,
+            lambda epoch, ref: timeseries.epoch_flag(s, c, code, ref, epoch),
         )  # fmt: skip
         return JSONResponse(row, status_code=201)
 
