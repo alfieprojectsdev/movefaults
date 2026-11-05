@@ -4,7 +4,7 @@ Welcome to the technical documentation for the VADASE Real-Time Monitor. This do
 
 ## Table of Contents
 
-1.  **[Onboarding](ONBOARDING.md)**: The codebase file by file, and the order to read it in. For the architecture notes that span files (receiver mode, import paths, the `src` namespace package), see the "VADASE-RT-Monitor: Deep Architecture" section of `CLAUDE.md` at the repo root.
+1.  **[Onboarding](ONBOARDING.md)**: The codebase file by file, and the order to read it in. For the architecture notes that span files (receiver mode, import paths, the `src` namespace package), see this service's [`CLAUDE.md`](../CLAUDE.md).
 2.  **[Domain Logic & Processing](DOMAIN_LOGIC.md)**: The `ReceiverMode` state machine, the leaky integrator, and event detection.
 3.  **[NMEA Parsers](PARSERS.md)**: LDM/LVM sentence parsing and checksum validation.
 4.  **[NMEA Specification](NMEA_SPEC.md)**: The Leica LVM/LDM sentence formats.

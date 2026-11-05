@@ -2,7 +2,7 @@
 repo root.
 
 Code inside vadase-rt-monitor imports as `from src.parsers.nmea_parser import
-...` -- see the *Import Paths* section of the repo CLAUDE.md, where that
+...` -- see the *Import Paths* section of this service's CLAUDE.md, where that
 convention is deliberate and follows the hatch source mapping in
 `pyproject.toml`. It resolves on its own only when the working directory is
 this service, which is why `uv run pytest services/vadase-rt-monitor/tests/`
