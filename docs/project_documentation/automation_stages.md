@@ -173,22 +173,25 @@ the script port is downstream of it.**
 | IGS/CODE product fetch | `scripts/fetch_igs_products.sh` (AIUB FTP firewalled; SWITCH S3 mirror) |
 | Ocean loading | `scripts/merge_blq.py` |
 | PCF derivation from 5.4 stock | `scripts/derive_luzon_pcf.py` — refuses dangling WAITs |
-| Month-long unattended run | `scripts/run_luzon_month.sh` — **30/30 days, 2h47m** |
+| Month-long unattended run, before the service | `scripts/run_luzon_month.sh` — **30/30 days, 2h47m** (no longer the production path) |
+| Service vs `scripts/` on the same inputs | 2026-10-27 (#307): `bernese-run-year`, PHREF 2025 DOY 091–120, **30/30 days, 1h15m**; a `scripts/` control run of DOY 094, 096 and 098 on the same configuration gave **identical SNX and CRD, 3 of 3** |
+| Production BPE run through the service | 2026-11-04: `bernese-run-year`, LUZON January 2026, run `7ca9ccb9`, **31/31 days, 53 min**, 23–25 stations a day |
+| A year reprocessed through the service | 2026-11-04 to 05: PHREF 2025, runs `3341af5c` and `0def7ca1`, **all 360 planned days solved** |
 | Parallel multi-session | `REPR_MODE` — **5/5 sessions, 16m51s, byte-identical to sequential baseline** |
 | Precision QC | `scripts/coord_repeatability.py` — median N 2.8 / E 3.0 / U 10.9 mm |
 | Multi-station coherence | `scripts/network_coherence_scan.py` — found DOY 126 (14 stations) that single-station thresholds missed |
 | Run comparison | `scripts/compare_solutions.sh` |
-| Real BPE invocation from the service | `services/bernese-workflow/src/bernese_workflow/backends.py` via `startBPE.pm` |
+| Real BPE invocation from the service | `services/bernese-workflow/src/bernese_workflow/backends.py` → `perl $U/SCRIPT/sessions_pcs.pl` → `startBPE.pm` |
 
 ### What is not done
 
-- **Production still runs through `scripts/`, not `services/bernese-workflow`.**
-  The service has 250 passing tests (2026-10-14) and genuinely invokes BSW,
-  and since #268 it has a day-level resume driver (`month_driver.run_days`) —
-  but no month-long run has gone through it. Migration is the standing direction, not
-  a completed one. This is the single most misreported fact in the project's
-  history: the service sat listed at "~10% complete" for months while carrying
-  those tests.
+- **The reprocessed PHREF 2025 solutions have not been compared with the ones
+  they superseded.** Production's BPE step moved to `services/bernese-workflow`
+  on 2026-11-04 (table above). Until then the first item here was "Production
+  still runs through `scripts/`": the service sat listed at "~10% complete"
+  for months while carrying its tests, which made it the most misreported
+  fact in the project's history. Around the BPE, staging, product fetch, BLQ
+  merge and the QC and comparison scripts are still `scripts/`.
 - **No solution reaches TimescaleDB.** Steps 2–3 of the designed flow are
   aspirational; the ingestion pipeline is not in the loop.
 - **RINEX QC is teqc-based and therefore RINEX 2 only**, with a gfzrnx fallback
@@ -196,11 +199,13 @@ the script port is downstream of it.**
 
 ### Should we go further?
 
-**Yes, and the next step is specific: run one production month through
-`services/bernese-workflow` instead of `scripts/`.** Not a rewrite — a single
-run, compared byte-for-byte against the `scripts/` output using the tool we
-already have. Until that comparison exists, the service's tests are
-evidence about the service, not about the science.
+**The step this section used to name is done.** It was: run one production
+month through `services/bernese-workflow` instead of `scripts/`, compared
+against the `scripts/` output. The parity run and its `scripts/` control
+(table above) were that comparison, and LUZON January 2026 then ran in
+production through the service. **The next step is the comparison still
+missing:** the reprocessed PHREF 2025 year against the solutions it
+superseded.
 
 ---
 

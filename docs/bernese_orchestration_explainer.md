@@ -25,6 +25,14 @@
 > for a browser console, so staff can follow and later start runs from their
 > own PCs, is with the processing team for comments. Where this document
 > described something that has since turned out differently, it now says so.
+>
+> **Since 4 November (2026-11-05).** Production now runs through the
+> processing service. The first production run was LUZON January 2026: 31 of 31
+> days, in 53 minutes. PHREF 2025 has been reprocessed through it, all 360
+> planned days. That reprocessed year has not yet been compared with the
+> solutions it replaced. Preparing a campaign (staging, products, ocean
+> loading) and checking results afterwards still use the same scripts as
+> before.
 
 ---
 
@@ -228,16 +236,15 @@ verified identical afterward — all 30 solutions, byte for byte.)*
 
 ---
 
-## When a Run Fails  **[built; not yet how production runs]**
+## When a Run Fails  **[built; how production runs since 4 November]**
 
 *Added 2026-10-26.*
 
 *Where this applies today:* everything below is built into the processing
-service, which has not yet run a production day. Production still runs through
-the month and year scripts, which carry on past a failed day. Since 26 October
-the month script names the failed step and its message (the year scripts don't
-yet), but none of them looks it up or stops. Looking up and stopping take effect when runs move to the service (the
-cutover planned for 3 November).
+service, and since 4 November production runs through it, so it applies to
+production runs. The move was planned for 3 November and happened on 4
+November. Before then, production ran through the month and year scripts,
+which carry on past a failed day; they are kept now only for comparison runs.
 
 On 29 August a year-long run produced nothing for nine hours: 24 days in a row
 failed on the same message, because one setting (`MAXPAR`, the largest number of
@@ -462,7 +469,7 @@ where they cannot be lost with a hard drive.
 
 **Done since, as of 2026-10-26:** today's month script names the failed step and
 its message. The service also diagnoses it from the known-errors list and stops a
-run on the stop rule; that takes effect when production moves to the service
+run on the stop rule, and since 4 November production runs through the service
 ("When a Run Fails").
 
 **What is not:** parallel processing across a year ("A Test That Failed" above — tested, failed,

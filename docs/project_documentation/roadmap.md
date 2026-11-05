@@ -64,12 +64,12 @@ movefaults_clean/
 ├── services/
 │   ├── vadase-rt-monitor/       # Real-time NMEA earthquake detection (~80%; ReceiverMode state machine, TimescaleDB wired)
 │   ├── ingestion-pipeline/      # Celery-based RINEX ingestion (~30%; not in the production loop)
-│   ├── bernese-workflow/        # Bernese BPE orchestrator (~60%; invokes BSW for real; no production month yet)
+│   ├── bernese-workflow/        # Bernese BPE orchestrator (~60%; invokes BSW for real; production BPE runs since 2026-11-04)
 │   └── field-ops/               # Digital field logsheet PWA (deployed)
 ├── tools/
 │   ├── drive-archaeologist/     # CLI + TUI: excavate legacy GNSS data (~60%; GNSS classification untested on a real GNSS drive)
 │   └── velocity-reviewer/       # Web UI: interactive GNSS time series outlier review (complete, bd743bb)
-├── scripts/                     # THE PRODUCTION PATH: staging, PCF derivation, BPE drivers, QC
+├── scripts/                     # Around the BPE in production: staging, PCF derivation, fetch, BLQ merge, QC
 ├── src/db/                      # Shared SQLAlchemy models (src/ingestion/ was consolidated away)
 ├── migrations/                  # Root Alembic tree, 001–013
 ├── analysis/                    # Numbered research scripts 01–10 (largely ported; see 2.4) + epb_discriminator
@@ -174,7 +174,29 @@ movefaults_clean/
 
 > Primary scientific processing engine. Depends on robust data ingestion from Tier 2.
 
-**Deliverable 1.3: Automated Bernese Processing Workflow** 🔄 **CORE BUILT — THE GAP IS THE DECISION LAYER, AND IT IS WIDENING**
+**Deliverable 1.3: Automated Bernese Processing Workflow** 🔄 **RUNS PRODUCTION SINCE 2026-11-04**
+
+> **Status (2026-11-05): production runs through the service.** The BPE step of
+> production is now `bernese-run-year` (`services/bernese-workflow`); the
+> `scripts/` year and month drivers are no longer the production path, and are
+> kept for comparison. What is still `scripts/`: the file-server transfer,
+> product fetch, BLQ merge, campaign staging, PCF derivation, and the QC and
+> comparison scripts after the run. Underneath, the service still runs a Perl
+> driver, `sessions_pcs.pl`, through `startBPE.pm`.
+>
+> | when | what ran through the service |
+> |---|---|
+> | 2026-10-27 | **Parity** (#307): PHREF 2025 DOY 091–120, 30/30 days ok in 1h15m, into a separate result tree (PHRPAR). Not identical to the August production run; the cause is not yet attributed. **Control:** the `scripts/` driver on DOY 094, 096 and 098 with the same configuration gave SNX and CRD files identical to the service's, 3 of 3, which is the evidence that the service reproduces `scripts/` |
+> | 2026-11-04 | **First production run:** LUZON January 2026, run `7ca9ccb9`, 31/31 days ok in 53 min, 23–25 stations a day |
+> | 2026-11-04 to 05 | **PHREF 2025 reprocessed:** runs `3341af5c` and `0def7ca1`, all 360 planned days solved |
+>
+> **Not yet done:** comparing the reprocessed PHREF 2025 solutions with the
+> ones they superseded. Still true: nothing writes solutions to TimescaleDB,
+> and the ingestion pipeline is not in the loop.
+>
+> The two status blocks below are kept as they were written: they record why
+> the move was needed and how far apart the two paths had drifted.
+
 
 > **Status correction (2026-08-29).** The previous framing — "R740-hardening is
 > the frontier" — is retired. It implied the service was one hardening push from
@@ -227,7 +249,8 @@ day-level resume driver with `.done` markers and a two-consecutive-failures stop
 a timeout that kills the BPE's whole process group (#271). PHREF 2025 finished 360/360 and
 agrees with PHIVOLCS production at 1.26 / 2.28 / 6.99 mm N/E/U median over 53 weeks
 (`phref_vs_production_comparison_results.md`). **None of the five decision-layer items below
-is built yet**, and no production day has run through the service.
+is built yet**, and no production day had run through the service (it has
+since 2026-11-04: see the status at the top of this deliverable).
 
 **THE FRONTIER — the decision layer (see `bpe_orchestration_design.md`):**
 Build order, each independently useful and testable without Bernese:
