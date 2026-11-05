@@ -10,8 +10,10 @@ against the part we happen to have automated already.
 
 **Headline:** the SOP is a **Windows, GUI-and-prompt-driven, three-stage
 pipeline**. The gps3 work to date has automated most of **stage 2**
-(BSW processing) and none of **stage 1** (conversion) or **stage 3** (time
-series / velocities). Stage 3 additionally carries a **MATLAB dependency**.
+(BSW processing) and none of **stage 1** (conversion). **Stage 3** (time
+series / velocities) has since been largely ported to Python in
+`pogf_geodetic_suite.timeseries`, including the MATLAB step; see "Stage 3"
+below.
 
 ---
 
@@ -57,8 +59,14 @@ STAGE 3  coordinates -> time series       §6     Python prompts + MATLAB
 
 ## Inventory B — project scripts (Google Drive: `03 GPS > GPS Processing > 03 Scripts`)
 
-**None of these are in this repo.** They live only on Google Drive and staff
-machines. That is a succession risk in its own right.
+**Some of these are now in this repo:** `campaign_v5.py` and `continuous_v5.py`
+(`docs/bern52/phivolcs-scripts/rinex-conversion/RINEX V2/`, and
+`analysis/01 RINEX conversion/`), and the `offsets` catalog
+(`docs/bern52/phivolcs-scripts/event-catalog/offsets`, with regional variants of
+`vel_line_v8_newvelduetooffset_v4.m` beside it). `compute_ant-h.xlsx`,
+`filter-fncrd.bat`, `plot_v2.py`, `vel_line_v8.m` and `outlier_input-site.py`
+are still not, and live only on Google Drive and staff machines. That is a
+succession risk in its own right.
 
 ### `01 RINEX conversion`
 | File | Role |
@@ -146,9 +154,10 @@ Everything in §4. Specific blockers:
    multi-GNSS incl. BeiDou-3); `gfzrnx` 2.2.0 reads the same 48 MB file in
    ~14 s and QCs GPS+GLONASS+Galileo+QZSS+BeiDou. The migration trigger is
    **met**, not pending.
-   Two caveats for *this* stage: (a) `gfzrnx` is **not currently installed on
-   gps3** — it is referenced by `pogf-geodetic-suite`'s QC and by that
-   evidence doc, but `command -v gfzrnx` finds nothing here; (b) gfzrnx
+   Two caveats for *this* stage: (a) `gfzrnx` **is** installed on gps3, in
+   `~/bin` with `teqc` and `runpkr00`, but not on the default `PATH`, which is
+   why `command -v gfzrnx` found nothing when this was written
+   (`docs/SETTLED.md` §2); (b) gfzrnx
    handles **RINEX manipulation**, not **Trimble/Leica proprietary decoding**,
    so it replaces teqc's RINEX role but not `runpkr00`'s.
 2. **`runpkr00` (Trimble) and Leica MDB reading** have no obvious open
@@ -161,20 +170,27 @@ Everything in §4. Specific blockers:
    itself warns about, which cause 5–15 cm and 100× errors respectively).
 4. `fixdatweek` (GPS-week rollover, Trimble 5700) is Windows-only.
 
-### Stage 3 — not started, and the MATLAB dependency is the crux
+### Stage 3 — largely done (this section said "not started" on 2026-08-12)
 1. `filter-fncrd.bat` — trivial to reimplement.
-2. `plot_v2.py` — XYZ→ENU with a reference station; ~straightforward, and we
-   already have the transform in `coord_repeatability.py` and
-   `network_coherence_scan.py`.
+2. `plot_v2.py` — XYZ→ENU with a reference station. **Done:**
+   `pogf_geodetic_suite/timeseries/crd_pipeline.py` and `plots.py`, run as
+   `uv run crd-to-plots`, which writes the per-site PLOT files and the `123`
+   index.
 3. **`vel_line_v8.m` is MATLAB** and produces the project's actual scientific
    deliverable (site velocities, split at offsets). **Neither MATLAB nor
-   Octave is installed on gps3** (verified 2026-08-12). Options: (a) port to
+   Octave is installed on gps3** (verified 2026-08-12). Options were: (a) port to
    Python/NumPy, (b) **evaluate FODITS**, which does discontinuity detection,
    velocity estimation, outlier handling and seasonal terms natively in BSW —
-   see the plan doc's Tier 4.
+   see the plan doc's Tier 4. **(a) is done:**
+   `pogf_geodetic_suite/timeseries/analysis.py` reproduces
+   `vel_line_v8_newvelduetooffset_v4.m`, 161/165 components to <5e-6 mm/yr
+   (`docs/SETTLED.md` §2).
 4. `outlier_input-site.py` is deliberately interactive (visual outlier
    picking). FODITS's statistical outlier test is the automated counterpart.
-5. **The `offsets` file must be brought into version control.** It is
+   **Replaced** for the interactive case by `tools/velocity-reviewer`
+   (`uv run velocity-reviewer`), a browser version of the same picking.
+5. **The `offsets` file must be brought into version control.** **Done:**
+   `docs/bern52/phivolcs-scripts/event-catalog/offsets`. It is
    hand-curated institutional knowledge going back years, it exists only on
    Google Drive and staff machines, and it is precisely the input FODITS
    consumes as an event list. Losing it would be worse than losing any script
@@ -185,7 +201,8 @@ Everything in §4. Specific blockers:
 ## Recommended order of work
 
 1. **Copy the `offsets` file and the five Google Drive scripts into this
-   repo.** Zero-risk, and it is the single largest reduction in project
+   repo.** (`offsets`, `campaign_v5.py` and `continuous_v5.py` are in; the
+   rest are not, see Inventory B.) Zero-risk, and it is the single largest reduction in project
    fragility available right now. Nothing else on this list matters if the
    inputs are lost.
 2. **Stage 3 before stage 1.** It is closer to the science, the MATLAB

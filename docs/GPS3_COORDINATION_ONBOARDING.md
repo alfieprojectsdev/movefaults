@@ -1,3 +1,5 @@
+> **Superseded in part (2026-07-30):** the coordination protocol below, both machines pushing to `docs/bernese-training-notes`, was replaced by the "Branching & Merge Policy" in `CLAUDE.md`: all work reaches `main` through a pull request. The rest is a record of 2026-07-29.
+
 # gps3 Claude Code — Repo Sync & Inter-Machine Coordination
 
 **Written:** 2026-07-29 (late) by the Claude Code session on the T420

@@ -14,9 +14,11 @@ run started with.*
 > `scope: session` error stops it after K = 3 consecutive days with the same
 > signature, and any 5 consecutive failed days stop it whatever their errors. So the 29 August replay (24 `neqckdim` failures) stops after
 > **one** day, not three: K applies only to session errors, and MAXPAR is
-> configuration. No ledger or plan phase exists yet. A timeout kills the BPE's
-> whole process group (#271). Whether the ledger replaces the `.done` markers or
-> sits beside them is an open decision.
+> configuration. A plan phase (`bernese_workflow.run_plan`, #299) and a run
+> ledger (`bernese_workflow.ledger`, #300) exist since 2026-10-27. A timeout
+> kills the BPE's whole process group (#271). The ledger sits beside the `.done`
+> markers for now; whether to retire the markers is still open (`ledger.py`,
+> "THE .done MARKERS STAY").
 
 ## The constraint that shapes everything
 

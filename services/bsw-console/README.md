@@ -41,17 +41,19 @@ For frontend work, `npm run dev` proxies `/api` to the running server.
 | Campaigns | Wired: fixed, float and failed counts per year, last run and its state, recent activity from every ledger |
 | Calendar | Wired: fixed and float from SAVEDISK, failed, running and queued from the ledger. **Excluded** is never shown, because the ledger does not record plans |
 | Runs | Wired: days × PCF step groups, the failed PID from the protocol file, the running PID from the live BPE folder, the circuit breaker's counters. **Stop** is a stub |
-| Day | Wired: attempts, the seven archived results with their 5.2 names, a text viewer with search and highlighting, stations in the solution and drops since the day before, HELMCHK RMS. **Not recorded by the service yet:** who started a run, the command, the code version, the IGS product tier. **Not available:** the ambiguity fixing rate, because the AMB summaries are not archived |
+| Day | Wired: attempts, the seven archived results with their 5.2 names, a text viewer with search and highlighting, stations in the solution and drops since the day before, HELMCHK RMS. **Recorded by the service but not shown yet:** who started a run, the command, the code version and the IGS product tier are in the ledger's `run_start` since #318, but the console still fills them with `None` (`bsw_console/status.py`). **Not available:** the ambiguity fixing rate, because the AMB summaries are not archived |
 | Failure | Wired: `diagnose_day` on the day's BPE folder, the known-errors entry, the raw lines with earlier attempts greyed. Falls back to the ledger's recorded label once a solved day's campaign is removed |
 | Plan | Wired: `run_plan.plan_from_env`, PCF groups with a check of the skips chosen, products per day, MAXPAR. **Save plan** writes one JSON file. **Queue preflight** and **Start** are stubs |
 | Redo | Wired preview: every file that would move, and where. **The move** is a stub |
 | Known errors | Wired: the whole list, with how often each fired in the last 30 days and failures with no entry |
 | Station files (stage 4) | Read-only and wired: station × file coverage of the eight files the PCF names, codes with two names, stations missing from the BLQ (anything after `$$ END TABLE` counts as missing). Add a site, use a CRD as a priori and the BLQ paste check are not built |
-| Time series (stage 5) | Stub: it waits on a status endpoint from the timeseries package |
+| Time series (stage 5) | Stub. The read-only status it waited on exists since #319 (`pogf_geodetic_suite/timeseries/status.py`, `uv run pogf-timeseries status`); the console does not call it yet |
 
 Stubs answer HTTP 501 with the reason, and the page shows it. Stage 3 waits on
 the two prerequisites in the brief: a run worker on gps3 that holds the BPE
-lock, and personal accounts so every action carries a name.
+lock, and personal accounts so every action carries a name. The run worker
+exists since #316 (`bernese_workflow/run_worker.py`, `uv run bernese-worker`,
+taking the lock in `bpe_lock.BPELock`), but the console is not wired to it yet.
 
 ## Safety
 

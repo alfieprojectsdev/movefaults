@@ -188,8 +188,10 @@ gps3 install.
       is gzipped). Both T420 and gps3 hit 0.0000 mm; anything worse means
       something moved that shouldn't have.
 
-`scripts/install_bernese_dell.sh` automates most of this and is idempotent —
-adapt rather than rewrite.
+`install_bernese_dell.sh` automates most of this and is idempotent — adapt
+rather than rewrite. It is **not in this repository**: it was written for the
+R740 bring-up and copied to the FLASH16G and SANDISK8G backup drives beside
+`BERN54/` (`RESUME_NEXT.md`, the thumb-drive backup entry).
 
 ---
 

@@ -259,6 +259,11 @@ is a file someone remembers, not a recorded input.
 
 - Make the offsets catalog an explicit campaign input, hashed into provenance
 
+**Progress (#319):** the time-series status (`pogf_geodetic_suite/timeseries/status.py`)
+now records the path and sha256 of the offsets catalog it fitted. The catalog is
+still not a campaign input: `campaign_models.py` and `campaign_builder.py` do not
+mention it.
+
 *Files: `campaign_models.py`, `campaign_builder.py`*
 
 ---

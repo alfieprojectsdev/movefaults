@@ -1,7 +1,12 @@
 # Provenance record — design for review
 
-**Status: DECIDED 2026-08-13 — the open questions below are answered. Ready to
-build; nothing is built yet.**
+**Status: DECIDED 2026-08-13 — the open questions below are answered. Partly
+built since:** the run ledger records each Bernese run's user, command, code
+commit, PCF, products and config hash (#318, `bernese_workflow/ledger.py`,
+`run_start`), and the time-series status records the sha256 of the offsets
+catalog it fitted (#319, `pogf_geodetic_suite/timeseries/status.py`). **Not
+built:** `provenance.py`, input hashing against `docs/archive-manifests/`, and
+`verify_provenance.py`.
 **Drafted:** 2026-08-13
 
 ---
