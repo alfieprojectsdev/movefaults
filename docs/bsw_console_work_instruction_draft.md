@@ -15,6 +15,10 @@ It describes the console as it is today, including what is not built yet. Where
 a step still has to be done on gps3 from the command line, it says so and names
 who does it.
 
+**The screenshots use made-up data**: synthetic stations (`SYN1`, `REF0`), days and
+run records, signed in as `demo`. They show what each page looks like, not any real
+result. `scripts/console_screenshots.py` retakes them when a page changes.
+
 ## 1. Objective and scope
 
 The objective is unchanged: one standard way to process GPS data, so results
@@ -108,6 +112,9 @@ shows them but does not edit them yet.
 | 5.3.10 BLQ from the Chalmers ocean-loading service | Still manual: the service is external and replies by email. The maintainer merges the reply with `scripts/merge_blq.py`. **Station files** lists stations missing from the BLQ, and counts anything after `$$ END TABLE` as missing |
 | 5.3.11 Copy the eight files into `DATAPOOL\REF52` | Maintainer task. On gps3 the reference folder is `REF54` |
 
+
+![Station files page: one row per station, a tick for each of the eight files that lists it. NEW1 has a dash under BLQ and a note that ocean loading would fail.](images/bsw_console/station_files.png)
+
 ### 5.4 BPE setup
 
 | 5.2 step | With the console |
@@ -142,6 +149,9 @@ This replaces 5.6.1.1 to 5.6.1.7.
    float, failed and not run, and its last run and that run's state.
 3. Open **Calendar** for the campaign and year. Each day is coloured fixed,
    float, failed, running, queued or not run.
+
+   ![Calendar page for LUZON 2025: one square per day, coloured by state, with a failed day selected and links to open the day or see why it failed.](images/bsw_console/calendar.png)
+
 4. Open **Plan**. Choose the first and last day. The page checks the plan
    before anything runs:
    - which days will run, and which won't: too few reference stations, or
@@ -155,6 +165,9 @@ This replaces 5.6.1.1 to 5.6.1.7.
      not that it is large enough.
 
    Fix or report anything it marks.
+
+   ![Plan page: days and PCF on the left. On the right, the checks: 5 of 6 days will run with one short of reference stations, MAXPAR, WAITs and products, and Start off until a preflight finishes.](images/bsw_console/plan.png)
+
 5. To run it, if you are an operator:
    - **Queue preflight** for the days. Start opens only after a preflight for
      exactly those days has finished OK in the last 7 days;
@@ -170,12 +183,21 @@ This replaces 5.6.1.1 to 5.6.1.7.
    cell not started, running, done or failed. The running or failed step's PID
    is named. Stopping the whole run after repeated failures (the circuit
    breaker) is shown with its counters.
+
+   ![Runs page: a halted run with one day done, one failed at PID 513 and one not started, and the circuit-breaker counters.](images/bsw_console/runs.png)
+
 7. When it finishes, check a few days on **Day** (5.6.1.7): the stations in the
    solution, any drops, and the HELMCHK RMS.
+
+   ![Day page: how the result was produced, its quality, its attempts, and the seven results with their 5.4 and 5.2 names.](images/bsw_console/day.png)
+
 8. For each failed day, open **Failure**. If the error has a known-errors entry,
    follow its remedy. If not, report it to the maintainer with the day and the
    PID. **Known errors** lists every entry and how often it fired in the last 30
    days.
+
+   ![Failure page: the failed PID, script and message, the known-errors entry with its remedy, and the protocol file with the error line marked.](images/bsw_console/failure.png)
+
 9. To run a day again, an operator uses **Redo this day** on its **Day** page,
    not deletion.
    In 5.2, a day is redone by deleting its F1 files. On 5.4 that replaces only 2
@@ -237,6 +259,14 @@ segment under the one-year minimum shows crossed out.
 | 6.2.7 Run `vel_line_v8.m` | Shown for the station chosen. A plot of East, North and Up on one time axis replaces the JPG: epochs in the fit as dots, epochs the outlier rule flagged in orange, epochs left out of the fit for any other reason hollow, the fitted line for each segment, and the catalogue's offsets as dashed lines. Ctrl with the mouse wheel zooms, Shift with the wheel pans, dragging selects a span, and a double-click shows everything. Below it: the velocity of the final segment with its 1-sigma, East, North and Up, and the span it covers, with a note when the newest epochs are too few to fit, so the rate is the one before the latest event; then, for each segment between offsets, its start and end as decimal years, epochs, epochs in the fit, outliers and velocities. A final segment shorter than the minimum span (one year) is crossed out, because a rate from too little data means nothing |
 | 6.2 note: horizontal only, usually | Unchanged. The page shows Up as well; read it with the same care |
 | 6.3 Outlier removal: `outlier_input-site.py`, right-click, hand-edit PLOT files, re-run MATLAB | Click an epoch on the plot; a drag doesn't pick one. A form shows the rule's flag and any decision so far. A flagged epoch offers **Confirm outlier**, or **Keep it: not an outlier** with a reason. An unflagged one offers **Mark as outlier** with a reason. **Undo decision** takes a decision back. Each decision is kept with your name, the reference station and a hash of the day's CRD files, and no file is edited. Rings mark decided epochs. A dashed line and a row marked "not published" show the fit without the confirmed outliers. A decision made against another reference station, or on a day since reprocessed, is shown as such and not applied. The page's outlier mode stays `record`: flagged epochs are reported and kept in the fit. Decisions don't reach PLOT files or production plots; for those, keep using `tools/velocity-reviewer` |
+
+The page after a flagged epoch was confirmed: the ring on the plot, the decision form, and a velocity row marked "not published" beside the one that counts.
+
+![Time series page for a synthetic station: East, North and Up over three years with an earthquake step and one ringed outlier, the decision form, and the velocity and segment tables.](images/bsw_console/time_series.png)
+
+The form on a flagged epoch, before anything is recorded:
+
+![Decision form for one epoch: the rule flagged it and no decision is recorded yet, with Confirm outlier and Keep it: not an outlier buttons.](images/bsw_console/outlier_decision.png)
 
 Whether a confirmed outlier is left out of the published fit is an open team
 decision (`docs/SETTLED.md` §6). The page names the mode it used so the numbers
