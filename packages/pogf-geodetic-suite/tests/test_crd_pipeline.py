@@ -1,6 +1,7 @@
 """Tests for timeseries.crd_pipeline — RUNX_v2 Python port."""
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pymap3d
@@ -12,6 +13,7 @@ from pogf_geodetic_suite.timeseries.crd_pipeline import (
     read_crd_file,
     session_to_decimal_year,
 )
+from pogf_geodetic_suite.timeseries.status import station_status
 
 # ---------------------------------------------------------------------------
 # Minimal CRD file fixture
@@ -411,10 +413,14 @@ def test_crd_station_codes_with_no_dated_crd_raises(tmp_path):
 # the reference's position is that day's, as RUNX_v2.py reads it
 # ---------------------------------------------------------------------------
 
-def _moving(tmp_path, days=range(1, 41, 10), drift_m_per_day=0.0005, ref_days=None):
+MOVING_DAYS = (1, 11, 21, 31)
+DRIFT_M_PER_DAY = 0.0005
+
+
+def _moving(tmp_path, ref_days=None):
     """BOST and PBIS drifting together, as two sites on one plate do."""
-    for doy in days:
-        d = drift_m_per_day * doy
+    for doy in MOVING_DAYS:
+        d = DRIFT_M_PER_DAY * doy
         rows = [{"name": "PBIS", "x": PBIS_X + d, "y": PBIS_Y, "z": PBIS_Z}]
         if ref_days is None or doy in ref_days:
             rows.insert(0, {"name": "BOST", "x": BOST_X + d, "y": BOST_Y, "z": BOST_Z})
@@ -428,7 +434,7 @@ def test_shared_motion_cancels_because_the_reference_is_read_each_day(tmp_path):
     for values in (
         [r.east_m for r in results], [r.north_m for r in results], [r.up_m for r in results],
     ):
-        assert max(values) - min(values) < 1e-3, "both sites moved 20 mm; relative motion is none"
+        assert max(values) - min(values) < 1e-3, "both sites moved 15 mm; relative motion is none"
 
 
 def test_each_epoch_is_what_runx_v2_computes_from_that_days_file(tmp_path):
@@ -436,15 +442,38 @@ def test_each_epoch_is_what_runx_v2_computes_from_that_days_file(tmp_path):
     ecef2enu of this file's station at that position."""
     _moving(tmp_path)
     results = crd_directory_to_enu(tmp_path, reference_station="BOST")
-    for r, doy in zip(results, range(1, 41, 10), strict=True):
-        d = 0.0005 * doy
+    for r, doy in zip(results, MOVING_DAYS, strict=True):
+        d = DRIFT_M_PER_DAY * doy
         lat, lon, alt = pymap3d.ecef2geodetic(BOST_X + d, BOST_Y, BOST_Z, deg=True)
         want = pymap3d.ecef2enu(PBIS_X + d, PBIS_Y, PBIS_Z, lat, lon, alt, deg=True)
         assert (r.east_m, r.north_m, r.up_m) == pytest.approx(want, abs=1e-6)
 
 
-def test_a_day_without_the_reference_gives_no_epoch(tmp_path):
+def test_a_day_without_the_reference_gives_no_epoch_and_says_so(tmp_path, caplog):
     _moving(tmp_path, ref_days={1, 21, 31})
-    results = crd_directory_to_enu(tmp_path, reference_station="BOST")
-    assert len(results) == 3, "RUNX_v2.py writes nothing for a file with no reference"
+    with caplog.at_level(logging.WARNING):
+        results = crd_directory_to_enu(tmp_path, reference_station="BOST")
+    # RUNX_v2.py writes nothing for a file with no reference: it is DOY 11 that goes.
+    assert [r.decimal_year for r in results] == [
+        session_to_decimal_year(f"23{doy:03d}") for doy in (1, 21, 31)
+    ]
+    assert "missing from 1 of 4" in caplog.text
 
+
+def test_no_warning_when_the_reference_is_in_every_file(tmp_path, caplog):
+    _moving(tmp_path)
+    with caplog.at_level(logging.WARNING):
+        crd_directory_to_enu(tmp_path, reference_station="BOST")
+    assert "missing from" not in caplog.text
+
+
+def test_a_station_that_never_shares_a_day_with_the_reference_is_named_as_that(tmp_path):
+    """It has coordinates, so "not in the directory" would send you looking in the
+    wrong place."""
+    bost = {"name": "BOST", "x": BOST_X, "y": BOST_Y, "z": BOST_Z}
+    pbis = {"name": "PBIS", "x": PBIS_X, "y": PBIS_Y, "z": PBIS_Z}
+    other = {"name": "OTHR", "x": PBIS_X + 1000.0, "y": PBIS_Y, "z": PBIS_Z}
+    _write_crd(tmp_path / "F1_23001.CRD", [bost, other])
+    _write_crd(tmp_path / "F1_23002.CRD", [pbis, other])
+    with pytest.raises(ValueError, match="on any day the reference BOST has"):
+        station_status(tmp_path, "PBIS", "BOST")

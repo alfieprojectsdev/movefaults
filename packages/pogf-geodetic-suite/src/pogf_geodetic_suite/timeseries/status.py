@@ -450,7 +450,10 @@ def station_status(
 
     epochs = [ep for ep in crd_directory_to_enu(Path(crd_dir), ref) if ep.station == code]
     if not epochs:
-        raise ValueError(f"Station {code!r} has no estimated coordinates in {crd_dir}")
+        raise ValueError(
+            f"Station {code!r} has no estimated coordinates in {crd_dir} "
+            f"on any day the reference {ref} has"
+        )
 
     t = np.array([ep.decimal_year for ep in epochs])
     enu_m = np.array([[ep.east_m, ep.north_m, ep.up_m] for ep in epochs])

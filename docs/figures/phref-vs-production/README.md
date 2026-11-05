@@ -10,6 +10,12 @@ Both sides pass through the *same* `crd-to-plots` chain, referenced to **PIMO**,
 means removed. A difference here is therefore a difference in the solutions,
 not in how they were turned into series.
 
+**Made before the 2026-11-05 fix to `crd_pipeline.py` (`docs/SETTLED.md` section 5)
+and not regenerated.** Until then the chain read PIMO's position once, from the
+first file, so these series are not relative to PIMO day by day as this page
+says: each side's PIMO enters only as a fixed origin. The figures and the medians
+below have not been re-measured under the fix.
+
 Median agreement across all 38: **E +3.96, N −2.98, U −13.40 mm**.
 
 | figure | why it is here |
