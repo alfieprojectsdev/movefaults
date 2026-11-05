@@ -216,7 +216,8 @@ describe('recording an outlier decision', () => {
     const i = syn1().series.outlier.indexOf(true)
     await pickEpoch(i)
     expect(screen.getByRole('heading', { name: /SYN1 · 2021-/ })).toBeTruthy()
-    await act(async () => { screen.getByRole('button', { name: 'Record as abc' }).click() })
+    expect(screen.queryByRole('button', { name: 'Mark as outlier' })).toBeNull()
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
     await settle()
     expect(posts).toHaveLength(1)
     expect(posts[0].url).toBe(`${BASE}/SYN1/decisions`)
@@ -224,14 +225,57 @@ describe('recording an outlier decision', () => {
     expect(screen.getByText(/published velocity is unchanged/)).toBeTruthy()
   })
 
-  it('going against the flag needs a reason before it can be recorded', async () => {
-    serveWith('abc', [])
+  it('going against the flag asks for a reason before anything is recorded', async () => {
+    const posts: { url: string; body: any }[] = []
+    serveWith('abc', posts)
     await page()
     await pickEpoch(syn1().series.outlier.indexOf(false))
-    fireEvent.click(screen.getByLabelText('Outlier'))
-    expect((screen.getByRole('button', { name: 'Record as abc' }) as HTMLButtonElement).disabled).toBe(true)
-    fireEvent.change(screen.getByLabelText(/Reason/), { target: { value: 'multipath' } })
-    expect((screen.getByRole('button', { name: 'Record as abc' }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.queryByRole('button', { name: 'Confirm outlier' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as outlier' }))
+    expect(posts).toHaveLength(0)
+    const record = () => screen.getByRole('button', { name: 'Record as abc' }) as HTMLButtonElement
+    expect(record().disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText(/Why is this an outlier/), { target: { value: 'multipath' } })
+    expect(record().disabled).toBe(false)
+    await act(async () => { record().click() })
+    await settle()
+    expect(posts[0].body).toMatchObject({ decision: 'outlier', reason: 'multipath', auto_flag: false })
+  })
+
+  it('a refusal for want of a reason opens the reason box; a network failure re-enables the buttons', async () => {
+    let mode: 'refuse' | 'throw' = 'refuse'
+    serveWith('abc', [])
+    const served = globalThis.fetch as any
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        if (mode === 'throw') throw new TypeError('Failed to fetch')
+        return new Response(JSON.stringify({ detail: 'A decision against the automatic flag needs a reason; it is kept with the epoch.' }), { status: 422 })
+      }
+      return served(url, init)
+    }))
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(true))
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
+    await settle()
+    expect(screen.getByText(/needs a reason/)).toBeTruthy()
+    expect(screen.getByLabelText(/Why is this an outlier/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    mode = 'throw'
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
+    await settle()
+    expect(screen.getByText(/Not recorded: Failed to fetch/)).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Confirm outlier' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('cancel leaves the epoch undecided', async () => {
+    const posts: { url: string; body: any }[] = []
+    serveWith('abc', posts)
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(true))
+    fireEvent.click(screen.getByRole('button', { name: 'Keep it: not an outlier' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Confirm outlier' })).toBeTruthy()
+    expect(posts).toHaveLength(0)
   })
 
   it('a drag does not pick, and signed out there is no form', async () => {

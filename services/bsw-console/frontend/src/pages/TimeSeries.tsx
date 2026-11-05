@@ -39,9 +39,9 @@ export default function TimeSeries({ campaign, year }: { campaign: string; year:
   return (
     <>
       <div className="stack">
-        <h1>Time series · {campaign} {year} <span className="stub">read-only</span></h1>
+        <h1>Time series · {campaign} {year}</h1>
         <p className="muted" style={{ maxWidth: '80ch' }}>
-          East, north and up per station relative to a reference station, with the offset-aware velocity from the timeseries package (the port of <span className="mono">vel_line_v8.m</span> verified against PHIVOLCS' output) and the offsets from the offsets catalogue. Outliers arrive flagged by the package; confirming or overriding one is not built here yet.
+          East, north and up per station relative to a reference station, with the offset-aware velocity from the timeseries package (the port of <span className="mono">vel_line_v8.m</span> verified against PHIVOLCS' output) and the offsets from the offsets catalogue. Outliers arrive flagged by the package. Click an epoch on the plot to confirm or override its flag: decisions are recorded with who made them and feed only a side-by-side fit, never the published velocity.
         </p>
       </div>
       {sum.error && <Failed error={sum.error} />}
