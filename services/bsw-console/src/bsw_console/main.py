@@ -5,9 +5,10 @@ and saving a plan writes one file in the console's own state directory.
 Stage 3 (start, stop, redo, preflight) answers 501 with the reason. The run
 worker that will carry those requests out under the BPE lock exists
 (bernese_workflow.run_worker, `bernese-worker`, #316), but this console is not
-wired to it yet, and per-person accounts, so every action is recorded with a
-name, are still pending. The browser never sends a filesystem path: it names a campaign, a year
-and a day, and the file viewer takes only a name the server listed for that day.
+wired to it yet, no worker runs as a service on gps3, and per-person accounts,
+so every action is recorded with a name, are still pending. The browser never
+sends a filesystem path: it names a campaign, a year and a day, and the file
+viewer takes only a name the server listed for that day.
 
 Sign-in is pending too (personal accounts on gps3 are a prerequisite in the
 brief). Until then the server binds to 127.0.0.1 by default and says nobody is
@@ -41,8 +42,7 @@ STAGE3_REASON = (
     "Not enabled yet. The run worker that starts, stops and redoes runs under the BPE "
     "lock exists on gps3 (bernese-worker), but this console is not connected to it yet, "
     "and personal accounts, so every action is recorded with a name, are still pending. "
-    "Until then, runs are started on gps3 from the command line, with bernese-run-year "
-    "or bernese-worker submit."
+    "Until then, runs are started on gps3 from the command line with bernese-run-year."
 )
 
 
