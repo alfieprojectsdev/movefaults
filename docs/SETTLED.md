@@ -65,7 +65,7 @@ from `CLAUDE.md` because both duplicates were removed.
 | **GEONET V4 combines clusters top-down, each layer fixed before the next** — backbone → basic regional → additional regional. V3's pairwise merging gave **non-unique troposphere** at backbone stations | [NAK09] §2 |
 | **GEONET constrains the whole national network through ONE station (Tsukuba-1).** Under V3 its piecewise-linear coordinate model missed the vertical annual variation, producing an apparent annual signal at **every** GEONET station | [KOT09], §4b |
 | **~107 stations** have 2025 RINEX 2 in our local datapool. Not 76 (one day's count), not 439 (file-server catalogue) | measured 2026-08-25 |
-| **No production month has run through `services/bernese-workflow`.** The service has never created a campaign on the R740 | confirmed 2026-08-25 from run history: every 2025 solution came from a Perl driver in `$U/SCRIPT` launched by `scripts/run_luzon_year.sh`. The 2025 run made this *more* true — 358 days through `scripts/` while the service gained tests. Still true 2026-10-14: the service gained a day-level driver (`month_driver.run_days`, #268) but nothing has run a production day through it |
+| **Production runs through `services/bernese-workflow` since 2026-11-04.** The BPE step is `bernese-run-year`; staging, product fetch, BLQ merge and the QC and comparison scripts are still `scripts/`. Underneath, the service still runs a Perl driver (`sessions_pcs.pl`) through `startBPE.pm` | 2026-11-04: first production run, LUZON January 2026, run `7ca9ccb9`, 31/31 days ok in 53 min, 23–25 stations a day. 2026-11-04 to 05: PHREF 2025 reprocessed, runs `3341af5c` and `0def7ca1`, all 360 planned days solved. Preceded by the parity run (row above, #307). **Until 2026-11-04 this row read "No production month has run through `services/bernese-workflow`"** (confirmed 2026-08-25 from run history, still true 2026-10-14), which is why older documents say production runs through `scripts/` |
 
 | **`MAXPAR` in `$U/OPT/R2S_FIN/ADDNEQ2.INP` was 1000, then 3000, and is 6000 since 2026-09-29** — raised to match the team's BSW 5.2 `R2S_FIN` panel on gps2 (read 2026-09-29) ahead of the ~91-station densification trial; backup `ADDNEQ2.INP.pre-maxpar6000-20260929`. The preliminary step's `$U/OPT/R2S_GEN/ADDNEQ2.INP` went 1000 → 4000 the same day, also matching gps2 (backup `.pre-maxpar4000-20260929`). For a 33–38 station day the requirement is bounded to `(1000, 3000)` and **is not known more precisely** — the "~30 parameters per station" in the first version of `bernese_maxpar_limit.md` was an inference from the overflow report and is **withdrawn** | 24/24 days failed at 1000; 309+ days clean at 3000. Measurement method in `bernese_maxpar_limit.md` |
 | **`neqckdim` reports the first request that OVERFLOWS, not the requirement.** Its number is the ceiling plus one and says nothing about how much headroom is needed | the figure was exactly 1001 on all 24 failed days while station counts varied 35–38 |
@@ -705,9 +705,15 @@ worked on:
   unchanged, so the two currently disagree **on purpose**. When this closes,
   align them and move this entry to §3.
 
-- **No production month has run through `services/bernese-workflow`.** Until one
-  is compared byte-for-byte against `scripts/` output, its 229 tests are
-  evidence about the service, not about the science.
+- **The PHREF 2025 solutions reprocessed through the service have not been
+  compared with the ones they superseded.** Production moved to
+  `services/bernese-workflow` on 2026-11-04 (§2: LUZON January 2026, run
+  `7ca9ccb9`; PHREF 2025, runs `3341af5c` and `0def7ca1`, all 360 planned
+  days solved). Until 2026-11-04 this bullet read "No production month has run
+  through `services/bernese-workflow`". The service reproduces `scripts/` on
+  the same configuration (the control run in §2: SNX and CRD identical on DOY
+  094, 096 and 098); the full reprocessed year has not been compared with the
+  production solutions it superseded.
 - **No solution reaches TimescaleDB.** Steps 2–3 of the designed flow are
   aspirational.
 - **Which ambiguities were wrongly fixed on DOY 036, and why that day.**
