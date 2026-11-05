@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import { post, useApi } from '../lib'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { post } from '../lib'
 import { applicable, sessionDate } from '../tsPlot'
-import type { Session, TsDecision, TsSeries } from '../types'
+import type { TsDecision, TsSeries } from '../types'
+import type { PlotPoint } from './TsPlot'
 
 type Choice = 'outlier' | 'not_outlier' | 'cleared'
 
@@ -11,8 +12,20 @@ const LABEL: Record<Choice, string> = {
   cleared: 'Cleared',
 }
 
+/** Where a popup of this size goes beside a point: right of it, or left when it
+ * would run off the plot, and kept inside the plot vertically. */
+export function popupPlace(
+  point: PlotPoint, size: { width: number; height: number }, area: { width: number; height: number },
+): { left: number; top: number } {
+  const gap = 14
+  const right = point.x + gap
+  const left = right + size.width <= area.width ? right : Math.max(0, point.x - gap - size.width)
+  const top = Math.min(Math.max(0, point.y - 24), Math.max(0, area.height - size.height))
+  return { left, top }
+}
+
 /**
- * The decision form for the epoch picked on the plot. A decision is recorded
+ * The decision popup beside the epoch picked on the plot. A decision is recorded
  * with the signed-in name, the reference shown and the day's CRD hash; it never
  * changes a file or the published velocity (outlier_review_design.md).
  *
@@ -20,12 +33,22 @@ const LABEL: Record<Choice, string> = {
  * confirmed in one click or kept as real with a reason; an unflagged one can
  * be marked as an outlier with a reason; a decided one can be undone. Going
  * against the rule's flag opens a reason box before anything is recorded.
+ *
+ * It is a popup and not a modal: the plot stays usable, a click on another epoch
+ * moves it there, and recording closes it, so a run of epochs is one click each.
+ * Escape, the close button or a click elsewhere closes it.
+ *
+ * Closing does not stop a request already sent, so its answer can arrive after
+ * the popup has gone: `onSaved` says which epoch it was for, and a refusal nobody
+ * is left to read goes to `onLost`, never nowhere. `reloading` holds the buttons
+ * off while `decisions` does not yet include what was just recorded here, since
+ * until then they still offer it.
  */
-export default function OutlierDecision({ base, station, reference, series, index, decisions, onSaved }: {
+export default function OutlierDecision({ base, station, reference, series, index, decisions, point, user, reloading, onSaved, onLost, onClose }: {
   base: string; station: string; reference: string; series: TsSeries; index: number
-  decisions?: TsDecision[]; onSaved: () => void
+  decisions?: TsDecision[]; point: PlotPoint; user: string | null; reloading: boolean
+  onSaved: (text: string, index: number) => void; onLost: (text: string) => void; onClose: () => void
 }) {
-  const session = useApi<Session>('/api/session')
   const epoch = sessionDate(series.t[index])
   const flagged = series.outlier[index]
   const mine = applicable(decisions).get(epoch)
@@ -34,13 +57,52 @@ export default function OutlierDecision({ base, station, reference, series, inde
   const [pending, setPending] = useState<Choice | null>(null)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  const user = session.data?.user ?? null
+  const [msg, setMsg] = useState<string | null>(null)
   const current = mine?.decision ?? null
+  const locked = busy || reloading
+  const open = useRef(true)
+  useEffect(() => {
+    open.current = true
+    return () => { open.current = false }
+  }, [])
 
-  // A recorded decision keeps the buttons off until the reloaded decisions
-  // arrive: until then they still offer what was just recorded.
-  useEffect(() => setBusy(false), [decisions])
+  const box = useRef<HTMLElement>(null)
+  // Measured on every render, because the reason box and a message change its size.
+  useLayoutEffect(() => {
+    const el = box.current
+    const area = el?.offsetParent
+    if (!el || !area) return
+    const { left, top } = popupPlace(point, { width: el.offsetWidth, height: el.offsetHeight },
+      { width: area.clientWidth, height: area.clientHeight })
+    el.style.left = `${left}px`
+    el.style.top = `${top}px`
+  })
+
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (pending) { setPending(null); setReason('') } else onClose()
+    }
+    const down = (e: MouseEvent) => {
+      const t = e.target as Element
+      // A click on the plot picks another epoch or starts a zoom: the plot decides.
+      if (box.current?.contains(t) || t.closest?.('[data-testid="ts-plot"]')) return
+      // A half-written reason is not thrown away by reaching for the scrollbar.
+      if (!pending || !reason.trim()) onClose()
+    }
+    document.addEventListener('keydown', key)
+    document.addEventListener('mousedown', down)
+    return () => {
+      document.removeEventListener('keydown', key)
+      document.removeEventListener('mousedown', down)
+    }
+  }, [pending, reason, onClose])
+
+  const refused = (text: string) => {
+    if (!open.current) { onLost(`${station} ${epoch}: ${text}`); return }
+    setBusy(false)
+    setMsg(text)
+  }
 
   const save = async (decision: Choice, why: string) => {
     setBusy(true)
@@ -50,19 +112,14 @@ export default function OutlierDecision({ base, station, reference, series, inde
         epoch, decision, reason: why, reference, auto_flag: flagged,
       })
     } catch (e) {
-      setBusy(false)
-      setMsg({ ok: false, text: `Not recorded: ${e instanceof Error ? e.message : String(e)}` })
+      refused(`Not recorded: ${e instanceof Error ? e.message : String(e)}`)
       return
     }
     if (r.ok) {
-      const what = decision === 'cleared' ? 'Decision undone' : `Recorded as ${LABEL[decision].toLowerCase()}`
-      setMsg({ ok: true, text: `${what} by ${r.body.by}. The published velocity is unchanged.` })
-      setPending(null)
-      setReason('')
-      onSaved()
+      const what = decision === 'cleared' ? 'decision undone' : `recorded as ${LABEL[decision].toLowerCase()}`
+      onSaved(`${station} ${epoch}: ${what} by ${r.body.by}. The published velocity is unchanged.`, index)
     } else {
-      setBusy(false)
-      setMsg({ ok: false, text: r.body.detail ?? `Not recorded (${r.status})` })
+      refused(r.body.detail ?? `Not recorded (${r.status})`)
       // The server decides the flag. If it disagrees with the page's (the
       // solution changed since it loaded), a one-click decision is refused for
       // want of a reason: open the reason box rather than leave a dead end.
@@ -89,9 +146,12 @@ export default function OutlierDecision({ base, station, reference, series, inde
   if (current) actions.push({ choice: 'cleared', label: 'Undo decision' })
 
   return (
-    <section aria-labelledby="ts-decide" className="panel pad stack">
-      <h2 id="ts-decide">{station} · {epoch}</h2>
-      <p className="mono" style={{ fontSize: 13 }}>
+    <section ref={box} role="dialog" aria-labelledby="ts-decide" className="popup stack" style={{ gap: 8 }}>
+      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+        <h3 id="ts-decide" style={{ margin: 0 }}>{station} · {epoch}</h3>
+        <button type="button" className="popup-x" aria-label="Close" onClick={onClose}>×</button>
+      </div>
+      <p className="mono" style={{ fontSize: 12, margin: 0 }}>
         E {series.e_mm[index].toFixed(1)} · N {series.n_mm[index].toFixed(1)} · U {series.u_mm[index].toFixed(1)} mm, relative to {reference}
       </p>
       <dl className="kv">
@@ -115,27 +175,27 @@ export default function OutlierDecision({ base, station, reference, series, inde
       {!user ? (
         <p className="muted" style={{ fontSize: 13 }}>Sign in to record a decision: each one is kept with who made it.</p>
       ) : pending ? (
-        <form className="f" onSubmit={(e) => { e.preventDefault(); if (reason.trim() && !busy) void save(pending, reason) }}>
+        <form className="f" style={{ gap: 8 }} onSubmit={(e) => { e.preventDefault(); if (reason.trim() && !locked) void save(pending, reason) }}>
           <label>
             Why is this {pending === 'outlier' ? 'an outlier' : 'not an outlier'}? The rule {flagged ? 'flagged' : 'did not flag'} it, so a reason is kept with the decision.
             <textarea rows={2} value={reason} maxLength={500} autoFocus onChange={(e) => setReason(e.target.value)} />
           </label>
           <div className="row">
-            <button type="submit" className="btn" disabled={busy || !reason.trim()}>Record as {user}</button>
+            <button type="submit" className="btn" disabled={locked || !reason.trim()}>Record as {user}</button>
             <button type="button" className="btn2" onClick={() => { setPending(null); setReason('') }}>Cancel</button>
           </div>
         </form>
       ) : (
         <div className="row">
           {actions.map((a) => (
-            <button key={a.choice} type="button" className={a.primary ? 'btn' : 'btn2'} disabled={busy} onClick={() => choose(a.choice)}>
+            <button key={a.choice} type="button" className={a.primary ? 'btn' : 'btn2'} disabled={locked} onClick={() => choose(a.choice)}>
               {a.label}
             </button>
           ))}
           <span className="muted" style={{ fontSize: 13 }}>recorded as {user}</span>
         </div>
       )}
-      {msg && <div className={`banner ${msg.ok ? 'info' : 'warn'}`} role="status">{msg.text}</div>}
+      {msg && <div className="banner warn" role="status" style={{ padding: '8px 10px', fontSize: 13 }}>{msg}</div>}
     </section>
   )
 }

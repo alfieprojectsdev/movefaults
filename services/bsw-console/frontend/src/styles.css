@@ -66,6 +66,8 @@ main { width:100%; max-width:1320px; margin:0 auto; box-sizing:border-box; paddi
 .crumb { font-size:13px; color:var(--muted); }
 
 .panel { background:var(--panel); border:1px solid var(--line); border-radius:6px; }
+.popup { position:absolute; z-index:10; width:340px; max-width:100%; box-sizing:border-box; padding:12px 14px; background:var(--panel); border:1px solid var(--ctl); border-radius:6px; box-shadow:0 6px 24px rgba(0,0,0,.22); font-size:13px; }
+.popup-x { font:inherit; font-size:18px; line-height:1; padding:2px 6px; background:none; border:0; color:var(--ink2); cursor:pointer; }
 .pad { padding:18px 20px; }
 .scroll { overflow-x:auto; }
 .stack { display:flex; flex-direction:column; gap:12px; }

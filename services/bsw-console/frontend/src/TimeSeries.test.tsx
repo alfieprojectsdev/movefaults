@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import App from './App'
+import { popupPlace } from './pages/OutlierDecision'
 import api from './__fixtures__/api.json'
 
 // The configured responses are pogf_geodetic_suite.timeseries.status run on the
@@ -283,6 +284,150 @@ describe('recording an outlier decision', () => {
     for (const c of live) expect(c.scales.x).toEqual({ min: 2021.2, max: 2021.4 })
   })
 
+  it('the popup sits over the plot, and Escape, the close button or a zoom closes it', async () => {
+    serveWith('abc', [])
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(true))
+    const dialog = () => screen.queryByRole('dialog')
+    expect(dialog()!.parentElement!.querySelector('[data-testid="ts-plot"]')).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await settle()
+    expect(dialog()).toBeNull()
+
+    const chart = (globalThis as any).__uplots[0]
+    chart.cursor.idx = 3
+    chart.over.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, clientY: 10 }))
+    chart.over.dispatchEvent(new MouseEvent('click', { clientX: 10, clientY: 10 }))
+    await settle()
+    expect(dialog()).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await settle()
+    expect(dialog()).toBeNull()
+
+    chart.over.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, clientY: 10 }))
+    chart.over.dispatchEvent(new MouseEvent('click', { clientX: 10, clientY: 10 }))
+    await settle()
+    expect(dialog()).toBeTruthy()
+    await act(async () => { chart.setScale('x', { min: 2021.1, max: 2021.2 }) })
+    await act(async () => { chart.setScale('x', { min: 2021.3, max: 2021.4 }) })
+    await settle()
+    expect(dialog()).toBeNull()
+  })
+
+  it('a click elsewhere closes it, a click on the plot does not, and Escape leaves a half-written reason first', async () => {
+    serveWith('abc', [])
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(false))
+    fireEvent.mouseDown(screen.getByTestId('ts-plot'))
+    await settle()
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as outlier' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await settle()
+    expect(screen.getByRole('button', { name: 'Mark as outlier' })).toBeTruthy()
+    fireEvent.mouseDown(document.body)
+    await settle()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('a click elsewhere does not throw away a reason being typed', async () => {
+    serveWith('abc', [])
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(false))
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as outlier' }))
+    fireEvent.change(screen.getByLabelText(/Why is this an outlier/), { target: { value: 'multipath' } })
+    fireEvent.mouseDown(document.body)
+    await settle()
+    expect((screen.getByLabelText(/Why is this an outlier/) as HTMLTextAreaElement).value).toBe('multipath')
+  })
+
+  it('recording closes the popup and says what happened under the plot', async () => {
+    serveWith('abc', [])
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(true))
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
+    await settle()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('status').textContent).toMatch(/recorded as outlier by abc\. The published velocity is unchanged/)
+  })
+
+  // Holds back what `held` matches until release() is called, to look inside the
+  // time a request is in flight.
+  function holdBack(held: (url: string, init?: RequestInit) => boolean) {
+    const served = globalThis.fetch as any
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (held(url, init)) await gate
+      return served(url, init)
+    }))
+    return () => release()
+  }
+  const isPost = (_url: string, init?: RequestInit) => init?.method === 'POST'
+
+  it('a refusal that arrives after the popup has closed is still shown', async () => {
+    serveWith('abc', [])
+    const served = globalThis.fetch as any
+    let answer: (r: Response) => void = () => {}
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') return new Promise<Response>((resolve) => { answer = resolve })
+      return served(url, init)
+    }))
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(true))
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
+    fireEvent.mouseDown(document.body)
+    await settle()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await act(async () => { answer(new Response(JSON.stringify({ detail: 'the lock is held' }), { status: 409 })) })
+    await settle()
+    expect(screen.getByRole('status').textContent).toMatch(/SYN1 2021-\d+: the lock is held/)
+  })
+
+  it('a decision answered late leaves the next epoch\'s popup open', async () => {
+    serveWith('abc', [])
+    const release = holdBack(isPost)
+    await page()
+    const flags = syn1().series.outlier
+    await pickEpoch(flags.indexOf(true))
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
+    await pickEpoch(flags.indexOf(false))
+    expect(screen.getByRole('button', { name: 'Mark as outlier' })).toBeTruthy()
+    await act(async () => { release() })
+    await settle()
+    expect(screen.getByRole('button', { name: 'Mark as outlier' })).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toMatch(/recorded as outlier/)
+  })
+
+  it('an epoch reopened before the reload arrives cannot be decided twice', async () => {
+    const posts: { url: string; body: any }[] = []
+    serveWith('abc', posts)
+    await page()
+    const i = syn1().series.outlier.indexOf(true)
+    await pickEpoch(i)
+    const release = holdBack((url, init) => !init?.method && url.includes('/SYN1'))
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
+    await settle()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await pickEpoch(i)
+    expect((screen.getByRole('button', { name: 'Confirm outlier' }) as HTMLButtonElement).disabled).toBe(true)
+    await act(async () => { release() })
+    await settle()
+    expect(posts).toHaveLength(1)
+    expect((screen.getByRole('button', { name: 'Confirm outlier' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('each epoch clicked does not ask for the session again', async () => {
+    serveWith('abc', [])
+    await page()
+    const flags = syn1().series.outlier
+    await pickEpoch(flags.indexOf(true))
+    const sessions = () => (globalThis.fetch as any).mock.calls.filter(([u]: [string]) => u === '/api/session').length
+    const before = sessions()
+    await pickEpoch(flags.indexOf(false))
+    expect(sessions()).toBe(before)
+  })
+
   it('going against the flag asks for a reason before anything is recorded', async () => {
     const posts: { url: string; body: any }[] = []
     serveWith('abc', posts)
@@ -351,5 +496,24 @@ describe('recording an outlier decision', () => {
     chart.over.dispatchEvent(new MouseEvent('click', { clientX: 10, clientY: 10 }))
     await settle()
     expect(screen.getByText(/Sign in to record/)).toBeTruthy()
+  })
+})
+
+describe('where the popup goes', () => {
+  const size = { width: 340, height: 200 }
+  const area = { width: 1000, height: 600 }
+
+  it('beside the point, on its right when it fits', () => {
+    expect(popupPlace({ x: 100, y: 300 }, size, area)).toEqual({ left: 114, top: 276 })
+  })
+  it('flips to the left at the right edge', () => {
+    expect(popupPlace({ x: 900, y: 300 }, size, area).left).toBe(900 - 14 - 340)
+  })
+  it('stays inside the plot at the top and bottom', () => {
+    expect(popupPlace({ x: 100, y: 5 }, size, area).top).toBe(0)
+    expect(popupPlace({ x: 100, y: 590 }, size, area).top).toBe(400)
+  })
+  it('on a plot narrower than the popup, starts at its edge', () => {
+    expect(popupPlace({ x: 100, y: 50 }, size, { width: 320, height: 600 }).left).toBe(0)
   })
 })

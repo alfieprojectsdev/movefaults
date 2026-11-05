@@ -27,6 +27,7 @@ vi.mock('uplot', () => {
       for (const h of this.opts.hooks?.setScale ?? []) h(this, key)
     }
     setSize() {}
+    redraw() {}
     valToPos(v: number) { return v }
     posToVal(v: number) { return v }
     destroy() { this.destroyed = true }

@@ -57,7 +57,7 @@ export default function Redo({ campaign, year, doy, lock }: { campaign: string; 
         <label>Why is this day being redone? (kept with the day's record)
           <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
         </label>
-        <label>Type <span className="mono">{pad3(doy)}</span> to confirm
+        <label><span>Type <span className="mono">{pad3(doy)}</span> to confirm</span>
           <input value={typed} onChange={(e) => setTyped(e.target.value)} />
         </label>
         <div className="row">
