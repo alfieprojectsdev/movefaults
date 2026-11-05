@@ -271,7 +271,6 @@ def client(bsw: Settings) -> TestClient:
 
 TS_REF_XYZ = (-3_150_000.0, 5_350_000.0, 1_600_000.0)
 TS_STEP_T = 2021.0
-TS_YEAR = 2021  # the result-directory year the synthetic series is filed under
 TS_SPIKE = (2021, 196)  # the one epoch the IQR rule must flag
 
 

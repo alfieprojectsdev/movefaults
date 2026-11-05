@@ -144,7 +144,14 @@ from typing import Any
 import numpy as np
 
 from .analysis import OffsetEvent, OffsetType, estimate_velocity
-from .crd_pipeline import CrdDirs, crd_datums, crd_directory_to_enu, session_to_decimal_year
+from .crd_pipeline import (
+    CrdDirs,
+    crd_datums,
+    crd_directory_to_enu,
+    crd_dirs_text,
+    days_without_station,
+    session_to_decimal_year,
+)
 from .gmt import MIN_SPAN_YEARS
 from .offsets_catalog import load_offsets_catalog
 
@@ -423,8 +430,9 @@ def station_status(
     Args:
         crd_dir:          Directory of Bernese `*.CRD` files, one per day, or
                           several directories oldest first, read as one series
-                          (see `crd_directory_to_enu`). Files in more than one
-                          datum add a warning.
+                          (see `crd_directory_to_enu`). Epochs in more than one
+                          datum add a warning, and so do days the reference's
+                          absence removed from the series.
         station:          4-character station code.
         reference:        4-character code of the ENU origin.
         offsets_catalog:  Path to an `offsets` file. Recorded with its sha256,
@@ -451,10 +459,10 @@ def station_status(
             "is identically zero"
         )
 
-    epochs = [ep for ep in crd_directory_to_enu(crd_dir, ref) if ep.station == code]
+    epochs = crd_directory_to_enu(crd_dir, ref, station=code)
     if not epochs:
         raise ValueError(
-            f"Station {code!r} has no estimated coordinates in {crd_dir} "
+            f"Station {code!r} has no estimated coordinates in {crd_dirs_text(crd_dir)} "
             f"on any day the reference {ref} has"
         )
 
@@ -490,7 +498,13 @@ def station_status(
         offsets_catalog=provenance,
         exclude_epochs=[session_date_to_decimal_year(s) for s in exclude_sessions or []],
     )
-    datums = crd_datums(crd_dir)
+    missing, days = days_without_station(crd_dir, ref)
+    if missing:
+        result["warnings"].append(
+            f"the reference {ref} is missing from {missing} of {days} daily CRD files: "
+            "those days give no epoch for any station"
+        )
+    datums = crd_datums(crd_dir, epochs=set(t.tolist()))
     if len(datums) > 1:
         spans = "; ".join(
             f"{name} {first:.4f} to {last:.4f}"

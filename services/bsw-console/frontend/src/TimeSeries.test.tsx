@@ -194,8 +194,8 @@ describe('the year buttons and the range in view', () => {
     const velocity = screen.getAllByText(/±/)[0].textContent
     fireEvent.click(screen.getByRole('button', { name: '2021' }))
     for (const c of charts) {
-      expect(c.scales.x.min).toBe(2021)
-      expect(c.scales.x.max).toBeLessThanOrEqual(2022)
+      expect(Math.floor(c.scales.x.min)).toBe(2021)
+      expect(c.scales.x.max).toBeLessThan(2022.01)
     }
     expect(screen.getAllByText(/±/)[0].textContent).toBe(velocity)
     fireEvent.click(screen.getByRole('button', { name: 'All years' }))

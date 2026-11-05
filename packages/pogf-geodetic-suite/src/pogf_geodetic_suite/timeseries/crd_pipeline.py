@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Collection, Iterator, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from itertools import islice
@@ -217,6 +217,11 @@ def _crd_dirs(crd_dir: CrdDirs) -> list[Path]:
     return [Path(d) for d in crd_dir]
 
 
+def crd_dirs_text(crd_dir: CrdDirs) -> str:
+    """The directories as a person reads them, for messages."""
+    return ", ".join(str(d) for d in _crd_dirs(crd_dir))
+
+
 def _dated_crd_files(
     crd_dir: CrdDirs, session_extractor: Callable[[str], str | None]
 ) -> Iterator[tuple[float, Path]]:
@@ -253,6 +258,13 @@ def _read_crd_cached(path: Path) -> list[tuple[str, float, float, float]]:
     return _read_unchanged(path, st.st_mtime_ns, st.st_size)
 
 
+@lru_cache(maxsize=20000)
+def _datum_unchanged(path: Path, _mtime_ns: int, _size: int) -> str | None:
+    with open(path, encoding="ascii", errors="replace") as fh:
+        m = _DATUM.search("".join(islice(fh, 6)))
+    return m[1] if m else None
+
+
 def _dated_crd_epochs(
     crd_dir: CrdDirs, session_extractor: Callable[[str], str | None]
 ) -> list[tuple[float, list[tuple[str, float, float, float]]]]:
@@ -263,7 +275,7 @@ def _dated_crd_epochs(
         if stations:
             epochs.append((decimal_year, stations))
     if not epochs:
-        raise ValueError(f"No usable *.CRD files found in {crd_dir}")
+        raise ValueError(f"No usable *.CRD files found in {crd_dirs_text(crd_dir)}")
     return epochs
 
 
@@ -271,9 +283,11 @@ def crd_datums(
     crd_dir: CrdDirs,
     *,
     session_extractor: Callable[[str], str | None] | None = None,
+    epochs: Collection[float] | None = None,
 ) -> dict[str, tuple[float, float]]:
     """Each geodetic datum the dated CRD files name, with the first and last
-    decimal year that uses it.
+    decimal year that uses it. With `epochs`, only the files of those decimal
+    years, so a series is judged by the days it actually holds.
 
     Coordinates in two datums are not one series: where they meet, the frame
     steps and the station has not moved. A file whose header names no datum is
@@ -282,12 +296,13 @@ def crd_datums(
     out: dict[str, tuple[float, float]] = {}
     extractor = session_extractor or _extract_session_from_filename
     for decimal_year, crd_path in _dated_crd_files(crd_dir, extractor):
-        with open(crd_path, encoding="ascii", errors="replace") as fh:
-            head = "".join(islice(fh, 6))
-        m = _DATUM.search(head)
-        if m:
-            first, last = out.get(m[1], (decimal_year, decimal_year))
-            out[m[1]] = (min(first, decimal_year), max(last, decimal_year))
+        if epochs is not None and decimal_year not in epochs:
+            continue
+        st = crd_path.stat()
+        datum = _datum_unchanged(crd_path, st.st_mtime_ns, st.st_size)
+        if datum:
+            first, last = out.get(datum, (decimal_year, decimal_year))
+            out[datum] = (min(first, decimal_year), max(last, decimal_year))
     return out
 
 
@@ -305,11 +320,26 @@ def crd_station_codes(
     return sorted({code for _, stations in epochs for code, *_ in stations})
 
 
+def days_without_station(
+    crd_dir: CrdDirs,
+    station: str,
+    *,
+    session_extractor: Callable[[str], str | None] | None = None,
+) -> tuple[int, int]:
+    """(days whose file does not hold `station`, days read). Over the same files
+    as crd_directory_to_enu. Raises ValueError if no usable CRD file is found."""
+    code = station.upper()[:4]
+    epochs = _dated_crd_epochs(crd_dir, session_extractor or _extract_session_from_filename)
+    missing = sum(all(c != code for c, *_ in stations) for _, stations in epochs)
+    return missing, len(epochs)
+
+
 def crd_directory_to_enu(
     crd_dir: CrdDirs,
     reference_station: str,
     *,
     session_extractor: Callable[[str], str | None] | None = None,
+    station: str | None = None,
 ) -> list[StationEpoch]:
     """
     Read all *.CRD files in crd_dir; return ENU time series for all stations.
@@ -324,7 +354,8 @@ def crd_directory_to_enu(
 
     A day whose file does not hold the reference gives no epochs for any station,
     as in RUNX_v2.py, so a reference with gaps shortens every series. The number
-    of days lost is logged as a warning; it is not in the return value.
+    of days lost is logged as a warning; it is not in the return value
+    (`days_without_station` gives it, and `station_status` reports it).
 
     Args:
         crd_dir:            Directory containing Bernese *.CRD files, or several
@@ -333,6 +364,8 @@ def crd_directory_to_enu(
         reference_station:  4-char station code used as the ENU origin.
         session_extractor:  Optional callable mapping filename → YYDDD session
                             string.  Defaults to the built-in pattern matcher.
+        station:            Only this station's epochs. The same as filtering the
+                            result, without transforming every other station.
 
     Returns:
         List of StationEpoch, sorted by (station, decimal_year).
@@ -345,6 +378,7 @@ def crd_directory_to_enu(
         session_extractor = _extract_session_from_filename
 
     ref = reference_station.upper()[:4]
+    only = station.upper()[:4] if station else None
 
     # Pass 1: collect all epochs
     epochs = _dated_crd_epochs(crd_dir, session_extractor)
@@ -363,7 +397,7 @@ def crd_directory_to_enu(
             continue
         ref_lat, ref_lon, ref_alt = pymap3d.ecef2geodetic(*origin, deg=True)
         for code, x, y, z in stations:
-            if code == ref:
+            if code == ref or (only and code != only):
                 continue
             east, north, up = pymap3d.ecef2enu(
                 x, y, z, ref_lat, ref_lon, ref_alt, deg=True
@@ -380,12 +414,12 @@ def crd_directory_to_enu(
 
     if skipped == len(epochs):
         raise ValueError(
-            f"Reference station {ref!r} not found in any CRD file in {crd_dir}"
+            f"Reference station {ref!r} not found in any CRD file in {crd_dirs_text(crd_dir)}"
         )
     if skipped:
         logger.warning(
             "%s: reference %s is missing from %d of %d daily CRD files; those days give no epochs",
-            crd_dir, ref, skipped, len(epochs),
+            crd_dirs_text(crd_dir), ref, skipped, len(epochs),
         )
 
     results.sort(key=lambda ep: (ep.station, ep.decimal_year))

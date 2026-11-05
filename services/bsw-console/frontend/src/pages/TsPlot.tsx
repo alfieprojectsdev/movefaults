@@ -64,6 +64,7 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
     const charts: uPlot[] = []
     const restore = view.current
     let syncing = false
+    let built = false // uPlot sets its scales while it is built: that is not the reader's range
     const syncKey = `ts-${station}-${Math.random().toString(36).slice(2)}`
     const width = () => Math.max(el.clientWidth || 800, 320)
 
@@ -165,7 +166,7 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
               if (scaleKey !== 'x' || syncing) return
               syncing = true
               const { min, max } = u.scales.x
-              view.current = [min!, max!]
+              if (built) view.current = [min!, max!]
               for (const other of charts) if (other !== u) other.setScale('x', { min: min!, max: max! })
               syncing = false
             },
@@ -189,6 +190,7 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
     })
 
     chartsRef.current = charts
+    built = true
     if (restore) charts[0]?.setScale('x', { min: restore[0], max: restore[1] })
 
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {

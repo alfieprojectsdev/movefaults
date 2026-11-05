@@ -15,17 +15,23 @@ export function axisDigits(increment: number): number {
   return Math.min(4, Math.max(2, Math.ceil(-Math.log10(increment))))
 }
 
+// An epoch is year + doy/365.25 (session_to_decimal_year), so DOY 366 of a leap
+// year falls just past the next integer: 2024-366 is 2025.00205, 2025-001 is
+// 2025.00274. A calendar year's window starts between the two.
+const YEAR_EDGE = 0.0024
+const calendarYear = (t: number) => Math.floor(t - YEAR_EDGE)
+
 /** The calendar years a series touches, oldest first, for the zoom buttons. */
 export function yearsIn(t: number[]): number[] {
   if (t.length === 0) return []
-  const first = Math.floor(t[0])
-  const last = Math.floor(t[t.length - 1])
+  const first = calendarYear(t[0])
+  const last = calendarYear(t[t.length - 1])
   return Array.from({ length: last - first + 1 }, (_, k) => first + k)
 }
 
 /** One calendar year as a time range, kept inside what the axis allows. */
 export function yearRange(year: number, lo: number, hi: number): [number, number] {
-  return [Math.max(year, lo), Math.min(year + 1, hi)]
+  return [Math.max(year + YEAR_EDGE, lo), Math.min(year + 1 + YEAR_EDGE, hi)]
 }
 
 export const COMPONENTS: { key: Component; label: string }[] = [

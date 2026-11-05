@@ -112,19 +112,17 @@ def crd_dirs(s: Settings, c: Campaign) -> list[Path]:
     return [d for d in dict.fromkeys(dirs) if d.is_dir()]
 
 
-def _inputs(s: Settings, c: Campaign, reference: str | None) -> dict:
+def _inputs(s: Settings, c: Campaign, dirs: list[Path], reference: str | None) -> dict:
     return {
         "campaign": c.name,
-        "crd_dirs": [str(d) for d in crd_dirs(s, c)],
+        "crd_dirs": [str(d) for d in dirs],
         "reference": reference,
         "default_reference": s.ts_reference,
         "offsets_path": str(s.ts_offsets),
     }
 
 
-def _missing(s: Settings, c: Campaign) -> str | None:
-    if crd_dirs(s, c):
-        return None
+def _no_dirs(c: Campaign) -> str:
     return f"No daily final CRDs for {c.name}: none of its years has an STA folder."
 
 
@@ -133,11 +131,12 @@ def summary(s: Settings, c: Campaign, reference: str | None = None) -> dict:
     if (no := _not_configured(s)) is not None:
         return no
     ref = _reference(s, reference)
-    base = {"configured": True, **_inputs(s, c, ref)}
-    if (why := _missing(s, c)) is not None:
-        return {**base, "available": False, "stations": [], "message": why}
+    dirs = crd_dirs(s, c)
+    base = {"configured": True, **_inputs(s, c, dirs, ref)}
+    if not dirs:
+        return {**base, "available": False, "stations": [], "message": _no_dirs(c)}
     try:
-        candidates = stations_in(crd_dirs(s, c))
+        candidates = stations_in(dirs)
     except (OSError, ValueError) as exc:
         return {**base, "available": False, "message": str(exc)}
     out = {**base, "all_stations": candidates, "outlier_mode": DEFAULT_MODE}
@@ -155,12 +154,12 @@ def for_station(s: Settings, c: Campaign, code: str, reference: str | None = Non
     if (no := _not_configured(s)) is not None:
         return no
     ref = _reference(s, reference)
-    base = {"configured": True, **_inputs(s, c, ref), "station": code.upper()}
+    dirs = crd_dirs(s, c)
+    base = {"configured": True, **_inputs(s, c, dirs, ref), "station": code.upper()}
     if ref is None:
         return {**base, "available": False, "message": "Choose a reference station first."}
-    if (why := _missing(s, c)) is not None:
-        return {**base, "available": False, "message": why}
-    dirs = crd_dirs(s, c)
+    if not dirs:
+        return {**base, "available": False, "message": _no_dirs(c)}
     try:
         result = station_status(
             dirs,
@@ -170,7 +169,7 @@ def for_station(s: Settings, c: Campaign, code: str, reference: str | None = Non
         )
     except (OSError, ValueError) as exc:
         return {**base, "available": False, "message": str(exc)}
-    out = {"configured": True, "available": True, **_inputs(s, c, ref), **result}
+    out = {**base, "available": True, **result}
     decisions = outliers.current(s, c, code.upper(), dirs, ref)
     out["decisions"] = decisions
     out["decided_fit"] = None

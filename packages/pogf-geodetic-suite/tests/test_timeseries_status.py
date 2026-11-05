@@ -15,6 +15,7 @@ import pytest
 from click.testing import CliRunner
 from pogf_geodetic_suite.timeseries.analysis import OffsetEvent, OffsetType
 from pogf_geodetic_suite.timeseries.cli import group
+from pogf_geodetic_suite.timeseries.crd_pipeline import crd_directory_to_enu
 from pogf_geodetic_suite.timeseries.status import (
     SCHEMA,
     OutlierMode,
@@ -544,6 +545,39 @@ def test_files_in_two_datums_are_warned_about(tmp_path) -> None:
     mixed = station_status(_year_dirs(tmp_path / "b", ("IGS14", "IGS20")), "SYN1", "REF0")
     (w,) = [w for w in mixed["warnings"] if "datum" in w]
     assert w.index("IGS14") < w.index("IGS20") and "not motion" in w
+
+
+def test_a_datum_the_station_has_no_epoch_in_is_not_warned_about(tmp_path) -> None:
+    dirs = _year_dirs(tmp_path, ("IGS14", "IGS20"))
+    for f in dirs[0].glob("*.CRD"):
+        f.write_text("".join(ln for ln in f.read_text().splitlines(True) if "SYN1" not in ln))
+    out = station_status(dirs, "SYN1", "REF0")
+    assert not [w for w in out["warnings"] if "datum" in w]
+
+
+def test_days_the_reference_is_absent_are_named_in_the_warnings(tmp_path) -> None:
+    dirs = _year_dirs(tmp_path)
+    assert not [w for w in station_status(dirs, "SYN1", "REF0")["warnings"] if "missing" in w]
+    for f in dirs[0].glob("*.CRD"):  # a whole year without the reference
+        f.write_text("".join(ln for ln in f.read_text().splitlines(True) if "REF0" not in ln))
+    out = station_status(dirs, "SYN1", "REF0")
+    (w,) = [w for w in out["warnings"] if "missing" in w]
+    assert "REF0" in w and "12 of 24" in w
+    assert int(out["series"]["t"][0]) == 2025
+
+
+def test_a_message_names_several_directories_as_paths(tmp_path) -> None:
+    dirs = _year_dirs(tmp_path)
+    with pytest.raises(ValueError) as exc:
+        station_status(dirs, "NOPE", "REF0")
+    assert "PosixPath" not in str(exc.value) and str(dirs[1]) in str(exc.value)
+
+
+def test_one_station_is_the_whole_result_filtered(tmp_path) -> None:
+    dirs = _year_dirs(tmp_path)
+    assert crd_directory_to_enu(dirs, "REF0", station="syn1") == [
+        ep for ep in crd_directory_to_enu(dirs, "REF0") if ep.station == "SYN1"
+    ]
 
 
 def test_a_crd_is_parsed_once_until_it_changes(tmp_path, monkeypatch) -> None:
