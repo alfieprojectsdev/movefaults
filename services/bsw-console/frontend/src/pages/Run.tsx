@@ -57,7 +57,7 @@ export default function Run({ campaign, year, run }: { campaign: string; year: n
               </select>
             </label>
           )}
-          {live && <button type="button" className="btn2" onClick={stop}>Stop after this day</button>}
+          {live && <button type="button" className="btn2" onClick={stop}>Stop after the current block</button>}
         </div>
       </div>
       {stopMsg && <div className="banner idle" role="status">{stopMsg.off && <span className="stub">not enabled yet</span>} {stopMsg.text}</div>}
