@@ -33,8 +33,8 @@
     ],
     "last_run": {
      "run": "r1",
-     "started": 1793689751.6485233,
-     "ended": 1793690352.6485233,
+     "started": 1793841104.3633535,
+     "ended": 1793841705.3633535,
      "host": "elsewhere",
      "pid": 1,
      "doys": [
@@ -44,11 +44,21 @@
      ],
      "banked": [],
      "config": "abc",
+     "provenance": {
+      "recorded": false,
+      "started_by": null,
+      "command": null,
+      "code_version": null,
+      "pcf": null,
+      "products": null,
+      "product_tier": null,
+      "config_hash": "abc"
+     },
      "state": "halted",
      "halt": "configuration error (example)",
      "status_lines": [
       "run r1  LUZON 2025  host elsewhere pid 1  config abc",
-      "  started 2026-11-03 15:09; 3 days asked, 0 already banked",
+      "  started 2026-11-05 01:11; 3 days asked, 0 already banked",
       "  ok 1   failed 1   not run 0   not yet attempted 1",
       "  failed DOY 036: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
       "  typical day: 5.0 min (median of 1)",
@@ -60,7 +70,7 @@
   ],
   "activity": [
    {
-    "ts": 1793690352.6485233,
+    "ts": 1793841705.3633535,
     "who": "service",
     "campaign": "LUZON",
     "year": 2025,
@@ -69,7 +79,7 @@
     "text": "Run r1 halted: configuration error (example)"
    },
    {
-    "ts": 1793690351.6485233,
+    "ts": 1793841704.3633535,
     "who": "service",
     "campaign": "LUZON",
     "year": 2025,
@@ -78,7 +88,7 @@
     "text": "DOY 036 failed: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE"
    },
    {
-    "ts": 1793689751.6485233,
+    "ts": 1793841104.3633535,
     "who": "elsewhere",
     "campaign": "LUZON",
     "year": 2025,
@@ -3758,8 +3768,8 @@
   "year": 2025,
   "run": {
    "run": "r1",
-   "started": 1793689751.6485233,
-   "ended": 1793690352.6485233,
+   "started": 1793841104.3633535,
+   "ended": 1793841705.3633535,
    "host": "elsewhere",
    "pid": 1,
    "doys": [
@@ -3769,11 +3779,21 @@
    ],
    "banked": [],
    "config": "abc",
+   "provenance": {
+    "recorded": false,
+    "started_by": null,
+    "command": null,
+    "code_version": null,
+    "pcf": null,
+    "products": null,
+    "product_tier": null,
+    "config_hash": "abc"
+   },
    "state": "halted",
    "halt": "configuration error (example)",
    "status_lines": [
     "run r1  LUZON 2025  host elsewhere pid 1  config abc",
-    "  started 2026-11-03 15:09; 3 days asked, 0 already banked",
+    "  started 2026-11-05 01:11; 3 days asked, 0 already banked",
     "  ok 1   failed 1   not run 0   not yet attempted 1",
     "  failed DOY 036: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
     "  typical day: 5.0 min (median of 1)",
@@ -3783,8 +3803,8 @@
   "runs": [
    {
     "run": "r1",
-    "started": 1793689751.6485233,
-    "ended": 1793690352.6485233,
+    "started": 1793841104.3633535,
+    "ended": 1793841705.3633535,
     "state": "halted",
     "halt": "configuration error (example)",
     "doys": [
@@ -3915,8 +3935,8 @@
     "run": "r1",
     "doy": 35,
     "session": "0350",
-    "started": 1793689752.6485233,
-    "ended": 1793690051.6485233,
+    "started": 1793841105.3633535,
+    "ended": 1793841404.3633535,
     "outcome": "ok",
     "seconds": 299.0,
     "error": "",
@@ -3924,7 +3944,17 @@
     "stations": 2,
     "mode": "day",
     "config": "abc",
-    "host": "elsewhere"
+    "host": "elsewhere",
+    "provenance": {
+     "recorded": false,
+     "started_by": null,
+     "command": null,
+     "code_version": null,
+     "pcf": null,
+     "products": null,
+     "product_tier": null,
+     "config_hash": "abc"
+    }
    }
   ],
   "results": [
@@ -3934,7 +3964,7 @@
     "folder": "OUT",
     "what": "BPE processing summary",
     "size": 36,
-    "written": 1793693351.6478434,
+    "written": 1793844704.363344,
     "path": "OUT/R2S_20250350.PRC"
    },
    {
@@ -3943,7 +3973,7 @@
     "folder": "STA",
     "what": "Final coordinates (the target output)",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3631537,
     "path": "STA/FIN_20250350.CRD"
    },
    {
@@ -3952,7 +3982,7 @@
     "folder": "SOL",
     "what": "SINEX, one-session solution",
     "size": 92,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3629558,
     "path": "SOL/FIN_20250350.SNX.gz"
    },
    {
@@ -3961,7 +3991,7 @@
     "folder": "SOL",
     "what": "Normal equations, final",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3630457,
     "path": "SOL/FIN_20250350.NQ0.gz"
    },
    {
@@ -3970,7 +4000,7 @@
     "folder": "SOL",
     "what": "Normal equations, reduced",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3631,
     "path": "SOL/RED_20250350.NQ0.gz"
    },
    {
@@ -3979,7 +4009,7 @@
     "folder": "ATM",
     "what": "Troposphere, SINEX format",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3632028,
     "path": "ATM/FIN_20250350.TRO"
    },
    {
@@ -3988,7 +4018,7 @@
     "folder": "ATM",
     "what": "Troposphere, Bernese format",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3632498,
     "path": "ATM/FIN_20250350.TRP"
    }
   ],
@@ -4007,9 +4037,12 @@
    "pcf": "LUZON_DLY.PCF",
    "ambiguities": "fixed",
    "campaign_dir": "${P}/LZY250350",
+   "run": "r1",
+   "recorded": false,
    "started_by": null,
    "command": null,
    "code_version": null,
+   "products": null,
    "product_tier": null,
    "config_hash": "abc"
   }

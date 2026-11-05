@@ -262,3 +262,86 @@ def test_stage3_says_the_run_worker_exists_but_is_not_wired(client) -> None:
         assert body["enabled"] is False
         assert "bernese-worker" in body["reason"]
         assert "not connected" in body["reason"]
+
+
+# --- run provenance on the Day page (ledger run_start, #318) ---------------------------
+
+
+def _append_new_run(bsw) -> None:
+    """A second run, written after #318: its run_start carries who, the command,
+    the code, the PCF and products. It re-attempts DOY 035, so the day has one
+    attempt from an old run (r1, no provenance) and one from a new one (r2)."""
+    import json as _json
+    import time as _time
+
+    from bsw_console.status import ledger_path
+
+    t = _time.time() - 60
+    rows = [
+        {"ts": t, "event": "run_start", "run": "r2", "host": "gps3", "pid": 2,
+         "campaign": "LUZON", "year": YEAR, "doys": [35], "banked": [], "config": "def",
+         "user": "processing", "sudo_user": None,
+         "command": ["bernese-run-year", "--campaign", "LUZON", "--run"],
+         "code": {"commit": "0123456789abcdef0123", "dirty": False},
+         "pcf": "LUZON_DLY", "products": "COD0OPSFIN", "product_tier": "final", "excluded": []},
+        {"ts": t + 1, "event": "attempt_start", "run": "r2", "doy": 35, "session": "0350", "mode": "block"},
+        {"ts": t + 30, "event": "attempt_end", "run": "r2", "doy": 35, "session": "0350",
+         "outcome": "ok", "seconds": 29.0, "error": "", "note": "", "stations": 2, "mode": "block"},
+        {"ts": t + 31, "event": "run_end", "run": "r2", "halt": None},
+    ]  # fmt: skip
+    path = ledger_path(bsw, bsw.campaign("LUZON"), YEAR)
+    with open(path, "a") as f:
+        f.write("".join(_json.dumps({"v": 1, **r}) + "\n" for r in rows))
+
+
+def test_each_attempt_carries_its_own_runs_provenance(bsw) -> None:
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    _append_new_run(bsw)
+    d = TestClient(create_app(bsw)).get(f"/api/campaigns/LUZON/years/{YEAR}/days/35").json()
+    new, old = d["attempts"]  # newest first
+    assert (new["run"], old["run"]) == ("r2", "r1")
+    p = new["provenance"]
+    assert p["recorded"] is True
+    assert p["started_by"] == "processing"
+    assert p["command"] == "bernese-run-year --campaign LUZON --run"
+    assert p["code_version"] == "0123456789"
+    assert (p["pcf"], p["products"], p["product_tier"], p["config_hash"]) == (
+        "LUZON_DLY", "COD0OPSFIN", "final", "def",
+    )  # fmt: skip
+    # The old run predates provenance: nothing invented, for that attempt only.
+    q = old["provenance"]
+    assert q["recorded"] is False
+    assert q["started_by"] is q["command"] is q["code_version"] is q["product_tier"] is None
+    assert q["config_hash"] == "abc", "the config hash was recorded before #318"
+
+
+def test_the_day_block_describes_the_latest_attempts_run(bsw) -> None:
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(bsw))
+    before = c.get(f"/api/campaigns/LUZON/years/{YEAR}/days/35").json()["provenance"]
+    assert (before["run"], before["recorded"], before["started_by"]) == ("r1", False, None)
+    _append_new_run(bsw)
+    after = c.get(f"/api/campaigns/LUZON/years/{YEAR}/days/35").json()["provenance"]
+    assert (after["run"], after["recorded"]) == ("r2", True)
+    assert after["started_by"] == "processing"
+    assert after["code_version"] == "0123456789"
+    assert after["product_tier"] == "final"
+    assert after["config_hash"] == "def"
+    assert after["pcf"] == "LUZON_DLY.PCF"
+
+
+def test_code_version_says_when_the_tree_was_dirty_or_unknown() -> None:
+    from bsw_console.status import run_provenance
+
+    base = {"user": "u", "code": {"commit": "a" * 40, "dirty": True}}
+    assert run_provenance(base)["code_version"] == "aaaaaaaaaa (dirty)"
+    base["code"] = {"commit": "a" * 40, "dirty": None}
+    assert run_provenance(base)["code_version"] == "aaaaaaaaaa (dirty unknown)"
+    base["code"] = {"commit": "unknown", "dirty": None}
+    assert run_provenance(base)["code_version"] == "unknown"
+    assert run_provenance({"user": "u", "sudo_user": "x"})["started_by"] == "u (sudo from x)"
+    assert run_provenance(None)["recorded"] is False

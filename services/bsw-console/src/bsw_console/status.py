@@ -204,6 +204,54 @@ def read_ledger(path: Path) -> list[dict]:
     return entries
 
 
+def run_provenance(start: dict | None) -> dict:
+    """What a run's run_start says produced it: who, the command, the code, the
+    PCF and products (recorded since #318, bernese_workflow/ledger.py).
+
+    A run_start written before #318 has none of user, code or pcf: the same
+    test ``ledger._provenance_line`` uses. Its fields are None and ``recorded``
+    is False, so the page says "not recorded" for that run only. The config
+    hash is older than #318 and is given either way.
+    """
+    out = {
+        "recorded": False,
+        "started_by": None,
+        "command": None,
+        "code_version": None,
+        "pcf": None,
+        "products": None,
+        "product_tier": None,
+        "config_hash": (start or {}).get("config"),
+    }
+    if not start or not any(k in start for k in ("user", "code", "pcf")):
+        return out
+    who = str(start.get("user") or "unknown")
+    if start.get("sudo_user"):
+        who += f" (sudo from {start['sudo_user']})"
+    command = start.get("command")
+    if isinstance(command, list):
+        command = " ".join(str(a) for a in command)
+    code = start.get("code") or {}
+    commit = str(code.get("commit") or "unknown")
+    version = commit if commit == "unknown" else commit[:10]
+    if commit != "unknown":
+        # As the ledger's status line: a bare sha would read as "clean".
+        if code.get("dirty"):
+            version += " (dirty)"
+        elif code.get("dirty") is None:
+            version += " (dirty unknown)"
+    out.update(
+        recorded=True,
+        started_by=who,
+        command=command or None,
+        code_version=version,
+        pcf=start.get("pcf"),
+        products=start.get("products"),
+        product_tier=start.get("product_tier"),
+    )
+    return out
+
+
 def runs_in(entries: list[dict]) -> list[dict]:
     """One record per run, newest first, with the status the CLI would print."""
     starts = [e for e in entries if e["event"] == "run_start"]
@@ -223,6 +271,7 @@ def runs_in(entries: list[dict]) -> list[dict]:
                 "doys": st.get("doys") or [],
                 "banked": st.get("banked") or [],
                 "config": st.get("config"),
+                "provenance": run_provenance(st),
                 "state": status.state,
                 "halt": end.get("halt") if end else None,
                 "status_lines": status.lines,
@@ -682,6 +731,14 @@ def day_detail(s: Settings, c: Campaign, year: int, doy: int) -> dict:
     runs = {r["run"]: r for r in runs_in(entries)}
     results = day_results(s, c, year, doy)
     states = day_states(s, c, year)["days"][doy - 1]
+
+    def prov(run: str) -> dict:
+        return runs[run]["provenance"] if run in runs else run_provenance(None)
+
+    # The day block describes the latest attempt's run: that attempt made, or
+    # failed to make, the results listed below.
+    latest_run = atts[-1].run if atts else None
+    latest = prov(latest_run) if latest_run else run_provenance(None)
     return {
         **day_info(year, doy),
         "campaign": c.name,
@@ -691,6 +748,7 @@ def day_detail(s: Settings, c: Campaign, year: int, doy: int) -> dict:
                 **a.as_dict(),
                 "config": runs.get(a.run, {}).get("config"),
                 "host": runs.get(a.run, {}).get("host"),
+                "provenance": prov(a.run),
             }
             for a in reversed(atts)
         ],
@@ -698,16 +756,21 @@ def day_detail(s: Settings, c: Campaign, year: int, doy: int) -> dict:
         "present": sum(1 for r in results if r["path"]),
         "quality": day_quality(s, c, year, doy),
         "provenance": {
-            "pcf": f"{c.pcf}.PCF",
+            # The PCF the run recorded; before #318, the campaign's configured one.
+            "pcf": f"{latest['pcf'] or c.pcf}.PCF",
             "ambiguities": {"fixed": "fixed", "float": "float"}.get(states["state"], "—"),
             "campaign_dir": f"${{P}}/{c.prefix}{year % 100:02d}{doy:03d}0"
             if c.prefix
             else f"${{P}}/{c.name}",
-            # The ledger does not yet record these. Shown as such, not guessed.
-            "started_by": None,
-            "command": None,
-            "code_version": None,
-            "product_tier": None,
+            # From the latest attempt's run_start. A run before #318 did not
+            # record them: None, shown as "not recorded", never guessed.
+            "run": latest_run,
+            "recorded": latest["recorded"],
+            "started_by": latest["started_by"],
+            "command": latest["command"],
+            "code_version": latest["code_version"],
+            "products": latest["products"],
+            "product_tier": latest["product_tier"],
             "config_hash": next(
                 (runs[a.run]["config"] for a in reversed(atts) if a.run in runs), None
             ),
