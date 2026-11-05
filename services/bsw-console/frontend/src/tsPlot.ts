@@ -10,6 +10,24 @@
 import type { TsDecision, TsSegment, TsSeries } from './types'
 
 export type Component = 'e' | 'n' | 'u'
+/** Digits for a decimal-year tick, so ticks stay different when zoomed in. */
+export function axisDigits(increment: number): number {
+  return Math.min(4, Math.max(2, Math.ceil(-Math.log10(increment))))
+}
+
+/** The calendar years a series touches, oldest first, for the zoom buttons. */
+export function yearsIn(t: number[]): number[] {
+  if (t.length === 0) return []
+  const first = Math.floor(t[0])
+  const last = Math.floor(t[t.length - 1])
+  return Array.from({ length: last - first + 1 }, (_, k) => first + k)
+}
+
+/** One calendar year as a time range, kept inside what the axis allows. */
+export function yearRange(year: number, lo: number, hi: number): [number, number] {
+  return [Math.max(year, lo), Math.min(year + 1, hi)]
+}
+
 export const COMPONENTS: { key: Component; label: string }[] = [
   { key: 'e', label: 'East (mm)' },
   { key: 'n', label: 'North (mm)' },

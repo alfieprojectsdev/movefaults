@@ -487,3 +487,82 @@ def test_duplicate_requests_are_counted_once(campaign):
     assert out["exclusions"]["matched"] == 1
     assert len(out["exclusions"]["unmatched"]) == 1
     assert sum(out["series"]["excluded"]) == 1
+
+
+# --- a series spanning years: several directories read as one ------------------------------
+
+
+def _year_dirs(tmp_path, datums=("IGS20", "IGS20")):
+    """REF0 still, SYN1 moving 10 mm/yr east, one folder per year."""
+    ref = (-3186000.0, 5345000.0, 1640000.0)
+    dirs = []
+    for year, datum in zip((2024, 2025), datums, strict=True):
+        d = tmp_path / str(year) / "STA"
+        d.mkdir(parents=True)
+        for doy in range(1, 361, 30):
+            t = year + doy / 365.25
+            dx = 0.010 * (t - 2024)
+            lines = [
+                "SYNTHETIC",
+                "-" * 40,
+                f"LOCAL GEODETIC DATUM: {datum}             EPOCH: {year}-01-01 12:00:00",
+                "",
+                " NUM  STATION NAME           X (M)          Y (M)          Z (M)     FLAG     SYSTEM",
+                "",
+                f"  1  REF0 00000S000  {ref[0]:>15.5f} {ref[1]:>15.5f}  {ref[2]:>15.5f}    A   G",
+                f"  2  SYN1 00000S000  {ref[0] + 900 + dx:>15.5f} {ref[1] + 500:>15.5f}  {ref[2] + 300:>15.5f}    A   G",
+            ]
+            (d / f"F1_{year % 100:02d}{doy:03d}.CRD").write_text("\n".join(lines) + "\n")
+        dirs.append(d)
+    return dirs
+
+
+def test_several_directories_are_one_series(tmp_path) -> None:
+    dirs = _year_dirs(tmp_path)
+    whole = station_status(dirs, "SYN1", "REF0")
+    first = station_status(dirs[0], "SYN1", "REF0")
+    t = whole["series"]["t"]
+    assert t == sorted(t) and int(t[0]) == 2024 and int(t[-1]) == 2025
+    n = len(first["series"]["t"])
+    # The first year's values are the same as read alone.
+    assert whole["series"]["e_mm"][:n] == pytest.approx(first["series"]["e_mm"])
+    assert whole["velocity"]["span_yr"] > 1.5 and not whole["velocity"]["short_span"]
+    # The slope spans the join: no jump between one year's folder and the next.
+    gaps = np.abs(np.diff(whole["series"]["e_mm"]))
+    assert gaps.max() < 3 * np.median(gaps)
+
+
+def test_one_directory_still_reads_as_it_did(tmp_path) -> None:
+    d = _year_dirs(tmp_path)[0]
+    assert station_status(d, "SYN1", "REF0") == station_status([d], "SYN1", "REF0")
+    assert station_status(str(d), "SYN1", "REF0")["series"]["t"]
+
+
+def test_files_in_two_datums_are_warned_about(tmp_path) -> None:
+    same = station_status(_year_dirs(tmp_path / "a"), "SYN1", "REF0")
+    assert not [w for w in same["warnings"] if "datum" in w]
+    mixed = station_status(_year_dirs(tmp_path / "b", ("IGS14", "IGS20")), "SYN1", "REF0")
+    (w,) = [w for w in mixed["warnings"] if "datum" in w]
+    assert w.index("IGS14") < w.index("IGS20") and "not motion" in w
+
+
+def test_a_crd_is_parsed_once_until_it_changes(tmp_path, monkeypatch) -> None:
+    from pogf_geodetic_suite.timeseries import crd_pipeline
+
+    dirs = _year_dirs(tmp_path)
+    real = crd_pipeline.read_crd_file
+    calls: list[str] = []
+    monkeypatch.setattr(
+        crd_pipeline, "read_crd_file", lambda p: (calls.append(p.name), real(p))[1]
+    )
+    first = station_status(dirs, "SYN1", "REF0")
+    n = len(calls)
+    assert n == len(first["series"]["t"])
+    assert station_status(dirs, "SYN1", "REF0") == first
+    assert len(calls) == n, "nothing changed, nothing reparsed"
+    changed = dirs[0] / "F1_24001.CRD"
+    changed.write_text(changed.read_text().replace("-3186000.00000", "-3186001.00000"))
+    again = station_status(dirs, "SYN1", "REF0")
+    assert calls[n:] == ["F1_24001.CRD"], "only the changed file"
+    assert again != first
+

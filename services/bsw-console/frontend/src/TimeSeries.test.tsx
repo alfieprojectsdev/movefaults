@@ -5,7 +5,7 @@ import api from './__fixtures__/api.json'
 // The configured responses are pogf_geodetic_suite.timeseries.status run on the
 // synthetic CRDs in services/bsw-console/tests/conftest.py (make_frontend_fixture.py).
 const responses = api as Record<string, unknown>
-const BASE = '/api/campaigns/LUZON/years/2021/time-series'
+const BASE = '/api/campaigns/LUZON/time-series'
 
 function serve(overrides: Record<string, unknown> = {}) {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
@@ -170,14 +170,37 @@ describe('the time-series plot', () => {
 })
 
 
-it('names the campaign and year it shows, and the year picker moves to another year', async () => {
+it('names the campaign and every yearly folder it reads, whichever year the address carries', async () => {
   serve()
   await page()
-  expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/LUZON 2021/)
-  const pick = screen.getByLabelText('Year') as HTMLSelectElement
-  expect(pick.value).toBe('2021')
-  fireEvent.change(pick, { target: { value: '2025' } })
-  expect(window.location.hash).toBe('#/c/LUZON/2025/time-series')
+  expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/LUZON$/)
+  expect(screen.getByText(/2020\/STA, .*2021\/STA/)).toBeTruthy()
+  expect((globalThis.fetch as any).mock.calls.every(([u]: [string]) => !u.includes('/years/2021/time-series'))).toBe(true)
+})
+
+describe('the year buttons and the range in view', () => {
+  beforeEach(() => { (globalThis as any).__uplots.length = 0 })
+
+  async function plot() {
+    serve()
+    await page()
+    fireEvent.change(screen.getByLabelText(/Station/), { target: { value: 'SYN1' } })
+    await settle()
+    return (globalThis as any).__uplots as { scales: { x: { min: number; max: number } }; setScale: (k: string, r: object) => void; destroyed: boolean }[]
+  }
+
+  it('a year button moves every panel to that year; the velocity is still the whole series', async () => {
+    const charts = await plot()
+    const velocity = screen.getAllByText(/±/)[0].textContent
+    fireEvent.click(screen.getByRole('button', { name: '2021' }))
+    for (const c of charts) {
+      expect(c.scales.x.min).toBe(2021)
+      expect(c.scales.x.max).toBeLessThanOrEqual(2022)
+    }
+    expect(screen.getAllByText(/±/)[0].textContent).toBe(velocity)
+    fireEvent.click(screen.getByRole('button', { name: 'All years' }))
+    expect(Math.floor(charts[0].scales.x.min)).toBe(2020)
+  })
 })
 
 describe('recording an outlier decision', () => {
@@ -223,6 +246,21 @@ describe('recording an outlier decision', () => {
     expect(posts[0].url).toBe(`${BASE}/SYN1/decisions`)
     expect(posts[0].body).toMatchObject({ decision: 'outlier', reference: 'REF0', auto_flag: true })
     expect(screen.getByText(/published velocity is unchanged/)).toBeTruthy()
+  })
+
+  it('recording a decision rebuilds the plot without losing the range in view', async () => {
+    serveWith('abc', [])
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(true))
+    const charts = (globalThis as any).__uplots
+    const first = charts[0]
+    first.setScale('x', { min: 2021.2, max: 2021.4 })
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
+    await settle()
+    expect(first.destroyed).toBe(true)
+    const live = charts.filter((c: { destroyed: boolean }) => !c.destroyed)
+    expect(live).toHaveLength(3)
+    for (const c of live) expect(c.scales.x).toEqual({ min: 2021.2, max: 2021.4 })
   })
 
   it('going against the flag asks for a reason before anything is recorded', async () => {

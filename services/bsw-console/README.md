@@ -19,9 +19,9 @@ uv run bsw-console          # http://127.0.0.1:8002
 ```
 
 It reads `$U`, `$D`, `$S` and `$P` from `~/BERN54/LOADGPS.setvar` (or the
-environment, or `BSW_SETVAR`). It binds to 127.0.0.1 only, because sign-in
-does not exist yet. From an office PC, tunnel to it:
-`ssh -N -L 8002:localhost:8002 gps3@<gps3>`.
+environment, or `BSW_SETVAR`). It binds to 127.0.0.1 only. On gps3 a login proxy
+(Caddy, HTTPS on port 8443) sits in front of it and names the signed-in user in
+`X-Remote-User`.
 
 | Variable | Default | What it sets |
 |---|---|---|
@@ -31,7 +31,7 @@ does not exist yet. From an office PC, tunnel to it:
 | `BPE_LOCK` | bernese-workflow's default | the lock file it reads |
 | `BSW_CONSOLE_STATE` | `~/.local/state/bsw-console` | where saved plans go |
 | `BSW_CONSOLE_TRUSTED_PROXIES` | empty | comma-separated addresses of reverse proxies allowed to name the user in `X-Remote-User`, matched against the address that actually connects (the server ignores `X-Forwarded-For`; behind Caddy on gps3 this is `127.0.0.1`). Empty: the header is ignored |
-| `BSW_CONSOLE_ACTIONS` | off | `on` lets the stage 3 buttons queue requests for the run worker. Leave off until personal accounts exist |
+| `BSW_CONSOLE_ACTIONS` | off | `on` lets the stage 3 buttons queue requests for the run worker. On for gps3, whose login proxy names the user |
 | `BSW_CONSOLE_OPERATORS` | empty | comma-separated signed-in users who may press them. Empty: nobody, even with actions on |
 | `BERNESE_WORKER_STATE` | the worker's default | the run worker's queue; must be the directory `bernese-worker run` reads |
 | `BSW_CONSOLE_TS_REFERENCE` | unset | the reference station the page starts with. The page lets each viewer choose any estimated station in the CRD files as the reference; this only sets the first choice |
@@ -53,7 +53,7 @@ For frontend work, `npm run dev` proxies `/api` to the running server.
 | Redo | Wired preview: every file that would move, and where. **Redo** queues the move and the rerun for the run worker (stage 3; off by default) |
 | Known errors | Wired: the whole list, with how often each fired in the last 30 days and failures with no entry |
 | Station files (stage 4) | Read-only and wired: station × file coverage of the eight files the PCF names, codes with two names, stations missing from the BLQ (anything after `$$ END TABLE` counts as missing). Add a site, use a CRD as a priori and the BLQ paste check are not built. **Equipment panel** (read-only): one station's part of the `bernese-check-equipment` report, with the field-ops export's time; it reads the report file and never the field-ops database |
-| Time series (stage 5) | Read-only and wired: `pogf_geodetic_suite.timeseries.status` in-process on the chosen campaign year's daily final CRDs (`<V_RESULT>/STA`, with a year picker), per station the final-segment velocity with 1-sigma, each segment's epochs, fit and outlier counts, the offsets catalog's path and sha256, and the outlier mode (status's default, `record`). No plot yet; confirming or overriding an outlier is not built |
+| Time series (stage 5) | Wired: `pogf_geodetic_suite.timeseries.status` in-process on all the campaign's daily final CRDs (`<V_RESULT>/STA` of each year, read as one series), with the reference station chosen on the page. A plot of East, North and Up (zoom, pan, jump to a year), per station the final-segment velocity with 1-sigma, each segment's epochs, fit and outlier counts, the offsets catalog's path and sha256, and the outlier mode (status's default, `record`). **Clicking an epoch records a decision** for anyone signed in, appended to `<state>/outlier_decisions.jsonl`; confirmed outliers change only a side-by-side fit marked not published (`docs/project_documentation/outlier_review_design.md`) |
 
 Stubs answer HTTP 501 with the reason, and the page shows it.
 
@@ -63,8 +63,7 @@ run worker's queue (`bernese_workflow.run_queue`) and returns its id; the worker
 lock. The console never runs a BPE. Every button passes one gate, in this
 order (`bsw_console/actions.py`):
 
-1. `BSW_CONSOLE_ACTIONS=on`, else 501 with the reason. **Off by default**, and
-   off on gps3 until personal accounts exist.
+1. `BSW_CONSOLE_ACTIONS=on`, else 501 with the reason. **Off by default.**
 2. someone is signed in (a trusted proxy's `X-Remote-User`), else 403;
 3. they are in `BSW_CONSOLE_OPERATORS`, else 403;
 4. a worker holds the queue's `worker.lock`, else 503 and nothing is queued.

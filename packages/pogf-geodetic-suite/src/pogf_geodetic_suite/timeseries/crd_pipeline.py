@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
+from itertools import islice
 from pathlib import Path
 
 import pymap3d
@@ -44,6 +46,11 @@ class StationEpoch:
 # "something non-numeric follows Z" is therefore both sufficient and tolerant
 # of the flag vocabulary, which is not fixed across versions.
 _FLAGGED = re.compile(r"[-+]?\d+\.\d+\s+(?![-+]?\d)\S+")
+
+_DATUM = re.compile(r"LOCAL GEODETIC DATUM:\s*(\S+)")
+
+# A directory of CRD files, or several read as one series.
+CrdDirs = str | Path | Sequence[str | Path]
 
 
 def read_crd_file(
@@ -202,25 +209,57 @@ def _extract_session_from_filename(filename: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def _dated_crd_epochs(
-    crd_dir: Path, session_extractor: Callable[[str], str | None]
-) -> list[tuple[float, list[tuple[str, float, float, float]]]]:
-    """Every *.CRD whose name carries a valid session date, read once.
+def _crd_dirs(crd_dir: CrdDirs) -> list[Path]:
+    """One directory, or several in the order given (oldest first, for a series
+    spanning years)."""
+    if isinstance(crd_dir, (str, Path)):
+        return [Path(crd_dir)]
+    return [Path(d) for d in crd_dir]
+
+
+def _dated_crd_files(
+    crd_dir: CrdDirs, session_extractor: Callable[[str], str | None]
+) -> Iterator[tuple[float, Path]]:
+    """Each *.CRD whose name carries a valid session date, with that date.
 
     The one file filter: a CRD with no YYDDD in its name, or an invalid date,
     is not an epoch (an a priori or combined CRD in the same directory), so
     nothing built on these epochs sees it.
     """
+    for directory in _crd_dirs(crd_dir):
+        for crd_path in sorted(directory.glob("*.CRD")):
+            session = session_extractor(crd_path.name)
+            if session is None:
+                continue
+            try:
+                yield session_to_decimal_year(session), crd_path
+            except ValueError:
+                continue
+
+
+@lru_cache(maxsize=20000)
+def _read_unchanged(
+    path: Path, _mtime_ns: int, _size: int
+) -> list[tuple[str, float, float, float]]:
+    return read_crd_file(path)
+
+
+def _read_crd_cached(path: Path) -> list[tuple[str, float, float, float]]:
+    """read_crd_file, parsing a file again only when it has changed. A long-lived
+    reader such as the console would otherwise reparse a campaign's whole history
+    on every request, and parsing is nearly all of the time a request takes.
+    Callers must not modify the list."""
+    st = path.stat()
+    return _read_unchanged(path, st.st_mtime_ns, st.st_size)
+
+
+def _dated_crd_epochs(
+    crd_dir: CrdDirs, session_extractor: Callable[[str], str | None]
+) -> list[tuple[float, list[tuple[str, float, float, float]]]]:
+    """Every dated *.CRD (see `_dated_crd_files`) that holds a station, read once."""
     epochs: list[tuple[float, list[tuple[str, float, float, float]]]] = []
-    for crd_path in sorted(crd_dir.glob("*.CRD")):
-        session = session_extractor(crd_path.name)
-        if session is None:
-            continue
-        try:
-            decimal_year = session_to_decimal_year(session)
-        except ValueError:
-            continue
-        stations = read_crd_file(crd_path)
+    for decimal_year, crd_path in _dated_crd_files(crd_dir, session_extractor):
+        stations = _read_crd_cached(crd_path)
         if stations:
             epochs.append((decimal_year, stations))
     if not epochs:
@@ -228,8 +267,32 @@ def _dated_crd_epochs(
     return epochs
 
 
+def crd_datums(
+    crd_dir: CrdDirs,
+    *,
+    session_extractor: Callable[[str], str | None] | None = None,
+) -> dict[str, tuple[float, float]]:
+    """Each geodetic datum the dated CRD files name, with the first and last
+    decimal year that uses it.
+
+    Coordinates in two datums are not one series: where they meet, the frame
+    steps and the station has not moved. A file whose header names no datum is
+    left out, since nothing can be said about it.
+    """
+    out: dict[str, tuple[float, float]] = {}
+    extractor = session_extractor or _extract_session_from_filename
+    for decimal_year, crd_path in _dated_crd_files(crd_dir, extractor):
+        with open(crd_path, encoding="ascii", errors="replace") as fh:
+            head = "".join(islice(fh, 6))
+        m = _DATUM.search(head)
+        if m:
+            first, last = out.get(m[1], (decimal_year, decimal_year))
+            out[m[1]] = (min(first, decimal_year), max(last, decimal_year))
+    return out
+
+
 def crd_station_codes(
-    crd_dir: Path,
+    crd_dir: CrdDirs,
     *,
     session_extractor: Callable[[str], str | None] | None = None,
 ) -> list[str]:
@@ -243,7 +306,7 @@ def crd_station_codes(
 
 
 def crd_directory_to_enu(
-    crd_dir: Path,
+    crd_dir: CrdDirs,
     reference_station: str,
     *,
     session_extractor: Callable[[str], str | None] | None = None,
@@ -264,7 +327,9 @@ def crd_directory_to_enu(
     of days lost is logged as a warning; it is not in the return value.
 
     Args:
-        crd_dir:            Directory containing Bernese *.CRD files.
+        crd_dir:            Directory containing Bernese *.CRD files, or several
+                            directories oldest first (a campaign's yearly folders),
+                            read as one series.
         reference_station:  4-char station code used as the ENU origin.
         session_extractor:  Optional callable mapping filename → YYDDD session
                             string.  Defaults to the built-in pattern matcher.

@@ -5,7 +5,8 @@ short: the timeseries package flags epochs automatically; a signed-in person
 looks at the plot and records, per epoch, "outlier", "not an outlier", or
 clears their decision. Nothing is ever removed from a file. Each decision is
 one line appended to <state>/outlier_decisions.jsonl, so the history stays:
-the latest line for a (campaign, year, station, epoch) is the current one.
+the latest line for a (campaign, station, epoch) is the current one. An epoch
+names its own year, so a series spanning years needs nothing more.
 
 Every line carries what it was made against, so a decision is never silently
 reused on something else:
@@ -45,15 +46,19 @@ def path(s: Settings) -> Path:
     return s.state_dir / "outlier_decisions.jsonl"
 
 
-def _crds_for(crd_dir: Path, epoch: str) -> list[Path]:
+def _crds_for(crd_dirs: list[Path], epoch: str) -> list[Path]:
     """Every daily CRD whose name gives that session (F1_ and FIN_ can both be
-    present for one day; the series then carries both, so both are hashed)."""
+    present for one day; the series then carries both, so both are hashed).
+    Looks in all the campaign's folders, the same files the series reads."""
     m = _EPOCH.fullmatch(epoch)
-    if not m or not crd_dir.is_dir():
+    if not m:
         return []
     want = f"{int(m[1]) % 100:02d}{m[2]}"
     return [
-        f for f in sorted(crd_dir.glob("*.CRD")) if _extract_session_from_filename(f.name) == want
+        f
+        for d in crd_dirs
+        for f in sorted(d.glob("*.CRD"))
+        if _extract_session_from_filename(f.name) == want
     ]
 
 
@@ -85,7 +90,7 @@ def read_all(s: Settings) -> list[dict]:
 
 
 def current(
-    s: Settings, c: Campaign, year: int, station: str, crd_dir: Path, reference: str | None
+    s: Settings, c: Campaign, station: str, crd_dirs: list[Path], reference: str | None
 ) -> list[dict]:
     """This station's current decision per epoch (cleared ones dropped), labelled.
 
@@ -95,7 +100,7 @@ def current(
     latest: dict[str, dict] = {}
     count: dict[str, int] = {}
     for row in read_all(s):
-        if (row["campaign"], row["year"], row["station"]) != (c.name, year, station):
+        if (row["campaign"], row["station"]) != (c.name, station):
             continue
         latest[row["epoch"]] = row
         count[row["epoch"]] = count.get(row["epoch"], 0) + 1
@@ -103,7 +108,7 @@ def current(
     for epoch, row in sorted(latest.items()):
         if row["decision"] == "cleared":
             continue
-        crds = _crds_for(crd_dir, epoch)
+        crds = _crds_for(crd_dirs, epoch)
         sha = (row.get("source") or {}).get("sha256")
         out.append(
             {
@@ -129,9 +134,8 @@ def excluded_sessions(decisions: list[dict]) -> list[str]:
 def record(
     s: Settings,
     c: Campaign,
-    year: int,
     station: str,
-    crd_dir: Path,
+    crd_dirs: list[Path],
     user: str,
     body: dict,
     flag_of: Callable[[str, str], bool],
@@ -154,9 +158,9 @@ def record(
         raise HTTPException(422, f"reason is text of at most {MAX_REASON} characters")
     if not isinstance(reference, str) or not re.fullmatch(r"[A-Z0-9]{4}", reference):
         raise HTTPException(422, "name the reference station the decision was made against")
-    crds = _crds_for(crd_dir, epoch)
+    crds = _crds_for(crd_dirs, epoch)
     if not crds:
-        raise HTTPException(404, f"No daily CRD for {epoch} in {crd_dir}")
+        raise HTTPException(404, f"No daily CRD for {epoch} in {c.name}")
     auto_flag = flag_of(epoch, reference)
     against = (decision == "outlier" and not auto_flag) or (decision == "not_outlier" and auto_flag)
     if against and not reason.strip():
@@ -167,7 +171,7 @@ def record(
         "v": 1,
         "ts": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
         "campaign": c.name,
-        "year": year,
+        "year": int(epoch[:4]),
         "station": station,
         "epoch": epoch,
         "decision": decision,
@@ -177,7 +181,7 @@ def record(
         "auto_flag": auto_flag,
         "rule": {"method": "iqr", "factor": 3.0, "scope": "per_segment", "on": "raw_values"},
         "source": {
-            "crd_dir": str(crd_dir),
+            "crd_dir": str(crds[0].parent),
             "file": crds[0].name,
             "files": [f.name for f in crds],
             "sha256": _sha256(crds),

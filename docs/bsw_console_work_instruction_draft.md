@@ -223,17 +223,16 @@ MATLAB results of `vel_line_v8_newvelduetooffset_v4.m`, the variant of
 `vel_line_v8.m` held in this repository, to better than 5e-6 mm/yr on 161 of 165
 velocity components (`docs/SETTLED.md` §2).
 
-**It reads one campaign and one year at a time.** Pick the campaign in the header
-and the year on the page. It doesn't combine years yet, so a velocity here comes
-from that year's CRD files alone, not the station's whole history as in 5.2. With
-one year of data, the final segment is at or under the one-year minimum and may
-show crossed out.
+**It reads every year of the campaign as one series**, so a velocity comes from
+the station's whole history in that campaign, as in 5.2. The buttons above the plot
+jump to one calendar year; the velocities stay those of the whole series. A final
+segment under the one-year minimum shows crossed out.
 
 | 5.2 step | With the console |
 |---|---|
 | 6.1 Install Python and MATLAB; download the scripts and `offsets` from Google Drive | Nothing to install. The `offsets` catalogue is in this repository (`docs/bern52/phivolcs-scripts/event-catalog/offsets`). The page shows the catalogue's path and its sha256, so you can tell which version a result used |
-| 6.2.1–6.2.3 Copy `F1_*.CRD` files, run `filter-fncrd.bat` | Not needed. The page reads the daily final CRDs from the `STA` folder of the campaign's result folder for that year, and uses only the stations each solution estimated |
-| 6.2.4 `plot_v2.py`; enter the reference station (S01R) | Choose the **Reference station** on the page. It lists every estimated station in the CRD files. A configured default would be marked, but gps3 has none today, so you choose one. Changing it refits every station |
+| 6.2.1–6.2.3 Copy `F1_*.CRD` files, run `filter-fncrd.bat` | Not needed. The page reads the daily final CRDs from the `STA` folder of the campaign's result folder for each year, and uses only the stations each solution estimated |
+| 6.2.4 `plot_v2.py`; enter the reference station (S01R) | Choose the **Reference station** on the page. It lists every estimated station in the CRD files. A configured default would be marked, but gps3 has none today, so you choose one. Changing it refits every station. As in 5.2, the reference's position is read from each day's own file, so its motion is subtracted, and a day without it gives no epoch for any station. **Pick a nearby station.** East, North and Up are the reference's axes, so a far-away one, such as an IGS station, rotates a station's motion between them: for ALAB, about 0.4 mm/yr with PIMO, 1.1 degrees away, and up to 7.7 mm/yr with AIRA, 19.4 degrees away |
 | 6.2.5–6.2.6 Check the `123` file and the `offsets` file | Choose a **Station** from the list. The page shows the offsets that apply to it, and whether each falls inside the series. **The catalogue on gps3 is the campaign snapshot in this repository, and the continuous stations' catalogue has not been copied (section 8).** A continuous station can show no offsets because they are missing, and its velocity is then fitted straight across any real step. Check those against your own list |
 | 6.2.7 Run `vel_line_v8.m` | Shown for the station chosen. A plot of East, North and Up on one time axis replaces the JPG: epochs in the fit as dots, epochs the outlier rule flagged in orange, epochs left out of the fit for any other reason hollow, the fitted line for each segment, and the catalogue's offsets as dashed lines. Ctrl with the mouse wheel zooms, Shift with the wheel pans, dragging selects a span, and a double-click shows everything. Below it: the velocity of the final segment with its 1-sigma, East, North and Up, and the span it covers, with a note when the newest epochs are too few to fit, so the rate is the one before the latest event; then, for each segment between offsets, its start and end as decimal years, epochs, epochs in the fit, outliers and velocities. A final segment shorter than the minimum span (one year) is crossed out, because a rate from too little data means nothing |
 | 6.2 note: horizontal only, usually | Unchanged. The page shows Up as well; read it with the same care |
@@ -251,7 +250,6 @@ writes GMT `psvelo` input. It is not in the console.
 | | Where it stands |
 |---|---|
 | Listing queued requests | Not built. A queued request can be cancelled only on gps3 |
-| Velocity over several years | Not built. The Time series page reads one year's CRD files at a time |
 | Start with skipped steps, another RNXGRA or another PCF | Refused on purpose: the console runs the PCF whole. These stay on the command line |
 | Editing station files, adding a site, "use as a priori", checking a BLQ reply | Planned (console stage 4). **Station files** is read-only today |
 | GEN folder age against AIUB's | Planned, read-only. Not built |

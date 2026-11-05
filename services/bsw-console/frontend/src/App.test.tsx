@@ -52,7 +52,7 @@ it('names the failed PID and the known remedy', async () => {
 it('keeps Start disabled and says why', async () => {
   await at('#/c/LUZON/2025/plan?from=35&to=40')
   expect((screen.getByRole('button', { name: 'Start' }) as HTMLButtonElement).disabled).toBe(true)
-  expect(screen.getByText(/Start is off/).textContent).toMatch(/switched off until personal accounts exist/)
+  expect(screen.getByText(/Start is off/).textContent).toMatch(/switched off \(BSW_CONSOLE_ACTIONS\)/)
 })
 
 describe('stage 3 buttons', () => {
@@ -92,6 +92,6 @@ describe('time series reference', () => {
       pick.dispatchEvent(new Event('change', { bubbles: true }))
       await new Promise((r) => setTimeout(r, 0))
     })
-    expect(urls.some((u) => u.endsWith('/api/campaigns/LUZON/years/2021/time-series?reference=SYN1'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/api/campaigns/LUZON/time-series?reference=SYN1'))).toBe(true)
   })
 })

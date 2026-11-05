@@ -144,7 +144,7 @@ from typing import Any
 import numpy as np
 
 from .analysis import OffsetEvent, OffsetType, estimate_velocity
-from .crd_pipeline import crd_directory_to_enu, session_to_decimal_year
+from .crd_pipeline import CrdDirs, crd_datums, crd_directory_to_enu, session_to_decimal_year
 from .gmt import MIN_SPAN_YEARS
 from .offsets_catalog import load_offsets_catalog
 
@@ -407,7 +407,7 @@ def _sha256(path: Path) -> str:
 
 
 def station_status(
-    crd_dir: str | Path,
+    crd_dir: CrdDirs,
     station: str,
     reference: str,
     *,
@@ -418,10 +418,13 @@ def station_status(
     exclude_sessions: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    Status of one station from a directory of daily final CRD files.
+    Status of one station from daily final CRD files.
 
     Args:
-        crd_dir:          Directory of Bernese `*.CRD` files, one per day.
+        crd_dir:          Directory of Bernese `*.CRD` files, one per day, or
+                          several directories oldest first, read as one series
+                          (see `crd_directory_to_enu`). Files in more than one
+                          datum add a warning.
         station:          4-character station code.
         reference:        4-character code of the ENU origin.
         offsets_catalog:  Path to an `offsets` file. Recorded with its sha256,
@@ -448,7 +451,7 @@ def station_status(
             "is identically zero"
         )
 
-    epochs = [ep for ep in crd_directory_to_enu(Path(crd_dir), ref) if ep.station == code]
+    epochs = [ep for ep in crd_directory_to_enu(crd_dir, ref) if ep.station == code]
     if not epochs:
         raise ValueError(
             f"Station {code!r} has no estimated coordinates in {crd_dir} "
@@ -476,7 +479,7 @@ def station_status(
             raise ValueError(f"{path} changed while it was being read; try again")
         provenance = {"path": str(path), "sha256": digest}
 
-    return series_status(
+    result = series_status(
         t, enu_m,
         station=code,
         reference=ref,
@@ -487,6 +490,17 @@ def station_status(
         offsets_catalog=provenance,
         exclude_epochs=[session_date_to_decimal_year(s) for s in exclude_sessions or []],
     )
+    datums = crd_datums(crd_dir)
+    if len(datums) > 1:
+        spans = "; ".join(
+            f"{name} {first:.4f} to {last:.4f}"
+            for name, (first, last) in sorted(datums.items(), key=lambda kv: kv[1])
+        )
+        result["warnings"].append(
+            f"the CRD files use more than one geodetic datum ({spans}): "
+            "a step where they meet is the frame, not motion"
+        )
+    return result
 
 
 def session_date_to_decimal_year(session_date: str) -> float:
