@@ -591,3 +591,53 @@ def test_a_visit_to_a_code_the_sta_does_not_have(tmp_path, names) -> None:
     )
     [v] = ec.compare_visits(sta_type002_rows(VISIT_STA), ex, names)
     assert v.before_status == ec.ONLY_IN_SOURCE
+
+
+# --- review round ---------------------------------------------------------------------------
+
+
+def test_a_row_with_a_blank_from_is_valid_from_the_beginning(tmp_path, names) -> None:
+    """A blank FROM is an open start in the .STA format (the header validator
+    reads it so), so the row is valid at any visit before its TO."""
+    sta = sta_text(sta_row("BLNK BLNK", "", OPEN_2099, "TRIMBLE NETR9", "TRM57971.00"))
+    ex = ec.read_logsheet_export(
+        export(tmp_path, [visit("BLNK", receiver_model_before="Trimble NetR9")])
+    )
+    [v] = ec.compare_visits(sta_type002_rows(sta), ex, names)
+    assert v.before_status == ec.EQUAL_AFTER_MAP
+    assert v.before_row_line is not None
+
+
+def test_an_early_morning_swap_written_in_utc_on_the_day_before_is_found(tmp_path, names) -> None:
+    """Visit dates are local (PHT, UTC+8) and .STA times are UTC. A swap at 07:30
+    PHT on 2026-03-10 is 23:30 UTC on 2026-03-09; a row written at that exact
+    time is the change's row, not a missing one."""
+    sta = sta_text(
+        sta_row(
+            "EARL EARL",
+            "2015 01 01 00 00 00",
+            "2026 03 09 23 29 59",
+            "TRIMBLE NETR9",
+            "TRM57971.00",
+        ),
+        sta_row("EARL EARL", "2026 03 09 23 30 00", "", "LEICA GR50", "LEIAR20", "LEIM"),
+    )
+    ex = ec.read_logsheet_export(
+        export(
+            tmp_path,
+            [
+                visit(
+                    "EARL",
+                    arrival_time="2026-03-10T07:00:00+08:00",
+                    equipment_changed=True,
+                    receiver_model_before="Trimble NetR9",
+                    receiver_model_after="Leica GR50",
+                    antenna_type_after="Leica AR20",
+                )
+            ],
+        )  # fmt: skip
+    )
+    [v] = ec.compare_visits(sta_type002_rows(sta), ex, names)
+    assert v.before_status == ec.EQUAL_AFTER_MAP
+    assert v.after_status == ec.AFTER_FOUND
+    assert v.after_row_from == "2026 03 09 23 30 00"

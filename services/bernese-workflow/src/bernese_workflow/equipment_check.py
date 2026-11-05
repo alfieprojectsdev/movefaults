@@ -51,7 +51,7 @@ from pathlib import Path
 
 import yaml
 
-from .rinex_header_validator import StaRow, sta_type002_rows
+from .rinex_header_validator import StaRow, sta_row_dates_usable, sta_type002_rows
 from .station_files import read_text, sta_names
 
 DEFAULT_NAME_MAP = (
@@ -392,11 +392,17 @@ def _visit_time(sheet: dict) -> tuple[dt.datetime, str]:
 
 def _valid_at(rows: list[StaRow], t: dt.datetime) -> StaRow | None:
     """The row whose [FROM, TO] holds t; of several, the latest FROM. An open end
-    (blank, or 2099-12-31) holds every later time."""
+    (blank, or 2099-12-31) holds every later time, and a blank FROM every earlier
+    one, as the header validator reads it. A row whose dates do not parse is left
+    out (sta_row_dates_usable), as station_files leaves it out."""
     hits = [
-        r for r in rows if r.start is not None and r.start <= t and (r.end is None or t <= r.end)
+        r
+        for r in rows
+        if sta_row_dates_usable(r)
+        and (r.start is None or r.start <= t)
+        and (r.end is None or t <= r.end)
     ]
-    return max(hits, key=lambda r: (r.start, r.line)) if hits else None
+    return max(hits, key=lambda r: (r.start or dt.datetime.min, r.line)) if hits else None
 
 
 def compare_visits(rows: list[StaRow], export: LogsheetExport, names: NameMap) -> list[VisitResult]:
@@ -450,8 +456,13 @@ def compare_visits(rows: list[StaRow], export: LogsheetExport, names: NameMap) -
                     res.after_fields = {k: v for k, v in after.items() if igs[k] is None}
                 else:
                     res.after_fields = {k: str(v) for k, v in igs.items()}
+                    # visit_date is local (PHT, UTC+8) and .STA times are UTC: a
+                    # morning swap falls on the previous UTC date. Search from the
+                    # start of the UTC date of the arrival, or of the visit date
+                    # when there is no arrival, whichever is earlier.
                     day = dt.datetime.fromisoformat(sheet["visit_date"])
-                    match = _first_row_with(station_rows, day, res.after_fields)
+                    since = dt.datetime.combine(min(t, day).date(), dt.time.min)
+                    match = _first_row_with(station_rows, since, res.after_fields)
                     if match is None:
                         res.after_status = AFTER_MISSING
                     else:
