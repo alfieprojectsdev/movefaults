@@ -65,7 +65,7 @@ export default function App() {
     ['Plan', href.plan(campaign, year), ['plan']],
     ['Known errors', href.knownErrors(), ['known-errors']],
     ['Station files', href.stations(campaign, year), ['stations']],
-    ['Time series', href.timeSeries(campaign), ['time-series']],
+    ['Time series', href.timeSeries(campaign, year), ['time-series']],
   ]
 
   const switchCampaign = (c: string) => {
@@ -84,7 +84,7 @@ export default function App() {
     case 'plan': page = <Plan campaign={route.campaign} year={route.year} from={route.from} to={route.to} />; break
     case 'known-errors': page = <KnownErrors />; break
     case 'stations': page = <StationFiles campaign={route.campaign} year={route.year} />; break
-    case 'time-series': page = <TimeSeries campaign={route.campaign} />; break
+    case 'time-series': page = <TimeSeries key={`${route.campaign}-${route.year}`} campaign={route.campaign} year={route.year} />; break
   }
 
   return (

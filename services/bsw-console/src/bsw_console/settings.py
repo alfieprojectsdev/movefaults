@@ -99,13 +99,12 @@ class Settings:
     # X-Remote-User. Empty (the default): the header is ignored from everyone,
     # because without a proxy any client on the network could send it.
     trusted_proxies: frozenset[str] = frozenset()
-    # The time series (stage 5): pogf_geodetic_suite.timeseries.status reads
-    # daily final CRD files relative to a reference station, and the offsets
-    # catalog. BSW_CONSOLE_TS_CRD_DIR and _TS_OFFSETS have no defaults: unset,
-    # the page says the time series is not configured. The reference station
-    # is chosen on the page; BSW_CONSOLE_TS_REFERENCE is only the one it starts
-    # with, and may be unset.
-    ts_crd_dir: Path | None = None
+    # The time series (stage 5) reads each campaign year's daily final CRDs
+    # from that year's result directory (<V_RESULT>/STA, as the PCF sets it),
+    # so the page shows the campaign and year it names. BSW_CONSOLE_TS_OFFSETS
+    # (the offsets catalog) has no default: unset, the page says the time
+    # series is not configured. The reference station is chosen on the page;
+    # BSW_CONSOLE_TS_REFERENCE is only the one it starts with, and may be unset.
     ts_reference: str | None = None
     ts_offsets: Path | None = None
     # The JSON `bernese-check-equipment --json` wrote (BSW_CONSOLE_EQUIPMENT_REPORT).
@@ -141,7 +140,6 @@ class Settings:
         static = Path(os.environ.get("BSW_CONSOLE_STATIC", here / "frontend" / "dist"))
         kb = os.environ.get("BSW_CONSOLE_KB")
         lock = os.environ.get("BPE_LOCK")
-        ts_crd = os.environ.get("BSW_CONSOLE_TS_CRD_DIR")
         ts_ref = os.environ.get("BSW_CONSOLE_TS_REFERENCE")
         ts_off = os.environ.get("BSW_CONSOLE_TS_OFFSETS")
         report = os.environ.get("BSW_CONSOLE_EQUIPMENT_REPORT")
@@ -153,7 +151,6 @@ class Settings:
             campaigns=parse_campaigns(os.environ.get("BSW_CONSOLE_CAMPAIGNS", DEFAULT_CAMPAIGNS)),
             kb_path=Path(kb) if kb else None,
             lock_path=Path(lock) if lock else None,
-            ts_crd_dir=Path(ts_crd) if ts_crd else None,
             ts_reference=ts_ref.strip().upper() if ts_ref and ts_ref.strip() else None,
             ts_offsets=Path(ts_off) if ts_off else None,
             equipment_report=Path(report) if report else None,

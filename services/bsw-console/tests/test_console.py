@@ -469,7 +469,7 @@ def test_code_version_says_when_the_tree_was_dirty_or_unknown() -> None:
 
 
 def test_time_series_lists_the_stations_and_the_outlier_mode(client) -> None:
-    body = client.get("/api/campaigns/LUZON/time-series").json()
+    body = client.get("/api/campaigns/LUZON/years/2021/time-series").json()
     assert body["configured"] is True and body["available"] is True
     assert body["stations"] == ["SYN1"], "the reference is the origin, not a station to plot"
     assert body["reference"] == "REF0"
@@ -481,9 +481,9 @@ def test_one_stations_status_is_what_station_status_returns(client, bsw) -> None
 
     from pogf_geodetic_suite.timeseries.status import station_status
 
-    body = client.get("/api/campaigns/LUZON/time-series/syn1").json()
+    body = client.get("/api/campaigns/LUZON/years/2021/time-series/syn1").json()
     assert body["configured"] is True and body["available"] is True
-    direct = station_status(bsw.ts_crd_dir, "SYN1", "REF0", offsets_catalog=bsw.ts_offsets)
+    direct = station_status(_ts_dir(bsw), "SYN1", "REF0", offsets_catalog=bsw.ts_offsets)
     for key in ("schema", "station", "velocity", "segments", "outlier_rule", "offsets", "warnings"):
         assert body[key] == direct[key], key
     assert body["outlier_rule"]["mode"] == "record"
@@ -501,28 +501,34 @@ def test_time_series_not_configured_says_so_and_names_the_settings(bsw) -> None:
     from bsw_console.main import create_app
     from fastapi.testclient import TestClient
 
-    c = TestClient(create_app(dataclasses.replace(bsw, ts_crd_dir=None, ts_offsets=None)))
-    for url in ("/api/campaigns/LUZON/time-series", "/api/campaigns/LUZON/time-series/SYN1"):
+    c = TestClient(create_app(dataclasses.replace(bsw, ts_offsets=None)))
+    for url in (
+        "/api/campaigns/LUZON/years/2021/time-series",
+        "/api/campaigns/LUZON/years/2021/time-series/SYN1",
+    ):
         r = c.get(url)
         assert r.status_code == 200
         body = r.json()
         assert body["configured"] is False
         assert "not configured" in body["message"]
-        assert body["missing"] == ["BSW_CONSOLE_TS_CRD_DIR", "BSW_CONSOLE_TS_OFFSETS"]
+        assert body["missing"] == ["BSW_CONSOLE_TS_OFFSETS"]
 
 
 def test_a_station_status_cannot_compute_is_explained_not_raised(client) -> None:
-    body = client.get("/api/campaigns/LUZON/time-series/NOPE").json()
+    body = client.get("/api/campaigns/LUZON/years/2021/time-series/NOPE").json()
     assert body["configured"] is True and body["available"] is False
     assert "NOPE" in body["message"]
-    ref = client.get("/api/campaigns/LUZON/time-series/REF0").json()
+    ref = client.get("/api/campaigns/LUZON/years/2021/time-series/REF0").json()
     assert ref["available"] is False and "reference" in ref["message"]
 
 
 def test_time_series_station_is_four_characters_never_a_path(client) -> None:
     for code in ("SYN12", "S", "..%2F.."):
-        assert client.get(f"/api/campaigns/LUZON/time-series/{code}").status_code in (404, 422)
-    assert client.post("/api/campaigns/LUZON/time-series/SYN1").status_code == 405
+        assert client.get(f"/api/campaigns/LUZON/years/2021/time-series/{code}").status_code in (
+            404,
+            422,
+        )
+    assert client.post("/api/campaigns/LUZON/years/2021/time-series/SYN1").status_code == 405
 
 
 def test_a_worker_run_credits_who_asked_not_the_service_account() -> None:
@@ -549,13 +555,13 @@ def test_odd_ledger_field_types_do_not_break_the_day_page() -> None:
 
 
 def test_the_reference_is_chosen_per_request_and_the_setting_is_only_the_default(client) -> None:
-    default = client.get("/api/campaigns/LUZON/time-series").json()
+    default = client.get("/api/campaigns/LUZON/years/2021/time-series").json()
     assert default["reference"] == "REF0" and default["default_reference"] == "REF0"
     assert default["all_stations"] == ["REF0", "SYN1"], "every candidate, the default included"
-    flipped = client.get("/api/campaigns/LUZON/time-series?reference=syn1").json()
+    flipped = client.get("/api/campaigns/LUZON/years/2021/time-series?reference=syn1").json()
     assert flipped["available"] is True and flipped["reference"] == "SYN1"
     assert flipped["stations"] == ["REF0"], "relative to SYN1, REF0 is the one to plot"
-    one = client.get("/api/campaigns/LUZON/time-series/REF0?reference=SYN1").json()
+    one = client.get("/api/campaigns/LUZON/years/2021/time-series/REF0?reference=SYN1").json()
     assert one["available"] is True and one["reference"] == "SYN1"
 
 
@@ -566,25 +572,31 @@ def test_without_a_default_the_page_is_asked_to_choose(bsw) -> None:
     from fastapi.testclient import TestClient
 
     c = TestClient(create_app(dataclasses.replace(bsw, ts_reference=None)))
-    body = c.get("/api/campaigns/LUZON/time-series").json()
+    body = c.get("/api/campaigns/LUZON/years/2021/time-series").json()
     assert body["configured"] is True and body["available"] is True
     assert body["reference"] is None and body["stations"] == []
     assert body["all_stations"] == ["REF0", "SYN1"]
     assert "Choose a reference" in body["message"]
-    one = c.get("/api/campaigns/LUZON/time-series/SYN1").json()
+    one = c.get("/api/campaigns/LUZON/years/2021/time-series/SYN1").json()
     assert one["available"] is False and "reference" in one["message"]
 
 
 def test_a_reference_the_files_do_not_hold_is_explained(client) -> None:
-    body = client.get("/api/campaigns/LUZON/time-series?reference=NOPE").json()
+    body = client.get("/api/campaigns/LUZON/years/2021/time-series?reference=NOPE").json()
     assert body["available"] is False and "NOPE" in body["message"]
 
 
 def test_a_reference_is_four_characters_never_a_path(client) -> None:
     for ref in ("REF00", "..%2F..", "R-F0"):
-        assert client.get(f"/api/campaigns/LUZON/time-series?reference={ref}").status_code == 422
         assert (
-            client.get(f"/api/campaigns/LUZON/time-series/SYN1?reference={ref}").status_code == 422
+            client.get(f"/api/campaigns/LUZON/years/2021/time-series?reference={ref}").status_code
+            == 422
+        )
+        assert (
+            client.get(
+                f"/api/campaigns/LUZON/years/2021/time-series/SYN1?reference={ref}"
+            ).status_code
+            == 422
         )
 
 
@@ -595,16 +607,48 @@ def test_a_station_only_in_an_undated_crd_is_not_offered_as_a_reference(bsw) -> 
     from bsw_console.main import create_app
     from fastapi.testclient import TestClient
 
-    some = next(iter(sorted(bsw.ts_crd_dir.glob("*.CRD"))))
-    (bsw.ts_crd_dir / "APRIORI.CRD").write_text(some.read_text().replace("SYN1", "XTRA"))
-    body = TestClient(create_app(bsw)).get("/api/campaigns/LUZON/time-series").json()
+    some = next(iter(sorted(_ts_dir(bsw).glob("*.CRD"))))
+    (_ts_dir(bsw) / "APRIORI.CRD").write_text(some.read_text().replace("SYN1", "XTRA"))
+    body = TestClient(create_app(bsw)).get("/api/campaigns/LUZON/years/2021/time-series").json()
     assert body["all_stations"] == ["REF0", "SYN1"]
 
 
 def test_candidates_follow_the_directory_when_a_file_is_added(bsw) -> None:
     from bsw_console import timeseries
 
-    assert timeseries.stations_in(bsw.ts_crd_dir) == ["REF0", "SYN1"]
-    some = next(iter(sorted(bsw.ts_crd_dir.glob("*.CRD"))))
-    (bsw.ts_crd_dir / "F1_22001.CRD").write_text(some.read_text().replace("SYN1", "NEW1"))
-    assert timeseries.stations_in(bsw.ts_crd_dir) == ["NEW1", "REF0", "SYN1"]
+    assert timeseries.stations_in(_ts_dir(bsw)) == ["REF0", "SYN1"]
+    some = next(iter(sorted(_ts_dir(bsw).glob("*.CRD"))))
+    (_ts_dir(bsw) / "F1_22001.CRD").write_text(some.read_text().replace("SYN1", "NEW1"))
+    assert timeseries.stations_in(_ts_dir(bsw)) == ["NEW1", "REF0", "SYN1"]
+
+
+# --- the time series follows the campaign and year on the page ---------------------------
+
+
+def test_time_series_reads_the_campaign_years_own_result_directory(client, bsw) -> None:
+    body = client.get("/api/campaigns/LUZON/years/2021/time-series").json()
+    assert (body["campaign"], body["year"]) == ("LUZON", 2021)
+    assert body["crd_dir"] == str(bsw.savedisk / "LUZON" / "2021" / "STA")
+    assert {2021, 2025} <= set(body["years"])
+
+
+def test_a_year_without_crds_says_so_instead_of_showing_another_years(client) -> None:
+    body = client.get("/api/campaigns/LUZON/years/2025/time-series?reference=REF0").json()
+    assert body["configured"] is True and body["available"] is False
+    # 2025's STA holds only a day fixture with no usable series: it says so for
+    # 2025, rather than showing 2021's stations under 2025's name.
+    assert "2025" in body["message"] and "SYN1" not in str(body.get("all_stations"))
+    gone = client.get("/api/campaigns/LUZON/years/2019/time-series").json()
+    assert gone["available"] is False and "does not exist" in gone["message"]
+    one = client.get("/api/campaigns/LUZON/years/2019/time-series/SYN1?reference=REF0").json()
+    assert one["available"] is False and "does not exist" in one["message"]
+
+
+def test_an_implausible_year_is_422(client) -> None:
+    assert client.get("/api/campaigns/LUZON/years/1900/time-series").status_code == 422
+    assert client.get("/api/campaigns/LUZON/years/3000/time-series/SYN1").status_code == 422
+
+
+def _ts_dir(bsw):
+    """Where conftest files the synthetic series: LUZON 2021's <V_RESULT>/STA."""
+    return bsw.savedisk / "LUZON" / "2021" / "STA"
