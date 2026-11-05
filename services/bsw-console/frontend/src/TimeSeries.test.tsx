@@ -330,6 +330,17 @@ describe('recording an outlier decision', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
+  it('a click elsewhere does not throw away a reason being typed', async () => {
+    serveWith('abc', [])
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(false))
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as outlier' }))
+    fireEvent.change(screen.getByLabelText(/Why is this an outlier/), { target: { value: 'multipath' } })
+    fireEvent.mouseDown(document.body)
+    await settle()
+    expect((screen.getByLabelText(/Why is this an outlier/) as HTMLTextAreaElement).value).toBe('multipath')
+  })
+
   it('recording closes the popup and says what happened under the plot', async () => {
     serveWith('abc', [])
     await page()
@@ -338,6 +349,83 @@ describe('recording an outlier decision', () => {
     await settle()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('status').textContent).toMatch(/recorded as outlier by abc\. The published velocity is unchanged/)
+  })
+
+  // Holds back what `held` matches until release() is called, to look inside the
+  // time a request is in flight.
+  function holdBack(held: (url: string, init?: RequestInit) => boolean) {
+    const served = globalThis.fetch as any
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (held(url, init)) await gate
+      return served(url, init)
+    }))
+    return () => release()
+  }
+  const isPost = (_url: string, init?: RequestInit) => init?.method === 'POST'
+
+  it('a refusal that arrives after the popup has closed is still shown', async () => {
+    serveWith('abc', [])
+    const served = globalThis.fetch as any
+    let answer: (r: Response) => void = () => {}
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') return new Promise<Response>((resolve) => { answer = resolve })
+      return served(url, init)
+    }))
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(true))
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
+    fireEvent.mouseDown(document.body)
+    await settle()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await act(async () => { answer(new Response(JSON.stringify({ detail: 'the lock is held' }), { status: 409 })) })
+    await settle()
+    expect(screen.getByRole('status').textContent).toMatch(/SYN1 2021-\d+: the lock is held/)
+  })
+
+  it('a decision answered late leaves the next epoch\'s popup open', async () => {
+    serveWith('abc', [])
+    const release = holdBack(isPost)
+    await page()
+    const flags = syn1().series.outlier
+    await pickEpoch(flags.indexOf(true))
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
+    await pickEpoch(flags.indexOf(false))
+    expect(screen.getByRole('button', { name: 'Mark as outlier' })).toBeTruthy()
+    await act(async () => { release() })
+    await settle()
+    expect(screen.getByRole('button', { name: 'Mark as outlier' })).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toMatch(/recorded as outlier/)
+  })
+
+  it('an epoch reopened before the reload arrives cannot be decided twice', async () => {
+    const posts: { url: string; body: any }[] = []
+    serveWith('abc', posts)
+    await page()
+    const i = syn1().series.outlier.indexOf(true)
+    await pickEpoch(i)
+    const release = holdBack((url, init) => !init?.method && url.includes('/SYN1'))
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
+    await settle()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await pickEpoch(i)
+    expect((screen.getByRole('button', { name: 'Confirm outlier' }) as HTMLButtonElement).disabled).toBe(true)
+    await act(async () => { release() })
+    await settle()
+    expect(posts).toHaveLength(1)
+    expect((screen.getByRole('button', { name: 'Confirm outlier' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('each epoch clicked does not ask for the session again', async () => {
+    serveWith('abc', [])
+    await page()
+    const flags = syn1().series.outlier
+    await pickEpoch(flags.indexOf(true))
+    const sessions = () => (globalThis.fetch as any).mock.calls.filter(([u]: [string]) => u === '/api/session').length
+    const before = sessions()
+    await pickEpoch(flags.indexOf(false))
+    expect(sessions()).toBe(before)
   })
 
   it('going against the flag asks for a reason before anything is recorded', async () => {

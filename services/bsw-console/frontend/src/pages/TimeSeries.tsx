@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useApi } from '../lib'
-import type { Enu, TsStation, TsSummary } from '../types'
+import type { Enu, Session, TsStation, TsSummary } from '../types'
 import { Failed, Loading } from './common'
 import TsPlot, { type PlotPoint } from './TsPlot'
 import OutlierDecision from './OutlierDecision'
@@ -91,8 +91,12 @@ function Station({ data, base, reload }: { data: Extract<TsStation, { available:
   const v = data.velocity
   const flagged = data.series.outlier.filter(Boolean).length
   const [picked, setPicked] = useState<{ index: number; point: PlotPoint } | null>(null)
-  const [notice, setNotice] = useState('')
-  useEffect(() => { setPicked(null); setNotice('') }, [data.station, data.reference])
+  const [notice, setNotice] = useState<{ text: string; warn?: boolean } | null>(null)
+  // Fetched here and not in the popup, which mounts anew for every epoch clicked.
+  const session = useApi<Session>('/api/session')
+  // Epochs recorded whose decision the page has not reloaded yet.
+  const [recorded, setRecorded] = useState<number[]>([])
+  useEffect(() => setRecorded([]), [data])
   const close = useCallback(() => setPicked(null), [])
   const fit = data.decided_fit
   const others = data.warnings.filter((w) => w !== data.reference_warning)
@@ -101,14 +105,22 @@ function Station({ data, base, reload }: { data: Extract<TsStation, { available:
       {data.reference_warning && <div className="banner warn" role="status">{data.reference_warning}.</div>}
       <TsPlot series={data.series} segments={data.segments} offsets={data.offsets} station={data.station}
         decisions={data.decisions} decidedFit={fit} selected={picked?.index ?? null}
-        onPick={(index, point) => { setPicked({ index, point }); setNotice('') }} onViewChange={close}>
+        onPick={(index, point) => { setPicked({ index, point }); setNotice(null) }} onViewChange={close}>
         {picked !== null && data.reference && (
           <OutlierDecision key={picked.index} base={base.split('?')[0]} station={data.station} reference={data.reference}
             series={data.series} index={picked.index} point={picked.point} decisions={data.decisions} onClose={close}
-            onSaved={(text) => { setNotice(text); setPicked(null); reload() }} />
+            user={session.data?.user ?? null} reloading={recorded.includes(picked.index)}
+            onLost={(text) => setNotice({ text, warn: true })}
+            onSaved={(text, index) => {
+              setNotice({ text })
+              setRecorded((r) => [...r, index])
+              // The reader may have moved on to another epoch while this was sent.
+              setPicked((p) => (p?.index === index ? null : p))
+              reload()
+            }} />
         )}
       </TsPlot>
-      {notice && <div className="banner info" role="status">{notice}</div>}
+      {notice && <div className={`banner ${notice.warn ? 'warn' : 'info'}`} role="status">{notice.text}</div>}
       <section aria-labelledby="ts-vel" className="panel pad stack">
         <h2 id="ts-vel">{data.station} · velocity (final segment)</h2>
         <table className="t">

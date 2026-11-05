@@ -239,7 +239,7 @@ def time_series_shots(page: Page, url: str, out: Path) -> None:
             break
     else:
         raise SystemExit(f"could not click {epoch}")
-    # The buttons need /api/session, which the form only starts to fetch once it opens.
+    # The buttons need /api/session, which may not have answered yet.
     page.get_by_role("button", name="Confirm outlier").wait_for(timeout=20000)
     # The plot with the popup beside its point, which is what the image is for.
     page.locator('[data-testid="ts-plot"]').locator("..").screenshot(

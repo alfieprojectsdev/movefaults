@@ -26,7 +26,7 @@ type Offset = { t: number; type: string; label: string; within_span: boolean }
  * as real), and a dashed line is the fit without the confirmed outliers, which
  * is not published. A click (not a drag) on a panel picks the nearest epoch and
  * says where it is on the plot; `children` are laid over the plot, for the popup
- * beside it. A change of range tells the page, since the point has then moved.
+ * beside it. A change of range or width tells the page, since the point has then moved.
  */
 export default function TsPlot({ series, segments, offsets, station, decisions, decidedFit, selected, onPick, onViewChange, children }: {
   series: TsSeries; segments: TsSegment[]; offsets: Offset[]; station: string
@@ -129,11 +129,14 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
       hooks: {
         ready: (u) => {
           let down: [number, number] | null = null
-          u.over.addEventListener('mousedown', (e: MouseEvent) => { down = [e.clientX, e.clientY] })
+          // Read at the press: uPlot clears cursor.idx once the mouse moves with
+          // the button down, and a hand's wobble during a click is still a click.
+          let atPress: number | null = null
+          u.over.addEventListener('mousedown', (e: MouseEvent) => { down = [e.clientX, e.clientY]; atPress = u.cursor.idx ?? null })
           u.over.addEventListener('click', (e: MouseEvent) => {
             const moved = down ? Math.hypot(e.clientX - down[0], e.clientY - down[1]) : 0
             down = null
-            const i = u.cursor.idx
+            const i = atPress
             if (moved >= 4 || i == null || i < 0 || i >= series.t.length) return
             const key = COMPONENTS[charts.indexOf(u)]?.key ?? COMPONENTS[0].key
             const area = wrap.current?.getBoundingClientRect()
@@ -179,7 +182,8 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
         legend: { show: false },
         cursor: {
           sync: { key: syncKey, setSeries: false },
-          drag: { x: true, y: false, setScale: true },
+          // The distance clickPick calls a drag: under it, a click must not also zoom.
+          drag: { x: true, y: false, setScale: true, dist: 4 },
           points: { show: false },
         },
         scales: { x: { time: false, min: lo - pad, max: hi + pad } },
@@ -235,8 +239,14 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
     built = true
     if (restore) charts[0]?.setScale('x', { min: restore[0], max: restore[1] })
 
+    let seen = el.clientWidth
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
       for (const c of charts) c.setSize({ width: width(), height: 190 })
+      // A new width moves every point, as a new range does.
+      if (el.clientWidth !== seen) {
+        seen = el.clientWidth
+        viewChanged.current?.()
+      }
     })
     ro?.observe(el)
     return () => {
