@@ -115,7 +115,7 @@ function Station({ data, base, reload }: { data: Extract<TsStation, { available:
       <section aria-labelledby="ts-vel" className="panel pad stack">
         <h2 id="ts-vel">{data.station} · velocity (final segment)</h2>
         <table className="t">
-          <thead><tr><th scope="col"></th><th scope="col">East</th><th scope="col">North</th><th scope="col">Up</th></tr></thead>
+          <thead><tr><th scope="col"></th><th scope="col" className="num">East</th><th scope="col" className="num">North</th><th scope="col" className="num">Up</th></tr></thead>
           <tbody>
             <tr><th scope="row">mm/yr ± 1σ</th>{(['e', 'n', 'u'] as const).map((c) => <td key={c} className="mono num" style={v.short_span ? { textDecoration: 'line-through' } : undefined}>{rate(v.velocity_mm_yr, v.sigma_mm_yr, c)}</td>)}</tr>
             {fit && fit.available && (
@@ -136,7 +136,7 @@ function Station({ data, base, reload }: { data: Extract<TsStation, { available:
       <section aria-labelledby="ts-seg" className="panel scroll">
         <table className="t">
           <caption id="ts-seg" style={{ textAlign: 'left' }}>Segments, split at the catalogue's events</caption>
-          <thead><tr><th scope="col">#</th><th scope="col">From</th><th scope="col">To</th><th scope="col">Epochs</th><th scope="col">In fit</th><th scope="col">Outliers</th><th scope="col">East mm/yr</th><th scope="col">North mm/yr</th><th scope="col">Up mm/yr</th></tr></thead>
+          <thead><tr><th scope="col" className="num">#</th><th scope="col">From</th><th scope="col">To</th><th scope="col" className="num">Epochs</th><th scope="col" className="num">In fit</th><th scope="col" className="num">Outliers</th><th scope="col" className="num">East mm/yr</th><th scope="col" className="num">North mm/yr</th><th scope="col" className="num">Up mm/yr</th></tr></thead>
           <tbody>
             {data.segments.map((s) => (
               <tr key={s.index}>
