@@ -66,6 +66,13 @@ export type Attempt = {
   stations: number | null
   config?: string | null
   host?: string
+  provenance?: RunProvenance
+}
+/** What an attempt's run_start recorded (#318). recorded is false for a run
+ *  written before then: its fields are null and the page says so. */
+export type RunProvenance = {
+  recorded: boolean; started_by: string | null; command: string | null; code_version: string | null
+  pcf: string | null; products: string | null; product_tier: string | null; config_hash: string | null
 }
 export type ResultFile = { name: string; v52: string; folder: string; what: string; size: number | null; written: number | null; path: string | null }
 export type DayDetail = DayInfo & {
@@ -75,7 +82,13 @@ export type DayDetail = DayInfo & {
   results: ResultFile[]
   present: number
   quality: { stations: number | null; dropped: string[]; helmert_rms_mm: number | null; ambiguity_rate: number | null; sources: Record<string, string> }
-  provenance: Record<string, string | null>
+  provenance: {
+    pcf: string; ambiguities: string; campaign_dir: string
+    /** The latest attempt's run; its run_start is what the fields below come from. */
+    run: string | null; recorded: boolean
+    started_by: string | null; command: string | null; code_version: string | null
+    products: string | null; product_tier: string | null; config_hash: string | null
+  }
 }
 export type FileText = { name: string; lines: string[]; truncated: boolean; total: number }
 
@@ -144,4 +157,53 @@ export type StationFiles = {
   files: Record<string, { name: string; present: boolean }>
   columns: string[]
   rows: { station: string; cells: Record<string, number>; notes: string[] }[]
+}
+
+/** pogf_geodetic_suite.timeseries.status, as the console serves it (bsw_console/timeseries.py). */
+export type Enu = { e: number; n: number; u: number }
+export type TsNotConfigured = { configured: false; missing: string[]; message: string }
+export type TsUnavailable = { configured: true; available: false; message: string; crd_dir: string; reference: string; offsets_path: string; station?: string }
+export type TsSummary =
+  | TsNotConfigured
+  | TsUnavailable
+  | { configured: true; available: true; crd_dir: string; reference: string; offsets_path: string; stations: string[]; outlier_mode: string }
+export type TsSegment = {
+  index: number; t_start: number; t_end: number; span_yr: number; n_epochs: number; n_fit: number; n_outliers: number
+  velocity_mm_yr: Enu; sigma_mm_yr: Enu; r2: Enu; short_span: boolean
+}
+export type TsStation =
+  | TsNotConfigured
+  | TsUnavailable
+  | {
+      configured: true; available: true; schema: string; station: string; reference: string | null
+      offsets_catalog: { path: string; sha256: string } | null
+      outlier_rule: { method: string; factor: number; scope: string; on: string; mode: string }
+      series: { t: number[]; outlier: boolean[]; in_fit: boolean[] }
+      offsets: { t: number; type: string; label: string; within_span: boolean }[]
+      segments: TsSegment[]
+      velocity: { segment: number; velocity_mm_yr: Enu; sigma_mm_yr: Enu; span_yr: number; short_span: boolean; covers_latest_epoch: boolean }
+      min_span_years: number; warnings: string[]
+    }
+/** bernese-check-equipment's report, as the console serves it (bsw_console/equipment.py). */
+export type EquipmentField = { sta: string; source: string; status: string; source_igs: string | null; note: string }
+export type EquipmentCurrent = {
+  station: string; category: string; sta_name: string; sta_line: number | null; sta_from: string; sta_to: string
+  fields: Partial<Record<'receiver' | 'antenna' | 'radome', EquipmentField>>; note: string
+}
+export type EquipmentVisit = {
+  station: string; visit_date: string; visit_time: string; visit_time_source: string; equipment_changed: boolean
+  before_status: string; before_fields: Partial<Record<'receiver' | 'antenna', EquipmentField>>; before_row_line: number | null
+  after_status: string | null; after_fields: Record<string, string>; after_row_line: number | null; after_row_from: string; note: string
+}
+export type EquipmentAbout =
+  | { configured: false; message: string }
+  | { configured: true; available: false; message: string }
+  | {
+      configured: true; available: true; written: number; sta: { path: string; rows: number; codes: number }
+      exported_at: string | null; export_counts: Record<string, number> | null; equipment_csv: string | null
+      current_equipment_from: string | null
+    }
+export type EquipmentReport = EquipmentAbout & { summary?: Record<string, number> }
+export type StationEquipment = EquipmentAbout & {
+  station: string; current?: EquipmentCurrent[]; visits?: EquipmentVisit[]; names?: { station: string; problem: string; sta_names: string[] }[]
 }

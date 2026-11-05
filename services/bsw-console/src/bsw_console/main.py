@@ -35,7 +35,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import actions, stations, status
+from . import actions, equipment, stations, status, timeseries
 from . import plan as plans
 from .actions import STAGE3_REASON
 from .settings import Settings
@@ -212,16 +212,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def station_files(name: str, year: int) -> dict:
         return stations.coverage(s, campaign(name), year)
 
-    @app.get("/api/campaigns/{name}/time-series/{station}")
-    def time_series(name: str, station: str) -> JSONResponse:
+    # Read-only: what bernese-check-equipment reported. The browser names a
+    # four-character code; the report file is the server's setting, never a path
+    # from the request.
+    @app.get("/api/equipment-report")
+    def equipment_report() -> dict:
+        return equipment.summary(s)
+
+    @app.get("/api/stations/{code}/equipment")
+    def station_equipment(code: str) -> dict:
+        if not re.fullmatch(r"[A-Za-z0-9]{4}", code):
+            raise HTTPException(422, "a station code is four letters or digits")
+        return equipment.for_station(s, code)
+
+    # Stage 5, read-only: pogf_geodetic_suite.timeseries.status, in this process.
+    # The inputs are the server's settings; the browser names a station code.
+    @app.get("/api/campaigns/{name}/time-series")
+    def time_series_summary(name: str) -> dict:
         campaign(name)
-        return JSONResponse(
-            {
-                "connected": False,
-                "reason": "The time-series panel waits on a read-only status endpoint from the timeseries package (stage 5).",
-            },
-            status_code=501,
-        )
+        return timeseries.summary(s)
+
+    @app.get("/api/campaigns/{name}/time-series/{station}")
+    def time_series(name: str, station: str) -> dict:
+        campaign(name)
+        if not re.fullmatch(r"[A-Za-z0-9]{4}", station):
+            raise HTTPException(422, "a station code is four letters or digits")
+        return timeseries.for_station(s, station)
 
     # Stage 3: each queues one request for the run worker. The gate runs first,
     # before the body is read or the campaign looked up, so a refused caller

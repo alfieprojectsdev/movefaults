@@ -4,7 +4,9 @@ import { href } from '../route'
 import type { DayDetail, FileText } from '../types'
 import { Failed, Loading, TextViewer, When } from './common'
 
-const NOT_RECORDED = <span className="faint">not recorded by the service yet</span>
+// A run started before #318 did not record who, the command, the code or the
+// products. Said per run, never guessed.
+const NOT_RECORDED = <span className="faint">not recorded for this run</span>
 
 export default function Day({ campaign, year, doy }: { campaign: string; year: number; doy: number }) {
   const base = `/api/campaigns/${campaign}/years/${year}/days/${doy}`
@@ -38,6 +40,7 @@ export default function Day({ campaign, year, doy }: { campaign: string; year: n
       <div className="cols">
         <section aria-labelledby="prov" className="panel pad stack">
           <h2 id="prov">How this result was produced</h2>
+          {p.run && <p className="muted" style={{ fontSize: 13 }}>From the record of run <a className="mono" href={href.run(campaign, year, p.run)}>{p.run}</a>, the latest attempt at this day.</p>}
           <dl className="kv">
             <dt>PCF</dt><dd className="mono">{p.pcf}</dd>
             <dt>Ambiguities</dt><dd>{p.ambiguities}</dd>
@@ -46,7 +49,7 @@ export default function Day({ campaign, year, doy }: { campaign: string; year: n
             <dt>Started by</dt><dd>{p.started_by ?? NOT_RECORDED}</dd>
             <dt>Command</dt><dd className="mono">{p.command ?? NOT_RECORDED}</dd>
             <dt>Code version</dt><dd className="mono">{p.code_version ?? NOT_RECORDED}</dd>
-            <dt>IGS product tier</dt><dd>{p.product_tier ?? NOT_RECORDED}</dd>
+            <dt>IGS products</dt><dd>{p.products ? <><span className="mono">{p.products}</span> ({p.product_tier ?? 'tier unknown'})</> : NOT_RECORDED}</dd>
           </dl>
         </section>
         <section aria-labelledby="q" className="panel pad stack">
@@ -70,7 +73,7 @@ export default function Day({ campaign, year, doy }: { campaign: string; year: n
         <h2 id="att">Attempts</h2>
         <div className="panel scroll">
           <table className="t">
-            <thead><tr><th scope="col">Run</th><th scope="col">Started</th><th scope="col">Outcome</th><th scope="col">Stations</th><th scope="col">Time</th></tr></thead>
+            <thead><tr><th scope="col">Run</th><th scope="col">Started</th><th scope="col">Outcome</th><th scope="col">Stations</th><th scope="col">Time</th><th scope="col">Recorded with the run</th></tr></thead>
             <tbody>
               {data.attempts.map((a, i) => (
                 <tr key={i}>
@@ -79,9 +82,14 @@ export default function Day({ campaign, year, doy }: { campaign: string; year: n
                   <td>{a.outcome === 'failed' ? <a href={href.failure(campaign, year, doy)}>failed · {a.error}</a> : a.outcome}{a.note && <div className="faint" style={{ fontSize: 12, whiteSpace: 'pre-wrap' }}>{a.note}</div>}</td>
                   <td className="num">{a.stations ?? ''}</td>
                   <td className="mono">{duration(a.seconds)}</td>
+                  <td style={{ fontSize: 13 }}>
+                    {a.provenance?.recorded
+                      ? <>by {a.provenance.started_by} · code <span className="mono">{a.provenance.code_version}</span>{a.provenance.products && <> · <span className="mono">{a.provenance.products}</span> ({a.provenance.product_tier ?? 'tier unknown'})</>}</>
+                      : NOT_RECORDED}
+                  </td>
                 </tr>
               ))}
-              {!data.attempts.length && <tr><td colSpan={5} className="muted">No attempt recorded by the service. A result made through scripts/ before the cutover has no record here.</td></tr>}
+              {!data.attempts.length && <tr><td colSpan={6} className="muted">No attempt recorded by the service. A result made through scripts/ before the cutover has no record here.</td></tr>}
             </tbody>
           </table>
         </div>

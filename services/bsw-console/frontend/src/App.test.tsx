@@ -32,7 +32,7 @@ const screens: [string, RegExp][] = [
   ['#/c/LUZON/2025/plan?from=35&to=40', /Checks before the run/],
   ['#/known-errors', /The list the run looks failures up in/],
   ['#/c/LUZON/2025/stations', /BLQ, still by email/],
-  ['#/c/LUZON/time-series', /Not connected/],
+  ['#/c/LUZON/time-series', /Outlier mode/],
 ]
 
 describe.each(screens)('%s', (hash, text) => {

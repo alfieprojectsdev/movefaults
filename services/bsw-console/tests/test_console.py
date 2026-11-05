@@ -251,6 +251,124 @@ def test_setvar_and_campaign_specs(tmp_path):
     assert c[1] == Campaign("PHREF", "PHREF_DLY", "", "")
 
 
+# --- the equipment report panel (read-only) ----------------------------------------------
+
+# conftest.equipment_report writes this into the synthetic export. A literal: under
+# --import-mode=importlib, `import conftest` finds the repo-root conftest.py.
+EXPORTED_AT = "2026-11-05T17:41:00+00:00"
+
+
+def test_equipment_report_summary_names_the_sta_and_the_export_time(client) -> None:
+    r = client.get("/api/equipment-report")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["configured"] is True and body["available"] is True
+    assert body["exported_at"] == EXPORTED_AT
+    assert body["sta"]["path"].endswith("PHNAT.STA")
+    assert body["summary"]["different"] == 1
+
+
+def test_equipment_report_for_one_station_carries_only_that_station(client) -> None:
+    body = client.get("/api/stations/albu/equipment").json()
+    assert body["station"] == "ALBU"
+    assert body["exported_at"] == EXPORTED_AT
+    [cur] = body["current"]
+    assert cur["category"] == "different"
+    assert cur["fields"]["antenna"]["source_igs"] == "LEIAT504GG"
+    [v] = body["visits"]
+    assert v["after_status"] == "no STA row for the change"
+    assert {c["station"] for c in body["current"] + body["visits"]} == {"ALBU"}
+
+
+def test_a_station_the_report_does_not_mention_has_empty_lists(client) -> None:
+    body = client.get("/api/stations/ZZZZ/equipment").json()
+    assert body["available"] is True
+    assert body["current"] == [] and body["visits"] == [] and body["names"] == []
+
+
+def test_without_a_configured_report_the_console_says_so_plainly(bsw) -> None:
+    import dataclasses
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(dataclasses.replace(bsw, equipment_report=None)))
+    for url in ("/api/equipment-report", "/api/stations/ALBU/equipment"):
+        r = c.get(url)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["configured"] is False
+        assert "No equipment report is configured" in body["message"]
+        assert "current" not in body
+
+
+def test_an_unreadable_report_is_reported_not_raised(bsw) -> None:
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    bsw.equipment_report.write_text("{not json")
+    c = TestClient(create_app(bsw))
+    body = c.get("/api/stations/ALBU/equipment").json()
+    assert body["configured"] is True and body["available"] is False
+    assert "could not be read" in body["message"]
+
+
+def test_a_station_code_is_four_letters_or_digits_never_a_path(client) -> None:
+    for code in ("ALBUX", "AL", "..%2F..", "AL-U"):
+        assert client.get(f"/api/stations/{code}/equipment").status_code in (404, 422)
+
+
+def test_the_equipment_endpoints_are_read_only(client) -> None:
+    assert client.post("/api/equipment-report").status_code == 405
+    assert client.post("/api/stations/ALBU/equipment").status_code == 405
+
+
+def test_a_report_with_the_right_keys_but_wrong_shapes_is_reported_not_raised(bsw) -> None:
+    """A report file with the five keys but values of the wrong type (a hand-edited
+    or truncated-and-rewritten file) must still answer 200 and say it can't be read."""
+    import json
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(bsw), raise_server_exceptions=False)
+    for bad in (
+        {"sta": {}, "sources": "x", "current": [], "visits": [], "names": []},
+        {"sta": {}, "sources": {}, "current": ["ALBU"], "visits": [], "names": []},
+        {"sta": {}, "sources": {}, "current": {"station": "ALBU"}, "visits": [], "names": []},
+        {"sta": {}, "sources": {"logsheet_export": "x"}, "current": [], "visits": [], "names": []},
+    ):
+        bsw.equipment_report.write_text(json.dumps(bad))
+        for url in ("/api/equipment-report", "/api/stations/ALBU/equipment"):
+            r = c.get(url)
+            assert r.status_code == 200, (bad, url, r.status_code)
+            body = r.json()
+            assert body["configured"] is True and body["available"] is False, (bad, url)
+
+
+def test_a_report_removed_after_reading_does_not_raise(bsw, monkeypatch) -> None:
+    """The report is read and its time taken in one step: a file replaced or removed
+    by the nightly job between the two must not turn into a 500."""
+    from pathlib import Path
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    real = Path.read_text
+
+    def read_then_remove(self, *a, **k):
+        text = real(self, *a, **k)
+        if self == bsw.equipment_report:
+            self.unlink()
+        return text
+
+    monkeypatch.setattr(Path, "read_text", read_then_remove)
+    c = TestClient(create_app(bsw), raise_server_exceptions=False)
+    r = c.get("/api/stations/ALBU/equipment")
+    assert r.status_code == 200
+    assert r.json()["available"] is True
+
+
 def test_stage3_is_off_by_default_and_says_why(client) -> None:
     """Actions default to off: every stage-3 route answers 501 with the reason and
     queues nothing. The body keeps the shape it had before the worker was wired."""
@@ -262,3 +380,166 @@ def test_stage3_is_off_by_default_and_says_why(client) -> None:
         assert body["enabled"] is False
         assert "bernese-worker" in body["reason"]
         assert "switched off" in body["reason"]
+
+
+# --- run provenance on the Day page (ledger run_start, #318) ---------------------------
+
+
+def _append_new_run(bsw) -> None:
+    """A second run, written after #318: its run_start carries who, the command,
+    the code, the PCF and products. It re-attempts DOY 035, so the day has one
+    attempt from an old run (r1, no provenance) and one from a new one (r2)."""
+    import json as _json
+    import time as _time
+
+    from bsw_console.status import ledger_path
+
+    t = _time.time() - 60
+    rows = [
+        {"ts": t, "event": "run_start", "run": "r2", "host": "gps3", "pid": 2,
+         "campaign": "LUZON", "year": YEAR, "doys": [35], "banked": [], "config": "def",
+         "user": "processing", "sudo_user": None,
+         "command": ["bernese-run-year", "--campaign", "LUZON", "--run"],
+         "code": {"commit": "0123456789abcdef0123", "dirty": False},
+         "pcf": "LUZON_DLY", "products": "COD0OPSFIN", "product_tier": "final", "excluded": []},
+        {"ts": t + 1, "event": "attempt_start", "run": "r2", "doy": 35, "session": "0350", "mode": "block"},
+        {"ts": t + 30, "event": "attempt_end", "run": "r2", "doy": 35, "session": "0350",
+         "outcome": "ok", "seconds": 29.0, "error": "", "note": "", "stations": 2, "mode": "block"},
+        {"ts": t + 31, "event": "run_end", "run": "r2", "halt": None},
+    ]  # fmt: skip
+    path = ledger_path(bsw, bsw.campaign("LUZON"), YEAR)
+    with open(path, "a") as f:
+        f.write("".join(_json.dumps({"v": 1, **r}) + "\n" for r in rows))
+
+
+def test_each_attempt_carries_its_own_runs_provenance(bsw) -> None:
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    _append_new_run(bsw)
+    d = TestClient(create_app(bsw)).get(f"/api/campaigns/LUZON/years/{YEAR}/days/35").json()
+    new, old = d["attempts"]  # newest first
+    assert (new["run"], old["run"]) == ("r2", "r1")
+    p = new["provenance"]
+    assert p["recorded"] is True
+    assert p["started_by"] == "processing"
+    assert p["command"] == "bernese-run-year --campaign LUZON --run"
+    assert p["code_version"] == "0123456789"
+    assert (p["pcf"], p["products"], p["product_tier"], p["config_hash"]) == (
+        "LUZON_DLY", "COD0OPSFIN", "final", "def",
+    )  # fmt: skip
+    # The old run predates provenance: nothing invented, for that attempt only.
+    q = old["provenance"]
+    assert q["recorded"] is False
+    assert q["started_by"] is q["command"] is q["code_version"] is q["product_tier"] is None
+    assert q["config_hash"] == "abc", "the config hash was recorded before #318"
+
+
+def test_the_day_block_describes_the_latest_attempts_run(bsw) -> None:
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(bsw))
+    before = c.get(f"/api/campaigns/LUZON/years/{YEAR}/days/35").json()["provenance"]
+    assert (before["run"], before["recorded"], before["started_by"]) == ("r1", False, None)
+    _append_new_run(bsw)
+    after = c.get(f"/api/campaigns/LUZON/years/{YEAR}/days/35").json()["provenance"]
+    assert (after["run"], after["recorded"]) == ("r2", True)
+    assert after["started_by"] == "processing"
+    assert after["code_version"] == "0123456789"
+    assert after["product_tier"] == "final"
+    assert after["config_hash"] == "def"
+    assert after["pcf"] == "LUZON_DLY.PCF"
+
+
+def test_code_version_says_when_the_tree_was_dirty_or_unknown() -> None:
+    from bsw_console.status import run_provenance
+
+    base = {"user": "u", "code": {"commit": "a" * 40, "dirty": True}}
+    assert run_provenance(base)["code_version"] == "aaaaaaaaaa (dirty)"
+    base["code"] = {"commit": "a" * 40, "dirty": None}
+    assert run_provenance(base)["code_version"] == "aaaaaaaaaa (dirty unknown)"
+    base["code"] = {"commit": "unknown", "dirty": None}
+    assert run_provenance(base)["code_version"] == "unknown"
+    assert run_provenance({"user": "u", "sudo_user": "x"})["started_by"] == "u (sudo from x)"
+    assert run_provenance(None)["recorded"] is False
+
+
+# --- the time series (stage 5): pogf_geodetic_suite.timeseries.status, in-process ---------
+
+
+def test_time_series_lists_the_stations_and_the_outlier_mode(client) -> None:
+    body = client.get("/api/campaigns/LUZON/time-series").json()
+    assert body["configured"] is True and body["available"] is True
+    assert body["stations"] == ["SYN1"], "the reference is the origin, not a station to plot"
+    assert body["reference"] == "REF0"
+    assert body["outlier_mode"] == "record", "status's default, kept"
+
+
+def test_one_stations_status_is_what_station_status_returns(client, bsw) -> None:
+    import hashlib
+
+    from pogf_geodetic_suite.timeseries.status import station_status
+
+    body = client.get("/api/campaigns/LUZON/time-series/syn1").json()
+    assert body["configured"] is True and body["available"] is True
+    direct = station_status(bsw.ts_crd_dir, "SYN1", "REF0", offsets_catalog=bsw.ts_offsets)
+    for key in ("schema", "station", "velocity", "segments", "outlier_rule", "offsets", "warnings"):
+        assert body[key] == direct[key], key
+    assert body["outlier_rule"]["mode"] == "record"
+    assert (
+        body["offsets_catalog"]["sha256"] == hashlib.sha256(bsw.ts_offsets.read_bytes()).hexdigest()
+    )
+    assert len(body["segments"]) == 2, "split at the catalog's earthquake"
+    assert sum(seg["n_outliers"] for seg in body["segments"]) >= 1, "the spike is flagged"
+    assert set(body["velocity"]["sigma_mm_yr"]) == {"e", "n", "u"}
+
+
+def test_time_series_not_configured_says_so_and_names_the_settings(bsw) -> None:
+    import dataclasses
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(dataclasses.replace(bsw, ts_crd_dir=None, ts_offsets=None)))
+    for url in ("/api/campaigns/LUZON/time-series", "/api/campaigns/LUZON/time-series/SYN1"):
+        r = c.get(url)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["configured"] is False
+        assert "not configured" in body["message"]
+        assert body["missing"] == ["BSW_CONSOLE_TS_CRD_DIR", "BSW_CONSOLE_TS_OFFSETS"]
+
+
+def test_a_station_status_cannot_compute_is_explained_not_raised(client) -> None:
+    body = client.get("/api/campaigns/LUZON/time-series/NOPE").json()
+    assert body["configured"] is True and body["available"] is False
+    assert "NOPE" in body["message"]
+    ref = client.get("/api/campaigns/LUZON/time-series/REF0").json()
+    assert ref["available"] is False and "reference" in ref["message"]
+
+
+def test_time_series_station_is_four_characters_never_a_path(client) -> None:
+    for code in ("SYN12", "S", "..%2F.."):
+        assert client.get(f"/api/campaigns/LUZON/time-series/{code}").status_code in (404, 422)
+    assert client.post("/api/campaigns/LUZON/time-series/SYN1").status_code == 405
+
+
+def test_a_worker_run_credits_who_asked_not_the_service_account() -> None:
+    """bernese-worker runs as the service account and tags run_start with the
+    request's submitted_by. The person who asked is who started it."""
+    from bsw_console.status import run_provenance
+
+    start = {"user": "gps3", "code": {"commit": "a" * 40, "dirty": False},
+             "pcf": "LUZON_DLY", "submitted_by": "abc", "request": "20261105T021500.000000Z-0a1b2c3d"}  # fmt: skip
+    who = run_provenance(start)["started_by"]
+    assert who.startswith("abc")
+    assert "gps3" in who and "20261105T021500.000000Z-0a1b2c3d" in who
+
+
+def test_odd_ledger_field_types_do_not_break_the_day_page() -> None:
+    """A hand-edited or foreign run_start (code not an object) is shown, not a 500."""
+    from bsw_console.status import run_provenance
+
+    p = run_provenance({"user": "u", "code": "abc123", "pcf": "X", "command": 5})
+    assert p["recorded"] is True and p["code_version"] == "unknown"

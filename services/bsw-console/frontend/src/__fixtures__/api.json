@@ -34,8 +34,8 @@
     ],
     "last_run": {
      "run": "r1",
-     "started": 1793689751.6485233,
-     "ended": 1793690352.6485233,
+     "started": 1793841104.3633535,
+     "ended": 1793841705.3633535,
      "host": "elsewhere",
      "pid": 1,
      "doys": [
@@ -45,11 +45,21 @@
      ],
      "banked": [],
      "config": "abc",
+     "provenance": {
+      "recorded": false,
+      "started_by": null,
+      "command": null,
+      "code_version": null,
+      "pcf": null,
+      "products": null,
+      "product_tier": null,
+      "config_hash": "abc"
+     },
      "state": "halted",
      "halt": "configuration error (example)",
      "status_lines": [
       "run r1  LUZON 2025  host elsewhere pid 1  config abc",
-      "  started 2026-11-03 15:09; 3 days asked, 0 already banked",
+      "  started 2026-11-05 01:11; 3 days asked, 0 already banked",
       "  ok 1   failed 1   not run 0   not yet attempted 1",
       "  failed DOY 036: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
       "  typical day: 5.0 min (median of 1)",
@@ -61,7 +71,7 @@
   ],
   "activity": [
    {
-    "ts": 1793690352.6485233,
+    "ts": 1793841705.3633535,
     "who": "service",
     "campaign": "LUZON",
     "year": 2025,
@@ -70,7 +80,7 @@
     "text": "Run r1 halted: configuration error (example)"
    },
    {
-    "ts": 1793690351.6485233,
+    "ts": 1793841704.3633535,
     "who": "service",
     "campaign": "LUZON",
     "year": 2025,
@@ -79,7 +89,7 @@
     "text": "DOY 036 failed: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE"
    },
    {
-    "ts": 1793689751.6485233,
+    "ts": 1793841104.3633535,
     "who": "elsewhere",
     "campaign": "LUZON",
     "year": 2025,
@@ -3759,8 +3769,8 @@
   "year": 2025,
   "run": {
    "run": "r1",
-   "started": 1793689751.6485233,
-   "ended": 1793690352.6485233,
+   "started": 1793841104.3633535,
+   "ended": 1793841705.3633535,
    "host": "elsewhere",
    "pid": 1,
    "doys": [
@@ -3770,11 +3780,21 @@
    ],
    "banked": [],
    "config": "abc",
+   "provenance": {
+    "recorded": false,
+    "started_by": null,
+    "command": null,
+    "code_version": null,
+    "pcf": null,
+    "products": null,
+    "product_tier": null,
+    "config_hash": "abc"
+   },
    "state": "halted",
    "halt": "configuration error (example)",
    "status_lines": [
     "run r1  LUZON 2025  host elsewhere pid 1  config abc",
-    "  started 2026-11-03 15:09; 3 days asked, 0 already banked",
+    "  started 2026-11-05 01:11; 3 days asked, 0 already banked",
     "  ok 1   failed 1   not run 0   not yet attempted 1",
     "  failed DOY 036: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
     "  typical day: 5.0 min (median of 1)",
@@ -3784,8 +3804,8 @@
   "runs": [
    {
     "run": "r1",
-    "started": 1793689751.6485233,
-    "ended": 1793690352.6485233,
+    "started": 1793841104.3633535,
+    "ended": 1793841705.3633535,
     "state": "halted",
     "halt": "configuration error (example)",
     "doys": [
@@ -3916,8 +3936,8 @@
     "run": "r1",
     "doy": 35,
     "session": "0350",
-    "started": 1793689752.6485233,
-    "ended": 1793690051.6485233,
+    "started": 1793841105.3633535,
+    "ended": 1793841404.3633535,
     "outcome": "ok",
     "seconds": 299.0,
     "error": "",
@@ -3925,7 +3945,17 @@
     "stations": 2,
     "mode": "day",
     "config": "abc",
-    "host": "elsewhere"
+    "host": "elsewhere",
+    "provenance": {
+     "recorded": false,
+     "started_by": null,
+     "command": null,
+     "code_version": null,
+     "pcf": null,
+     "products": null,
+     "product_tier": null,
+     "config_hash": "abc"
+    }
    }
   ],
   "results": [
@@ -3935,7 +3965,7 @@
     "folder": "OUT",
     "what": "BPE processing summary",
     "size": 36,
-    "written": 1793693351.6478434,
+    "written": 1793844704.363344,
     "path": "OUT/R2S_20250350.PRC"
    },
    {
@@ -3944,7 +3974,7 @@
     "folder": "STA",
     "what": "Final coordinates (the target output)",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3631537,
     "path": "STA/FIN_20250350.CRD"
    },
    {
@@ -3953,7 +3983,7 @@
     "folder": "SOL",
     "what": "SINEX, one-session solution",
     "size": 92,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3629558,
     "path": "SOL/FIN_20250350.SNX.gz"
    },
    {
@@ -3962,7 +3992,7 @@
     "folder": "SOL",
     "what": "Normal equations, final",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3630457,
     "path": "SOL/FIN_20250350.NQ0.gz"
    },
    {
@@ -3971,7 +4001,7 @@
     "folder": "SOL",
     "what": "Normal equations, reduced",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3631,
     "path": "SOL/RED_20250350.NQ0.gz"
    },
    {
@@ -3980,7 +4010,7 @@
     "folder": "ATM",
     "what": "Troposphere, SINEX format",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3632028,
     "path": "ATM/FIN_20250350.TRO"
    },
    {
@@ -3989,7 +4019,7 @@
     "folder": "ATM",
     "what": "Troposphere, Bernese format",
     "size": 2,
-    "written": 1793693351.6478434,
+    "written": 1793844704.3632498,
     "path": "ATM/FIN_20250350.TRP"
    }
   ],
@@ -4008,9 +4038,12 @@
    "pcf": "LUZON_DLY.PCF",
    "ambiguities": "fixed",
    "campaign_dir": "${P}/LZY250350",
+   "run": "r1",
+   "recorded": false,
    "started_by": null,
    "command": null,
    "code_version": null,
+   "products": null,
    "product_tier": null,
    "config_hash": "abc"
   }
@@ -4579,5 +4612,635 @@
  },
  "/api/plans": {
   "plans": []
+ },
+ "/api/campaigns/LUZON/time-series": {
+  "configured": true,
+  "available": true,
+  "crd_dir": "/srv/bsw/timeseries/STA",
+  "reference": "REF0",
+  "offsets_path": "/srv/bsw/timeseries/offsets",
+  "stations": [
+   "SYN1"
+  ],
+  "outlier_mode": "record"
+ },
+ "/api/campaigns/LUZON/time-series/SYN1": {
+  "configured": true,
+  "available": true,
+  "crd_dir": "/srv/bsw/timeseries/STA",
+  "reference": "REF0",
+  "offsets_path": "/srv/bsw/timeseries/offsets",
+  "schema": "pogf.timeseries.status/1",
+  "station": "SYN1",
+  "offsets_catalog": {
+   "path": "/srv/bsw/timeseries/offsets",
+   "sha256": "58ce5413670746f77d55e4d32aa39288f613bcb7573be5df200d60ed19e9d0a4"
+  },
+  "outlier_rule": {
+   "method": "iqr",
+   "factor": 3.0,
+   "scope": "per_segment",
+   "on": "raw_values",
+   "mode": "record"
+  },
+  "origin_m": {
+   "e": -628.1742835057136,
+   "n": 809.9954850580419,
+   "u": -1131.062255461562
+  },
+  "series": {
+   "t": [
+    2020.002737850787,
+    2020.043805612594,
+    2020.084873374401,
+    2020.125941136208,
+    2020.167008898015,
+    2020.208076659822,
+    2020.2491444216291,
+    2020.290212183436,
+    2020.331279945243,
+    2020.37234770705,
+    2020.413415468857,
+    2020.454483230664,
+    2020.495550992471,
+    2020.536618754278,
+    2020.577686516085,
+    2020.6187542778919,
+    2020.6598220396988,
+    2020.7008898015058,
+    2020.7419575633128,
+    2020.7830253251198,
+    2020.8240930869267,
+    2020.8651608487337,
+    2020.9062286105407,
+    2020.9472963723476,
+    2020.9883641341546,
+    2021.002737850787,
+    2021.043805612594,
+    2021.084873374401,
+    2021.125941136208,
+    2021.167008898015,
+    2021.208076659822,
+    2021.2491444216291,
+    2021.290212183436,
+    2021.331279945243,
+    2021.37234770705,
+    2021.413415468857,
+    2021.454483230664,
+    2021.495550992471,
+    2021.536618754278,
+    2021.577686516085,
+    2021.6187542778919,
+    2021.6598220396988,
+    2021.7008898015058,
+    2021.7419575633128,
+    2021.7830253251198,
+    2021.8240930869267,
+    2021.8651608487337,
+    2021.9062286105407,
+    2021.9472963723476,
+    2021.9883641341546
+   ],
+   "e_mm": [
+    0.0,
+    -2.438687436097098,
+    -2.128465721170869,
+    -4.567153558582504,
+    -4.248314507094619,
+    -6.687002344278881,
+    -6.368163292790996,
+    -8.81546806544975,
+    -8.496629415276402,
+    -10.935316851146126,
+    -10.616477799658242,
+    -13.055165637069877,
+    -12.744943922143648,
+    -15.183631759555283,
+    -14.864792707840024,
+    -17.303480143937122,
+    -16.984641092449237,
+    -19.43194626642253,
+    -19.113107214934644,
+    -21.551795052118905,
+    -21.23295600063102,
+    -23.67164383781528,
+    -23.36142172180189,
+    -25.800109559213524,
+    -25.481270507498266,
+    -35.84784794952611,
+    -35.52900889803823,
+    -37.97631367069698,
+    -37.6574746192091,
+    -40.09616245662073,
+    -39.777323404905474,
+    -42.21601124231711,
+    -41.90578952739088,
+    -44.34447696348798,
+    -44.02563791200009,
+    -46.464325749184354,
+    -46.14548669769647,
+    -48.59279187166976,
+    -263.70573077656445,
+    -50.71264025627897,
+    -50.39380160587825,
+    -52.83248904197535,
+    -52.52226732704912,
+    -54.960955164460756,
+    -54.64211611297287,
+    -57.08080395015713,
+    -56.76196489866925,
+    -59.209269671328,
+    -58.89043061984012,
+    -61.32911845702438
+   ],
+   "n_mm": [
+    0.0,
+    1.425332629651166,
+    -0.6435609735717662,
+    0.7914511070339358,
+    -1.2787166504040215,
+    0.14661603847798688,
+    -1.9235519442872828,
+    -0.4872655434837725,
+    -2.567113083955519,
+    -1.132100837253347,
+    -3.2022688201323035,
+    -1.767256514199289,
+    -3.8458297343595405,
+    -2.4108176538675252,
+    -4.480985411305483,
+    -3.0556527816543166,
+    -5.125820764533273,
+    -3.6895343042715467,
+    -5.759702287150503,
+    -4.334369598268495,
+    -6.404537355706452,
+    -4.96952527510075,
+    -7.038418937668212,
+    -5.613086248672516,
+    -7.683254231551473,
+    -4.76628362628162,
+    -6.846131000770583,
+    -5.409844599739699,
+    -7.480012582732343,
+    -6.045000276685641,
+    -8.124847876501917,
+    -6.68983557068259,
+    -8.758729399119147,
+    -7.333396769467981,
+    -9.403564527019626,
+    -7.9685524464139235,
+    -10.03872020385188,
+    -8.612113360754847,
+    21.1713330039629,
+    -9.247269096817945,
+    -11.327116412076066,
+    -9.892104390814893,
+    -11.960997993924138,
+    -10.525985913432123,
+    -12.605833287921087,
+    -11.170820981988072,
+    -13.240988964867029,
+    -11.804702563836145,
+    -13.88455016365242,
+    -12.449537857833093
+   ],
+   "u_mm": [
+    0.0,
+    -1.1136105977129773,
+    -1.4616638652569236,
+    -2.57276346837898,
+    -2.9159055688978697,
+    -4.029516395121391,
+    -4.372658554530062,
+    -5.48866903727685,
+    -5.834322706732564,
+    -6.945422022681669,
+    -7.288564181635593,
+    -8.399663725867867,
+    -8.750228275630434,
+    -9.861327878525117,
+    -10.204469979044006,
+    -11.318080576756984,
+    -11.661222735938281,
+    -12.777233447195613,
+    -13.12037560637691,
+    -14.233986432600432,
+    -14.577128533346695,
+    -15.688228136241378,
+    -16.036281175047407,
+    -17.149892001725675,
+    -17.4930341606796,
+    -23.04201266815653,
+    -23.387666050666667,
+    -24.503676533413454,
+    -24.84681869236738,
+    -25.957918236827027,
+    -26.30357167799957,
+    -27.414671222231846,
+    -27.762724548210826,
+    -28.876335146151177,
+    -29.219477246670067,
+    -30.33057684956475,
+    -30.673718950311013,
+    -31.79224094355959,
+    -154.9136234366415,
+    -33.24648241846262,
+    -33.59213602971067,
+    -34.703235403640065,
+    -35.051288671411385,
+    -36.16238827430607,
+    -36.508041656816204,
+    -37.61914120104848,
+    -37.962283360229776,
+    -39.078293842976564,
+    -39.42394728414911,
+    -40.535046828608756
+   ],
+   "outlier": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "in_fit": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "segment": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ]
+  },
+  "offsets": [
+   {
+    "t": 2021.0,
+    "type": "EQ",
+    "label": "earthquake",
+    "within_span": true
+   }
+  ],
+  "segments": [
+   {
+    "index": 0,
+    "t_start": 2020.002737850787,
+    "t_end": 2020.9883641341546,
+    "span_yr": 0.9856262833675373,
+    "n_epochs": 25,
+    "n_fit": 25,
+    "n_outliers": 0,
+    "velocity_mm_yr": {
+     "e": -25.851931037512447,
+     "n": -7.792509802085703,
+     "u": -17.74684399002402
+    },
+    "sigma_mm_yr": {
+     "e": 0.4849099348655637,
+     "n": 0.6160345124484327,
+     "u": 0.13513884735149365
+    },
+    "r2": {
+     "e": 0.9919728054471642,
+     "n": 0.8743231754496257,
+     "u": 0.9986681136216338
+    },
+    "short_span": true,
+    "line": {
+     "t": [
+      2020.002737850787,
+      2020.9883641341546
+     ],
+     "e_mm": [
+      -0.66313202341337,
+      -26.143474729790647
+     ],
+     "n_mm": [
+      0.8382524701171596,
+      -6.842250004217675
+     ],
+     "u_mm": [
+      -0.18589202083462375,
+      -17.677647904225516
+     ]
+    }
+   },
+   {
+    "index": 1,
+    "t_start": 2021.002737850787,
+    "t_end": 2021.9883641341546,
+    "span_yr": 0.9856262833675373,
+    "n_epochs": 25,
+    "n_fit": 25,
+    "n_outliers": 1,
+    "velocity_mm_yr": {
+     "e": -29.88713387282174,
+     "n": -7.195867110328623,
+     "u": -20.046574827885344
+    },
+    "sigma_mm_yr": {
+     "e": 29.613144836091625,
+     "n": 4.304601760556729,
+     "u": 16.905443828948407
+    },
+    "r2": {
+     "e": 0.042408407531770886,
+     "n": 0.10833620268676891,
+     "u": 0.05761402076632893
+    },
+    "short_span": true,
+    "line": {
+     "t": [
+      2021.002737850787,
+      2021.9883641341546
+     ],
+     "e_mm": [
+      -41.81603721401241,
+      -71.27358189358974
+     ],
+     "n_mm": [
+      -4.630406396749743,
+      -11.722842152309646
+     ],
+     "u_mm": [
+      -26.637077166038594,
+      -46.395508207896455
+     ]
+    }
+   }
+  ],
+  "velocity": {
+   "segment": 1,
+   "velocity_mm_yr": {
+    "e": -29.88713387282174,
+    "n": -7.195867110328623,
+    "u": -20.046574827885344
+   },
+   "sigma_mm_yr": {
+    "e": 29.613144836091625,
+    "n": 4.304601760556729,
+    "u": 16.905443828948407
+   },
+   "span_yr": 0.9856262833675373,
+   "short_span": true,
+   "covers_latest_epoch": true
+  },
+  "min_span_years": 1.0,
+  "warnings": [
+   "final segment spans 360 days (< 1 yr): its velocity is not a secular rate"
+  ]
+ },
+ "/api/equipment-report": {
+  "configured": true,
+  "available": true,
+  "written": 1793843457.0587504,
+  "sta": {
+   "path": "/srv/bsw/equipment/PHNAT.STA",
+   "rows": 2,
+   "codes": 2
+  },
+  "exported_at": "2026-11-05T17:41:00+00:00",
+  "export_counts": {
+   "logsheets": 1,
+   "equipment_history": 0
+  },
+  "equipment_csv": "/srv/bsw/equipment/equipment.csv",
+  "current_equipment_from": "equipment CSV /srv/bsw/equipment/equipment.csv",
+  "summary": {
+   "equal": 0,
+   "equal after name map": 1,
+   "different": 1,
+   "unmapped name": 0,
+   "only in STA": 0,
+   "only in source": 1
+  }
+ },
+ "/api/stations/ALBU/equipment": {
+  "configured": true,
+  "available": true,
+  "written": 1793843457.0587504,
+  "sta": {
+   "path": "/srv/bsw/equipment/PHNAT.STA",
+   "rows": 2,
+   "codes": 2
+  },
+  "exported_at": "2026-11-05T17:41:00+00:00",
+  "export_counts": {
+   "logsheets": 1,
+   "equipment_history": 0
+  },
+  "equipment_csv": "/srv/bsw/equipment/equipment.csv",
+  "current_equipment_from": "equipment CSV /srv/bsw/equipment/equipment.csv",
+  "station": "ALBU",
+  "current": [
+   {
+    "station": "ALBU",
+    "category": "different",
+    "sta_name": "ALBU ALBU",
+    "sta_line": 6,
+    "sta_from": "2015 01 01 00 00 00",
+    "sta_to": "2099 12 31 00 00 00",
+    "fields": {
+     "receiver": {
+      "sta": "TRIMBLE NETR9",
+      "source": "Trimble NetR9",
+      "status": "equal after name map",
+      "source_igs": "TRIMBLE NETR9",
+      "note": ""
+     },
+     "antenna": {
+      "sta": "TRM57971.00",
+      "source": "AT504GG",
+      "status": "different",
+      "source_igs": "LEIAT504GG",
+      "note": ""
+     },
+     "radome": {
+      "sta": "NONE",
+      "source": "NONE",
+      "status": "equal",
+      "source_igs": "NONE",
+      "note": ""
+     }
+    },
+    "note": ""
+   }
+  ],
+  "visits": [
+   {
+    "station": "ALBU",
+    "visit_date": "2026-03-10",
+    "visit_time": "2026-03-10T01:30:00",
+    "visit_time_source": "arrival_time",
+    "equipment_changed": true,
+    "before_status": "equal after name map",
+    "before_fields": {
+     "receiver": {
+      "sta": "TRIMBLE NETR9",
+      "source": "Trimble NetR9",
+      "status": "equal after name map",
+      "source_igs": "TRIMBLE NETR9",
+      "note": ""
+     },
+     "antenna": {
+      "sta": "TRM57971.00",
+      "source": "TRM57971.00",
+      "status": "equal",
+      "source_igs": "TRM57971.00",
+      "note": ""
+     }
+    },
+    "before_row_line": 6,
+    "after_status": "no STA row for the change",
+    "after_fields": {
+     "receiver": "LEICA GR50"
+    },
+    "after_row_line": null,
+    "after_row_from": "",
+    "note": ""
+   }
+  ],
+  "names": []
  }
 }
