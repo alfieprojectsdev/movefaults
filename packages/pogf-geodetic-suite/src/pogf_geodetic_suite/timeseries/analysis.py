@@ -124,6 +124,9 @@ class SegmentVelocity:
     # with one time, and only one of them may be the outlier.
     rows: tuple[int, ...] = field(default_factory=tuple)
     outlier_rows: tuple[int, ...] = field(default_factory=tuple)
+    # Rows the caller asked to leave out of the fit (`exclude_rows`), in the
+    # caller's numbering: a person's decision, separate from the rule's flags.
+    excluded_rows: tuple[int, ...] = field(default_factory=tuple)
 
 
 @dataclass
@@ -203,6 +206,7 @@ def estimate_velocity(
     outlier_iqr_factor: float = 3.0,
     station: str = "",
     exclude_outliers: bool = True,
+    exclude_rows: np.ndarray | None = None,
 ) -> VelocityResult:
     """
     Estimate ENU velocity with optional offset-based segmentation.
@@ -220,6 +224,13 @@ def estimate_velocity(
         outlier_iqr_factor: Multiplier on IQR for outlier detection.
                             vel_line_v8 uses 3.0 (MATLAB default is 1.5).
         station:            Label for the returned VelocityResult.
+        exclude_rows:       Optional boolean mask over the caller's rows, shape
+                            (N,): rows to leave out of the fit whatever the
+                            outlier rule says. This is for epochs a PERSON has
+                            confirmed as outliers. The rule still runs on every
+                            row and its flags are reported unchanged, so a
+                            decision never alters what the statistic flagged.
+                            None, or all False, is identical to not passing it.
 
     Returns:
         VelocityResult.final_velocity gives the post-last-offset velocity.
@@ -235,10 +246,18 @@ def estimate_velocity(
     if len(t) != enu_m.shape[0]:
         raise ValueError("t and enu_m must have the same number of rows")
 
+    if exclude_rows is None:
+        excluded_all = np.zeros(len(t), dtype=bool)
+    else:
+        excluded_all = np.asarray(exclude_rows, dtype=bool)
+        if excluded_all.shape != (len(t),):
+            raise ValueError("exclude_rows must be a boolean mask with one entry per row of t")
+
     # Sort chronologically. `order` maps sorted position -> caller's row, so
     # each segment can report its rows in the caller's numbering.
     order = np.argsort(t)
     t, enu_m = t[order], enu_m[order]
+    excluded_all = excluded_all[order]
 
     # Build segment boundaries from offsets
     starts = [0]
@@ -263,9 +282,15 @@ def estimate_velocity(
 
         is_outlier = _detect_outliers_iqr(enu_seg, outlier_iqr_factor)
         outlier_epochs = tuple(float(v) for v in t_seg[is_outlier])
+        excluded = excluded_all[seg_start:seg_end]
 
         if exclude_outliers:
-            t_clean, enu_clean = t_seg[~is_outlier], enu_seg[~is_outlier]
+            keep = ~is_outlier & ~excluded
+            t_clean, enu_clean = t_seg[keep], enu_seg[keep]
+        elif excluded.any():
+            # MATLAB-faithful for the statistic's flags (kept, see below), but
+            # epochs a person confirmed as outliers are left out.
+            t_clean, enu_clean = t_seg[~excluded], enu_seg[~excluded]
         else:
             # MATLAB-faithful. vel_line_v8 computes `cleaned_d` via rmoutliers
             # and then fits the regression against the RAW data anyway, so
@@ -285,7 +310,8 @@ def estimate_velocity(
         if len(t_clean) < 3:
             raise ValueError(
                 f"Station {station!r}: segment [{t_seg[0]:.4f}, {t_seg[-1]:.4f}] "
-                f"has only {len(t_clean)} point(s) after outlier removal (need ≥ 3)."
+                f"has only {len(t_clean)} point(s) after outlier removal and "
+                f"exclusions (need ≥ 3)."
             )
 
         vel, sig, r2 = _fit_segment(t_clean, enu_clean)
@@ -306,6 +332,7 @@ def estimate_velocity(
                 outlier_epochs=outlier_epochs,
                 rows=tuple(int(r) for r in rows_seg),
                 outlier_rows=tuple(int(r) for r in rows_seg[is_outlier]),
+                excluded_rows=tuple(int(r) for r in rows_seg[excluded]),
             )
         )
 

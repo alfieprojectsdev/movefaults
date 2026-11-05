@@ -414,3 +414,41 @@ def test_cli_group_keeps_plots_command():
     res = CliRunner().invoke(group, ["plots", "--help"])
     assert res.exit_code == 0
     assert "PLOT" in res.output
+
+
+# ---------------------------------------------------------------------------
+# exclude_sessions: epochs a person confirmed as outliers
+# ---------------------------------------------------------------------------
+
+
+def test_no_exclusions_is_the_published_fit(recorded, campaign):
+    crd_dir, catalog, _ = campaign
+    again = station_status(crd_dir, STA, REF, offsets_catalog=catalog, exclude_sessions=[])
+    assert again == recorded
+    assert recorded["exclusions"] == {"requested": 0, "matched": 0, "unmatched": []}
+    assert not any(recorded["series"]["excluded"])
+
+
+def test_an_excluded_session_leaves_the_fit_and_keeps_its_flag(recorded, campaign):
+    crd_dir, catalog, _ = campaign
+    out = station_status(
+        crd_dir, STA, REF, offsets_catalog=catalog, exclude_sessions=["2021-100", "2030-001"]
+    )
+    s = out["series"]
+    i = s["t"].index(OUTLIER_T)
+    assert s["excluded"][i] is True and s["in_fit"][i] is False
+    assert s["outlier"] == recorded["series"]["outlier"], "the rule's flags are unchanged"
+    assert out["outlier_rule"]["mode"] == "record"
+    assert out["exclusions"]["requested"] == 2 and out["exclusions"]["matched"] == 1
+    assert len(out["exclusions"]["unmatched"]) == 1
+    seg0 = out["segments"][0]
+    assert seg0["n_fit"] == recorded["segments"][0]["n_fit"] - 1
+    assert seg0["velocity_mm_yr"]["u"] != recorded["segments"][0]["velocity_mm_yr"]["u"]
+    json.dumps(out, allow_nan=False)
+
+
+def test_session_dates_are_checked(campaign):
+    crd_dir, catalog, _ = campaign
+    for bad in ("2021-1", "21100", "1970-001"):
+        with pytest.raises(ValueError):
+            station_status(crd_dir, STA, REF, offsets_catalog=catalog, exclude_sessions=[bad])
