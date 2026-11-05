@@ -1259,3 +1259,74 @@ def test_a_row_with_an_unparseable_date_is_not_an_overlap(tmp_path):
     assert not any("overlap" in w for w in report.warnings), report.warnings
     kinds = {f.kind for f in check_sta(sta.read_text(), "TEST.STA")}
     assert "sta_bad_date" in kinds and "sta_overlap" not in kinds, kinds
+
+
+# --- single-instant rows (FROM == TO) --------------------------------------
+#
+# A shared boundary between two ranges is not an overlap (the IGS convention,
+# pinned above). A row whose FROM equals its TO has no extent of its own, so
+# that rule cannot apply to it: its one instant is all it covers. These pin
+# what the rule does with it.
+
+_T = "2025 04 15 00 00 00"
+_SINGLE_INSTANT_CASES = [
+    # (row 1 from, to), (row 2 from, to), overlap?
+    ((_T, _T), (_T, _T), True),  # two single instants at the same instant
+    ((_T, _T), (_T, "2025 06 01 00 00 00"), True),  # instant at the other's start
+    ((_T, _T), ("2025 01 01 00 00 00", _T), True),  # instant at the other's end
+    ((_T, _T), ("2025 01 01 00 00 00", "2025 06 01 00 00 00"), True),  # inside a range
+    ((_T, _T), ("2025 04 15 00 00 01", "2025 04 15 00 00 01"), False),  # 1 s apart
+    (("2025 01 01 00 00 00", _T), (_T, "2025 06 01 00 00 00"), False),  # shared boundary
+]
+_CASE_IDS = [
+    "same-instant",
+    "instant-at-start",
+    "instant-at-end",
+    "instant-inside",
+    "instants-1s-apart",
+    "shared-boundary",
+]
+
+
+def _when(field):
+    return dt.datetime(*(int(x) for x in field.split()))
+
+
+@pytest.mark.parametrize(("one", "two", "expected"), _SINGLE_INSTANT_CASES, ids=_CASE_IDS)
+def test_windows_overlap_on_single_instants(one, two, expected):
+    from bernese_workflow.rinex_header_validator import windows_overlap
+
+    a, b = [_when(x) for x in one], [_when(x) for x in two]
+    # The rule is symmetric: which row comes first in the file cannot matter.
+    assert windows_overlap(*a, *b) is expected
+    assert windows_overlap(*b, *a) is expected
+
+
+@pytest.mark.parametrize(("one", "two", "expected"), _SINGLE_INSTANT_CASES, ids=_CASE_IDS)
+def test_both_checks_agree_on_single_instant_rows(tmp_path, one, two, expected):
+    """Two rows of one full name with different receivers, so where they
+    overlap they disagree. station_files and the header check: one verdict."""
+    from bernese_workflow.rinex_header_validator import sta_type002_rows
+    from bernese_workflow.station_files import _overlap, check_sta
+
+    raw_dir = tmp_path / "RAW"
+    raw_dir.mkdir()
+    _write_rinex(raw_dir, "S01R1050.25o", _rinex2_obs("S01R", "TRIMBLE ALLOY", "LEIAR25.R4      LEIT"))
+    sta = tmp_path / "TEST.STA"
+    sta.write_text(
+        _make_sta_content(
+            [
+                {"name": "S01R", "receiver": "TRIMBLE NETR9", "antenna": "LEIAR25.R4",
+                 "from": one[0], "to": one[1]},
+                {"name": "S01R", "receiver": "TRIMBLE ALLOY", "antenna": "LEIAR25.R4",
+                 "from": two[0], "to": two[1]},
+            ]
+        ),
+        encoding="ascii",
+    )  # fmt: skip
+    a, b = sta_type002_rows(sta.read_text())
+    assert _overlap(a, b) is expected
+    kinds = {f.kind for f in check_sta(sta.read_text(), "TEST.STA")}
+    assert ("sta_overlap" in kinds) is expected, kinds
+    report = validate_rinex_headers(raw_dir, sta, day=dt.date(2025, 4, 15))
+    assert any("overlap" in w for w in report.warnings) is expected, report.warnings

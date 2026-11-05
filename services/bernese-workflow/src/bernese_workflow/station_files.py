@@ -269,7 +269,8 @@ def _is_open(row: StaRow) -> bool:
 
 def _overlap(a: StaRow, b: StaRow) -> bool:
     """Both windows cover a common moment (``windows_overlap``, the rule the
-    header check uses too). A shared boundary does not count."""
+    header check uses too). A shared boundary between two ranges does not
+    count; a single-instant row (FROM == TO) at either end of another does."""
     return windows_overlap(a.start, a.end, b.start, b.end)
 
 
@@ -287,6 +288,12 @@ def _touches(
     window: tuple[dt.datetime | None, dt.datetime | None], lo: dt.datetime, hi: dt.datetime
 ) -> bool:
     w_lo, w_hi = window
+    if w_lo is not None and w_lo == w_hi:
+        # A single-instant overlap (windows_overlap): the instant is inside
+        # the run when it falls in [lo, hi), including lo itself, the first
+        # day's midnight. The strict test below would read that as ending
+        # exactly where the run begins.
+        return lo <= w_lo < hi
     return (w_lo is None or w_lo < hi) and (w_hi is None or w_hi > lo)
 
 
@@ -357,7 +364,10 @@ def check_sta(text: str, label: str, rows: list[StaRow] | None = None) -> list[F
                 if a.text == b.text or not _overlap(a, b):
                     continue
                 later = b.start is not None and (a.start is None or b.start > a.start)
-                if _is_open(a) and later:
+                # Not for a later single-instant row: closing ``a`` at its FROM
+                # would still leave ``a`` ending at that instant, which
+                # ``windows_overlap`` counts as an overlap.
+                if _is_open(a) and later and b.start != b.end:
                     # Closing ``a`` at the first later start also ends its
                     # overlap with every row that starts after that one; a
                     # finding per later row would advise closing it at each.
