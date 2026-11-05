@@ -2,10 +2,13 @@
 
 Stages 1 and 2 are wired: every GET reads the processing service's records,
 and saving a plan writes one file in the console's own state directory.
-Stage 3 (start, stop, redo, preflight) answers 501 with the reason: it needs a
-run worker that holds the BPE lock and per-person accounts, and neither exists
-yet. The browser never sends a filesystem path: it names a campaign, a year
-and a day, and the file viewer takes only a name the server listed for that day.
+Stage 3 (start, stop, redo, preflight) answers 501 with the reason. The run
+worker that will carry those requests out under the BPE lock exists
+(bernese_workflow.run_worker, `bernese-worker`, #316), but this console is not
+wired to it yet, no worker runs as a service on gps3, and per-person accounts,
+so every action is recorded with a name, are still pending. The browser never
+sends a filesystem path: it names a campaign, a year and a day, and the file
+viewer takes only a name the server listed for that day.
 
 Sign-in is pending too (personal accounts on gps3 are a prerequisite in the
 brief). Until then the server binds to 127.0.0.1 by default and says nobody is
@@ -36,10 +39,10 @@ from . import stations, status
 from .settings import Settings
 
 STAGE3_REASON = (
-    "Not enabled yet. Starting, stopping and redoing runs from the console needs a run "
-    "worker on gps3 that holds the BPE lock, and personal accounts so every action is "
-    "recorded with a name. Until both exist, runs are started by the maintainer with "
-    "bernese-run-year."
+    "Not enabled yet. The run worker that starts, stops and redoes runs under the BPE "
+    "lock exists on gps3 (bernese-worker), but this console is not connected to it yet, "
+    "and personal accounts, so every action is recorded with a name, are still pending. "
+    "Until then, runs are started on gps3 from the command line with bernese-run-year."
 )
 
 
@@ -213,7 +216,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             status_code=501,
         )
 
-    # Stage 3. Each answers 501 until the run worker exists.
+    # Stage 3. Each answers 501 until the console is wired to the run worker.
     for route in ("/api/runs/start", "/api/runs/stop", "/api/preflight", "/api/redo"):
 
         @app.post(route)
