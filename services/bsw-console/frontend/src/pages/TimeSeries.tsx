@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useApi } from '../lib'
 import type { Enu, TsStation, TsSummary } from '../types'
 import { Failed, Loading } from './common'
-import TsPlot from './TsPlot'
+import TsPlot, { type PlotPoint } from './TsPlot'
 import OutlierDecision from './OutlierDecision'
 
 const mm = (v: number) => v.toFixed(2)
@@ -90,19 +90,25 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
 function Station({ data, base, reload }: { data: Extract<TsStation, { available: true }>; base: string; reload: () => void }) {
   const v = data.velocity
   const flagged = data.series.outlier.filter(Boolean).length
-  const [picked, setPicked] = useState<number | null>(null)
-  useEffect(() => setPicked(null), [data.station, data.reference])
+  const [picked, setPicked] = useState<{ index: number; point: PlotPoint } | null>(null)
+  const [notice, setNotice] = useState('')
+  useEffect(() => { setPicked(null); setNotice('') }, [data.station, data.reference])
+  const close = useCallback(() => setPicked(null), [])
   const fit = data.decided_fit
   const others = data.warnings.filter((w) => w !== data.reference_warning)
   return (
     <div className="stack">
       {data.reference_warning && <div className="banner warn" role="status">{data.reference_warning}.</div>}
       <TsPlot series={data.series} segments={data.segments} offsets={data.offsets} station={data.station}
-        decisions={data.decisions} decidedFit={fit} onPick={setPicked} />
-      {picked !== null && data.reference && (
-        <OutlierDecision key={picked} base={base.split('?')[0]} station={data.station} reference={data.reference}
-          series={data.series} index={picked} decisions={data.decisions} onSaved={reload} />
-      )}
+        decisions={data.decisions} decidedFit={fit} selected={picked?.index ?? null}
+        onPick={(index, point) => { setPicked({ index, point }); setNotice('') }} onViewChange={close}>
+        {picked !== null && data.reference && (
+          <OutlierDecision key={picked.index} base={base.split('?')[0]} station={data.station} reference={data.reference}
+            series={data.series} index={picked.index} point={picked.point} decisions={data.decisions} onClose={close}
+            onSaved={(text) => { setNotice(text); setPicked(null); reload() }} />
+        )}
+      </TsPlot>
+      {notice && <div className="banner info" role="status">{notice}</div>}
       <section aria-labelledby="ts-vel" className="panel pad stack">
         <h2 id="ts-vel">{data.station} · velocity (final segment)</h2>
         <table className="t">

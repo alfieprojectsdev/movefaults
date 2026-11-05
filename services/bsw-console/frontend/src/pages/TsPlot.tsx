@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { COMPONENTS, decisionMarks, lineAt, panRange, panelData, sessionDate, axisDigits, yearRange, yearsIn, zoomRange } from '../tsPlot'
 import type { TsDecidedFit, TsDecision, TsSegment, TsSeries } from '../types'
+
+export type PlotPoint = { x: number; y: number }
 
 type Offset = { t: number; type: string; label: string; within_span: boolean }
 
@@ -22,16 +24,24 @@ type Offset = { t: number; type: string; label: string; within_span: boolean }
  * fitted line per segment, and the catalogue's offsets as dashed verticals.
  * Rings mark epochs a person decided on (confirmed outlier, or a flag overridden
  * as real), and a dashed line is the fit without the confirmed outliers, which
- * is not published. A click (not a drag) on a panel picks the nearest epoch.
+ * is not published. A click (not a drag) on a panel picks the nearest epoch and
+ * says where it is on the plot; `children` are laid over the plot, for the popup
+ * beside it. A change of range tells the page, since the point has then moved.
  */
-export default function TsPlot({ series, segments, offsets, station, decisions, decidedFit, onPick }: {
+export default function TsPlot({ series, segments, offsets, station, decisions, decidedFit, selected, onPick, onViewChange, children }: {
   series: TsSeries; segments: TsSegment[]; offsets: Offset[]; station: string
-  decisions?: TsDecision[]; decidedFit?: TsDecidedFit | null; onPick?: (index: number) => void
+  decisions?: TsDecision[]; decidedFit?: TsDecidedFit | null; selected?: number | null
+  onPick?: (index: number, point: PlotPoint) => void; onViewChange?: () => void; children?: ReactNode
 }) {
   const host = useRef<HTMLDivElement>(null)
   // Kept in a ref so a new callback does not rebuild the charts.
   const pick = useRef(onPick)
   pick.current = onPick
+  const viewChanged = useRef(onViewChange)
+  viewChanged.current = onViewChange
+  const chosen = useRef(selected)
+  chosen.current = selected
+  const wrap = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<string>('')
   const chartsRef = useRef<uPlot[]>([])
   const view = useRef<[number, number] | null>(null)
@@ -124,11 +134,39 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
             const moved = down ? Math.hypot(e.clientX - down[0], e.clientY - down[1]) : 0
             down = null
             const i = u.cursor.idx
-            if (moved < 4 && i != null && i >= 0 && i < series.t.length) pick.current?.(i)
+            if (moved >= 4 || i == null || i < 0 || i >= series.t.length) return
+            const key = COMPONENTS[charts.indexOf(u)]?.key ?? COMPONENTS[0].key
+            const area = wrap.current?.getBoundingClientRect()
+            const over = u.over.getBoundingClientRect()
+            pick.current?.(i, {
+              x: over.left - (area?.left ?? 0) + u.valToPos(series.t[i], 'x'),
+              y: over.top - (area?.top ?? 0) + u.valToPos(series[`${key}_mm`][i], 'y'),
+            })
           })
         },
       },
     }
+
+    // The picked epoch, marked in each panel so the popup's point is plain.
+    const pickedMark = (key: 'e' | 'n' | 'u'): uPlot.Plugin => ({
+      hooks: {
+        draw: (u) => {
+          const i = chosen.current
+          if (i == null || i >= series.t.length) return
+          const x = u.valToPos(series.t[i], 'x', true)
+          const y = u.valToPos(series[`${key}_mm`][i], 'y', true)
+          const { ctx, bbox } = u
+          if (x < bbox.left || x > bbox.left + bbox.width) return
+          ctx.save()
+          ctx.strokeStyle = ink
+          ctx.lineWidth = 2 * devicePixelRatio
+          ctx.beginPath()
+          ctx.arc(x, y, 8 * devicePixelRatio, 0, 2 * Math.PI)
+          ctx.stroke()
+          ctx.restore()
+        },
+      },
+    })
 
     COMPONENTS.forEach(({ key, label }, k) => {
       const d = panelData(series, segments, key)
@@ -166,7 +204,11 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
               if (scaleKey !== 'x' || syncing) return
               syncing = true
               const { min, max } = u.scales.x
-              if (built) view.current = [min!, max!]
+              if (built) {
+                const was = view.current
+                view.current = [min!, max!]
+                if (was && (was[0] !== min || was[1] !== max)) viewChanged.current?.()
+              }
               for (const other of charts) if (other !== u) other.setScale('x', { min: min!, max: max! })
               syncing = false
             },
@@ -182,7 +224,7 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
             },
           ],
         },
-        plugins: [offsetLines, wheelZoom, clickPick],
+        plugins: [offsetLines, wheelZoom, clickPick, pickedMark(key)],
       }
       const m = decisionMarks(series, decisions, key)
       const alt = decidedFit && decidedFit.available ? lineAt(series, decidedFit.segments, key) : series.t.map(() => null)
@@ -205,6 +247,8 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
     }
   }, [series, segments, offsets, station, scheme, decisions, decidedFit])
 
+  useEffect(() => { for (const c of chartsRef.current) c.redraw(false) }, [selected])
+
   const years = yearsIn(series.t)
   const lo = series.t[0]
   const hi = series.t[series.t.length - 1]
@@ -225,7 +269,10 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
           })}
         </div>
       )}
-      <div ref={host} data-testid="ts-plot" />
+      <div ref={wrap} style={{ position: 'relative' }}>
+        <div ref={host} data-testid="ts-plot" />
+        {children}
+      </div>
       <p className="mono" style={{ fontSize: 12, minHeight: '1.4em' }} aria-live="polite">{hover}</p>
     </section>
   )

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import App from './App'
+import { popupPlace } from './pages/OutlierDecision'
 import api from './__fixtures__/api.json'
 
 // The configured responses are pogf_geodetic_suite.timeseries.status run on the
@@ -283,6 +284,62 @@ describe('recording an outlier decision', () => {
     for (const c of live) expect(c.scales.x).toEqual({ min: 2021.2, max: 2021.4 })
   })
 
+  it('the popup sits over the plot, and Escape, the close button or a zoom closes it', async () => {
+    serveWith('abc', [])
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(true))
+    const dialog = () => screen.queryByRole('dialog')
+    expect(dialog()!.parentElement!.querySelector('[data-testid="ts-plot"]')).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await settle()
+    expect(dialog()).toBeNull()
+
+    const chart = (globalThis as any).__uplots[0]
+    chart.cursor.idx = 3
+    chart.over.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, clientY: 10 }))
+    chart.over.dispatchEvent(new MouseEvent('click', { clientX: 10, clientY: 10 }))
+    await settle()
+    expect(dialog()).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await settle()
+    expect(dialog()).toBeNull()
+
+    chart.over.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, clientY: 10 }))
+    chart.over.dispatchEvent(new MouseEvent('click', { clientX: 10, clientY: 10 }))
+    await settle()
+    expect(dialog()).toBeTruthy()
+    await act(async () => { chart.setScale('x', { min: 2021.1, max: 2021.2 }) })
+    await act(async () => { chart.setScale('x', { min: 2021.3, max: 2021.4 }) })
+    await settle()
+    expect(dialog()).toBeNull()
+  })
+
+  it('a click elsewhere closes it, a click on the plot does not, and Escape leaves a half-written reason first', async () => {
+    serveWith('abc', [])
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(false))
+    fireEvent.mouseDown(screen.getByTestId('ts-plot'))
+    await settle()
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as outlier' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await settle()
+    expect(screen.getByRole('button', { name: 'Mark as outlier' })).toBeTruthy()
+    fireEvent.mouseDown(document.body)
+    await settle()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('recording closes the popup and says what happened under the plot', async () => {
+    serveWith('abc', [])
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(true))
+    await act(async () => { screen.getByRole('button', { name: 'Confirm outlier' }).click() })
+    await settle()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('status').textContent).toMatch(/recorded as outlier by abc\. The published velocity is unchanged/)
+  })
+
   it('going against the flag asks for a reason before anything is recorded', async () => {
     const posts: { url: string; body: any }[] = []
     serveWith('abc', posts)
@@ -351,5 +408,24 @@ describe('recording an outlier decision', () => {
     chart.over.dispatchEvent(new MouseEvent('click', { clientX: 10, clientY: 10 }))
     await settle()
     expect(screen.getByText(/Sign in to record/)).toBeTruthy()
+  })
+})
+
+describe('where the popup goes', () => {
+  const size = { width: 340, height: 200 }
+  const area = { width: 1000, height: 600 }
+
+  it('beside the point, on its right when it fits', () => {
+    expect(popupPlace({ x: 100, y: 300 }, size, area)).toEqual({ left: 114, top: 276 })
+  })
+  it('flips to the left at the right edge', () => {
+    expect(popupPlace({ x: 900, y: 300 }, size, area).left).toBe(900 - 14 - 340)
+  })
+  it('stays inside the plot at the top and bottom', () => {
+    expect(popupPlace({ x: 100, y: 5 }, size, area).top).toBe(0)
+    expect(popupPlace({ x: 100, y: 590 }, size, area).top).toBe(400)
+  })
+  it('on a plot narrower than the popup, starts at its edge', () => {
+    expect(popupPlace({ x: 100, y: 50 }, size, { width: 320, height: 600 }).left).toBe(0)
   })
 })
