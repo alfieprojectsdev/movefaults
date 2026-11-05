@@ -251,8 +251,10 @@ def crd_directory_to_enu(
     Python port of the RUNX_v2.py core pipeline:
     1. Parse ECEF coordinates from each CRD file.
     2. Extract the session date from the filename (YYDDD → decimal year).
-    3. Look up the reference station's geodetic coordinates.
-    4. Transform all other stations to local ENU relative to the reference.
+    3. Look up the reference station's geodetic coordinates in that same file.
+    4. Transform that file's other stations to local ENU at that position, so the
+       reference's own motion is subtracted day by day. The E, N and U axes are the
+       reference's, so a far-away reference tilts them relative to the station's.
 
     Args:
         crd_dir:            Directory containing Bernese *.CRD files.
@@ -275,24 +277,19 @@ def crd_directory_to_enu(
     # Pass 1: collect all epochs
     epochs = _dated_crd_epochs(crd_dir, session_extractor)
 
-    # Pass 2: locate reference station geodetic coordinates
-    ref_lat = ref_lon = ref_alt = None
-    for _, stations in epochs:
-        for code, x, y, z in stations:
-            if code == ref:
-                ref_lat, ref_lon, ref_alt = pymap3d.ecef2geodetic(x, y, z, deg=True)
-                break
-        if ref_lat is not None:
-            break
-
-    if ref_lat is None:
-        raise ValueError(
-            f"Reference station {ref!r} not found in any CRD file in {crd_dir}"
-        )
-
-    # Pass 3: transform all non-reference stations to ENU
+    # Pass 2: each day's stations relative to the reference's position THAT DAY.
+    # This is what subtracts the reference's motion, as RUNX_v2.py does: it reads
+    # the reference from each file and transforms only that file's stations. An
+    # origin fixed once would leave every station's motion in the series, plate
+    # motion included. A day whose file has no reference gives no epochs.
     results: list[StationEpoch] = []
+    found = False
     for decimal_year, stations in epochs:
+        origin = next(((x, y, z) for code, x, y, z in stations if code == ref), None)
+        if origin is None:
+            continue
+        found = True
+        ref_lat, ref_lon, ref_alt = pymap3d.ecef2geodetic(*origin, deg=True)
         for code, x, y, z in stations:
             if code == ref:
                 continue
@@ -308,6 +305,11 @@ def crd_directory_to_enu(
                     up_m=float(up),
                 )
             )
+
+    if not found:
+        raise ValueError(
+            f"Reference station {ref!r} not found in any CRD file in {crd_dir}"
+        )
 
     results.sort(key=lambda ep: (ep.station, ep.decimal_year))
     return results

@@ -627,6 +627,7 @@ Old documents and older memory still assert these. They are wrong.
 | `CLAUDE.md` maturity table at 229 (`bernese-workflow`) and 102 + 253 (field-ops) | **250 and 131 + 273** on `6f4ae62`, 2026-10-14 |
 | research brief: Nakagawa et al. (2009) is "in Japanese and **not reachable**" | **reachable** — it needed `pdftotext`, not a fetch. "Not reachable" meant "not tried hard enough" |
 | `CLAUDE.md`: repo-root `src/` is "`src/db/` alone, **four files**" (twice) | **two** tracked source files — `__init__.py` and `models.py`. The four counts `__pycache__/*.pyc`, which is not in the repository. Verified 2026-08-25 |
+| `crd_pipeline.py` is a port of `RUNX_v2.py`'s ENU step, so `crd-to-plots` and the console's Time series give PHIVOLCS' numbers (until 2026-11-05) | **They did not.** `RUNX_v2.py` reads the reference's position from each day's own file, which subtracts its motion. The port read it once, from the first file, and used it for every day, so plate motion stayed in every series: ALAB against PIMO, one year of LUZON, was -24.63, 20.97, -8.16 mm/yr (E, N, U) instead of 2.82, 13.23, -0.52. Fixed 2026-11-05; on all of LUZON 2025 against PIMO and AIRA the port now equals the script's logic exactly (9327 and 8872 epochs), and a day with no reference gives no epoch, as in the script. **`analysis.py`'s 161/165 agreement with the MATLAB is unaffected**: that check starts from PHIVOLCS' PLOT files, after this step, which is why it never caught this. PLOT files made by `crd-to-plots` before the fix are wrong. Production runs `RUNX_v2.py` and was not affected |
 | this file's own §6, until 2026-11-04: production PHREF 2025 was solved without ocean loading for four IGS fiducials (CUSV, GUUG, NTUS, PTAG), "datum stations" of it, with effects "up to 16 mm"; and "whether to reprocess the 360 days" was the project lead's decision, open | **The premise was wrong for PHREF.** The four are in 0 of 360 days of PHREF's `FIN_*.SNX`, in the 29 Aug solutions and the reprocessed ones alike (gps3, 2026-11-05), so they were never its datum stations and their missing loading did not affect it; the 16 mm was not their effect. §2's BLQ row was right. **The decision was made and done**: reprocessed 2026-11-04 (runs `3341af5c` and `0def7ca1`), 360/360, the 29 Aug results kept under `SUPERSEDED/` (§2, the PHREF reprocess row). What remains open is why the coordinates changed (§6) |
 | this file's own §6, until 2026-09-21: our BSW install has "none of its 7 published patches applied" | **applied and verified inert on 2026-09-02** — see §2. The §6 bullet was written 2026-08-29, three days before the patching, and outlived it. Re-verified on disk 2026-09-21: `IONOSP2.f90` carries IGRF14, `IGRF14SYN.f` is present, 12 `.pre-patch` copies remain in `SOURCE`, and all 88 executables in `SOURCE/PGM/EXE_GNU` are dated 2026-09-02 |
 
@@ -762,6 +763,16 @@ what was taken from each paper, the licence it is redistributed under, and the
 extracted text with its sha256.
 
 ---
+
+- **A far-away reference tilts East, North and Up.** The axes are the reference's
+  tangent plane, as in `RUNX_v2.py`, so the further the reference, the more a
+  station's motion is rotated between components. One year of LUZON, ALAB, against
+  the same differences expressed in ALAB's own axes (simple straight-line fits):
+  PIMO, 1.1 degrees away, differs by at most 0.4 mm/yr; AIRA, 19.4 degrees away, by
+  7.7 mm/yr in North and 6.5 mm/yr in Up. S01R, the 5.2 procedure's reference, is
+  local, so production is on the small side of this; the console's reference picker
+  lists every estimated station, IGS fiducials included. Whether to warn, restrict
+  the list, or compute in each station's own axes is not decided.
 
 ## 7. Maintenance
 

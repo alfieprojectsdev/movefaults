@@ -239,7 +239,8 @@ FNyyddd0.CRD  (filtered final coordinates)
 `pogf_geodetic_suite.timeseries.analysis` reproduces
 `vel_line_v8_newvelduetooffset_v4.m` — 161 of 165 velocity components agree to
 better than 5e-6 mm/yr with `exclude_outliers=False`, verified against
-PHIVOLCS' own published output. `crd_pipeline.py` covers CRD → ENU.
+PHIVOLCS' own published output. `crd_pipeline.py` covers CRD → ENU (matching
+`RUNX_v2.py` only since 2026-11-05; see `docs/SETTLED.md` section 5).
 
 That closes a licensed proprietary dependency sitting in the **final step of
 the scientific output**, which was a genuine succession risk.

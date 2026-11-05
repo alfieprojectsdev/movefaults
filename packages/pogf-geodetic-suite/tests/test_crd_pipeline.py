@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pymap3d
 import pytest
 from pogf_geodetic_suite.timeseries.crd_pipeline import (
     _extract_session_from_filename,
@@ -404,3 +405,46 @@ def test_crd_station_codes_with_no_dated_crd_raises(tmp_path):
     _write_crd(tmp_path / "APRIORI.CRD", [{"name": "BOST", "x": BOST_X, "y": BOST_Y, "z": BOST_Z}])
     with pytest.raises(ValueError, match="No usable"):
         crd_station_codes(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# the reference's position is that day's, as RUNX_v2.py reads it
+# ---------------------------------------------------------------------------
+
+def _moving(tmp_path, days=range(1, 41, 10), drift_m_per_day=0.0005, ref_days=None):
+    """BOST and PBIS drifting together, as two sites on one plate do."""
+    for doy in days:
+        d = drift_m_per_day * doy
+        rows = [{"name": "PBIS", "x": PBIS_X + d, "y": PBIS_Y, "z": PBIS_Z}]
+        if ref_days is None or doy in ref_days:
+            rows.insert(0, {"name": "BOST", "x": BOST_X + d, "y": BOST_Y, "z": BOST_Z})
+        _write_crd(tmp_path / f"F1_23{doy:03d}.CRD", rows)
+
+
+def test_shared_motion_cancels_because_the_reference_is_read_each_day(tmp_path):
+    _moving(tmp_path)
+    results = crd_directory_to_enu(tmp_path, reference_station="BOST")
+    assert len(results) == 4
+    for values in (
+        [r.east_m for r in results], [r.north_m for r in results], [r.up_m for r in results],
+    ):
+        assert max(values) - min(values) < 1e-3, "both sites moved 20 mm; relative motion is none"
+
+
+def test_each_epoch_is_what_runx_v2_computes_from_that_days_file(tmp_path):
+    """RUNX_v2.py: geodetic position of the reference in this file, then
+    ecef2enu of this file's station at that position."""
+    _moving(tmp_path)
+    results = crd_directory_to_enu(tmp_path, reference_station="BOST")
+    for r, doy in zip(results, range(1, 41, 10), strict=True):
+        d = 0.0005 * doy
+        lat, lon, alt = pymap3d.ecef2geodetic(BOST_X + d, BOST_Y, BOST_Z, deg=True)
+        want = pymap3d.ecef2enu(PBIS_X + d, PBIS_Y, PBIS_Z, lat, lon, alt, deg=True)
+        assert (r.east_m, r.north_m, r.up_m) == pytest.approx(want, abs=1e-6)
+
+
+def test_a_day_without_the_reference_gives_no_epoch(tmp_path):
+    _moving(tmp_path, ref_days={1, 21, 31})
+    results = crd_directory_to_enu(tmp_path, reference_station="BOST")
+    assert len(results) == 3, "RUNX_v2.py writes nothing for a file with no reference"
+
