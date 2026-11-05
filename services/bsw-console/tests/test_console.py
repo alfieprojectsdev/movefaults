@@ -249,3 +249,16 @@ def test_setvar_and_campaign_specs(tmp_path):
     c = parse_campaigns("luzon:LUZON_DLY:lzy:LZFLT_DLY, PHREF")
     assert c[0] == Campaign("LUZON", "LUZON_DLY", "LZY", "LZFLT_DLY")
     assert c[1] == Campaign("PHREF", "PHREF_DLY", "", "")
+
+
+def test_stage3_says_the_run_worker_exists_but_is_not_wired(client) -> None:
+    """The run worker exists (bernese-worker, #316); the console is not wired to
+    it, so stage 3 still answers 501. The body keeps its shape; only the text says so."""
+    for route in ("/api/runs/start", "/api/runs/stop", "/api/preflight", "/api/redo"):
+        r = client.post(route, json={})
+        body = r.json()
+        assert r.status_code == 501
+        assert set(body) == {"enabled", "reason"}
+        assert body["enabled"] is False
+        assert "bernese-worker" in body["reason"]
+        assert "not connected" in body["reason"]
