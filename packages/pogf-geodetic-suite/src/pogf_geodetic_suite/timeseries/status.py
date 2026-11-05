@@ -125,6 +125,14 @@ succeeds on any result this module returns.
       "warnings": [str, ...]           # empty list = nothing to say
     }
 
+`station_status`, which knows the reference, adds two more: `reference_distance_deg`
+(degrees of arc from the station to the reference) and `reference_warning` (a
+sentence when that is over `REFERENCE_WARN_DEG`, else null; also in `warnings`).
+East, North and Up are the reference's axes, as in RUNX_v2.py, so a far-away
+reference rotates a station's motion between them. The method is kept, so the
+numbers stay comparable with production; the reader is told (`docs/SETTLED.md`
+section 3).
+
 `velocity` is the final segment because that is what `VelocityResult.final_
 velocity`, `make_velocity_field.py` and the published files all use. When
 `short_span` is true the number is the slope of too little data to mean
@@ -163,6 +171,13 @@ __all__ = [
 ]
 
 SCHEMA = "pogf.timeseries.status/1"
+
+# A judgement, not a physical limit: at 5 degrees about 9% of a station's motion
+# relative to the reference is rotated between components, which for 30 mm/yr is
+# about 2.6 mm/yr, as large as a typical 1-sigma on Up. Measured for ALAB: at most
+# 0.4 mm/yr with a reference 1.1 degrees away, 7.7 mm/yr at 19.4 degrees.
+REFERENCE_WARN_DEG = 5.0
+_EARTH_RADIUS_M = 6_371_000.0
 
 _TYPE_LABELS = {
     OffsetType.EQ: "earthquake",
@@ -498,6 +513,19 @@ def station_status(
         offsets_catalog=provenance,
         exclude_epochs=[session_date_to_decimal_year(s) for s in exclude_sessions or []],
     )
+    # The first epoch's ENU vector is the straight line from the reference to the
+    # station, whatever its axes, and its length gives the arc between them.
+    chord = float(np.linalg.norm(enu_m[0]))
+    distance = float(np.degrees(2 * np.arcsin(min(1.0, chord / (2 * _EARTH_RADIUS_M)))))
+    result["reference_distance_deg"] = distance
+    result["reference_warning"] = None
+    if distance > REFERENCE_WARN_DEG:
+        result["reference_warning"] = (
+            f"the reference {ref} is {distance:.1f} degrees from {code}: East, North and Up "
+            "are the reference's axes, so a reference this far away rotates the station's "
+            "motion between them. Choose a nearer reference to read the components"
+        )
+        result["warnings"].append(result["reference_warning"])
     missing, days = days_without_station(crd_dir, ref)
     if missing:
         result["warnings"].append(

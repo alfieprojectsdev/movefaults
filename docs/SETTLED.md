@@ -257,6 +257,7 @@ a header position good to ~100 m cannot distinguish a mark from another mark
 
 | decision | why it is closed |
 |---|---|
+| **Time series keeps PHIVOLCS' reference method and warns when the reference is far: over 5 degrees, a banner above the plot, and the distance is always shown** (`status.REFERENCE_WARN_DEG`). Don't restrict the reference list or switch to each station's own axes without the team | East, North and Up are the reference's axes in `RUNX_v2.py` too, so a far-away reference rotates a station's motion between them. ALAB, one year of LUZON, against the same differences in its own axes (straight-line fits): at most 0.4 mm/yr with PIMO, 1.1 degrees away; 7.7 mm/yr in North and 6.5 mm/yr in Up with AIRA, 19.4 degrees away. Own axes would remove this but stop matching production. **5 degrees is a judgement**, not a limit: about 9% of the relative motion is rotated there. It fires often: against PIMO, 8 of LUZON's 31 stations and 21 of PHREF's 42 are over it, and **S01R, the 5.2 procedure's reference, is itself 9.1 degrees from PIMO**, so production's own reference is not small-angle for every site. Decided by the project lead, 2026-11-05 |
 | **No LLM in the processing path.** One slot only: drafting a candidate knowledge-base entry at an unrecognised-signature halt, for human approval. Never chooses a resource bound, skips a session, classifies an error benign, or writes a campaign file | a small model asked about `*** SR GTOCNL` produces fluent wrong prose rather than "I don't know", and an articulate wrong diagnosis is worse than silence in a pipeline whose failure mode is silent wrong numbers. `bpe_orchestration_design.md` §4b |
 | **Use `grep`/BM25 for the mail and manual corpora, not RAG** | searching BSWMAIL for the MAXPAR failure returned a correct *negative* in milliseconds; a model would have produced something |
 | **VNNI is a reason to implement on the R740, never a reason to choose a problem** | it is idle even under BPE (Bernese is float64, VNNI is int8) but sits inside a core, so it costs cores to use. Only waveform-shaped problems benefit; tabular ones gain nothing. §4c |
@@ -754,15 +755,6 @@ worked on:
   approximated. See `bpe_orchestration_design.md` §4c.
 - **Stations per GEONET cluster** (~190 implied across 5 clusters, no stated
   rule) and **how many form the backbone** ("数点ずつ" — a few from each).
-- **A far-away reference tilts East, North and Up.** The axes are the reference's
-  tangent plane, as in `RUNX_v2.py`, so the further the reference, the more a
-  station's motion is rotated between components. One year of LUZON, ALAB, against
-  the same differences expressed in ALAB's own axes (simple straight-line fits):
-  PIMO, 1.1 degrees away, differs by at most 0.4 mm/yr; AIRA, 19.4 degrees away, by
-  7.7 mm/yr in North and 6.5 mm/yr in Up. S01R, the 5.2 procedure's reference, is
-  local, so production is on the small side of this; the console's reference picker
-  lists every estimated station, IGS fiducials included. Whether to warn, restrict
-  the list, or compute in each station's own axes is not decided. Measured 2026-11-05.
 
 ---
 

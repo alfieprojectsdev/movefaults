@@ -197,6 +197,7 @@ export type TsStation =
       segments: TsSegment[]
       velocity: { segment: number; velocity_mm_yr: Enu; sigma_mm_yr: Enu; span_yr: number; short_span: boolean; covers_latest_epoch: boolean }
       min_span_years: number; warnings: string[]
+      reference_distance_deg: number; reference_warning: string | null
       decisions?: TsDecision[]
       decided_fit?: TsDecidedFit | null
     }

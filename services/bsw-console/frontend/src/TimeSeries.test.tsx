@@ -178,6 +178,26 @@ it('names the campaign and every yearly folder it reads, whichever year the addr
   expect((globalThis.fetch as any).mock.calls.every(([u]: [string]) => !u.includes('/years/2021/time-series'))).toBe(true)
 })
 
+it('a far-away reference is warned about above the plot, once, and the distance is always shown', async () => {
+  const st = responses[`${BASE}/SYN1`] as object
+  const warning = 'the reference REF0 is 19.4 degrees from SYN1: East, North and Up are the axes'
+  serve({ [`${BASE}/SYN1`]: { ...st, reference_distance_deg: 19.4, reference_warning: warning, warnings: [warning] } })
+  await page()
+  fireEvent.change(screen.getByLabelText(/Station/), { target: { value: 'SYN1' } })
+  await settle()
+  expect(screen.getAllByText(new RegExp(warning))).toHaveLength(1)
+  expect(screen.getByText(/REF0, 19\.4° from SYN1/)).toBeTruthy()
+})
+
+it('a near reference shows its distance and no warning', async () => {
+  serve()
+  await page()
+  fireEvent.change(screen.getByLabelText(/Station/), { target: { value: 'SYN1' } })
+  await settle()
+  expect(screen.getByText(/REF0, \d+\.\d° from SYN1/)).toBeTruthy()
+  expect(screen.queryByText(/rotates the station's motion/)).toBeNull()
+})
+
 describe('the year buttons and the range in view', () => {
   beforeEach(() => { (globalThis as any).__uplots.length = 0 })
 
