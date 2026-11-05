@@ -93,8 +93,10 @@ function Station({ data, base, reload }: { data: Extract<TsStation, { available:
   const [picked, setPicked] = useState<number | null>(null)
   useEffect(() => setPicked(null), [data.station, data.reference])
   const fit = data.decided_fit
+  const others = data.warnings.filter((w) => w !== data.reference_warning)
   return (
     <div className="stack">
+      {data.reference_warning && <div className="banner warn" role="status">{data.reference_warning}.</div>}
       <TsPlot series={data.series} segments={data.segments} offsets={data.offsets} station={data.station}
         decisions={data.decisions} decidedFit={fit} onPick={setPicked} />
       {picked !== null && data.reference && (
@@ -117,6 +119,7 @@ function Station({ data, base, reload }: { data: Extract<TsStation, { available:
           {!v.covers_latest_epoch && <strong> · the newest epochs sit in an interval too short to fit: this is the rate before the latest event</strong>}
         </p>
         <dl className="kv">
+          <dt>Reference</dt><dd>{data.reference}, {data.reference_distance_deg.toFixed(1)}° from {data.station}</dd>
           <dt>Outlier mode</dt><dd><strong>{data.outlier_rule.mode}</strong> ({data.outlier_rule.method}, factor {data.outlier_rule.factor}, {data.outlier_rule.scope.replace('_', ' ')}, on {data.outlier_rule.on.replace('_', ' ')}){data.outlier_rule.mode === 'record' && <span className="muted"> · flagged epochs are reported and kept in the fit</span>}</dd>
           <dt>Outliers flagged</dt><dd>{flagged} of {data.series.t.length} epochs</dd>
           <dt>Offsets catalog</dt><dd>{data.offsets_catalog ? <><span className="mono">{data.offsets_catalog.path}</span><br /><span className="mono" style={{ fontSize: 12 }}>sha256 {data.offsets_catalog.sha256}</span></> : 'none'}</dd>
@@ -140,7 +143,7 @@ function Station({ data, base, reload }: { data: Extract<TsStation, { available:
       {data.offsets.length > 0 && (
         <p style={{ fontSize: 13 }}>Offsets: {data.offsets.map((o) => `${o.t.toFixed(4)} ${o.type} (${o.label})${o.within_span ? '' : ', outside the series'}`).join('; ')}</p>
       )}
-      {data.warnings.length > 0 && <ul className="muted" style={{ fontSize: 13 }}>{data.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
+      {others.length > 0 && <ul className="muted" style={{ fontSize: 13 }}>{others.map((w) => <li key={w}>{w}</li>)}</ul>}
     </div>
   )
 }

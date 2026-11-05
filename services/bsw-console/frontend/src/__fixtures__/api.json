@@ -1,7 +1,7 @@
 {
  "/api/session": {
   "user": null,
-  "version": "9a302b6",
+  "version": "c9fb7ec",
   "actions_enabled": false,
   "can_act": false,
   "campaigns": [
@@ -47,8 +47,8 @@
     ],
     "last_run": {
      "run": "r1",
-     "started": 1793866408.4823098,
-     "ended": 1793867009.4823098,
+     "started": 1793869209.1573308,
+     "ended": 1793869810.1573308,
      "host": "elsewhere",
      "pid": 1,
      "doys": [
@@ -72,7 +72,7 @@
      "halt": "configuration error (example)",
      "status_lines": [
       "run r1  LUZON 2025  host elsewhere pid 1  config abc",
-      "  started 2026-11-05 16:13; 3 days asked, 0 already banked",
+      "  started 2026-11-05 17:00; 3 days asked, 0 already banked",
       "  ok 1   failed 1   not run 0   not yet attempted 1",
       "  failed DOY 036: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
       "  typical day: 5.0 min (median of 1)",
@@ -84,7 +84,7 @@
   ],
   "activity": [
    {
-    "ts": 1793867009.4823098,
+    "ts": 1793869810.1573308,
     "who": "service",
     "campaign": "LUZON",
     "year": 2025,
@@ -93,7 +93,7 @@
     "text": "Run r1 halted: configuration error (example)"
    },
    {
-    "ts": 1793867008.4823098,
+    "ts": 1793869809.1573308,
     "who": "service",
     "campaign": "LUZON",
     "year": 2025,
@@ -102,7 +102,7 @@
     "text": "DOY 036 failed: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE"
    },
    {
-    "ts": 1793866408.4823098,
+    "ts": 1793869209.1573308,
     "who": "elsewhere",
     "campaign": "LUZON",
     "year": 2025,
@@ -3782,8 +3782,8 @@
   "year": 2025,
   "run": {
    "run": "r1",
-   "started": 1793866408.4823098,
-   "ended": 1793867009.4823098,
+   "started": 1793869209.1573308,
+   "ended": 1793869810.1573308,
    "host": "elsewhere",
    "pid": 1,
    "doys": [
@@ -3807,7 +3807,7 @@
    "halt": "configuration error (example)",
    "status_lines": [
     "run r1  LUZON 2025  host elsewhere pid 1  config abc",
-    "  started 2026-11-05 16:13; 3 days asked, 0 already banked",
+    "  started 2026-11-05 17:00; 3 days asked, 0 already banked",
     "  ok 1   failed 1   not run 0   not yet attempted 1",
     "  failed DOY 036: HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
     "  typical day: 5.0 min (median of 1)",
@@ -3817,8 +3817,8 @@
   "runs": [
    {
     "run": "r1",
-    "started": 1793866408.4823098,
-    "ended": 1793867009.4823098,
+    "started": 1793869209.1573308,
+    "ended": 1793869810.1573308,
     "state": "halted",
     "halt": "configuration error (example)",
     "doys": [
@@ -3949,8 +3949,8 @@
     "run": "r1",
     "doy": 35,
     "session": "0350",
-    "started": 1793866409.4823098,
-    "ended": 1793866708.4823098,
+    "started": 1793869210.1573308,
+    "ended": 1793869509.1573308,
     "outcome": "ok",
     "seconds": 299.0,
     "error": "",
@@ -3978,7 +3978,7 @@
     "folder": "OUT",
     "what": "BPE processing summary",
     "size": 36,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "OUT/R2S_20250350.PRC"
    },
    {
@@ -3987,7 +3987,7 @@
     "folder": "STA",
     "what": "Final coordinates (the target output)",
     "size": 2,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "STA/FIN_20250350.CRD"
    },
    {
@@ -3996,7 +3996,7 @@
     "folder": "SOL",
     "what": "SINEX, one-session solution",
     "size": 92,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "SOL/FIN_20250350.SNX.gz"
    },
    {
@@ -4005,7 +4005,7 @@
     "folder": "SOL",
     "what": "Normal equations, final",
     "size": 2,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "SOL/FIN_20250350.NQ0.gz"
    },
    {
@@ -4014,7 +4014,7 @@
     "folder": "SOL",
     "what": "Normal equations, reduced",
     "size": 2,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "SOL/RED_20250350.NQ0.gz"
    },
    {
@@ -4023,7 +4023,7 @@
     "folder": "ATM",
     "what": "Troposphere, SINEX format",
     "size": 2,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "ATM/FIN_20250350.TRO"
    },
    {
@@ -4032,7 +4032,7 @@
     "folder": "ATM",
     "what": "Troposphere, Bernese format",
     "size": 2,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "ATM/FIN_20250350.TRP"
    }
   ],
@@ -4073,8 +4073,8 @@
    "run": "r1",
    "doy": 36,
    "session": "0360",
-   "started": 1793866709.4823098,
-   "ended": 1793867008.4823098,
+   "started": 1793869510.1573308,
+   "ended": 1793869809.1573308,
    "outcome": "failed",
    "seconds": 299.0,
    "error": "HELMR1: NO_REDUNDANCY_NO_VERIFICATION_OF_SITES_POSSIBLE",
@@ -4159,7 +4159,7 @@
   "session": "0350",
   "campaign": "LUZON",
   "from": "/srv/bsw/SAVEDISK/LUZON/2025",
-  "to": "/srv/bsw/SAVEDISK/LUZON/2025/SUPERSEDED/20261105-1713",
+  "to": "/srv/bsw/SAVEDISK/LUZON/2025/SUPERSEDED/20261105-1800",
   "files": [
    {
     "name": "R2S_20250350.PRC",
@@ -4167,7 +4167,7 @@
     "folder": "OUT",
     "what": "BPE processing summary",
     "size": 36,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "OUT/R2S_20250350.PRC"
    },
    {
@@ -4176,7 +4176,7 @@
     "folder": "STA",
     "what": "Final coordinates (the target output)",
     "size": 2,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "STA/FIN_20250350.CRD"
    },
    {
@@ -4185,7 +4185,7 @@
     "folder": "SOL",
     "what": "SINEX, one-session solution",
     "size": 92,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "SOL/FIN_20250350.SNX.gz"
    },
    {
@@ -4194,7 +4194,7 @@
     "folder": "SOL",
     "what": "Normal equations, final",
     "size": 2,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "SOL/FIN_20250350.NQ0.gz"
    },
    {
@@ -4203,7 +4203,7 @@
     "folder": "SOL",
     "what": "Normal equations, reduced",
     "size": 2,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "SOL/RED_20250350.NQ0.gz"
    },
    {
@@ -4212,7 +4212,7 @@
     "folder": "ATM",
     "what": "Troposphere, SINEX format",
     "size": 2,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "ATM/FIN_20250350.TRO"
    },
    {
@@ -4221,7 +4221,7 @@
     "folder": "ATM",
     "what": "Troposphere, Bernese format",
     "size": 2,
-    "written": 1793870008.4809759,
+    "written": 1793872809.1559856,
     "path": "ATM/FIN_20250350.TRP"
    }
   ],
@@ -4513,7 +4513,7 @@
      "campaign": "LUZON",
      "year": 2025,
      "doy": 36,
-     "ts": 1793867008.4823098
+     "ts": 1793869809.1573308
     }
    },
    {
@@ -4649,7 +4649,6 @@
  },
  "/api/campaigns/LUZON/time-series/SYN1": {
   "configured": true,
-  "available": true,
   "campaign": "LUZON",
   "crd_dirs": [
    "/srv/bsw/SAVEDISK/LUZON/2020/STA",
@@ -4659,8 +4658,9 @@
   "reference": "REF0",
   "default_reference": "REF0",
   "offsets_path": "/srv/bsw/SAVEDISK/LUZON/offsets",
-  "schema": "pogf.timeseries.status/1",
   "station": "SYN1",
+  "available": true,
+  "schema": "pogf.timeseries.status/1",
   "offsets_catalog": {
    "path": "/srv/bsw/SAVEDISK/LUZON/offsets",
    "sha256": "58ce5413670746f77d55e4d32aa39288f613bcb7573be5df200d60ed19e9d0a4"
@@ -5216,13 +5216,15 @@
   "warnings": [
    "final segment spans 360 days (< 1 yr): its velocity is not a secular rate"
   ],
+  "reference_distance_deg": 0.0137275410314121,
+  "reference_warning": null,
   "decisions": [],
   "decided_fit": null
  },
  "/api/equipment-report": {
   "configured": true,
   "available": true,
-  "written": 1793870008.4939759,
+  "written": 1793872809.1739857,
   "sta": {
    "path": "/srv/bsw/equipment/PHNAT.STA",
    "rows": 2,
@@ -5247,7 +5249,7 @@
  "/api/stations/ALBU/equipment": {
   "configured": true,
   "available": true,
-  "written": 1793870008.4939759,
+  "written": 1793872809.1739857,
   "sta": {
    "path": "/srv/bsw/equipment/PHNAT.STA",
    "rows": 2,

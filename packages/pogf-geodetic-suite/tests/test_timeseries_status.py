@@ -15,7 +15,10 @@ import pytest
 from click.testing import CliRunner
 from pogf_geodetic_suite.timeseries.analysis import OffsetEvent, OffsetType
 from pogf_geodetic_suite.timeseries.cli import group
-from pogf_geodetic_suite.timeseries.crd_pipeline import crd_directory_to_enu
+from pogf_geodetic_suite.timeseries.crd_pipeline import (
+    crd_directory_to_enu,
+    session_to_decimal_year,
+)
 from pogf_geodetic_suite.timeseries.status import (
     SCHEMA,
     OutlierMode,
@@ -600,3 +603,52 @@ def test_a_crd_is_parsed_once_until_it_changes(tmp_path, monkeypatch) -> None:
     assert calls[n:] == ["F1_24001.CRD"], "only the changed file"
     assert again != first
 
+
+_REF_XYZ = (-3186000.0, 5345000.0, 1640000.0)
+_RATE_Y_MM_YR = 30.0
+
+
+def _pair(tmp_path, offset_m: float):
+    """A still reference, and a station `offset_m` away along the Y axis moving
+    along that axis at `_RATE_Y_MM_YR`."""
+    x, y, z = _REF_XYZ
+    for doy in range(1, 361, 30):
+        moved = _RATE_Y_MM_YR / 1000.0 * (session_to_decimal_year(f"24{doy:03d}") - 2024.0)
+        lines = [
+            "SYNTHETIC", "-" * 40, "LOCAL GEODETIC DATUM: IGS20", "",
+            " NUM  STATION NAME           X (M)          Y (M)          Z (M)     FLAG     SYSTEM", "",
+            f"  1  REF0 00000S000  {x:>15.5f} {y:>15.5f}  {z:>15.5f}    A   G",
+            f"  2  SYN1 00000S000  {x:>15.5f} {y + offset_m + moved:>15.5f}  {z:>15.5f}    A   G",
+        ]  # fmt: skip
+        (tmp_path / f"F1_24{doy:03d}.CRD").write_text("\n".join(lines) + "\n")
+    return tmp_path
+
+
+def _rate_in_axes_at(x: float, y: float, z: float) -> tuple[float, float, float]:
+    """The station's Y motion, in mm/yr, in the local axes at that position."""
+    lat, lon, _ = pymap3d.ecef2geodetic(x, y, z, deg=True)
+    return pymap3d.ecef2enuv(0.0, _RATE_Y_MM_YR, 0.0, lat, lon, deg=True)
+
+
+def test_a_near_reference_gives_its_distance_and_no_warning(tmp_path) -> None:
+    r = station_status(_pair(tmp_path, 100_000.0), "SYN1", "REF0")
+    assert r["reference_distance_deg"] == pytest.approx(0.9, abs=0.01)
+    assert r["reference_warning"] is None
+    assert not [w for w in r["warnings"] if "degrees" in w]
+
+
+def test_a_far_reference_is_warned_about_and_the_numbers_do_not_change(tmp_path) -> None:
+    offset = 1_000_000.0
+    r = station_status(_pair(tmp_path, offset), "SYN1", "REF0")
+    assert r["reference_distance_deg"] == pytest.approx(9.0, abs=0.01)
+    assert "9.0 degrees from SYN1" in r["reference_warning"]
+    assert r["reference_warning"] in r["warnings"], "the one sentence, in both places"
+    # Still the reference's axes, worked out here independently of the pipeline.
+    # Their own-axes counterpart differs by millimetres, so warning instead of
+    # correcting is what this holds: a rotation to the station's axes turns it red.
+    v = r["velocity"]["velocity_mm_yr"]
+    refs_axes = _rate_in_axes_at(*_REF_XYZ)
+    assert (v["e"], v["n"], v["u"]) == pytest.approx(refs_axes, abs=0.01)
+    x, y, z = _REF_XYZ
+    own_axes = _rate_in_axes_at(x, y + offset, z)
+    assert max(abs(a - b) for a, b in zip(refs_axes, own_axes, strict=True)) > 1.0
