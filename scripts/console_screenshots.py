@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import fcntl
+import math
 import random
 import shutil
 import socket
@@ -50,6 +51,17 @@ from conftest import build  # noqa: E402
 SCRATCH = Path("/tmp/bsw-console-demo")  # fixed, so the paths on screen do not change
 USER = "demo"
 REF = (-3186000.0, 5345000.0, 1640000.0)
+# Made-up stations, so the map has a network to show: latitude, longitude. They are
+# not real sites. Three are inside the 5 degree ring around REF0, three outside, and
+# FAR1 and FAR2 are far enough from the rest to need "All stations" on the map.
+OTHERS = {
+    "SYN2": (16.4, 120.6),
+    "SYN3": (13.2, 123.4),
+    "SYN4": (10.6, 122.9),
+    "SYN5": (7.2, 125.5),
+    "FAR1": (24.5, 127.5),
+    "FAR2": (1.3, 127.0),
+}
 EQ = 2024.5
 SPIKE = (2025, 100)
 YEAR = 2025
@@ -64,10 +76,21 @@ def _row(i: int, name: str, xyz: tuple[float, float, float]) -> str:
     return f"{i:3d}  {name} 00000S000  {x:>15.5f} {y:>15.5f}  {z:>15.5f}    A   G\n"
 
 
+def _xyz(lat: float, lon: float) -> tuple[float, float, float]:
+    """A point on a sphere: near enough for a station that only has to sit on a map."""
+    la, lo, radius = math.radians(lat), math.radians(lon), 6378000.0
+    return (
+        radius * math.cos(la) * math.cos(lo),
+        radius * math.cos(la) * math.sin(lo),
+        radius * math.sin(la),
+    )
+
+
 def time_series(savedisk: Path, root: Path) -> Path:
     """Three years of noisy daily positions for a made-up station, one step at an
     earthquake and one large spike. Seeded, so a retake draws the same plot."""
     rng = random.Random(20261105)
+    others = {code: _xyz(*where) for code, where in OTHERS.items()}
     for old in ("2020", "2021"):
         shutil.rmtree(savedisk / "LUZON" / old, ignore_errors=True)
     for year in (2023, 2024, 2025):
@@ -84,9 +107,12 @@ def time_series(savedisk: Path, root: Path) -> Path:
                 dy += 0.12
             dy += rng.gauss(0, 0.0022)
             dz += rng.gauss(0, 0.0035)
-            xyz = (REF[0] + 12000.0, REF[1] - 8000.0 + dy, REF[2] + 5000.0 + dz)
+            # Degrees from REF0, so their labels on the map do not overlap.
+            xyz = (REF[0] + 300000.0, REF[1] - 200000.0 + dy, REF[2] + 125000.0 + dz)
+            rows = [("REF0", REF), ("SYN1", xyz), *others.items()]
             (sta / f"FIN_{year}{doy:03d}0.CRD").write_text(
-                HEAD + _row(1, "REF0", REF) + _row(2, "SYN1", xyz), encoding="ascii"
+                HEAD + "".join(_row(i, name, at) for i, (name, at) in enumerate(rows, 1)),
+                encoding="ascii",
             )
     offsets = root / "offsets"
     offsets.write_text(f"# synthetic\nSYN1  {EQ:.4f}  EQ\n", encoding="utf-8")
@@ -218,6 +244,61 @@ def shoot(page: Page, url: str, route: str, out: Path, wait_for: str, click_day:
     print(f"{out}  {out.stat().st_size // 1024} KB")
 
 
+def map_shots(page: Page, url: str, out: Path) -> None:
+    """The map with its ring around a nearby reference, then a far reference: every
+    station orange and the warning above the plot. Nothing here records a decision."""
+    open_route(page, url, f"#/c/LUZON/{YEAR}/time-series")
+    # SYN5 is outside the ring, and far enough from REF0 for both labels to read.
+    page.locator("label", has_text="Station").locator("select").last.select_option("SYN5")
+    page.wait_for_selector("[data-testid=ts-plot] canvas", timeout=20000)
+    page.wait_for_load_state("networkidle")
+    panel = page.get_by_role("region", name="Map of the stations")
+    page.wait_for_timeout(600)  # the map's move to its opening view is animated
+    panel.screenshot(path=out / "station_map.png")
+    page.locator("label", has_text="Station").locator("select").last.select_option("SYN1")
+    page.locator("label", has_text="Reference station").locator("select").select_option("FAR1")
+    panel.get_by_role("button", name="All stations").click()
+    banner = page.locator(".banner.warn").first
+    banner.wait_for(timeout=20000)
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(300)
+    # From the top of the map down to the warning, which is the distance between them.
+    top, bottom = panel.bounding_box(), banner.bounding_box()
+    scrolled = page.evaluate("window.scrollY")
+    page.screenshot(
+        path=out / "reference_warning.png",
+        full_page=True,
+        clip={
+            "x": 0,
+            "y": top["y"] + scrolled - 12,
+            "width": page.viewport_size["width"],
+            "height": bottom["y"] + bottom["height"] - top["y"] + 24,
+        },
+    )
+    print(out / "station_map.png", out / "reference_warning.png")
+
+
+def equipment_shot(page: Page, url: str, out: Path) -> None:
+    """The panel with one station chosen. Its disagreement is the test suite's."""
+    open_route(page, url, f"#/c/LUZON/{YEAR}/stations")
+    panel = page.locator("section[aria-labelledby=equipment]")
+    panel.locator("select").select_option("ALBU")
+    panel.get_by_text("Visits").wait_for(timeout=20000)
+    panel.screenshot(path=out / "equipment.png")
+    print(out / "equipment.png")
+
+
+def redo_shot(page: Page, url: str, out: Path) -> None:
+    """The form filled in and ready. It stops short of the button."""
+    open_route(page, url, f"#/c/LUZON/{YEAR}/day/35/redo")
+    page.get_by_text("What will be moved").wait_for(timeout=20000)
+    page.wait_for_load_state("networkidle")
+    page.locator("form textarea").fill("Example: the ocean loading file was corrected.")
+    page.locator("form input").first.fill("035")
+    page.screenshot(path=out / "redo.png", full_page=True)
+    print(out / "redo.png")
+
+
 def time_series_shots(page: Page, url: str, out: Path) -> None:
     """The decision form on the flagged spike, then the whole page once it is
     recorded, on this scratch console, so the ring and the not-published fit show."""
@@ -271,6 +352,8 @@ def main() -> int:
             )
             page = context.new_page()
             base = f"#/c/LUZON/{YEAR}"
+            shoot(page, url, "#/", args.out / "campaigns.png", "Campaigns")
+            shoot(page, url, "#/known-errors", args.out / "known_errors.png", "Known errors")
             shoot(page, url, base, args.out / "calendar.png", "Fixed", click_day=36)
             shoot(
                 page,
@@ -283,6 +366,9 @@ def main() -> int:
             shoot(page, url, f"{base}/day/35", args.out / "day.png", "HELMCHK RMS")
             shoot(page, url, f"{base}/day/36/failure", args.out / "failure.png", "PID and script")
             shoot(page, url, f"{base}/stations", args.out / "station_files.png", "BLQ")
+            equipment_shot(page, url, args.out)
+            redo_shot(page, url, args.out)
+            map_shots(page, url, args.out)
             time_series_shots(page, url, args.out)
             browser.close()
     finally:

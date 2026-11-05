@@ -17,8 +17,9 @@ who does it.
 
 **The screenshots use made-up data**: synthetic stations (`SYN1`, `REF0`), days and
 run records, signed in as `demo`. They show what each page looks like, not any real
-result. The one exception is the protocol file on the Failure page, a real captured
-failure kept as a test fixture. `scripts/console_screenshots.py` retakes them when a
+result. There are two exceptions: the protocol file on the Failure page is a real
+captured failure kept as a test fixture, and the entries on the Known errors page
+are the project's real list, with made-up counts. `scripts/console_screenshots.py` retakes them when a
 page changes. Each one shows what one page looks like, so they don't add up to one consistent run: a day can read differently from one image to the next.
 
 ## 1. Objective and scope
@@ -69,6 +70,11 @@ console refuses them. **The maintainer sets the operator list.**
 The pages are **Campaigns**, **Calendar**, **Runs**, **Plan**, **Known errors**,
 **Station files** and **Time series**. Pick a day on the Calendar and **Open this
 day** for its **Day** page; **Failure** and **Redo** open from there.
+
+**Campaigns** is the first page: where each campaign stands, year by year, and what
+happened most recently.
+
+![Campaigns page: LUZON with a halted run, its days by year as fixed, float, failed and not run, and a list of recent activity.](images/bsw_console/campaigns.png)
 
 ## 4. Data conversion (5.2 §4)
 
@@ -199,6 +205,8 @@ This replaces 5.6.1.1 to 5.6.1.7.
 
    ![Failure page: the failed PID, script and message, the known-errors entry with its remedy, and the protocol file with the error line marked.](images/bsw_console/failure.png)
 
+   ![Known errors page: each entry's program, message, scope, whether it is established or proposed, how often it fired in the last 30 days and when it was last seen.](images/bsw_console/known_errors.png)
+
 9. To run a day again, an operator uses **Redo this day** on its **Day** page,
    not deletion.
    In 5.2, a day is redone by deleting its F1 files. On 5.4 that replaces only 2
@@ -207,13 +215,18 @@ This replaces 5.6.1.1 to 5.6.1.7.
    and moves the files only when the job starts. If the redo fails, they come
    back.
 
+   ![Redo page for a synthetic day: the seven files that will move aside, what happens if the redo succeeds or fails, and the form with a reason and the DOY typed in.](images/bsw_console/redo.png)
+
 #### 5.6.2 Updating station information
 
 Equipment changes are still entered in the STA file by the maintainer, with the
 same rule as 5.2: a new line after the old one, with start and end dates,
 spaces not tabs. On **Station files**, the equipment panel shows one station's
 entries from the latest equipment report (`bernese-check-equipment`), which
-compares the STA file with the field logsheets.
+compares the STA file with the field logsheets. The disagreement below is made up
+for the test data, including the station it is shown on.
+
+![Equipment panel for one station: receiver, antenna and radome in the STA file against field-ops, with the antenna marked different, and one visit with no STA row for its change.](images/bsw_console/equipment.png)
 
 #### 5.6.3 Adding a new site, 5.6.4 Adding an IGS reference site
 
@@ -260,6 +273,17 @@ segment under the one-year minimum shows crossed out.
 | 6.2.7 Run `vel_line_v8.m` | Shown for the station chosen. A plot of East, North and Up on one time axis replaces the JPG: epochs in the fit as dots, epochs the outlier rule flagged in orange, epochs left out of the fit for any other reason hollow, the fitted line for each segment, and the catalogue's offsets as dashed lines. Ctrl with the mouse wheel zooms, Shift with the wheel pans, dragging selects a span, and a double-click shows everything. Below it: the velocity of the final segment with its 1-sigma, East, North and Up, and the span it covers, with a note when the newest epochs are too few to fit, so the rate is the one before the latest event; then, for each segment between offsets, its start and end as decimal years, epochs, epochs in the fit, outliers and velocities. A final segment shorter than the minimum span (one year) is crossed out, because a rate from too little data means nothing |
 | 6.2 note: horizontal only, usually | Unchanged. The page shows Up as well; read it with the same care |
 | 6.3 Outlier removal: `outlier_input-site.py`, right-click, hand-edit PLOT files, re-run MATLAB | Click an epoch on the plot; a drag doesn't pick one. A small popup opens beside the point, with the rule's flag and any decision so far. A flagged epoch offers **Confirm outlier**, or **Keep it: not an outlier** with a reason. An unflagged one offers **Mark as outlier** with a reason. **Undo decision** takes a decision back. Recording closes the popup, so you can go straight to the next epoch; Escape, the close button or a click elsewhere closes it too. Each decision is kept with your name, the reference station and a hash of the day's CRD files, and no file is edited. Rings mark decided epochs. A dashed line and a row marked "not published" show the fit without the confirmed outliers. A decision made against another reference station, or on a day since reprocessed, is shown as such and not applied. The page's outlier mode stays `record`: flagged epochs are reported and kept in the fit. Decisions don't reach PLOT files or production plots; for those, keep using `tools/velocity-reviewer` |
+
+The map opens on the campaign's own stations. The dashed ring is 5 degrees around
+the reference, and stations outside it are orange. **All stations** also brings in
+the far ones.
+
+![Map of synthetic stations: the reference in black inside a dashed ring, blue stations inside the ring, and an orange selected station outside it, labelled with its distance from the reference.](images/bsw_console/station_map.png)
+
+With a far reference, nearly every station is orange and the warning appears above
+the plot:
+
+![The map with a far-away reference to the north-east, its ring far from the other stations, which are all orange, and the warning above the plot giving the distance.](images/bsw_console/reference_warning.png)
 
 The page after a flagged epoch was confirmed: the ring on the plot, a line saying what was recorded, and a velocity row marked "not published" beside the one that counts.
 
