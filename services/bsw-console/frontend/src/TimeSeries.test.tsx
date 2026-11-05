@@ -105,3 +105,44 @@ it('after a reference change, the old fit is not shown while the new one fails',
   await settle()
   expect(screen.queryByRole('heading', { name: /SYN1 · velocity/ })).toBeNull()
 })
+
+describe('the time-series plot', () => {
+  beforeEach(() => { (globalThis as any).__uplots.length = 0 })
+
+  async function showSyn1() {
+    serve()
+    await page()
+    fireEvent.change(screen.getByLabelText('Station'), { target: { value: 'SYN1' } })
+    await settle()
+    return (globalThis as any).__uplots as { opts: any; data: any[]; scales: any; over: HTMLElement; setScale: Function }[]
+  }
+
+  it('draws East, North and Up from the payload, on one shared time axis', async () => {
+    const charts = await showSyn1()
+    expect(charts).toHaveLength(3)
+    expect(charts.map((c) => c.opts.axes[1].label)).toEqual(['East (mm)', 'North (mm)', 'Up (mm)'])
+    const syn1 = responses[`${BASE}/SYN1`] as { series: { t: number[]; e_mm: number[]; outlier: boolean[] } }
+    expect(charts[0].data[0]).toEqual(syn1.series.t)
+    const flaggedAt = syn1.series.outlier.indexOf(true)
+    expect(flaggedAt).toBeGreaterThanOrEqual(0)
+    expect(charts[0].data[2][flaggedAt]).toBe(syn1.series.e_mm[flaggedAt])
+    expect(new Set(charts.map((c) => c.opts.cursor.sync.key)).size).toBe(1)
+  })
+
+  it('zooming one panel zooms all three', async () => {
+    const charts = await showSyn1()
+    charts[1].setScale('x', { min: 2020.5, max: 2021.0 })
+    for (const c of charts) expect(c.scales.x).toEqual({ min: 2020.5, max: 2021.0 })
+  })
+
+  it('the mouse wheel zooms in around the cursor', async () => {
+    const charts = await showSyn1()
+    const before = { ...charts[2].scales.x }
+    const ev = new WheelEvent('wheel', { deltaY: -100, cancelable: true })
+    Object.defineProperty(ev, 'offsetX', { value: 2021 })
+    charts[2].over.dispatchEvent(ev)
+    const after = charts[0].scales.x
+    expect(after.max - after.min).toBeLessThan(before.max - before.min)
+    expect(ev.defaultPrevented).toBe(true)
+  })
+})

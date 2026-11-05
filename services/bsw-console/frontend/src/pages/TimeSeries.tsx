@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApi } from '../lib'
 import type { Enu, TsStation, TsSummary } from '../types'
 import { Failed, Loading } from './common'
+import TsPlot from './TsPlot'
 
 const mm = (v: number) => v.toFixed(2)
 const rate = (v: Enu, s: Enu, c: keyof Enu) => `${mm(v[c])} ± ${mm(s[c])}`
@@ -38,7 +39,7 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
       <div className="stack">
         <h1>Time series · {campaign} <span className="stub">read-only</span></h1>
         <p className="muted" style={{ maxWidth: '80ch' }}>
-          East, north and up per station relative to a reference station, with the offset-aware velocity from the timeseries package (the port of <span className="mono">vel_line_v8.m</span> verified against PHIVOLCS' output) and the offsets from the offsets catalogue. Outliers arrive flagged by the package; confirming or overriding one is not built here.
+          East, north and up per station relative to a reference station, with the offset-aware velocity from the timeseries package (the port of <span className="mono">vel_line_v8.m</span> verified against PHIVOLCS' output) and the offsets from the offsets catalogue. Outliers arrive flagged by the package; confirming or overriding one is not built here yet.
         </p>
       </div>
       {sum.error && <Failed error={sum.error} />}
@@ -90,6 +91,7 @@ function Station({ data }: { data: Extract<TsStation, { available: true }> }) {
   const flagged = data.series.outlier.filter(Boolean).length
   return (
     <div className="stack">
+      <TsPlot series={data.series} segments={data.segments} offsets={data.offsets} station={data.station} />
       <section aria-labelledby="ts-vel" className="panel pad stack">
         <h2 id="ts-vel">{data.station} · velocity (final segment)</h2>
         <table className="t">

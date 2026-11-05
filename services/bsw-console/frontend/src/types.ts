@@ -176,6 +176,13 @@ export type TsSummary =
 export type TsSegment = {
   index: number; t_start: number; t_end: number; span_yr: number; n_epochs: number; n_fit: number; n_outliers: number
   velocity_mm_yr: Enu; sigma_mm_yr: Enu; r2: Enu; short_span: boolean
+  /** The fitted line at the segment's two ends, in the same millimetre frame as `series`. */
+  line?: { t: [number, number]; e_mm: [number, number]; n_mm: [number, number]; u_mm: [number, number] }
+}
+/** Columnar, index-aligned per epoch: what a chart takes as it is. */
+export type TsSeries = {
+  t: number[]; e_mm: number[]; n_mm: number[]; u_mm: number[]
+  outlier: boolean[]; in_fit: boolean[]; segment: (number | null)[]; excluded?: boolean[]
 }
 export type TsStation =
   | TsNotConfigured
@@ -184,7 +191,7 @@ export type TsStation =
       configured: true; available: true; schema: string; station: string; reference: string | null
       offsets_catalog: { path: string; sha256: string } | null
       outlier_rule: { method: string; factor: number; scope: string; on: string; mode: string }
-      series: { t: number[]; outlier: boolean[]; in_fit: boolean[] }
+      series: TsSeries
       offsets: { t: number; type: string; label: string; within_span: boolean }[]
       segments: TsSegment[]
       velocity: { segment: number; velocity_mm_yr: Enu; sigma_mm_yr: Enu; span_yr: number; short_span: boolean; covers_latest_epoch: boolean }
