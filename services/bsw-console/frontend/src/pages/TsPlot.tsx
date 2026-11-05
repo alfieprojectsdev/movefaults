@@ -129,8 +129,7 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
       hooks: {
         ready: (u) => {
           let down: [number, number] | null = null
-          // Read at the press: uPlot clears cursor.idx once the mouse moves with
-          // the button down, and a hand's wobble during a click is still a click.
+          // The epoch under the press, not wherever a hand's wobble ended.
           let atPress: number | null = null
           u.over.addEventListener('mousedown', (e: MouseEvent) => { down = [e.clientX, e.clientY]; atPress = u.cursor.idx ?? null })
           u.over.addEventListener('click', (e: MouseEvent) => {
@@ -183,7 +182,9 @@ export default function TsPlot({ series, segments, offsets, station, decisions, 
         cursor: {
           sync: { key: syncKey, setSeries: false },
           // The distance clickPick calls a drag: under it, a click must not also zoom.
-          drag: { x: true, y: false, setScale: true, dist: 4 },
+          // uPlot swallows the click after any movement during a press; clickPick
+          // decides for itself from how far the mouse moved.
+          drag: { x: true, y: false, setScale: true, dist: 4, click: () => {} },
           points: { show: false },
         },
         scales: { x: { time: false, min: lo - pad, max: hi + pad } },
