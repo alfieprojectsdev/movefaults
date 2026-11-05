@@ -138,18 +138,39 @@ gps3 only.
 
 ## Decisions needed
 
-1. **Which side is the source of truth for equipment, and when.** Today the
-   `.STA` file is, in practice, whatever the documents say. Stage 1 doesn't
-   need this settled. Stage 3 does.
-2. **Database access from gps3 for logsheets.** The options are a read-only
-   role on the production database, or a periodic export. gps3's outbound
-   access to GitHub already times out at times (2026-10-26, 2026-11-05), so a
-   check that depends on a hosted database needs to fail visibly when it
-   can't connect.
-3. **Who owns the name map.** The processing lead is the natural owner, the
-   same as `bpe_errors.yaml`.
-4. **Whether the console shows the report.** For example, on the station or
-   Day page, beside the HELMCHK RMS.
+Each decision has a recommendation, made 2026-11-05 from the measurements
+above. A decision is open until the project lead accepts or changes it.
+
+1. **Which side is the source of truth for equipment, and when.**
+   **Recommended:** the `.STA` file stays the truth for processing, and field
+   records are the evidence of what is physically on the monument. Neither
+   overwrites the other automatically, and a disagreement is a task for a
+   person. The database can't be the source of history yet: its 117 seeded
+   rows have no dates, serials or antenna heights. The `.STA` file is what
+   Bernese used, the processing team maintains it, and 5.2 production reads it.
+   With 43 of 103 antennas in disagreement and the wrong side unknown, neither
+   side can be trusted to overwrite the other. Revisit stage 3 once the report
+   has run with few unexplained disagreements for a while.
+2. **Database access from gps3 for logsheets.**
+   **Recommended:** a nightly export on gps3, made with a read-only database
+   role; the report reads the export file, not the live database. gps3's
+   outbound access already times out at times (GitHub, 2026-10-26 and
+   2026-11-05), and a check that depends on a hosted database would fail when
+   it is needed. The export makes the report work offline and reproducibly,
+   and the report shows the export's timestamp, so stale data is visible. The
+   read-only role means the export job cannot write to field-ops. The console
+   can move to live reads later if that is worth it.
+3. **Who owns the name map.**
+   **Recommended:** the processing lead owns the map, and the project lead
+   owns the tooling, the same split as `bpe_errors.yaml`. Every name the map
+   produces must come from IGS `rcvr_ant.tab`. The first draft comes from the
+   103-station comparison, so the owner reviews it rather than starting from
+   blank. Field staff don't edit it; they keep writing what is on the hardware.
+4. **Whether the console shows the report.**
+   **Recommended:** yes, after the command-line report has run and its first
+   output has been worked through by a person, as a read-only panel on the
+   station view. Equipment changes are per station, not per day, so the panel
+   doesn't belong on the Day page. It fits the console's read-only stages 1–2.
 
 ## Not proposed
 
