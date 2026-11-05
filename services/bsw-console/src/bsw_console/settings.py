@@ -91,6 +91,13 @@ class Settings:
     # X-Remote-User. Empty (the default): the header is ignored from everyone,
     # because without a proxy any client on the network could send it.
     trusted_proxies: frozenset[str] = frozenset()
+    # The time series (stage 5): pogf_geodetic_suite.timeseries.status reads
+    # daily final CRD files relative to a reference station, and the offsets
+    # catalog. No defaults: unset, the page says the time series is not
+    # configured. BSW_CONSOLE_TS_CRD_DIR, _TS_REFERENCE, _TS_OFFSETS.
+    ts_crd_dir: Path | None = None
+    ts_reference: str | None = None
+    ts_offsets: Path | None = None
 
     @property
     def env(self) -> dict[str, str]:
@@ -121,6 +128,9 @@ class Settings:
         static = Path(os.environ.get("BSW_CONSOLE_STATIC", here / "frontend" / "dist"))
         kb = os.environ.get("BSW_CONSOLE_KB")
         lock = os.environ.get("BPE_LOCK")
+        ts_crd = os.environ.get("BSW_CONSOLE_TS_CRD_DIR")
+        ts_ref = os.environ.get("BSW_CONSOLE_TS_REFERENCE")
+        ts_off = os.environ.get("BSW_CONSOLE_TS_OFFSETS")
         return cls(
             gpsuser=var("U", home / "GPSUSER"),
             datapool=var("D", home / "GPSDATA" / "DATAPOOL"),
@@ -129,6 +139,9 @@ class Settings:
             campaigns=parse_campaigns(os.environ.get("BSW_CONSOLE_CAMPAIGNS", DEFAULT_CAMPAIGNS)),
             kb_path=Path(kb) if kb else None,
             lock_path=Path(lock) if lock else None,
+            ts_crd_dir=Path(ts_crd) if ts_crd else None,
+            ts_reference=ts_ref.strip().upper() if ts_ref and ts_ref.strip() else None,
+            ts_offsets=Path(ts_off) if ts_off else None,
             state_dir=Path(os.environ.get("BSW_CONSOLE_STATE", home / ".local/state/bsw-console")),
             static_dir=static if static.is_dir() else None,
             actions_enabled=False,

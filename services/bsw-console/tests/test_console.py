@@ -345,3 +345,63 @@ def test_code_version_says_when_the_tree_was_dirty_or_unknown() -> None:
     assert run_provenance(base)["code_version"] == "unknown"
     assert run_provenance({"user": "u", "sudo_user": "x"})["started_by"] == "u (sudo from x)"
     assert run_provenance(None)["recorded"] is False
+
+
+# --- the time series (stage 5): pogf_geodetic_suite.timeseries.status, in-process ---------
+
+
+def test_time_series_lists_the_stations_and_the_outlier_mode(client) -> None:
+    body = client.get("/api/campaigns/LUZON/time-series").json()
+    assert body["configured"] is True and body["available"] is True
+    assert body["stations"] == ["SYN1"], "the reference is the origin, not a station to plot"
+    assert body["reference"] == "REF0"
+    assert body["outlier_mode"] == "record", "status's default, kept"
+
+
+def test_one_stations_status_is_what_station_status_returns(client, bsw) -> None:
+    import hashlib
+
+    from pogf_geodetic_suite.timeseries.status import station_status
+
+    body = client.get("/api/campaigns/LUZON/time-series/syn1").json()
+    assert body["configured"] is True and body["available"] is True
+    direct = station_status(bsw.ts_crd_dir, "SYN1", "REF0", offsets_catalog=bsw.ts_offsets)
+    for key in ("schema", "station", "velocity", "segments", "outlier_rule", "offsets", "warnings"):
+        assert body[key] == direct[key], key
+    assert body["outlier_rule"]["mode"] == "record"
+    assert (
+        body["offsets_catalog"]["sha256"] == hashlib.sha256(bsw.ts_offsets.read_bytes()).hexdigest()
+    )
+    assert len(body["segments"]) == 2, "split at the catalog's earthquake"
+    assert sum(seg["n_outliers"] for seg in body["segments"]) >= 1, "the spike is flagged"
+    assert set(body["velocity"]["sigma_mm_yr"]) == {"e", "n", "u"}
+
+
+def test_time_series_not_configured_says_so_and_names_the_settings(bsw) -> None:
+    import dataclasses
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(dataclasses.replace(bsw, ts_crd_dir=None, ts_offsets=None)))
+    for url in ("/api/campaigns/LUZON/time-series", "/api/campaigns/LUZON/time-series/SYN1"):
+        r = c.get(url)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["configured"] is False
+        assert "not configured" in body["message"]
+        assert body["missing"] == ["BSW_CONSOLE_TS_CRD_DIR", "BSW_CONSOLE_TS_OFFSETS"]
+
+
+def test_a_station_status_cannot_compute_is_explained_not_raised(client) -> None:
+    body = client.get("/api/campaigns/LUZON/time-series/NOPE").json()
+    assert body["configured"] is True and body["available"] is False
+    assert "NOPE" in body["message"]
+    ref = client.get("/api/campaigns/LUZON/time-series/REF0").json()
+    assert ref["available"] is False and "reference" in ref["message"]
+
+
+def test_time_series_station_is_four_characters_never_a_path(client) -> None:
+    for code in ("SYN12", "S", "..%2F.."):
+        assert client.get(f"/api/campaigns/LUZON/time-series/{code}").status_code in (404, 422)
+    assert client.post("/api/campaigns/LUZON/time-series/SYN1").status_code == 405

@@ -172,6 +172,7 @@ def build(tmp_path: Path) -> Settings:
     (ref / "LUZON.BLQ").write_text(
         "$$ header\n  ALBU               ALBU\n  .01 .02\n$$ END TABLE\n  BILI   after the table, unread\n"
     )
+    ts_crd, ts_offsets = time_series_inputs(tmp_path / "timeseries")
     return Settings(
         gpsuser=u,
         datapool=d,
@@ -180,6 +181,9 @@ def build(tmp_path: Path) -> Settings:
         campaigns=[Campaign("LUZON", "LUZON_DLY", "LZY")],
         lock_path=tmp_path / "bpe.lock",
         state_dir=tmp_path / "state",
+        ts_crd_dir=ts_crd,
+        ts_reference="REF0",
+        ts_offsets=ts_offsets,
     )
 
 
@@ -191,3 +195,52 @@ def bsw(tmp_path: Path) -> Settings:
 @pytest.fixture
 def client(bsw: Settings) -> TestClient:
     return TestClient(create_app(bsw))
+
+
+# --- the time-series inputs: daily final CRD files and an offsets catalog -------------
+
+TS_REF_XYZ = (-3_150_000.0, 5_350_000.0, 1_600_000.0)
+TS_STEP_T = 2021.0
+TS_SPIKE = (2021, 196)  # the one epoch the IQR rule must flag
+
+
+def _ts_crd_line(i: int, name: str, xyz: tuple[float, float, float]) -> str:
+    x, y, z = xyz
+    return f"  {i:3d}  {name} 00000S000  {x:>15.5f} {y:>15.5f}  {z:>15.5f}    A   G"
+
+
+def time_series_inputs(root: Path) -> tuple[Path, Path]:
+    """Two years of synthetic daily CRDs for REF0 and SYN1, in the layout
+    pogf_geodetic_suite's own tests write, and an offsets catalog with one
+    earthquake. SYN1 moves steadily, steps at the earthquake, and has one
+    large spike. Deterministic: no random noise, a small alternating wobble."""
+    crd = root / "STA"
+    crd.mkdir(parents=True)
+    header = (
+        "SYNTHETIC TEST NETWORK                                          05-NOV-26 00:00\n"
+        "--------------------------------------------------------------------------------\n"
+        "LOCAL GEODETIC DATUM: IGS20                 EPOCH: 2020-01-01 00:00:00\n\n"
+        " NUM  STATION NAME           X (M)          Y (M)          Z (M)     FLAG     SYSTEM\n\n"
+    )
+    k = 0
+    for year in (2020, 2021):
+        for doy in range(1, 366, 15):
+            t = year + doy / 365.25
+            wobble = 0.0008 if k % 2 else -0.0008
+            k += 1
+            dx = 0.030 * (t - 2020.0) + (0.010 if t >= TS_STEP_T else 0.0) + wobble
+            dz = -0.012 * (t - 2020.0) + wobble
+            if (year, doy) == TS_SPIKE:
+                dx += 0.25
+            sta = (TS_REF_XYZ[0] + 1200.0 + dx, TS_REF_XYZ[1] - 800.0, TS_REF_XYZ[2] + 500.0 + dz)
+            (crd / f"F1_{year % 100:02d}{doy:03d}.CRD").write_text(
+                header
+                + _ts_crd_line(1, "REF0", TS_REF_XYZ)
+                + "\n"
+                + _ts_crd_line(2, "SYN1", sta)
+                + "\n",
+                encoding="ascii",
+            )
+    offsets = root / "offsets"
+    offsets.write_text(f"# synthetic\nSYN1  {TS_STEP_T:.4f}  EQ\n", encoding="utf-8")
+    return crd, offsets

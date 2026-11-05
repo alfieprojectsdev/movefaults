@@ -158,3 +158,29 @@ export type StationFiles = {
   columns: string[]
   rows: { station: string; cells: Record<string, number>; notes: string[] }[]
 }
+
+/** pogf_geodetic_suite.timeseries.status, as the console serves it (bsw_console/timeseries.py). */
+export type Enu = { e: number; n: number; u: number }
+export type TsNotConfigured = { configured: false; missing: string[]; message: string }
+export type TsUnavailable = { configured: true; available: false; message: string; crd_dir: string; reference: string; offsets_path: string; station?: string }
+export type TsSummary =
+  | TsNotConfigured
+  | TsUnavailable
+  | { configured: true; available: true; crd_dir: string; reference: string; offsets_path: string; stations: string[]; outlier_mode: string }
+export type TsSegment = {
+  index: number; t_start: number; t_end: number; span_yr: number; n_epochs: number; n_fit: number; n_outliers: number
+  velocity_mm_yr: Enu; sigma_mm_yr: Enu; r2: Enu; short_span: boolean
+}
+export type TsStation =
+  | TsNotConfigured
+  | TsUnavailable
+  | {
+      configured: true; available: true; schema: string; station: string; reference: string | null
+      offsets_catalog: { path: string; sha256: string } | null
+      outlier_rule: { method: string; factor: number; scope: string; on: string; mode: string }
+      series: { t: number[]; outlier: boolean[]; in_fit: boolean[] }
+      offsets: { t: number; type: string; label: string; within_span: boolean }[]
+      segments: TsSegment[]
+      velocity: { segment: number; velocity_mm_yr: Enu; sigma_mm_yr: Enu; span_yr: number; short_span: boolean; covers_latest_epoch: boolean }
+      min_span_years: number; warnings: string[]
+    }
