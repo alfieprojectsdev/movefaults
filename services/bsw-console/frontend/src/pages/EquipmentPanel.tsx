@@ -36,6 +36,7 @@ export default function EquipmentPanel({ stations }: { stations: string[] }) {
           {one.error && <Failed error={one.error} />}
           {station && !one.data && !one.error && <Loading what={`${station}'s equipment`} />}
           {one.data && one.data.configured && one.data.available && <Station data={one.data} />}
+          {one.data && !(one.data.configured && one.data.available) && <p role="status" className="err-box">{one.data.message}</p>}
         </>
       )}
     </section>

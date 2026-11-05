@@ -26,25 +26,46 @@ NOT_CONFIGURED = (
 )
 
 
-def _load(path: Path) -> tuple[dict | None, str]:
+_LISTS = ("current", "visits", "names")
+
+
+def _load(path: Path) -> tuple[dict | None, float | None, str]:
+    """The report and its file time, read together, or None and why not.
+
+    The shape is checked here, once, so the callers can trust it: a hand-edited
+    or half-written file is reported as unreadable instead of raising later.
+    """
     try:
+        written = path.stat().st_mtime
         rep = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        return None, f"The equipment report {path.name} could not be read: {type(exc).__name__}."
-    if not isinstance(rep, dict) or not {"sta", "sources", "current", "visits", "names"} <= set(
-        rep
+        return (
+            None,
+            None,
+            f"The equipment report {path.name} could not be read: {type(exc).__name__}.",
+        )
+    bad = f"The equipment report {path.name} could not be read: not a report."
+    if not isinstance(rep, dict) or not {"sta", "sources", *_LISTS} <= set(rep):
+        return None, None, bad
+    src = rep["sources"]
+    if not isinstance(src, dict) or any(
+        not isinstance(src.get(k), (dict, type(None))) for k in ("logsheet_export", "equipment_csv")
     ):
-        return None, f"The equipment report {path.name} could not be read: not a report."
-    return rep, ""
+        return None, None, bad
+    if any(
+        not isinstance(rep[k], list) or not all(isinstance(e, dict) for e in rep[k]) for k in _LISTS
+    ):
+        return None, None, bad
+    return rep, written, ""
 
 
-def _about(path: Path, rep: dict) -> dict:
-    src = rep.get("sources") or {}
+def _about(rep: dict, written: float | None) -> dict:
+    src = rep["sources"]
     export = src.get("logsheet_export") or {}
     return {
         "configured": True,
         "available": True,
-        "written": path.stat().st_mtime,
+        "written": written,
         "sta": rep.get("sta"),
         "exported_at": export.get("exported_at"),
         "export_counts": export.get("counts"),
@@ -56,10 +77,11 @@ def _about(path: Path, rep: dict) -> dict:
 def summary(s: Settings) -> dict:
     if s.equipment_report is None:
         return {"configured": False, "message": NOT_CONFIGURED}
-    rep, why = _load(s.equipment_report)
+    rep, written, why = _load(s.equipment_report)
     if rep is None:
         return {"configured": True, "available": False, "message": why}
-    return {**_about(s.equipment_report, rep), "summary": rep.get("summary") or {}}
+    summ = rep.get("summary")
+    return {**_about(rep, written), "summary": summ if isinstance(summ, dict) else {}}
 
 
 def for_station(s: Settings, code: str) -> dict:
@@ -67,12 +89,12 @@ def for_station(s: Settings, code: str) -> dict:
     code = code.upper()
     if s.equipment_report is None:
         return {"configured": False, "station": code, "message": NOT_CONFIGURED}
-    rep, why = _load(s.equipment_report)
+    rep, written, why = _load(s.equipment_report)
     if rep is None:
         return {"configured": True, "available": False, "station": code, "message": why}
-    pick = lambda key: [e for e in rep.get(key) or [] if e.get("station") == code]  # noqa: E731
+    pick = lambda key: [e for e in rep[key] if e.get("station") == code]  # noqa: E731
     return {
-        **_about(s.equipment_report, rep),
+        **_about(rep, written),
         "station": code,
         "current": pick("current"),
         "visits": pick("visits"),

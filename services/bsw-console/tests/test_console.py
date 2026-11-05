@@ -321,3 +321,49 @@ def test_a_station_code_is_four_letters_or_digits_never_a_path(client) -> None:
 def test_the_equipment_endpoints_are_read_only(client) -> None:
     assert client.post("/api/equipment-report").status_code == 405
     assert client.post("/api/stations/ALBU/equipment").status_code == 405
+
+
+def test_a_report_with_the_right_keys_but_wrong_shapes_is_reported_not_raised(bsw) -> None:
+    """A report file with the five keys but values of the wrong type (a hand-edited
+    or truncated-and-rewritten file) must still answer 200 and say it can't be read."""
+    import json
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(bsw), raise_server_exceptions=False)
+    for bad in (
+        {"sta": {}, "sources": "x", "current": [], "visits": [], "names": []},
+        {"sta": {}, "sources": {}, "current": ["ALBU"], "visits": [], "names": []},
+        {"sta": {}, "sources": {}, "current": {"station": "ALBU"}, "visits": [], "names": []},
+        {"sta": {}, "sources": {"logsheet_export": "x"}, "current": [], "visits": [], "names": []},
+    ):
+        bsw.equipment_report.write_text(json.dumps(bad))
+        for url in ("/api/equipment-report", "/api/stations/ALBU/equipment"):
+            r = c.get(url)
+            assert r.status_code == 200, (bad, url, r.status_code)
+            body = r.json()
+            assert body["configured"] is True and body["available"] is False, (bad, url)
+
+
+def test_a_report_removed_after_reading_does_not_raise(bsw, monkeypatch) -> None:
+    """The report is read and its time taken in one step: a file replaced or removed
+    by the nightly job between the two must not turn into a 500."""
+    from pathlib import Path
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    real = Path.read_text
+
+    def read_then_remove(self, *a, **k):
+        text = real(self, *a, **k)
+        if self == bsw.equipment_report:
+            self.unlink()
+        return text
+
+    monkeypatch.setattr(Path, "read_text", read_then_remove)
+    c = TestClient(create_app(bsw), raise_server_exceptions=False)
+    r = c.get("/api/stations/ALBU/equipment")
+    assert r.status_code == 200
+    assert r.json()["available"] is True

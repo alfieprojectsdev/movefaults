@@ -63,3 +63,11 @@ it('says so when the report cannot be read', async () => {
   expect(screen.getByRole('status').textContent).toMatch(/could not be read/)
   expect(screen.queryByLabelText(/Station/)).toBeNull()
 })
+
+it('says so when the report becomes unreadable after the page loaded', async () => {
+  serve({ '/api/stations/ALBU/equipment': { configured: true, available: false, station: 'ALBU', message: 'The equipment report equipment_report.json could not be read: FileNotFoundError.' } })
+  await stations()
+  fireEvent.change(screen.getByLabelText(/Station/), { target: { value: 'ALBU' } })
+  await settle()
+  expect(screen.getByText(/could not be read: FileNotFoundError/)).toBeTruthy()
+})
