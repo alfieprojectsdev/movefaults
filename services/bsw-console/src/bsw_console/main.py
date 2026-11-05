@@ -35,7 +35,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import actions, equipment, stations, status, timeseries
+from . import actions, equipment, outliers, stations, status, timeseries
 from . import plan as plans
 from .actions import STAGE3_REASON
 from .settings import Settings
@@ -238,6 +238,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         _check_year(year)
         c = campaign(name)
         return timeseries.for_station(s, c, year, _station_code(station), _station_code(reference))
+
+    # Outlier decisions (outlier_review_design.md): a signed-in person confirms
+    # or overrides the rule's flag on one epoch. Appended, never edited; no CRD
+    # or PLOT file is touched. Reading needs no sign-in, recording does.
+    @app.get("/api/campaigns/{name}/years/{year}/time-series/{station}/decisions")
+    def outlier_decisions(name: str, year: int, station: str, reference: str | None = None) -> dict:
+        _check_year(year)
+        c = campaign(name)
+        code = _station_code(station)
+        return {
+            "decisions": outliers.current(
+                s, c, year, code, timeseries.crd_dir(s, c, year), _station_code(reference)
+            )
+        }
+
+    @app.post("/api/campaigns/{name}/years/{year}/time-series/{station}/decisions")
+    async def record_outlier_decision(
+        request: Request, name: str, year: int, station: str
+    ) -> JSONResponse:
+        user = who(request)
+        if not user:
+            raise HTTPException(403, "Sign in first: every decision is recorded with who made it.")
+        _check_year(year)
+        body = await _json_body(request)
+        c = campaign(name)
+        code = _station_code(station)
+        row = outliers.record(
+            s, c, year, code, timeseries.crd_dir(s, c, year), user, body,
+            lambda epoch, ref: timeseries.epoch_flag(s, c, year, code, ref, epoch),
+        )  # fmt: skip
+        return JSONResponse(row, status_code=201)
 
     # Stage 3: each queues one request for the run worker. The gate runs first,
     # before the body is read or the campaign looked up, so a refused caller

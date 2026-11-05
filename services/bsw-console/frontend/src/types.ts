@@ -197,6 +197,21 @@ export type TsStation =
       segments: TsSegment[]
       velocity: { segment: number; velocity_mm_yr: Enu; sigma_mm_yr: Enu; span_yr: number; short_span: boolean; covers_latest_epoch: boolean }
       min_span_years: number; warnings: string[]
+      decisions?: TsDecision[]
+      decided_fit?: TsDecidedFit | null
+    }
+/** One epoch's current outlier decision (bsw_console/outliers.py). */
+export type TsDecision = {
+  epoch: string; decision: 'outlier' | 'not_outlier'; by: string; ts: string; reason: string
+  reference: string; auto_flag: boolean; history: number; superseded: boolean; other_reference: boolean
+}
+/** The fit with confirmed outliers left out: shown beside the published one, never instead. */
+export type TsDecidedFit =
+  | { available: false; message: string; excluded: string[] }
+  | {
+      available: true; excluded: string[]
+      velocity: { segment: number; velocity_mm_yr: Enu; sigma_mm_yr: Enu; span_yr: number; short_span: boolean; covers_latest_epoch: boolean }
+      segments: Pick<TsSegment, 'index' | 'n_fit' | 'velocity_mm_yr' | 'sigma_mm_yr' | 'line'>[]
     }
 /** bernese-check-equipment's report, as the console serves it (bsw_console/equipment.py). */
 export type EquipmentField = { sta: string; source: string; status: string; source_igs: string | null; note: string }

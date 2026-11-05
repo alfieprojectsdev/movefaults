@@ -179,3 +179,75 @@ it('names the campaign and year it shows, and the year picker moves to another y
   fireEvent.change(pick, { target: { value: '2025' } })
   expect(window.location.hash).toBe('#/c/LUZON/2025/time-series')
 })
+
+describe('recording an outlier decision', () => {
+  beforeEach(() => { (globalThis as any).__uplots.length = 0 })
+
+  function serveWith(user: string | null, posts: { url: string; body: any }[]) {
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        posts.push({ url, body: JSON.parse(String(init.body)) })
+        return new Response(JSON.stringify({ by: user }), { status: 201 })
+      }
+      const path = url.split('?')[0]
+      if (path === '/api/session') return new Response(JSON.stringify({ ...(responses['/api/session'] as object), user }), { status: 200 })
+      const body = responses[path]
+      if (body === undefined) return new Response(JSON.stringify({ detail: 'not in fixture' }), { status: 501 })
+      return new Response(JSON.stringify(body), { status: 200 })
+    }))
+  }
+
+  async function pickEpoch(i: number) {
+    fireEvent.change(screen.getByLabelText('Station'), { target: { value: 'SYN1' } })
+    await settle()
+    const chart = (globalThis as any).__uplots[0]
+    chart.cursor.idx = i
+    chart.over.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, clientY: 10 }))
+    chart.over.dispatchEvent(new MouseEvent('click', { clientX: 10, clientY: 10 }))
+    await settle()
+  }
+
+  const syn1 = () => responses[`${BASE}/SYN1`] as { series: { outlier: boolean[] } }
+
+  it('a click picks the epoch, and confirming its flag is recorded with the reference', async () => {
+    const posts: { url: string; body: any }[] = []
+    serveWith('abc', posts)
+    await page()
+    const i = syn1().series.outlier.indexOf(true)
+    await pickEpoch(i)
+    expect(screen.getByRole('heading', { name: /SYN1 · 2021-/ })).toBeTruthy()
+    await act(async () => { screen.getByRole('button', { name: 'Record as abc' }).click() })
+    await settle()
+    expect(posts).toHaveLength(1)
+    expect(posts[0].url).toBe(`${BASE}/SYN1/decisions`)
+    expect(posts[0].body).toMatchObject({ decision: 'outlier', reference: 'REF0', auto_flag: true })
+    expect(screen.getByText(/published velocity is unchanged/)).toBeTruthy()
+  })
+
+  it('going against the flag needs a reason before it can be recorded', async () => {
+    serveWith('abc', [])
+    await page()
+    await pickEpoch(syn1().series.outlier.indexOf(false))
+    fireEvent.click(screen.getByLabelText('Outlier'))
+    expect((screen.getByRole('button', { name: 'Record as abc' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText(/Reason/), { target: { value: 'multipath' } })
+    expect((screen.getByRole('button', { name: 'Record as abc' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('a drag does not pick, and signed out there is no form', async () => {
+    serveWith(null, [])
+    await page()
+    fireEvent.change(screen.getByLabelText('Station'), { target: { value: 'SYN1' } })
+    await settle()
+    const chart = (globalThis as any).__uplots[0]
+    chart.cursor.idx = 3
+    chart.over.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, clientY: 10 }))
+    chart.over.dispatchEvent(new MouseEvent('click', { clientX: 90, clientY: 10 }))
+    await settle()
+    expect(screen.queryByText(/Sign in to record/)).toBeNull()
+    chart.over.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, clientY: 10 }))
+    chart.over.dispatchEvent(new MouseEvent('click', { clientX: 10, clientY: 10 }))
+    await settle()
+    expect(screen.getByText(/Sign in to record/)).toBeTruthy()
+  })
+})

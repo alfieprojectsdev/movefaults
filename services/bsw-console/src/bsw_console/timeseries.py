@@ -31,9 +31,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from fastapi import HTTPException
 from pogf_geodetic_suite.timeseries.crd_pipeline import crd_directory_to_enu, crd_station_codes
-from pogf_geodetic_suite.timeseries.status import OutlierMode, station_status
+from pogf_geodetic_suite.timeseries.status import (
+    OutlierMode,
+    session_date_to_decimal_year,
+    station_status,
+)
 
+from . import outliers
 from .settings import Campaign, Settings
 from .status import campaign_years, year_dir
 
@@ -154,4 +160,50 @@ def for_station(
         )
     except (OSError, ValueError) as exc:
         return {**base, "available": False, "message": str(exc)}
-    return {"configured": True, "available": True, **_inputs(s, c, year, ref), **result}
+    out = {"configured": True, "available": True, **_inputs(s, c, year, ref), **result}
+    decisions = outliers.current(s, c, year, code.upper(), crd_dir(s, c, year), ref)
+    out["decisions"] = decisions
+    out["decided_fit"] = None
+    leave_out = outliers.excluded_sessions(decisions)
+    if leave_out:
+        # The same fit with the epochs a person confirmed as outliers left out:
+        # shown beside the published one, never instead of it (SETTLED.md
+        # section 6 is open). station_status takes them as session dates.
+        try:
+            alt = station_status(
+                crd_dir(s, c, year), code.upper(), ref,
+                offsets_catalog=s.ts_offsets, exclude_sessions=leave_out,
+            )  # fmt: skip
+        except (OSError, ValueError) as exc:
+            out["decided_fit"] = {"available": False, "message": str(exc), "excluded": leave_out}
+        else:
+            out["decided_fit"] = {
+                "available": True,
+                "excluded": leave_out,
+                "velocity": alt["velocity"],
+                "segments": [
+                    {k: seg[k] for k in ("index", "n_fit", "velocity_mm_yr", "sigma_mm_yr", "line")}
+                    for seg in alt["segments"]
+                ],
+            }
+    return out
+
+
+def epoch_flag(
+    s: Settings, c: Campaign, year: int, station: str, reference: str, epoch: str
+) -> bool:
+    """Whether the rule flags `epoch` of `station` relative to `reference`, as
+    the page shows it. 404 when the station has no epoch on that date."""
+    if (no := _not_configured(s)) is not None:
+        raise HTTPException(409, no["message"])
+    try:
+        t_epoch = session_date_to_decimal_year(epoch)
+        result = station_status(
+            crd_dir(s, c, year), station, reference, offsets_catalog=s.ts_offsets
+        )
+    except (OSError, ValueError) as exc:
+        raise HTTPException(422, str(exc)) from None
+    hits = [i for i, t in enumerate(result["series"]["t"]) if t == t_epoch]
+    if not hits:
+        raise HTTPException(404, f"{station} has no epoch on {epoch} relative to {reference}")
+    return any(result["series"]["outlier"][i] for i in hits)

@@ -66,3 +66,34 @@ it('pans by a fraction of the window and stops at the data', () => {
   expect(panRange(2020.5, 2021.5, 1, 2019, 2022)).toEqual([2021, 2022])
   expect(panRange(2019.2, 2020.2, -1, 2019, 2022)).toEqual([2019, 2020])
 })
+
+import { applicable, decisionMarks, lineAt } from './tsPlot'
+import type { TsDecision } from './types'
+
+const dec = (epoch: string, decision: 'outlier' | 'not_outlier', extra: Partial<TsDecision> = {}): TsDecision => ({
+  epoch, decision, by: 'abc', ts: '', reason: '', reference: 'REF0', auto_flag: true, history: 1,
+  superseded: false, other_reference: false, ...extra,
+})
+
+it('rings only decisions made on this solution and this reference', () => {
+  const s = { ...series, t: [2020 + 1 / 365.25, 2020 + 2 / 365.25, 2020 + 3 / 365.25, 2020 + 4 / 365.25, 2020 + 5 / 365.25, 2020 + 6 / 365.25] }
+  const ds = [
+    dec('2020-001', 'outlier'),
+    dec('2020-002', 'not_outlier'),
+    dec('2020-003', 'outlier', { superseded: true }),
+    dec('2020-004', 'outlier', { other_reference: true }),
+  ]
+  expect([...applicable(ds).keys()]).toEqual(['2020-001', '2020-002'])
+  const m = decisionMarks(s, ds, 'e')
+  expect(m.confirmed).toEqual([0, null, null, null, null, null])
+  expect(m.overridden).toEqual([null, 5, null, null, null, null])
+})
+
+it('draws the side-by-side fit by time span, whatever its segment numbers', () => {
+  const alt = [{ line: { t: [2021.2, 2022.0] as [number, number], e_mm: [12, 20] as [number, number], n_mm: [0, 0] as [number, number], u_mm: [0, 0] as [number, number] } }]
+  const got = lineAt(series, alt, 'e')
+  expect(got.slice(0, 3)).toEqual([null, null, null])
+  expect(got[3]).toBeCloseTo(12)
+  expect(got[4]).toBeCloseTo(15)
+  expect(got[5]).toBeCloseTo(20)
+})
