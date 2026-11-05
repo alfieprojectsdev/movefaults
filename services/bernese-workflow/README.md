@@ -75,7 +75,16 @@ disagreement.
 
 ## Using it
 
-There is no console entry point; it is a library.
+Four command-line entry points (root `pyproject.toml`), then the library below them:
+
+- `bernese-run-year` plans and runs a range of days as parallel BPE blocks (the
+  production BPE step since 2026-11-04);
+- `bernese-worker` runs queued requests one at a time under the BPE lock, and
+  `bernese-worker submit` queues one;
+- `bernese-check-stations` checks the station files the way Bernese reads them
+  (read-only);
+- `bernese-check-equipment` compares the `.STA` equipment with field-ops records
+  (read-only, advisory).
 
 ```python
 from pathlib import Path
