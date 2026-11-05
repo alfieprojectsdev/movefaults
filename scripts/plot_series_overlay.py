@@ -17,8 +17,8 @@ with no way to separate them. Here, any difference on the plot is a difference
 in the SOLUTIONS.
 
 THE REFERENCE STATION MUST MATCH ACROSS SERIES
-These are relative ENU. Two series referenced to different stations sit at a
-constant offset that looks like disagreement and is not. The Helmert comparison
+These are relative ENU. Two series referenced to different stations differ by
+the motion between those stations, which looks like disagreement and is not. The Helmert comparison
 did not care -- the transformation absorbed the datum -- but a plot cannot.
 Pass the same -r to every crd-to-plots run.
 
