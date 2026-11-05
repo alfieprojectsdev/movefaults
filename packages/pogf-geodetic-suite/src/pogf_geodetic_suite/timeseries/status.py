@@ -160,7 +160,7 @@ from .crd_pipeline import (
     days_without_station,
     session_to_decimal_year,
 )
-from .gmt import MIN_SPAN_YEARS
+from .gmt import MIN_SPAN_YEARS, REFERENCE_WARN_DEG, arc_degrees
 from .offsets_catalog import load_offsets_catalog
 
 __all__ = [
@@ -172,13 +172,6 @@ __all__ = [
 ]
 
 SCHEMA = "pogf.timeseries.status/1"
-
-# A judgement, not a physical limit: at 5 degrees about 9% of a station's motion
-# relative to the reference is rotated between components, which for 30 mm/yr is
-# about 2.6 mm/yr, as large as a typical 1-sigma on Up. Measured for ALAB: at most
-# 0.4 mm/yr with a reference 1.1 degrees away, 7.7 mm/yr at 19.4 degrees.
-REFERENCE_WARN_DEG = 5.0
-_EARTH_RADIUS_M = 6_371_000.0
 
 _TYPE_LABELS = {
     OffsetType.EQ: "earthquake",
@@ -516,8 +509,7 @@ def station_status(
     )
     # The first epoch's ENU vector is the straight line from the reference to the
     # station, whatever its axes, and its length gives the arc between them.
-    chord = float(np.linalg.norm(enu_m[0]))
-    distance = float(np.degrees(2 * np.arcsin(min(1.0, chord / (2 * _EARTH_RADIUS_M)))))
+    distance = arc_degrees(float(np.linalg.norm(enu_m[0])))
     result["reference_distance_deg"] = distance
     result["reference_warning"] = None
     if distance > REFERENCE_WARN_DEG:

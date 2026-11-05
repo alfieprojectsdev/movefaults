@@ -61,7 +61,7 @@ Launch long runs with `setsid nohup`, never as a Claude Code background job
 
 | script | what it does |
 |---|---|
-| `make_velocity_field.py` | GMT-ready velocity field; withholds sites whose final interval is under a year |
+| `make_velocity_field.py` | GMT-ready velocity field; withholds sites whose final interval is under a year, and names sites far from the reference while still mapping them |
 | `compare_velocity_outlier_policy.py` | what changes when outliers are actually excluded |
 | `extract_dislocation_results.py` | the dislocation-model results compilation, in committable form |
 
