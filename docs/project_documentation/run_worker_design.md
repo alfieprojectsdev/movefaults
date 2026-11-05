@@ -42,8 +42,9 @@ $BERNESE_WORKER_STATE            default ~/.local/state/bernese-workflow/worker
 
 **The heartbeat.** Between runs `status.json` is rewritten only when what it
 says changes, or when `--heartbeat-s` seconds (default 60) have passed since it
-was last written, whichever comes first. Writing it on every poll cost two
-fsyncs every 5 s, about 17,000 a day, for an unchanged file. A reader judging
+was last written, whichever comes first. Writing it on every poll meant an
+atomic write every 5 s, about 17,000 a day, each with two fsyncs (the file and
+its directory), for an unchanged file. A reader judging
 whether the worker is alive should allow a few heartbeats before calling it
 stale, and should not apply that test during a run, when `state` is `running`
 and the file is not rewritten until the run ends. `--heartbeat-s` must be a
