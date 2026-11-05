@@ -344,3 +344,17 @@ def test_the_plan_page_lists_the_missing_preflight_and_the_gate(on: Settings, wo
     assert "the preflight for these days has not finished ok" in why
     signed_out = c.get(f"/api/campaigns/LUZON/years/{YEAR}/plan?start=35&end=36").json()
     assert any("nobody is signed in" in m for m in signed_out["start_blocked_because"])
+
+
+def test_the_server_trusts_the_connecting_address_not_x_forwarded_for(monkeypatch) -> None:
+    """Behind Caddy the peer is 127.0.0.1 and X-Forwarded-For names the browser.
+    If uvicorn rewrote the client address from that header, X-Remote-User from
+    the sign-in proxy would be ignored and nobody could sign in."""
+    import uvicorn
+    from bsw_console import main
+
+    seen: dict = {}
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: seen.update(kw))
+    monkeypatch.setattr(main, "create_app", lambda: object())
+    main.start()
+    assert seen["proxy_headers"] is False

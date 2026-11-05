@@ -381,7 +381,12 @@ def start() -> None:
 
     host = os.environ.get("BSW_CONSOLE_HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8002"))
-    uvicorn.run(create_app(), host=host, port=port)
+    # proxy_headers=False: the console decides whom to trust (X-Remote-User) by
+    # the address that actually connected, which is Caddy's 127.0.0.1. With
+    # uvicorn's default, a trusted local proxy's X-Forwarded-For replaces that
+    # address with the browser's, so the sign-in proxy stops being recognised
+    # and everyone shows as not signed in.
+    uvicorn.run(create_app(), host=host, port=port, proxy_headers=False)
 
 
 if __name__ == "__main__":
