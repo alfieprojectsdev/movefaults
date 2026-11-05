@@ -48,6 +48,7 @@ import fcntl
 import getpass
 import json
 import logging
+import math
 import os
 import signal
 import socket
@@ -63,6 +64,7 @@ from . import bpe_processes
 from . import redo as rd
 from .bpe_knowledge import KnowledgeBase
 from .bpe_lock import BPELock, BPELockHeld
+from .ledger import HALT_STOPPED
 from .month_driver import DayOutcome
 from .run_queue import (
     MAXSESS_DEFAULT,
@@ -467,7 +469,7 @@ class Worker:
         # Stopped only if the stop is what left days not run: a SIGTERM that
         # arrives during a block the breaker then halts must not hide the halt.
         # The halt's kind says which, not the wording of a note.
-        by_stop = next((o for o in not_run if o.halt_kind == "stopped"), None)
+        by_stop = next((o for o in not_run if o.halt_kind == HALT_STOPPED), None)
         if by_stop is not None:
             stopped = self._stop_reason or self._signal_reason or by_stop.note
             return "stopped", "; ".join(x for x in (stopped, detail) if x), {"days": days}
@@ -555,7 +557,7 @@ class Worker:
             )
         removed = self._restore(s.ledger, m, req)
         why = (day.error or day.note) if day else "run_year did not report the day"
-        stopped = day is not None and day.status == "not_run" and day.halt_kind == "stopped"
+        stopped = day is not None and day.status == "not_run" and day.halt_kind == HALT_STOPPED
         outcome = "stopped" if stopped else "failed"
         return (
             outcome,
@@ -748,6 +750,23 @@ def _add_run_fields(sp: argparse.ArgumentParser, *, redo: bool) -> None:
     sp.add_argument("--maxsess", type=int, default=MAXSESS_DEFAULT)
 
 
+def _positive_seconds(text: str) -> float:
+    """argparse type for --heartbeat-s: a finite number of seconds above 0.
+
+    0 or less would rewrite status.json on every poll (what the heartbeat exists
+    to stop); NaN compares false with everything, so it would too.
+    """
+    try:
+        v = float(text)
+    except ValueError:
+        v = math.nan
+    if not (math.isfinite(v) and v > 0):
+        raise argparse.ArgumentTypeError(
+            f"--heartbeat-s must be a number of seconds greater than 0, got {text!r}"
+        )
+    return v
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description="Run queued BPE requests one at a time under the BPE lock, or queue one."
@@ -762,6 +781,14 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--poll", type=float, default=POLL_DEFAULT_S, help="seconds between looks")
     run.add_argument("--max-age-hours", type=float, default=MAX_AGE_DEFAULT_S / 3600)
     run.add_argument("--once", action="store_true", help="one pass, then exit")
+    run.add_argument(
+        "--heartbeat-s",
+        type=_positive_seconds,
+        default=HEARTBEAT_DEFAULT_S,
+        help="between runs, rewrite status.json at least this often even when "
+        f"nothing changed (default {HEARTBEAT_DEFAULT_S:g}); its 'updated' time is how a "
+        "reader tells the worker is alive",
+    )
 
     submit = sub.add_parser("submit", help="queue a request")
     kinds = submit.add_subparsers(dest="kind", required=True)
@@ -813,7 +840,13 @@ def main(argv: list[str] | None = None) -> int:
             f"refused: ${', $'.join(missing)} not set: source LOADGPS.setvar first", file=sys.stderr
         )
         return 2
-    worker = Worker(q, bsw_setup, max_age_s=args.max_age_hours * 3600, poll_s=args.poll)
+    worker = Worker(
+        q,
+        bsw_setup,
+        max_age_s=args.max_age_hours * 3600,
+        poll_s=args.poll,
+        heartbeat_s=args.heartbeat_s,
+    )
 
     def on_signal(signum: int, _frame: FrameType | None) -> None:
         worker.request_exit(signal.Signals(signum).name)

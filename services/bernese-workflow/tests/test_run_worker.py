@@ -927,3 +927,69 @@ def test_status_is_rewritten_when_the_clock_steps_back(env: Env) -> None:
         now[0] -= dt.timedelta(hours=1)
         assert w.step() == "idle"
         assert read_json(status)["updated"] == now[0].isoformat()
+
+
+# --- review follow-ups: the heartbeat on the command line, and a stopped redo ------------
+
+
+def _bsw_env(monkeypatch, tmp_path: Path) -> None:
+    """Enough of LOADGPS.setvar for `run` to start; --once with an empty queue
+    never plans anything, so the directories need not hold a campaign."""
+    for v in ("P", "U", "C", "S", "D"):
+        monkeypatch.setenv(v, str(tmp_path / v))
+
+
+def test_cli_heartbeat_option_reaches_the_worker(env: Env, monkeypatch, tmp_path) -> None:
+    from bernese_workflow import run_worker
+
+    seen: list[float] = []
+
+    class Spy(run_worker.Worker):
+        def __init__(self, *a, **k) -> None:
+            super().__init__(*a, **k)
+            seen.append(self.heartbeat_s)
+
+    _bsw_env(monkeypatch, tmp_path)
+    monkeypatch.setattr(run_worker, "Worker", Spy)
+    monkeypatch.setattr(run_worker.bpe_processes, "find", lambda: [])
+    state = ["--state-dir", str(env.queue.root)]
+    assert main([*state, "run", "--once", "--heartbeat-s", "300"]) == 0
+    assert main([*state, "run", "--once"]) == 0
+    assert seen == [300.0, run_worker.HEARTBEAT_DEFAULT_S]
+
+
+@pytest.mark.parametrize("bad", ["0", "-5", "nan"])
+def test_cli_heartbeat_option_rejects_values_that_are_not_positive(
+    env: Env, bad: str, capsys
+) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["--state-dir", str(env.queue.root), "run", "--once", "--heartbeat-s", bad])
+    assert exc.value.code == 2
+    assert "--heartbeat-s must be a number of seconds greater than 0" in capsys.readouterr().err
+
+
+def test_redo_still_recognises_a_day_the_stop_left_not_run(env: Env) -> None:
+    """A stop that arrives before the redo's one BPE call: the day is not_run with
+    halt kind "stopped", the redo is recorded stopped (not failed), the old set is
+    put back, and the ledger's on-disk kind is the string "stopped"."""
+    old = old_set(env, 40)
+    real = env.setup
+
+    def setup_then_stop(req: dict) -> Setup:
+        s = real(req)
+        env.submit(STOP)  # read by run_year's stop check, before any BPE call
+        return s
+
+    env.setup = setup_then_stop  # type: ignore[method-assign]
+    req = env.submit(REDO, doy=40)
+    with env.worker() as w:
+        w.step()
+    rec = env.done(req)
+    assert rec["outcome"] == "stopped"
+    assert rec["days"] == {"040": "not_run"}
+    assert "old set is back" in rec["detail"]
+    assert env.bsw.calls == []
+    assert on_disk(env, 40) == old
+    entries, _ = read_entries(env.year_dir / "ledger.jsonl")
+    end = [e for e in entries if e["event"] == "run_end"][-1]
+    assert end["halt_reason"]["kind"] == "stopped"

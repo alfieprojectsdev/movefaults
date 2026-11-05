@@ -30,14 +30,26 @@ conflict with the settled decision that the scientific pipeline has no cron
 $BERNESE_WORKER_STATE            default ~/.local/state/bernese-workflow/worker
 ├── worker.lock     flock: one worker per state directory
 ├── status.json     what the worker is doing now (rewritten atomically when it
-│                   changes; between runs also every 60 s, so `updated` is a
-│                   heartbeat. During a run it is written once, at the start)
+│                   changes; between runs also every `--heartbeat-s` seconds,
+│                   default 60, so `updated` is a heartbeat. During a run it is
+│                   written once, at the start)
 ├── HALTED          present only after a restore failed; see "When a restore fails"
 ├── tmp/            a request is written here first
 ├── queue/          pending requests, one <id>.json each
 ├── active/         the request being run (at most one)
 └── done/           finished requests, with their outcome added
 ```
+
+**The heartbeat.** Between runs `status.json` is rewritten only when what it
+says changes, or when `--heartbeat-s` seconds (default 60) have passed since it
+was last written, whichever comes first. Writing it on every poll meant an
+atomic write every 5 s, about 17,000 a day, each with two fsyncs (the file and
+its directory), for an unchanged file. A reader judging
+whether the worker is alive should allow a few heartbeats before calling it
+stale, and should not apply that test during a run, when `state` is `running`
+and the file is not rewritten until the run ends. `--heartbeat-s` must be a
+number of seconds greater than 0; 0 or less would bring back the write on
+every poll, and is refused.
 
 **Why files and not a database or a socket.** The console and the worker are
 separate processes that may each restart. A file survives both, can be read

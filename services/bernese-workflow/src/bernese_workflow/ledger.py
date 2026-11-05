@@ -166,7 +166,12 @@ def started_by() -> dict[str, str | None]:
     return {"user": user, "sudo_user": os.environ.get("SUDO_USER") or None}
 
 
-HALT_KINDS = ("breaker", "validation", "backend", "order", "no_start", "interrupted", "stopped")
+# A run ended by its ``stop`` callable (run_year) rather than by a failure: the
+# run worker's stop request or signal. Named once because the worker decides
+# from it whether a request was stopped or failed; the value is on disk in
+# every ledger that recorded a stop, so it must stay "stopped".
+HALT_STOPPED = "stopped"
+HALT_KINDS = ("breaker", "validation", "backend", "order", "no_start", "interrupted", HALT_STOPPED)
 
 
 def halt_reason(kind: str, label: str, doy: int | None = None) -> dict[str, object]:

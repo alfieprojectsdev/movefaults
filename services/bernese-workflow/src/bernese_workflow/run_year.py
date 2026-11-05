@@ -69,7 +69,7 @@ from .circuit_breaker import (
     diagnose_day,
     preflight_refusal,
 )
-from .ledger import halt_reason
+from .ledger import HALT_STOPPED, halt_reason
 from .month_driver import (
     DayOutcome,
     _done_marker,
@@ -293,7 +293,7 @@ def run_year(
     try:
         while queue and halt is None:
             if stop is not None and (asked := stop()):
-                halt, reason = asked, halt_reason("stopped", asked)
+                halt, reason = asked, halt_reason(HALT_STOPPED, asked)
                 break
             a, b = queue.pop(0)
             halt, reason, resume_from = _run_chunk(
