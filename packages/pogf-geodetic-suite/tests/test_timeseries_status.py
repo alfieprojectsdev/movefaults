@@ -652,3 +652,17 @@ def test_a_far_reference_is_warned_about_and_the_numbers_do_not_change(tmp_path)
     x, y, z = _REF_XYZ
     own_axes = _rate_in_axes_at(x, y + offset, z)
     assert max(abs(a - b) for a, b in zip(refs_axes, own_axes, strict=True)) > 1.0
+
+
+def test_station_positions_gives_latitude_longitude_and_arc_from_the_reference():
+    from pogf_geodetic_suite.timeseries.status import station_positions
+
+    a = pymap3d.geodetic2ecef(14.0, 121.0, 0.0, deg=True)
+    b = pymap3d.geodetic2ecef(15.0, 121.0, 0.0, deg=True)
+    out = station_positions({"AAAA": a, "BBBB": b}, "AAAA")
+    assert out["positions"]["BBBB"]["lat"] == pytest.approx(15.0)
+    assert out["positions"]["BBBB"]["lon"] == pytest.approx(121.0)
+    assert set(out["distances"]) == {"BBBB"}
+    assert out["distances"]["BBBB"] == pytest.approx(1.0, abs=0.01)
+    assert station_positions({"AAAA": a}, None)["distances"] == {}
+    assert station_positions({"AAAA": a}, "ZZZZ")["distances"] == {}

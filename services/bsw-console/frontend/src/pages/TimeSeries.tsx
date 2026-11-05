@@ -4,6 +4,7 @@ import type { Enu, Session, TsStation, TsSummary } from '../types'
 import { Failed, Loading } from './common'
 import TsPlot, { type PlotPoint } from './TsPlot'
 import OutlierDecision from './OutlierDecision'
+import StationMap from './StationMap'
 
 const mm = (v: number) => v.toFixed(2)
 const rate = (v: Enu, s: Enu, c: keyof Enu) => `${mm(v[c])} ± ${mm(s[c])}`
@@ -34,6 +35,9 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
       ? one.data.message
       : null
   const pickReference = (r: string) => { setReference(r); if (r === station) setStation('') }
+  // A reference just picked is not in `shown` until its summary answers, and neither
+  // list nor map knows yet: the reference as a station would never load.
+  const pickStation = (s: string) => { if (s !== (reference || shown)) setStation(s) }
 
   return (
     <>
@@ -47,6 +51,10 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
       {!sum.data && !sum.error && <Loading what="the time series" />}
       {sum.data && !sum.data.configured && (
         <div className="banner idle" role="status"><strong>Not configured.</strong> <span>{sum.data.message}</span></div>
+      )}
+      {sum.data && sum.data.configured && sum.data.positions && (
+        <StationMap positions={sum.data.positions} distances={sum.data.distances ?? {}} reference={shown} station={station}
+          warnDeg={sum.data.reference_warn_deg ?? 5} onReference={pickReference} onStation={pickStation} />
       )}
       {candidates.length > 0 && (
         <label className="row" style={{ fontSize: 13 }}>
@@ -71,7 +79,7 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
           </p>
           <label className="row" style={{ fontSize: 13 }}>
             Station
-            <select value={station} onChange={(e) => setStation(e.target.value)}>
+            <select value={station} onChange={(e) => pickStation(e.target.value)}>
               <option value="">Choose a station…</option>
               {sum.data.stations.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>

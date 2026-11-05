@@ -165,12 +165,14 @@ export type TsNotConfigured = { configured: false; missing: string[]; message: s
 export type TsUnavailable = {
   configured: true; available: false; message: string; crd_dirs: string[]; reference: string | null; default_reference: string | null
   offsets_path: string; station?: string; all_stations?: string[]; campaign?: string
+  positions?: Record<string, { lat: number; lon: number }>; distances?: Record<string, number>; reference_warn_deg?: number
 }
 export type TsSummary =
   | TsNotConfigured
   | TsUnavailable
   | {
       configured: true; available: true; crd_dirs: string[]; reference: string | null; default_reference: string | null
+      positions?: Record<string, { lat: number; lon: number }>; distances?: Record<string, number>; reference_warn_deg?: number
       offsets_path: string; all_stations: string[]; stations: string[]; outlier_mode: string; message?: string
       campaign: string
     }

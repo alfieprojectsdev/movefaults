@@ -35,3 +35,35 @@ vi.mock('uplot', () => {
   return { default: FakeUPlot }
 })
 vi.mock('uplot/dist/uPlot.min.css', () => ({}))
+
+// The map library is replaced the same way: jsdom has no layout for it to measure.
+;(globalThis as any).__leaflet = { markers: [], circles: [], fits: [] }
+vi.mock('leaflet', () => {
+  const state = () => (globalThis as any).__leaflet
+  const layer = () => ({
+    addTo() { return this }, bringToBack() { return this },
+  })
+  const L = {
+    map: () => ({
+      setView() { return this },
+      fitBounds(b: unknown) { state().fits.push(b); return this },
+      remove() {},
+    }),
+    layerGroup: () => ({
+      addTo() { return this },
+      clearLayers() { state().markers.length = 0; state().circles.length = 0 },
+    }),
+    latLngBounds: (points: unknown) => points,
+    geoJSON: layer,
+    circle: (at: unknown, opts: unknown) => { state().circles.push({ at, opts }); return layer() },
+    circleMarker: (at: unknown, opts: unknown) => {
+      const m: any = { at, opts, ...layer(), label: '', permanent: false, handlers: {} as Record<string, () => void> }
+      m.bindTooltip = (label: string, o: { permanent: boolean }) => { m.label = label; m.permanent = o.permanent; return m }
+      m.on = (name: string, fn: () => void) => { m.handlers[name] = fn; return m }
+      state().markers.push(m)
+      return m
+    },
+  }
+  return { default: L }
+})
+vi.mock('leaflet/dist/leaflet.css', () => ({}))

@@ -108,6 +108,7 @@ looks exactly like success (`CLAUDE.md`, Branching & Merge Policy).
 | `git_merge_main.sh`, `git_merge_ref.sh` | merge `origin/main` or another ref into the current branch |
 | `local_ci.py` | the CI that actually runs while GitHub Actions is locked: cron on gps3, posts `local-ci/gps3` |
 | `console_screenshots.py` | retake the BSW console screenshots in the work instruction, on the test suite's synthetic tree |
+| `make_console_coastline.py` | writes the coastline the console's station map draws, from Natural Earth; the output is committed, so run it only to change the area |
 | `audit_doc_references.py` | find documentation citing files that no longer exist |
 | `gnss_mirror_update.sh` | refresh the PHIVOLCS-held mirror of this repository |
 

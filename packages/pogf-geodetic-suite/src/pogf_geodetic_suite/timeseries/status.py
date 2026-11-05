@@ -144,6 +144,7 @@ to withhold a station.
 from __future__ import annotations
 
 import hashlib
+import math
 import re
 from enum import Enum
 from pathlib import Path
@@ -151,6 +152,7 @@ from typing import Any
 
 import numpy as np
 
+from ..modeling.coordinates import ecef_to_geodetic
 from .analysis import OffsetEvent, OffsetType, estimate_velocity
 from .crd_pipeline import (
     CrdDirs,
@@ -168,6 +170,7 @@ __all__ = [
     "SCHEMA",
     "OutlierMode",
     "series_status",
+    "station_positions",
     "station_status",
 ]
 
@@ -551,3 +554,22 @@ def session_date_to_decimal_year(session_date: str) -> float:
     if not 1981 <= year <= 2080:
         raise ValueError(f"{session_date}: the YYDDD rule covers 1981 to 2080 only")
     return session_to_decimal_year(f"{year % 100:02d}{doy:03d}")
+
+
+def station_positions(
+    xyz: dict[str, tuple[float, float, float]], reference: str | None = None
+) -> dict[str, Any]:
+    """Where each station is, as latitude and longitude, and how far each is from
+    `reference` by the measure `station_status` warns on. `distances` is empty when
+    `reference` is not among them; the reference has no distance from itself."""
+    positions = {}
+    for code, (x, y, z) in xyz.items():
+        lat, lon, _ = ecef_to_geodetic(x, y, z)
+        positions[code] = {"lat": float(lat), "lon": float(lon)}
+    origin = xyz.get(reference) if reference else None
+    distances = (
+        {code: arc_degrees(math.dist(origin, p)) for code, p in xyz.items() if code != reference}
+        if origin
+        else {}
+    )
+    return {"positions": positions, "distances": distances, "reference_warn_deg": REFERENCE_WARN_DEG}
