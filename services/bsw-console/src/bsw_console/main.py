@@ -226,16 +226,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return equipment.for_station(s, code)
 
     # Stage 5, read-only: pogf_geodetic_suite.timeseries.status, in this process.
-    # The inputs are the server's settings; the browser names a station code.
-    @app.get("/api/campaigns/{name}/time-series")
-    def time_series_summary(name: str, reference: str | None = None) -> dict:
-        campaign(name)
-        return timeseries.summary(s, _station_code(reference))
+    # The browser names a campaign, a year and station codes; the CRDs are that
+    # campaign year's result directory, never a path from the request.
+    @app.get("/api/campaigns/{name}/years/{year}/time-series")
+    def time_series_summary(name: str, year: int, reference: str | None = None) -> dict:
+        _check_year(year)
+        return timeseries.summary(s, campaign(name), year, _station_code(reference))
 
-    @app.get("/api/campaigns/{name}/time-series/{station}")
-    def time_series(name: str, station: str, reference: str | None = None) -> dict:
-        campaign(name)
-        return timeseries.for_station(s, _station_code(station), _station_code(reference))
+    @app.get("/api/campaigns/{name}/years/{year}/time-series/{station}")
+    def time_series(name: str, year: int, station: str, reference: str | None = None) -> dict:
+        _check_year(year)
+        c = campaign(name)
+        return timeseries.for_station(s, c, year, _station_code(station), _station_code(reference))
 
     # Stage 3: each queues one request for the run worker. The gate runs first,
     # before the body is read or the campaign looked up, so a refused caller
@@ -421,3 +423,8 @@ def _station_code(code: str | None) -> str | None:
     if not re.fullmatch(r"[A-Za-z0-9]{4}", code):
         raise HTTPException(422, "a station code is four letters or digits")
     return code.upper()
+
+
+def _check_year(year: int) -> None:
+    if not 1980 <= year <= 2100:
+        raise HTTPException(422, f"{year} is not a plausible campaign year")

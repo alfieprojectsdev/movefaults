@@ -17,8 +17,9 @@ and which one is right is a science choice, not a deployment setting. The
 page lists every station the CRD files hold as a candidate;
 BSW_CONSOLE_TS_REFERENCE, if set, is only the one it starts with.
 
-The CRD directory and the offsets catalog come from settings with no defaults
-(settings.py). Until both are set, both endpoints answer 200 with
+The CRDs are read from the campaign year's result directory (<V_RESULT>/STA),
+so the page shows the campaign and year it names. The offsets catalog comes
+from a setting with no default (settings.py). Until it is set, both endpoints answer 200 with
 configured=false and the names of the missing settings. With no reference
 chosen and no default, the summary lists the candidates and says to choose
 one. A station status cannot compute (not in the files, the reference itself,
@@ -33,12 +34,10 @@ from pathlib import Path
 from pogf_geodetic_suite.timeseries.crd_pipeline import crd_directory_to_enu, crd_station_codes
 from pogf_geodetic_suite.timeseries.status import OutlierMode, station_status
 
-from .settings import Settings
+from .settings import Campaign, Settings
+from .status import campaign_years, year_dir
 
-SETTINGS = (
-    ("BSW_CONSOLE_TS_CRD_DIR", "ts_crd_dir"),
-    ("BSW_CONSOLE_TS_OFFSETS", "ts_offsets"),
-)
+SETTINGS = (("BSW_CONSOLE_TS_OFFSETS", "ts_offsets"),)
 DEFAULT_MODE = OutlierMode.RECORD.value
 
 
@@ -51,7 +50,7 @@ def _not_configured(s: Settings) -> dict | None:
         "missing": missing,
         "message": "The time series is not configured for this console: set "
         + ", ".join(missing)
-        + " (the daily final CRD directory and the offsets catalog).",
+        + " (the offsets catalog).",
     }
 
 
@@ -85,30 +84,42 @@ def _reference(s: Settings, requested: str | None) -> str | None:
     return (requested or s.ts_reference or "").upper() or None
 
 
-def _inputs(s: Settings, reference: str | None) -> dict:
+def crd_dir(s: Settings, c: Campaign, year: int) -> Path:
+    """Where that campaign year's daily final CRDs are: <V_RESULT>/STA."""
+    return year_dir(s, c.pcf, c.name, year) / "STA"
+
+
+def _inputs(s: Settings, c: Campaign, year: int, reference: str | None) -> dict:
     return {
-        "crd_dir": str(s.ts_crd_dir),
+        "campaign": c.name,
+        "year": year,
+        "crd_dir": str(crd_dir(s, c, year)),
         "reference": reference,
         "default_reference": s.ts_reference,
         "offsets_path": str(s.ts_offsets),
     }
 
 
-def summary(s: Settings, reference: str | None = None) -> dict:
+def _missing(s: Settings, c: Campaign, year: int) -> str | None:
+    d = crd_dir(s, c, year)
+    if d.is_dir():
+        return None
+    return f"No daily final CRDs for {c.name} {year}: {d} does not exist."
+
+
+def summary(s: Settings, c: Campaign, year: int, reference: str | None = None) -> dict:
     """The reference candidates, the stations relative to the chosen one, and the mode."""
     if (no := _not_configured(s)) is not None:
         return no
     ref = _reference(s, reference)
+    base = {"configured": True, **_inputs(s, c, year, ref), "years": campaign_years(s, c)}
+    if (why := _missing(s, c, year)) is not None:
+        return {**base, "available": False, "stations": [], "message": why}
     try:
-        candidates = stations_in(s.ts_crd_dir)  # type: ignore[arg-type]
+        candidates = stations_in(crd_dir(s, c, year))
     except (OSError, ValueError) as exc:
-        return {"configured": True, "available": False, **_inputs(s, ref), "message": str(exc)}
-    out = {
-        "configured": True,
-        **_inputs(s, ref),
-        "all_stations": candidates,
-        "outlier_mode": DEFAULT_MODE,
-    }
+        return {**base, "available": False, "message": str(exc)}
+    out = {**base, "all_stations": candidates, "outlier_mode": DEFAULT_MODE}
     if ref is None:
         return {**out, "available": True, "stations": [],
                 "message": "Choose a reference station: every series is relative to it."}  # fmt: skip
@@ -116,27 +127,31 @@ def summary(s: Settings, reference: str | None = None) -> dict:
         return {**out, "available": False, "stations": [],
                 "message": f"{ref} is not an estimated station in these CRD files."}  # fmt: skip
     try:
-        epochs = crd_directory_to_enu(s.ts_crd_dir, ref)  # type: ignore[arg-type]
+        epochs = crd_directory_to_enu(crd_dir(s, c, year), ref)
     except (OSError, ValueError) as exc:
         return {**out, "available": False, "stations": [], "message": str(exc)}
     return {**out, "available": True, "stations": sorted({e.station for e in epochs} - {ref})}
 
 
-def for_station(s: Settings, code: str, reference: str | None = None) -> dict:
+def for_station(
+    s: Settings, c: Campaign, year: int, code: str, reference: str | None = None
+) -> dict:
     """What station_status returns for one station, relative to the chosen reference."""
     if (no := _not_configured(s)) is not None:
         return no
     ref = _reference(s, reference)
-    base = {"configured": True, **_inputs(s, ref), "station": code.upper()}
+    base = {"configured": True, **_inputs(s, c, year, ref), "station": code.upper()}
     if ref is None:
         return {**base, "available": False, "message": "Choose a reference station first."}
+    if (why := _missing(s, c, year)) is not None:
+        return {**base, "available": False, "message": why}
     try:
         result = station_status(
-            s.ts_crd_dir,  # type: ignore[arg-type]
+            crd_dir(s, c, year),
             code.upper(),
             ref,
             offsets_catalog=s.ts_offsets,
         )
     except (OSError, ValueError) as exc:
         return {**base, "available": False, "message": str(exc)}
-    return {"configured": True, "available": True, **_inputs(s, ref), **result}
+    return {"configured": True, "available": True, **_inputs(s, c, year, ref), **result}

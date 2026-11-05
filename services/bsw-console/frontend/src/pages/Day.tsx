@@ -33,7 +33,7 @@ export default function Day({ campaign, year, doy }: { campaign: string; year: n
         <div className="row">
           {data.state === 'failed' && <a className="btn" href={href.failure(campaign, year, doy)}>Why it failed</a>}
           <a className="btn2" href={href.redo(campaign, year, doy)}>Redo this day…</a>
-          <a className="btn2" href={href.timeSeries(campaign)}>Time series</a>
+          <a className="btn2" href={href.timeSeries(campaign, year)}>Time series</a>
         </div>
       </div>
 

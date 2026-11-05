@@ -32,7 +32,7 @@ const screens: [string, RegExp][] = [
   ['#/c/LUZON/2025/plan?from=35&to=40', /Checks before the run/],
   ['#/known-errors', /The list the run looks failures up in/],
   ['#/c/LUZON/2025/stations', /BLQ, still by email/],
-  ['#/c/LUZON/time-series', /Outlier mode/],
+  ['#/c/LUZON/2021/time-series', /Outlier mode/],
 ]
 
 describe.each(screens)('%s', (hash, text) => {
@@ -83,7 +83,7 @@ describe('time series reference', () => {
     const urls: string[] = []
     const get = (globalThis.fetch as unknown as (u: string) => Promise<Response>)
     vi.stubGlobal('fetch', vi.fn(async (url: string) => { urls.push(url); return get(url) }))
-    await at('#/c/LUZON/time-series')
+    await at('#/c/LUZON/2021/time-series')
     const pick = screen.getByLabelText('Reference station') as HTMLSelectElement
     expect(pick.value).toBe('REF0')
     expect(screen.getByRole('option', { name: 'REF0 (default)' })).toBeTruthy()
@@ -92,6 +92,6 @@ describe('time series reference', () => {
       pick.dispatchEvent(new Event('change', { bubbles: true }))
       await new Promise((r) => setTimeout(r, 0))
     })
-    expect(urls.some((u) => u.endsWith('/api/campaigns/LUZON/time-series?reference=SYN1'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/api/campaigns/LUZON/years/2021/time-series?reference=SYN1'))).toBe(true)
   })
 })

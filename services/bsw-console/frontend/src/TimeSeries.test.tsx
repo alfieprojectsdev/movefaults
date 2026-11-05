@@ -5,7 +5,7 @@ import api from './__fixtures__/api.json'
 // The configured responses are pogf_geodetic_suite.timeseries.status run on the
 // synthetic CRDs in services/bsw-console/tests/conftest.py (make_frontend_fixture.py).
 const responses = api as Record<string, unknown>
-const BASE = '/api/campaigns/LUZON/time-series'
+const BASE = '/api/campaigns/LUZON/years/2021/time-series'
 
 function serve(overrides: Record<string, unknown> = {}) {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
@@ -22,7 +22,7 @@ async function settle() {
 }
 
 async function page() {
-  window.location.hash = '#/c/LUZON/time-series'
+  window.location.hash = '#/c/LUZON/2021/time-series'
   render(<App />)
   await settle()
 }
@@ -50,14 +50,14 @@ it('not configured: the page says so and names the settings, instead of failing'
   serve({
     [BASE]: {
       configured: false,
-      missing: ['BSW_CONSOLE_TS_CRD_DIR', 'BSW_CONSOLE_TS_OFFSETS'],
-      message: 'The time series is not configured for this console: set BSW_CONSOLE_TS_CRD_DIR, BSW_CONSOLE_TS_OFFSETS (the daily final CRD directory and the offsets catalog).',
+      missing: ['BSW_CONSOLE_TS_OFFSETS'],
+      message: 'The time series is not configured for this console: set BSW_CONSOLE_TS_OFFSETS (the offsets catalog).',
     },
   })
   await page()
   const status = screen.getByRole('status')
   expect(status.textContent).toMatch(/Not configured\./)
-  expect(status.textContent).toMatch(/BSW_CONSOLE_TS_CRD_DIR/)
+  expect(status.textContent).toMatch(/BSW_CONSOLE_TS_OFFSETS/)
   expect(screen.queryByLabelText(/Station/)).toBeNull()
   expect(screen.queryByText(/Could not read this/)).toBeNull()
 })
@@ -167,4 +167,15 @@ describe('the time-series plot', () => {
     expect(after.max - after.min).toBeLessThan(before.max - before.min)
     expect(ev.defaultPrevented).toBe(true)
   })
+})
+
+
+it('names the campaign and year it shows, and the year picker moves to another year', async () => {
+  serve()
+  await page()
+  expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/LUZON 2021/)
+  const pick = screen.getByLabelText('Year') as HTMLSelectElement
+  expect(pick.value).toBe('2021')
+  fireEvent.change(pick, { target: { value: '2025' } })
+  expect(window.location.hash).toBe('#/c/LUZON/2025/time-series')
 })

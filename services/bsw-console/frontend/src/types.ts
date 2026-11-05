@@ -164,7 +164,7 @@ export type Enu = { e: number; n: number; u: number }
 export type TsNotConfigured = { configured: false; missing: string[]; message: string }
 export type TsUnavailable = {
   configured: true; available: false; message: string; crd_dir: string; reference: string | null; default_reference: string | null
-  offsets_path: string; station?: string; all_stations?: string[]
+  offsets_path: string; station?: string; all_stations?: string[]; campaign?: string; year?: number; years?: number[]
 }
 export type TsSummary =
   | TsNotConfigured
@@ -172,6 +172,7 @@ export type TsSummary =
   | {
       configured: true; available: true; crd_dir: string; reference: string | null; default_reference: string | null
       offsets_path: string; all_stations: string[]; stations: string[]; outlier_mode: string; message?: string
+      campaign: string; year: number; years: number[]
     }
 export type TsSegment = {
   index: number; t_start: number; t_end: number; span_yr: number; n_epochs: number; n_fit: number; n_outliers: number

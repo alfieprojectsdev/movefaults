@@ -7,11 +7,14 @@ describe('routes', () => {
     expect(parse('#/c/PHREF/2025/day/210/failure')).toEqual({ page: 'failure', campaign: 'PHREF', year: 2025, doy: 210 })
     expect(parse('#/c/LUZON/2026/plan?from=71&to=100')).toEqual({ page: 'plan', campaign: 'LUZON', year: 2026, from: 71, to: 100 })
     expect(parse('#/known-errors')).toEqual({ page: 'known-errors' })
+    // the year-less time-series link from before years were in it opens this year
+    expect(parse('#/c/luzon/time-series')).toEqual({ page: 'time-series', campaign: 'LUZON', year: new Date().getFullYear() })
     expect(parse('')).toEqual({ page: 'campaigns' })
   })
   it('round-trips every link it makes', () => {
     expect(parse(href.redo('LUZON', 2026, 45))).toEqual({ page: 'redo', campaign: 'LUZON', year: 2026, doy: 45 })
     expect(parse(href.run('LUZON', 2026, 'c2ff9ab5'))).toEqual({ page: 'run', campaign: 'LUZON', year: 2026, run: 'c2ff9ab5' })
+    expect(parse(href.timeSeries('PHREF', 2025))).toEqual({ page: 'time-series', campaign: 'PHREF', year: 2025 })
   })
 })
 

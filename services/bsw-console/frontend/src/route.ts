@@ -12,7 +12,7 @@ export type Route =
   | { page: 'plan'; campaign: string; year: number; from?: number; to?: number }
   | { page: 'known-errors' }
   | { page: 'stations'; campaign: string; year: number }
-  | { page: 'time-series'; campaign: string }
+  | { page: 'time-series'; campaign: string; year: number }
 
 export function parse(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?')
@@ -22,12 +22,14 @@ export function parse(hash: string): Route {
   if (p[0] === 'known-errors') return { page: 'known-errors' }
   if (p[0] === 'c' && p[1]) {
     const campaign = p[1].toUpperCase()
-    if (p[2] === 'time-series') return { page: 'time-series', campaign }
+    // The year-less form is what earlier links used: it opens this year.
+    if (p[2] === 'time-series') return { page: 'time-series', campaign, year: new Date().getFullYear() }
     const year = num(p[2]) ?? new Date().getFullYear()
     const what = p[3]
     if (what === 'run') return { page: 'run', campaign, year, run: q.get('run') || undefined }
     if (what === 'plan') return { page: 'plan', campaign, year, from: num(q.get('from')), to: num(q.get('to')) }
     if (what === 'stations') return { page: 'stations', campaign, year }
+    if (what === 'time-series') return { page: 'time-series', campaign, year }
     if (what === 'day' && num(p[4])) {
       const doy = num(p[4])!
       if (p[5] === 'failure') return { page: 'failure', campaign, year, doy }
@@ -50,7 +52,7 @@ export const href = {
     `#/c/${c}/${y}/plan${from ? `?from=${from}&to=${to ?? from}` : ''}`,
   knownErrors: () => '#/known-errors',
   stations: (c: string, y: number) => `#/c/${c}/${y}/stations`,
-  timeSeries: (c: string) => `#/c/${c}/time-series`,
+  timeSeries: (c: string, y: number) => `#/c/${c}/${y}/time-series`,
 }
 
 export function useRoute(): Route {

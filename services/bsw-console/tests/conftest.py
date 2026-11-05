@@ -172,7 +172,9 @@ def build(tmp_path: Path) -> Settings:
     (ref / "LUZON.BLQ").write_text(
         "$$ header\n  ALBU               ALBU\n  .01 .02\n$$ END TABLE\n  BILI   after the table, unread\n"
     )
-    ts_crd, ts_offsets = time_series_inputs(tmp_path / "timeseries")
+    # The time series reads <V_RESULT>/STA of the campaign year: LUZON 2021 here,
+    # a year of its own so the 2025 day fixtures are not part of the series.
+    _, ts_offsets = time_series_inputs(s / "LUZON" / str(TS_YEAR))
     return Settings(
         gpsuser=u,
         datapool=d,
@@ -181,7 +183,6 @@ def build(tmp_path: Path) -> Settings:
         campaigns=[Campaign("LUZON", "LUZON_DLY", "LZY")],
         lock_path=tmp_path / "bpe.lock",
         state_dir=tmp_path / "state",
-        ts_crd_dir=ts_crd,
         ts_reference="REF0",
         ts_offsets=ts_offsets,
         equipment_report=equipment_report(tmp_path / "equipment"),
@@ -270,6 +271,7 @@ def client(bsw: Settings) -> TestClient:
 
 TS_REF_XYZ = (-3_150_000.0, 5_350_000.0, 1_600_000.0)
 TS_STEP_T = 2021.0
+TS_YEAR = 2021  # the result-directory year the synthetic series is filed under
 TS_SPIKE = (2021, 196)  # the one epoch the IQR rule must flag
 
 
