@@ -1,4 +1,4 @@
-import { panelData, sessionDate, zoomRange } from './tsPlot'
+import { panRange, panelData, sessionDate, zoomRange } from './tsPlot'
 import type { TsSegment, TsSeries } from './types'
 
 const seg = (index: number, t: [number, number], e: [number, number]): TsSegment => ({
@@ -59,4 +59,10 @@ it('turns a decimal year back into its session date', () => {
   expect(sessionDate(2025 + 1 / 365.25)).toBe('2025-001')
   expect(sessionDate(2024 + 365 / 365.25)).toBe('2024-365')
   expect(sessionDate(2021.0)).toMatch(/^~/)
+})
+
+it('pans by a fraction of the window and stops at the data', () => {
+  expect(panRange(2020, 2021, 0.1, 2019, 2022)).toEqual([2020.1, 2021.1])
+  expect(panRange(2020.5, 2021.5, 1, 2019, 2022)).toEqual([2021, 2022])
+  expect(panRange(2019.2, 2020.2, -1, 2019, 2022)).toEqual([2019, 2020])
 })

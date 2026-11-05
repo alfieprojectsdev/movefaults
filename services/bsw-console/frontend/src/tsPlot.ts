@@ -90,3 +90,13 @@ export function sessionDate(t: number): string {
   const year = Math.floor(t)
   return `~${year}-${String(Math.max(1, Math.round((t - year) * 365.25))).padStart(3, '0')}`
 }
+
+/** Shift the time window by `frac` of its width (negative = earlier), clamped to [lo, hi]. */
+export function panRange(min: number, max: number, frac: number, lo: number, hi: number): [number, number] {
+  const span = max - min
+  let nmin = min + frac * span
+  let nmax = nmin + span
+  if (nmin < lo) { nmin = lo; nmax = Math.min(hi, lo + span) }
+  if (nmax > hi) { nmax = hi; nmin = Math.max(lo, hi - span) }
+  return [nmin, nmax]
+}

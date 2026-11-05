@@ -135,10 +135,32 @@ describe('the time-series plot', () => {
     for (const c of charts) expect(c.scales.x).toEqual({ min: 2020.5, max: 2021.0 })
   })
 
-  it('the mouse wheel zooms in around the cursor', async () => {
+  it('a plain wheel leaves the page scrolling and the zoom alone', async () => {
+    const charts = await showSyn1()
+    const before = { ...charts[0].scales.x }
+    const ev = new WheelEvent('wheel', { deltaY: -100, cancelable: true })
+    Object.defineProperty(ev, 'offsetX', { value: 2021 })
+    charts[2].over.dispatchEvent(ev)
+    expect(ev.defaultPrevented).toBe(false)
+    expect(charts[0].scales.x).toEqual(before)
+  })
+
+  it('shift + wheel pans all three panels', async () => {
+    const charts = await showSyn1()
+    charts[0].setScale('x', { min: 2020.5, max: 2021.0 })
+    const ev = new WheelEvent('wheel', { deltaY: 100, shiftKey: true, cancelable: true })
+    charts[1].over.dispatchEvent(ev)
+    expect(ev.defaultPrevented).toBe(true)
+    for (const c of charts) {
+      expect(c.scales.x.min).toBeCloseTo(2020.55)
+      expect(c.scales.x.max - c.scales.x.min).toBeCloseTo(0.5)
+    }
+  })
+
+  it('ctrl + wheel zooms in around the cursor', async () => {
     const charts = await showSyn1()
     const before = { ...charts[2].scales.x }
-    const ev = new WheelEvent('wheel', { deltaY: -100, cancelable: true })
+    const ev = new WheelEvent('wheel', { deltaY: -100, ctrlKey: true, cancelable: true })
     Object.defineProperty(ev, 'offsetX', { value: 2021 })
     charts[2].over.dispatchEvent(ev)
     const after = charts[0].scales.x

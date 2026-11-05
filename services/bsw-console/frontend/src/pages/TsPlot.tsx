@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
-import { COMPONENTS, panelData, sessionDate, zoomRange } from '../tsPlot'
+import { COMPONENTS, panRange, panelData, sessionDate, zoomRange } from '../tsPlot'
 import type { TsSegment, TsSeries } from '../types'
 
 type Offset = { t: number; type: string; label: string; within_span: boolean }
 
 /**
  * East, North and Up stacked on one time axis, the layout tsview and the
- * EarthScope / NGL station plots use. Zoom like a waveform editor: the mouse
- * wheel zooms time around the cursor, dragging selects a span, double-click
- * shows everything. The three panels share their cursor and their time range.
+ * EarthScope / NGL station plots use. Zoom like a waveform editor: Ctrl (or
+ * Cmd) with the mouse wheel, or a trackpad pinch, zooms time around the cursor;
+ * Shift with the wheel pans; dragging selects a span; double-click shows
+ * everything. A plain wheel still scrolls the page: the three panels fill most
+ * of the screen, and taking the plain wheel would trap the reader in them.
+ * The panels share their cursor and their time range.
  *
  * Marks: epochs in the fit (dots), epochs the outlier rule flagged (larger,
  * orange), epochs not in the fit for any other reason (hollow), the package's
@@ -21,6 +24,15 @@ export default function TsPlot({ series, segments, offsets, station }: {
 }) {
   const host = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<string>('')
+  // Canvas colours are read from the CSS tokens when the charts are built, so a
+  // switch between light and dark rebuilds them.
+  const [scheme, setScheme] = useState(0)
+  useEffect(() => {
+    const mq = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null
+    const bump = () => setScheme((n) => n + 1)
+    mq?.addEventListener?.('change', bump)
+    return () => mq?.removeEventListener?.('change', bump)
+  }, [])
 
   useEffect(() => {
     const el = host.current
@@ -67,12 +79,22 @@ export default function TsPlot({ series, segments, offsets, station }: {
       hooks: {
         ready: (u) => {
           u.over.addEventListener('wheel', (e: WheelEvent) => {
+            // Browsers report a trackpad pinch as a wheel event with ctrlKey set.
+            const zoom = e.ctrlKey || e.metaKey
+            const pan = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)
+            if (!zoom && !pan) return // a plain wheel scrolls the page
             e.preventDefault()
             const { min, max } = u.scales.x
             if (min == null || max == null) return
-            const center = u.posToVal(e.offsetX, 'x')
-            const [nmin, nmax] = zoomRange(min, max, center, e.deltaY < 0 ? 0.8 : 1.25, lo - pad, hi + pad)
-            u.setScale('x', { min: nmin, max: nmax })
+            if (zoom) {
+              const center = u.posToVal(e.offsetX, 'x')
+              const [nmin, nmax] = zoomRange(min, max, center, e.deltaY < 0 ? 0.8 : 1.25, lo - pad, hi + pad)
+              u.setScale('x', { min: nmin, max: nmax })
+            } else {
+              const d = e.shiftKey ? e.deltaY : e.deltaX
+              const [nmin, nmax] = panRange(min, max, Math.sign(d) * 0.1, lo - pad, hi + pad)
+              u.setScale('x', { min: nmin, max: nmax })
+            }
           }, { passive: false })
         },
       },
@@ -118,7 +140,8 @@ export default function TsPlot({ series, segments, offsets, station }: {
           setCursor: [
             (u) => {
               const i = u.cursor.idx
-              if (i == null || k !== 0) return
+              if (k !== 0) return
+              if (i == null || i < 0 || i >= series.t.length) { setHover(''); return }
               const parts = COMPONENTS.map(({ key: c }) => `${c.toUpperCase()} ${series[`${c}_mm`][i].toFixed(1)}`)
               const tag = series.outlier[i] ? ' · flagged' : series.in_fit[i] ? '' : ' · not in fit'
               setHover(`${sessionDate(series.t[i])} (${series.t[i].toFixed(4)}) · ${parts.join(' · ')} mm${tag}`)
@@ -139,13 +162,13 @@ export default function TsPlot({ series, segments, offsets, station }: {
       for (const c of charts) c.destroy()
       el.replaceChildren()
     }
-  }, [series, segments, offsets, station])
+  }, [series, segments, offsets, station, scheme])
 
   return (
     <section aria-labelledby="ts-plot" className="panel pad stack">
       <h2 id="ts-plot">{station} · east, north, up</h2>
       <p className="muted" style={{ fontSize: 13 }}>
-        Mouse wheel zooms time around the cursor; drag to select a span; double-click shows everything. Dots are in the fit, orange marks were flagged by the outlier rule, hollow marks are not in the fit, the line is the fitted velocity per segment, and dashed lines are the catalogue's offsets.
+        Ctrl + mouse wheel (or pinch) zooms time around the cursor; Shift + wheel pans; drag to select a span; double-click shows everything. Dots are in the fit, orange marks were flagged by the outlier rule, hollow marks are not in the fit, the line is the fitted velocity per segment, and dashed lines are the catalogue's offsets.
       </p>
       <div ref={host} data-testid="ts-plot" />
       <p className="mono" style={{ fontSize: 12, minHeight: '1.4em' }} aria-live="polite">{hover}</p>
