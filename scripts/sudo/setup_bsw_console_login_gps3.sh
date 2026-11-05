@@ -64,7 +64,11 @@ if [ "$ACTION" != add ]; then
   LAN_NET=$(python3 -c 'import ipaddress,sys; print(ipaddress.ip_interface(sys.argv[1]).network)' "$LAN") \
     || { echo "FATAL: --lan $LAN is not an address" >&2; exit 1; }
   LAN_IP=${LAN%/*}
-  ip -4 -br addr show | grep -qF " $LAN_IP/" || { echo "FATAL: $LAN_IP is not on this host" >&2; exit 1; }
+  addrs=$(ip -4 -br addr show)
+  grep -qF " $LAN_IP/" <<< "$addrs" || { echo "FATAL: $LAN_IP is not on this host" >&2; exit 1; }
+  # Checked before anything changes: a failure later would leave $USERS_FILE behind,
+  # and with it a second run refused.
+  [ -f "$CONSOLE_UNIT" ] || { echo "FATAL: $CONSOLE_UNIT missing; run deploy_bsw_console_gps3.sh first" >&2; exit 1; }
 fi
 
 console_on_lan() {  # undo: the console back on the LAN address, no proxy trusted
@@ -103,9 +107,12 @@ if [ "$ACTION" = add ]; then
 fi
 
 [ -n "$USERS_ARG" ] || { echo "FATAL: --users AB,CD,... (initials, comma-separated)" >&2; exit 1; }
-IFS=',' read -r -a USERS <<< "$USERS_ARG"
+IFS=',' read -r -a USERS <<< "${USERS_ARG// /}"
+for u in "${USERS[@]}"; do
+  [[ "$u" =~ ^[A-Za-z0-9._-]{1,32}$ ]] || { echo "FATAL: bad username '$u'" >&2; exit 1; }
+done
 [ -f "$USERS_FILE" ] && { echo "FATAL: $USERS_FILE exists; use --add-user, or --undo and remove it first" >&2; exit 1; }
-TS_IP=$(tailscale ip -4 2>/dev/null | head -1)
+TS_IP=$(tailscale ip -4 2>/dev/null | head -1) || true  # pipefail: keep the FATAL below reachable
 [ -n "$TS_IP" ] || { echo "FATAL: no tailnet address" >&2; exit 1; }
 
 echo "== install"
@@ -115,7 +122,7 @@ caddy version
 echo "== users: ${USERS[*]}"
 umask 077
 : > "$USERS_FILE"
-for u in "${USERS[@]}"; do new_user "$(echo "$u" | tr -d ' ')"; done
+for u in "${USERS[@]}"; do new_user "$u"; done
 chown root:caddy "$USERS_FILE"; chmod 640 "$USERS_FILE"
 
 [ -f "$CADDYFILE" ] && cp -n "$CADDYFILE" "$CADDYFILE.pre-bsw-console-$(date +%Y%m%d)"
@@ -140,8 +147,8 @@ caddy validate --config "$CADDYFILE" --adapter caddyfile
 
 echo "== console behind Caddy"
 sed -i "s|^Environment=BSW_CONSOLE_HOST=.*|Environment=BSW_CONSOLE_HOST=127.0.0.1|" "$CONSOLE_UNIT"
-grep -q '^Environment=BSW_CONSOLE_TRUSTED_PROXIES=' "$CONSOLE_UNIT" \
-  || sed -i '/^Environment=PORT=/a Environment=BSW_CONSOLE_TRUSTED_PROXIES=127.0.0.1' "$CONSOLE_UNIT"
+sed -i '/^Environment=BSW_CONSOLE_TRUSTED_PROXIES=/d' "$CONSOLE_UNIT"
+sed -i '/^Environment=PORT=/a Environment=BSW_CONSOLE_TRUSTED_PROXIES=127.0.0.1' "$CONSOLE_UNIT"
 systemctl daemon-reload
 systemctl restart bsw-console-alpha
 systemctl enable caddy
@@ -159,10 +166,10 @@ for i in $(seq 20); do [ -f "$CA_SRC" ] && break; sleep 1; done
 cp "$CA_SRC" "$CA_OUT" && chown gps3:gps3 "$CA_OUT" && chmod 644 "$CA_OUT"
 
 echo "== checks"
-first=$(head -1 "$CREDS")
+first=$(tail -1 "$CREDS")  # the last written: an earlier same-day run may have left old lines above
 u=${first%% *}; pw=${first#* }
 echo "no login     -> $(curl -sk -o /dev/null -w '%{http_code}' "https://$LAN_IP:$PORT/api/session") (want 401)"
-sess=$(curl -sk -u "$u:$pw" "https://$LAN_IP:$PORT/api/session")
+sess=$(curl -sk -u "$u:$pw" "https://$LAN_IP:$PORT/api/session") || true  # a failed check must still reach the credentials line
 echo "as $u        -> $sess"
 echo "$sess" | grep -q "\"user\":\"$u\"" || echo "WARNING: logged in as $u but the console says nobody is signed in: check the console runs with proxy_headers off (#338) and trusts 127.0.0.1"
 echo "forged header-> $(curl -sk -u "$u:$pw" -H 'X-Remote-User: someone-else' "https://$LAN_IP:$PORT/api/session" | grep -o '"user":"[^"]*"') (want $u)"

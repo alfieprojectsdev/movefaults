@@ -14,17 +14,20 @@
 #   The Time series page reads each campaign year's own <V_RESULT>/STA (#343);
 #   --ts-crd-dir is accepted for old command lines and ignored.
 #   The reference station is chosen on the Time series page (#337); --ts-reference
-#   only sets the one it starts with.
+#   only sets the one it starts with, and without it the unit's current one is kept.
 # Undo:  sudo bash <same path> --undo > ~/bsw_console_deploy_undo.log 2>&1
 #
 # What it does:
-#   1. Refuses to touch anything while a BPE runs or the worker has a request
-#      active: it moves the production checkout both depend on.
-#   2. Moves ~/repos/mf_run (the production checkout the worker already runs
-#      from) to origin/main, syncs its venv and builds the console frontend.
+#   1. Refuses to touch anything while a BPE runs, the BPE lock is held or the
+#      worker has a request active: it moves the production checkout they depend on.
+#   2. Stops the worker, so it cannot claim a queued request while its code
+#      moves; moves ~/repos/mf_run (the production checkout the worker already
+#      runs from) to origin/main, syncs its venv and builds the console frontend;
+#      starts the worker again, also if a step here fails.
 #      The console and the worker then run the same code.
 #   3. Writes the equipment report once (bernese-check-equipment --json on
-#      PHNAT.STA against the committed inventory sheet). Refreshing it nightly
+#      PHNAT.STA against the committed inventory sheet). The report is advisory:
+#      if this fails the deploy goes on with a warning. Refreshing it nightly
 #      is a separate cron decision; the page shows the report's time.
 #   4. Rewrites the console's unit to run from mf_run, with the worker's queue,
 #      the equipment report and, if given, the time-series inputs. The old
@@ -44,6 +47,7 @@ RUN=/home/gps3/repos/mf_run
 UNIT=/etc/systemd/system/bsw-console-alpha.service
 SETVAR=/home/gps3/BERN54/LOADGPS.setvar
 WORKER_STATE=/home/gps3/.local/state/bernese-workflow/worker
+BPE_LOCK_FILE=/home/gps3/.local/state/bernese-workflow/bpe.lock
 CONSOLE_STATE=/home/gps3/.local/state/bsw-console
 REPORT=$CONSOLE_STATE/equipment_report.json
 STA=/home/gps3/GPSDATA/DATAPOOL/REF54/PHNAT.STA
@@ -77,7 +81,17 @@ echo "== 1. nothing running"
 if pgrep -f 'startBPE|RUNBPE|sessions_pcs.pl' >/dev/null; then
   echo "FATAL: a BPE is running; deploy after it ends" >&2; exit 1
 fi
-active=$(python3 -c "import json,sys; print(json.load(open('$WORKER_STATE/status.json')).get('active') or '')" 2>/dev/null || true)
+# The machine-wide lock also covers bernese-run-year between two BPE calls, when
+# no BPE process exists for pgrep to see. Idle workers do not hold it.
+if [ -e "$BPE_LOCK_FILE" ] && ! flock -n "$BPE_LOCK_FILE" true; then
+  echo "FATAL: the BPE lock is held; deploy after it ends: $(cat "$BPE_LOCK_FILE" 2>/dev/null)" >&2; exit 1
+fi
+# No status file means no worker has ever run. An unreadable one is not "idle".
+active=""
+if [ -e "$WORKER_STATE/status.json" ]; then
+  active=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("active") or "")' "$WORKER_STATE/status.json") \
+    || { echo "FATAL: cannot read $WORKER_STATE/status.json" >&2; exit 1; }
+fi
 [ -z "$active" ] || { echo "FATAL: the worker is running request $active; deploy after it ends" >&2; exit 1; }
 
 echo "== 2. production checkout to origin/main"
@@ -91,6 +105,14 @@ for t in 1 2 3; do
   [ "$t" = 3 ] && { echo "FATAL: could not fetch from GitHub" >&2; exit 1; }
   sleep 20
 done
+# A queued request must not start while the code and the venv move under it. The
+# worker was idle a moment ago; if it just claimed a request, this waits for the
+# block in progress (see install_bernese_worker_gps3.sh).
+worker_stopped=0
+if systemctl is-active -q bernese-worker; then
+  systemctl stop bernese-worker; worker_stopped=1
+  trap 'systemctl start bernese-worker' EXIT
+fi
 as_gps3 "git -C $RUN checkout -q --detach origin/main"
 after=$(as_gps3 "git -C $RUN rev-parse --short HEAD")
 echo "   mf_run $before -> $after"
@@ -98,11 +120,15 @@ as_gps3 "cd $RUN && /home/gps3/.local/bin/uv sync --all-extras --frozen -q"
 as_gps3 "cd $RUN/services/bsw-console/frontend && npm ci --silent && npm run build --silent" >/dev/null
 [ -f "$RUN/services/bsw-console/frontend/dist/index.html" ] || { echo "FATAL: frontend build missing" >&2; exit 1; }
 [ -x "$RUN/.venv/bin/bsw-console" ] || { echo "FATAL: $RUN/.venv/bin/bsw-console missing" >&2; exit 1; }
-if systemctl is-active -q bernese-worker; then systemctl restart bernese-worker; echo "   worker restarted on $after"; fi
+if [ "$worker_stopped" = 1 ]; then systemctl start bernese-worker; trap - EXIT; echo "   worker restarted on $after"; fi
 
 echo "== 3. equipment report"
-as_gps3 "mkdir -p $CONSOLE_STATE && $RUN/.venv/bin/bernese-check-equipment --sta $STA --equipment-csv $RUN/data/network_inventory/equipment.csv --json > $REPORT.tmp && mv $REPORT.tmp $REPORT"
-echo "   $(stat -c '%s bytes' "$REPORT") -> $REPORT"
+if as_gps3 "mkdir -p $CONSOLE_STATE && $RUN/.venv/bin/bernese-check-equipment --sta $STA --equipment-csv $RUN/data/network_inventory/equipment.csv --json > $REPORT.tmp && mv $REPORT.tmp $REPORT"; then
+  echo "   $(stat -c '%s bytes' "$REPORT") -> $REPORT"
+else
+  rm -f "$REPORT.tmp"
+  echo "   WARNING: equipment report not refreshed; the page keeps the last one, if any"
+fi
 
 echo "== 4. may the buttons go on?"
 why=()
@@ -119,6 +145,7 @@ host=127.0.0.1 proxies=""
 if [ -f "$UNIT" ]; then
   host=$(sed -n 's/^Environment=BSW_CONSOLE_HOST=//p' "$UNIT"); host=${host:-127.0.0.1}
   proxies=$(sed -n 's/^Environment=BSW_CONSOLE_TRUSTED_PROXIES=//p' "$UNIT")
+  [ -n "$TS_REF" ] || TS_REF=$(sed -n 's/^Environment=BSW_CONSOLE_TS_REFERENCE=//p' "$UNIT")
   cp "$UNIT" "$UNIT.pre-deploy-$(date +%Y%m%d-%H%M%S)"
 fi
 {
@@ -157,7 +184,13 @@ systemctl restart bsw-console-alpha
 
 echo "== 5. checks (direct, on 127.0.0.1:8002 or the console's own address)"
 url="http://$host:8002"
-for i in $(seq 30); do curl -sf -o /dev/null "$url/api/session" && break; sleep 1; done
+up=no
+for i in $(seq 30); do curl -sf -o /dev/null "$url/api/session" && { up=yes; break; }; sleep 1; done
+if [ "$up" != yes ]; then
+  echo "FATAL: the console did not answer on $url in 30 s (--undo restores the previous unit)" >&2
+  journalctl -u bsw-console-alpha --no-pager -n 20 || true
+  exit 1
+fi
 echo "   session:     $(curl -s "$url/api/session")"
 echo "   worker:      $(curl -s "$url/api/worker" | head -c 300)"
 echo "   equipment:   $(curl -s "$url/api/equipment-report" | head -c 200)"

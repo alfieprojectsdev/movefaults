@@ -43,7 +43,7 @@ fi
 
 [ -x "$WORKER_BIN" ] || { echo "FATAL: $WORKER_BIN missing (uv sync in $RUN_CHECKOUT first)" >&2; exit 1; }
 [ -r "$SETVAR" ] || { echo "FATAL: $SETVAR not readable" >&2; exit 1; }
-echo "== production checkout: $(sudo -u gps3 git -C "$RUN_CHECKOUT" log --oneline -1)"
+echo "== production checkout: $(sudo -u gps3 -H git -C "$RUN_CHECKOUT" log --oneline -1)"
 # RUNBPE workers dial the BPE server by hostname; an unlisted hostname stalls a
 # BPE (docs/SETTLED.md section 4). Warn, don't fail: the BPE has run like this.
 getent ahostsv4 "$(hostname)" | head -1 | grep -qE '^127\.' \
@@ -75,7 +75,9 @@ systemctl enable --now bernese-worker
 
 sleep 8
 echo "== after"
-systemctl --no-pager status bernese-worker | head -12
+# status exits 3 for a worker that failed to start, and pipefail would then end the
+# script just before the journal below, the part that says why.
+systemctl --no-pager status bernese-worker | head -12 || true
 journalctl -u bernese-worker --no-pager -n 20 || true
 echo "== queue, as gps3 sees it"
-sudo -u gps3 bash -c "set -a; . $SETVAR; set +a; $WORKER_BIN list" || echo "WARNING: bernese-worker list failed"
+sudo -u gps3 -H bash -c "set -a; . $SETVAR; set +a; $WORKER_BIN list" || echo "WARNING: bernese-worker list failed"
