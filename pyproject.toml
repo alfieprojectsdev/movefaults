@@ -56,6 +56,8 @@ bernese-run-year = "bernese_workflow.run_year:main"
 bernese-worker = "bernese_workflow.run_worker:main"
 # STA overlaps, BLQ after END TABLE, ATL names, stations missing from STA/CRD/BLQ.
 bernese-check-stations = "bernese_workflow.station_files:main"
+# Advisory, read-only: .STA equipment against field-ops records (exits 0 on disagreement).
+bernese-check-equipment = "bernese_workflow.equipment_check:main"
 field-ops-api = "field_ops.main:start"
 # The Bernese processing console: a read-only web view over bernese-workflow.
 bsw-console = "bsw_console.main:start"
