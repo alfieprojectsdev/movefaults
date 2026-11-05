@@ -367,3 +367,16 @@ def test_a_report_removed_after_reading_does_not_raise(bsw, monkeypatch) -> None
     r = c.get("/api/stations/ALBU/equipment")
     assert r.status_code == 200
     assert r.json()["available"] is True
+
+
+def test_stage3_says_the_run_worker_exists_but_is_not_wired(client) -> None:
+    """The run worker exists (bernese-worker, #316); the console is not wired to
+    it, so stage 3 still answers 501. The body keeps its shape; only the text says so."""
+    for route in ("/api/runs/start", "/api/runs/stop", "/api/preflight", "/api/redo"):
+        r = client.post(route, json={})
+        body = r.json()
+        assert r.status_code == 501
+        assert set(body) == {"enabled", "reason"}
+        assert body["enabled"] is False
+        assert "bernese-worker" in body["reason"]
+        assert "not connected" in body["reason"]

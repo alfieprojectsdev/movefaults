@@ -279,7 +279,7 @@ uv run pytest $c/tests --collect-only -q | tail -1                # tests
 | Component | Size | Tests | Status |
 |---|---|---|---|
 | drive-archaeologist | 25 / 2998 / 15 | 133 | ~60% — Phase 1 scanner works, archive support partial |
-| **bernese-workflow** | 24 / 8610 / 22 | 609 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config, day-level resume driver (`month_driver.py`, #268) and process-group kill on timeout (#271) all implemented. **Not yet** the path production runs take (see above). **BRN-001 done 2026-07-29** — Bernese 5.4 verified on the R740; LUZON reprocessed 30/30 days unattended 2026-08-06 (5m33s/day) *via `scripts/`*, not via this service |
+| **bernese-workflow** | 24 / 8610 / 22 | 609 | **~60%, not ~10%** — `backends.py` invokes BSW via `startBPE.pm`; campaign builder, PCF context, panel sanitizer, CODSPP QC, RINEX header validator, CPU config, day-level resume driver (`month_driver.py`, #268) and process-group kill on timeout (#271) all implemented. **Production's BPE step runs through it since 2026-11-04** (`bernese-run-year`; see "What actually runs today" above). **BRN-001 done 2026-07-29** — Bernese 5.4 verified on the R740; LUZON reprocessed 30/30 days unattended 2026-08-06 (5m33s/day) *via `scripts/`*, before the service took over production |
 | vadase-rt-monitor | 19 / 1387 / 8 | 55 | ~80% — parser, handler, core logic, leaky integrator, `ReceiverMode` state machine (replaced the old one-way integration latch) |
 | **pogf-geodetic-suite** | 19 / 3948 / 14 | 292 | ~75% — coordinates, IGS downloader, RINEX QC (teqc-first, gfzrnx fallback), and `timeseries/`: CRD→ENU, segmented velocities **verified against PHIVOLCS' production MATLAB output**, joint step+rate estimation, GMT velocity-field output |
 | **field-ops** | 14 / 3420 / 7 | 131 + 273 | ~90% — offline-first logsheet PWA, exercised on a real handset; `/health` refuses a deploy whose database schema is behind (`schema_check.py`, #249, #256). 131 backend tests (5 of them skip without Postgres) plus **273 frontend (vitest)**; with `bsw-console`'s 16 these are the only frontend tests that run — `packages/CORS-dashboard` carries one 2017 React test file that nothing executes. The frontend count is not in `uv run pytest`: see below |
@@ -292,9 +292,10 @@ and `analysis/epb_discriminator/tests` (33).
 
 **The maturity that matters is not module count.** `bernese-workflow` was
 listed at ~10% for months while carrying 198 tests, and the genuinely
-incomplete part is different from what that number implied: the code exists and
-is tested, but the month-long runs still go through `scripts/`. Treat "does
-production use it?" as the real axis.
+incomplete part was different from what that number implied: the code existed
+and was tested, but the month-long runs went through `scripts/`. That changed
+on 2026-11-04, when production's BPE step moved to the service (see "What
+actually runs today"). Treat "does production use it?" as the real axis.
 
 ---
 
