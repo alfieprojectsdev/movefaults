@@ -290,3 +290,65 @@ def test_parse_offsets_file_site_uppercased(tmp_path):
     f.write_text("bost 2015.0 EQ\n", encoding="utf-8")
     result = parse_offsets_file(f)
     assert "BOST" in result
+
+
+# ---------------------------------------------------------------------------
+# exclude_rows: epochs a person confirmed as outliers
+# ---------------------------------------------------------------------------
+
+
+def test_exclude_rows_none_or_all_false_changes_nothing():
+    """The MATLAB-verified fit must be untouched when nobody excluded anything."""
+    t = np.linspace(2020.0, 2023.0, 200)
+    enu = _synthetic_enu(t)
+    for flag in (True, False):
+        base = estimate_velocity(t, enu, exclude_outliers=flag)
+        assert estimate_velocity(t, enu, exclude_outliers=flag, exclude_rows=None) == base
+        same = estimate_velocity(
+            t, enu, exclude_outliers=flag, exclude_rows=np.zeros(t.size, dtype=bool)
+        )
+        assert same == base
+
+
+def test_exclude_rows_fits_as_if_those_rows_were_absent():
+    t = np.linspace(2020.0, 2023.0, 200)
+    enu = _synthetic_enu(t)
+    enu[50, 2] += 0.02  # a 20 mm Up excursion the analyst confirms
+    mask = np.zeros(t.size, dtype=bool)
+    mask[50] = True
+    with_mask = estimate_velocity(t, enu, exclude_outliers=False, exclude_rows=mask)
+    without_row = estimate_velocity(np.delete(t, 50), np.delete(enu, 50, axis=0), exclude_outliers=False)
+    a, b = with_mask.final_velocity, without_row.final_velocity
+    assert a.vu_mm_yr == pytest.approx(b.vu_mm_yr) and a.ve_mm_yr == pytest.approx(b.ve_mm_yr)
+    assert a.n_points == t.size - 1
+    assert a.excluded_rows == (50,)
+
+
+def test_exclude_rows_are_the_callers_rows_and_leave_the_flags_alone():
+    """Unsorted input: the mask is in the caller's order, and the outlier rule
+    still flags what it flags, excluded or not."""
+    rng = np.random.default_rng(7)
+    t = np.linspace(2020.0, 2023.0, 120)
+    enu = _synthetic_enu(t)
+    enu[30] += 0.5  # a gross outlier the rule must flag
+    perm = rng.permutation(t.size)
+    tp, enup = t[perm], enu[perm]
+    row_of_30 = int(np.where(perm == 30)[0][0])
+    mask = np.zeros(t.size, dtype=bool)
+    mask[row_of_30] = True
+    seg = estimate_velocity(tp, enup, exclude_outliers=False, exclude_rows=mask).final_velocity
+    assert seg.excluded_rows == (row_of_30,)
+    assert row_of_30 in seg.outlier_rows
+
+
+def test_exclude_rows_must_match_the_series():
+    t = np.linspace(2020.0, 2021.0, 20)
+    with pytest.raises(ValueError, match="one entry per row"):
+        estimate_velocity(t, _synthetic_enu(t), exclude_rows=np.zeros(5, dtype=bool))
+
+
+def test_excluding_too_much_says_so():
+    t = np.linspace(2020.0, 2021.0, 5)
+    mask = np.array([True, True, True, False, False])
+    with pytest.raises(ValueError, match="exclusions"):
+        estimate_velocity(t, _synthetic_enu(t), exclude_outliers=False, exclude_rows=mask)

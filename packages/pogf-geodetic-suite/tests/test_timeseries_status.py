@@ -19,6 +19,7 @@ from pogf_geodetic_suite.timeseries.status import (
     SCHEMA,
     OutlierMode,
     series_status,
+    session_date_to_decimal_year,
     station_status,
 )
 
@@ -414,3 +415,75 @@ def test_cli_group_keeps_plots_command():
     res = CliRunner().invoke(group, ["plots", "--help"])
     assert res.exit_code == 0
     assert "PLOT" in res.output
+
+
+# ---------------------------------------------------------------------------
+# exclude_sessions: epochs a person confirmed as outliers
+# ---------------------------------------------------------------------------
+
+
+def test_no_exclusions_is_the_published_fit(recorded, campaign):
+    crd_dir, catalog, _ = campaign
+    again = station_status(crd_dir, STA, REF, offsets_catalog=catalog, exclude_sessions=[])
+    assert again == recorded
+    assert recorded["exclusions"] == {"requested": 0, "matched": 0, "unmatched": []}
+    assert not any(recorded["series"]["excluded"])
+
+
+def test_an_excluded_session_leaves_the_fit_and_keeps_its_flag(recorded, campaign):
+    crd_dir, catalog, _ = campaign
+    out = station_status(
+        crd_dir, STA, REF, offsets_catalog=catalog, exclude_sessions=["2021-100", "2030-001"]
+    )
+    s = out["series"]
+    i = s["t"].index(OUTLIER_T)
+    assert s["excluded"][i] is True and s["in_fit"][i] is False
+    assert s["outlier"] == recorded["series"]["outlier"], "the rule's flags are unchanged"
+    assert out["outlier_rule"]["mode"] == "record"
+    assert out["exclusions"]["requested"] == 2 and out["exclusions"]["matched"] == 1
+    assert len(out["exclusions"]["unmatched"]) == 1
+    seg0 = out["segments"][0]
+    assert seg0["n_fit"] == recorded["segments"][0]["n_fit"] - 1
+    assert seg0["velocity_mm_yr"]["u"] != recorded["segments"][0]["velocity_mm_yr"]["u"]
+    json.dumps(out, allow_nan=False)
+
+
+def test_session_dates_are_checked(campaign):
+    crd_dir, catalog, _ = campaign
+    for bad in ("2021-1", "21100", "1970-001", "2021-000", "2021-367", "2081-001"):
+        with pytest.raises(ValueError):
+            station_status(crd_dir, STA, REF, offsets_catalog=catalog, exclude_sessions=[bad])
+
+
+@pytest.mark.parametrize(
+    ("session_date", "filenames"),
+    [
+        ("2025-218", ("FIN_20252180.CRD", "F1_25218.CRD")),
+        ("2024-366", ("FIN_20243660.CRD", "F1_24366.CRD")),
+        ("1999-001", ("FIN_19990010.CRD", "F1_99001.CRD")),
+        ("2080-365", ("FIN_20803650.CRD", "F1_80365.CRD")),
+    ],
+)
+def test_session_date_is_bit_for_bit_the_crd_files_epoch(session_date, filenames):
+    """The exclusion matches series.t exactly only if it is the very float
+    crd_directory_to_enu gives that day's file, in both naming forms."""
+    from pogf_geodetic_suite.timeseries.crd_pipeline import (
+        _extract_session_from_filename,
+        session_to_decimal_year,
+    )
+
+    want = session_date_to_decimal_year(session_date)
+    for name in filenames:
+        assert session_to_decimal_year(_extract_session_from_filename(name)) == want
+
+
+def test_duplicate_requests_are_counted_once(campaign):
+    crd_dir, catalog, _ = campaign
+    out = station_status(
+        crd_dir, STA, REF, offsets_catalog=catalog,
+        exclude_sessions=["2021-100", "2021-100", "2030-001", "2030-001"],
+    )  # fmt: skip
+    assert out["exclusions"]["requested"] == 2
+    assert out["exclusions"]["matched"] == 1
+    assert len(out["exclusions"]["unmatched"]) == 1
+    assert sum(out["series"]["excluded"]) == 1

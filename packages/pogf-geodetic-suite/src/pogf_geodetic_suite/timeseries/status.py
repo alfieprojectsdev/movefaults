@@ -85,6 +85,9 @@ succeeds on any result this module returns.
         "u_mm":     [float, ...],
         "outlier":  [bool, ...],       # flagged by the rule above
         "in_fit":   [bool, ...],       # used by the velocity fit
+        "excluded": [bool, ...],       # left out because a person confirmed it
+                                       # as an outlier (exclude_epochs); the
+                                       # rule's "outlier" flag is unaffected
         "segment":  [int | null, ...]  # index into "segments"; null when the
                                        # epoch fell in an interval too short
                                        # to fit (fewer than 3 epochs)
@@ -115,6 +118,10 @@ succeeds on any result this module returns.
       },                               # interval too short to fit, so this is
                                        # the rate before the latest event
       "min_span_years": float,
+      "exclusions": {                  # what exclude_epochs asked for
+        "requested": int, "matched": int,
+        "unmatched": [float, ...]      # asked for, but no epoch at that time
+      },
       "warnings": [str, ...]           # empty list = nothing to say
     }
 
@@ -129,6 +136,7 @@ to withhold a station.
 from __future__ import annotations
 
 import hashlib
+import re
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -136,7 +144,7 @@ from typing import Any
 import numpy as np
 
 from .analysis import OffsetEvent, OffsetType, estimate_velocity
-from .crd_pipeline import crd_directory_to_enu
+from .crd_pipeline import crd_directory_to_enu, session_to_decimal_year
 from .gmt import MIN_SPAN_YEARS
 from .offsets_catalog import load_offsets_catalog
 
@@ -178,6 +186,7 @@ def series_status(
     outlier_iqr_factor: float = 3.0,
     min_span_years: float = MIN_SPAN_YEARS,
     offsets_catalog: dict[str, str] | None = None,
+    exclude_epochs: list[float] | None = None,
 ) -> dict[str, Any]:
     """
     Status of one ENU series already in memory.
@@ -194,6 +203,12 @@ def series_status(
         min_span_years:     Below this a segment is marked `short_span`.
         offsets_catalog:    Provenance to echo ({"path", "sha256"}), if the
                             offsets came from a file.
+        exclude_epochs:     Decimal years of epochs a person confirmed as
+                            outliers: left out of the fit in every mode, and
+                            marked in `series.excluded`. Matched exactly, so
+                            pass the times as the series carries them (two
+                            rows at one time are both excluded). Times with no
+                            epoch are listed in `exclusions.unmatched`.
 
     Returns:
         The dict described in the module docstring.
@@ -224,12 +239,19 @@ def series_status(
     t, enu_m = t[order], enu_m[order]
     events = sorted(offsets or [], key=lambda e: e.date)
 
+    asked = np.asarray(exclude_epochs if exclude_epochs is not None else [], dtype=float)
+    if asked.ndim != 1 or not np.all(np.isfinite(asked)):
+        raise ValueError(f"Station {station!r}: exclude_epochs must be finite decimal years.")
+    excluded = np.isin(t, asked)
+    unmatched = sorted({float(x) for x in asked} - {float(x) for x in t[excluded]})
+
     result = estimate_velocity(
         t, enu_m,
         offsets=events,
         outlier_iqr_factor=outlier_iqr_factor,
         station=station,
         exclude_outliers=(mode is OutlierMode.EXCLUDE),
+        exclude_rows=excluded,
     )
 
     origin = enu_m[0]
@@ -249,6 +271,7 @@ def series_status(
     assigned = seg_of >= 0
     segment_idx: list[int | None] = [int(k) if k >= 0 else None for k in seg_of]
     in_fit = assigned & ~outlier if mode is OutlierMode.EXCLUDE else assigned
+    in_fit = in_fit & ~excluded
 
     warnings: list[str] = []
     if offsets is None:
@@ -346,6 +369,7 @@ def series_status(
             "u_mm": [float(x) for x in rel_mm[:, 2]],
             "outlier": [bool(x) for x in outlier],
             "in_fit": [bool(x) for x in in_fit],
+            "excluded": [bool(x) for x in excluded],
             "segment": segment_idx,
         },
         "offsets": [
@@ -369,6 +393,11 @@ def series_status(
             "covers_latest_epoch": covers_latest,
         },
         "min_span_years": float(min_span_years),
+        "exclusions": {
+            "requested": int(np.unique(asked).size),
+            "matched": int(np.unique(asked).size) - len(unmatched),
+            "unmatched": unmatched,
+        },
         "warnings": warnings,
     }
 
@@ -386,6 +415,7 @@ def station_status(
     outlier_mode: OutlierMode | str = OutlierMode.RECORD,
     outlier_iqr_factor: float = 3.0,
     min_span_years: float = MIN_SPAN_YEARS,
+    exclude_sessions: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     Status of one station from a directory of daily final CRD files.
@@ -399,6 +429,11 @@ def station_status(
                           the exact catalog that produced it. None fits one
                           segment and says so in `warnings`.
         outlier_mode, outlier_iqr_factor, min_span_years: see `series_status`.
+        exclude_sessions: Session dates "YYYY-DDD" of epochs a person confirmed
+                          as outliers. Converted with the same rule the CRD
+                          files' epochs are (`session_to_decimal_year`), so the
+                          match to `series.t` is exact; see `series_status`'s
+                          `exclude_epochs`.
 
     Raises:
         ValueError: no usable CRD files, reference or station not found,
@@ -447,4 +482,20 @@ def station_status(
         outlier_iqr_factor=outlier_iqr_factor,
         min_span_years=min_span_years,
         offsets_catalog=provenance,
+        exclude_epochs=[session_date_to_decimal_year(s) for s in exclude_sessions or []],
     )
+
+
+def session_date_to_decimal_year(session_date: str) -> float:
+    """"YYYY-DDD" -> decimal year, by the same rule the CRD epochs use.
+
+    Goes through `session_to_decimal_year` on the YYDDD code, so the result is
+    bit-for-bit the time `crd_directory_to_enu` gives that day's file.
+    """
+    m = re.fullmatch(r"(\d{4})-(\d{3})", session_date)
+    if not m:
+        raise ValueError(f"expected a session date YYYY-DDD, got {session_date!r}")
+    year, doy = int(m[1]), int(m[2])
+    if not 1981 <= year <= 2080:
+        raise ValueError(f"{session_date}: the YYDDD rule covers 1981 to 2080 only")
+    return session_to_decimal_year(f"{year % 100:02d}{doy:03d}")
