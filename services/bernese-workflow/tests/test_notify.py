@@ -468,6 +468,32 @@ def test_a_nightly_fetch_that_stopped_is_reported(rig: Rig) -> None:
     assert "last ran 3 days ago" in rig.sent[0].body
 
 
+def test_a_nightly_fetch_that_stays_stopped_is_reported_once(rig: Rig) -> None:
+    _products(rig)
+    rig.now += dt.timedelta(days=3)
+    rig.run()
+    rig.now += dt.timedelta(days=1)
+    rig.run()
+    assert len(rig.sent) == 1
+
+
+def test_the_mirror_re_uploading_a_folder_doesnt_mail_again(rig: Rig) -> None:
+    def entry(date: str) -> dict:
+        return {"file": "DATUM.BSW", "out_of_date": True, "local_size": 1, "aiub_size": 2, "aiub_date": date}
+
+    _products(rig, config=[entry("2026-10-20")])
+    rig.run()
+    _products(rig, config=[entry("2026-11-01")])
+    rig.run()
+    assert len(rig.sent) == 1
+
+
+def test_a_watched_file_the_mirror_lacks_is_reported(rig: Rig) -> None:
+    _products(rig, config=[{"file": "IGS20.FIX", "not_on_mirror": True, "out_of_date": False}])
+    rig.run()
+    assert "IGS20.FIX" in rig.sent[0].body
+
+
 # --- configuration ----------------------------------------------------------------
 
 

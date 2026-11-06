@@ -738,7 +738,23 @@ class Notifier:
                 f"AIUB {e.get('aiub_size')} bytes, {e.get('aiub_date')}"
                 for e in stale
             ]
-        digest = hashlib.sha256("\n".join(lines).encode()).hexdigest()
+            lines.append("")
+        absent = [e["file"] for e in status.get("config", []) if e.get("not_on_mirror")]
+        if absent:
+            lines += ["Not on the mirror, so not compared:", *absent]
+        # Not the text: the day count moves daily, and the mirror's dates move whenever it
+        # re-uploads a folder, and neither is a change worth another message.
+        digest = hashlib.sha256(
+            json.dumps(
+                [
+                    age_days >= PRODUCTS_STALE_DAYS,
+                    status.get("errors"),
+                    status.get("late"),
+                    [[e["file"], e.get("local_size"), e.get("aiub_size")] for e in stale],
+                    absent,
+                ]
+            ).encode()
+        ).hexdigest()
         if not lines:
             self.state.pop("products", None)
             return

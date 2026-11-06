@@ -8,7 +8,9 @@ results for days already solved.
 from __future__ import annotations
 
 import datetime as dt
+import fcntl
 import gzip
+import http.client
 import json
 from pathlib import Path
 
@@ -109,6 +111,35 @@ def test_a_network_failure_on_one_file_doesnt_stop_the_rest(tmp_path: Path) -> N
     assert len(result.fetched) == 4
 
 
+def test_a_connection_cut_mid_body_is_an_error_not_a_crash(tmp_path: Path) -> None:
+    def cut(url: str) -> bytes:
+        raise http.client.IncompleteRead(b"partial")  # not an OSError
+
+    result = Result()
+    assert not pu.fetch_day(DAY, tmp_path, today=TODAY, result=result, get=cut)
+    assert len(result.errors) == 5
+
+
+def test_a_failed_write_is_an_error_and_leaves_nothing(tmp_path: Path) -> None:
+    (tmp_path / "COD0OPSFIN").write_text("a file where the folder should be")
+    result = Result()
+    assert not pu.fetch_day(DAY, tmp_path, today=TODAY, result=result, get=mirror(DAY))
+    assert len(result.errors) == 4
+    assert len(result.fetched) == 1  # the ionosphere map, in another folder
+    assert not list(tmp_path.rglob("*.part"))
+
+
+def test_an_empty_existing_file_is_reported_and_left_alone(tmp_path: Path) -> None:
+    folder, name = names(DAY)[0]
+    empty = tmp_path / folder / name
+    empty.parent.mkdir(parents=True)
+    empty.write_bytes(b"")
+    result = Result()
+    assert not pu.fetch_day(DAY, tmp_path, today=TODAY, result=result, get=mirror(DAY))
+    assert empty.read_bytes() == b""
+    assert len(result.errors) == 1 and name in result.errors[0]
+
+
 def test_dry_run_writes_nothing_and_asks_the_mirror_nothing(tmp_path: Path) -> None:
     def refuse(url: str) -> bytes:
         raise AssertionError("no request in a dry run")
@@ -150,13 +181,39 @@ def _watched(tmp_path: Path, sizes: dict[str, int]):
     return config, ref, head
 
 
+def _entry(out: list[dict], name: str) -> dict:
+    return next(e for e in out if e["file"] == name)
+
+
+def test_a_file_the_mirror_lacks_is_listed_not_dropped(tmp_path: Path) -> None:
+    config, ref, head = _watched(tmp_path, {})
+    out, errors = pu.compare_watched(config, ref, 2026, head=head)
+    assert errors == []
+    assert len(out) == len(pu.WATCHED)
+    assert all(e["not_on_mirror"] and not e["out_of_date"] for e in out)
+
+
+def test_a_head_without_a_length_is_an_error_not_a_difference(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Response:
+        headers: dict[str, str] = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            pass
+
+    monkeypatch.setattr(pu, "_url_open", lambda url, method="GET": Response())
+    with pytest.raises(ValueError):
+        pu.http_head("https://mirror/DATUM.BSW")
+
+
 def test_a_different_size_is_out_of_date_and_nothing_is_written(tmp_path: Path) -> None:
     config, ref, head = _watched(tmp_path, {"SATELLIT_I20.SAT": 200})
     before = (config / "SATELLIT_I20.SAT").read_bytes()
     out, errors = pu.compare_watched(config, ref, 2026, head=head)
     assert errors == []
-    assert [e["file"] for e in out] == ["SATELLIT_I20.SAT"]
-    assert out[0]["out_of_date"] is True
+    assert _entry(out, "SATELLIT_I20.SAT")["out_of_date"] is True
     assert (config / "SATELLIT_I20.SAT").read_bytes() == before
     assert sorted(p.name for p in config.iterdir()) == ["DATUM.BSW", "SATELLIT_I20.SAT"]
 
@@ -165,19 +222,19 @@ def test_a_newer_date_with_the_same_size_is_not_out_of_date(tmp_path: Path) -> N
     # The mirror re-uploads whole folders, so its date alone says nothing.
     config, ref, head = _watched(tmp_path, {"DATUM.BSW": 50})
     out, _ = pu.compare_watched(config, ref, 2026, head=head)
-    assert out[0]["out_of_date"] is False
+    assert _entry(out, "DATUM.BSW")["out_of_date"] is False
 
 
 def test_a_watched_file_missing_here_is_out_of_date(tmp_path: Path) -> None:
     config, ref, head = _watched(tmp_path, {"IGS20.FIX": 10})
     out, _ = pu.compare_watched(config, ref, 2026, head=head)
-    assert out[0]["file"] == "IGS20.FIX" and out[0]["out_of_date"] is True
+    assert _entry(out, "IGS20.FIX")["out_of_date"] is True
 
 
 def test_the_satellite_problem_file_follows_the_year(tmp_path: Path) -> None:
     config, ref, head = _watched(tmp_path, {"SAT_2027.CRX": 10})
     out, _ = pu.compare_watched(config, ref, 2027, head=head)
-    assert out[0]["file"] == "SAT_2027.CRX"
+    assert "aiub_size" in _entry(out, "SAT_2027.CRX")
 
 
 def test_a_failed_comparison_is_reported(tmp_path: Path) -> None:
@@ -212,6 +269,25 @@ def test_main_writes_a_status_and_exits_1_on_an_error(
     status = json.loads((state / "products/status.json").read_text())
     assert len(status["errors"]) == 5
     assert status["last_pass"]
+
+
+def test_main_waits_for_no_one_and_fetches_nothing_if_a_pass_is_running(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    datapool = tmp_path / "D"
+    datapool.mkdir()
+    monkeypatch.setenv("D", str(datapool))
+
+    def refuse(url: str) -> bytes:
+        raise AssertionError("no request while another pass runs")
+
+    monkeypatch.setattr(pu, "http_get", refuse)
+    state = tmp_path / "state"
+    (state / "products").mkdir(parents=True)
+    with open(state / "products/lock", "a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        assert pu.main(["--lookback", "0", "--state", str(state)]) == 0
+    assert not (state / "products/status.json").exists()
 
 
 def test_main_refuses_a_missing_datapool(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

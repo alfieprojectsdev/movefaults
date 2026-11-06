@@ -37,6 +37,7 @@ RNXGRA_PRESETS = {
     "campaign": "Campaign survey · min 100 obs, max 70 bad epochs, 3 obs per bad epoch",
 }
 
+
 def pcf_steps(pcf_text: str) -> list[dict]:
     """The PCF's process table: PID, script, option dir and what each WAITs for."""
     steps = []

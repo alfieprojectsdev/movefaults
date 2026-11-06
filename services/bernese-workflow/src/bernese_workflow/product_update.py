@@ -31,7 +31,9 @@ import argparse
 import collections.abc
 import datetime as dt
 import email.utils
+import fcntl
 import gzip
+import http.client
 import os
 import sys
 import urllib.error
@@ -97,7 +99,10 @@ def http_head(url: str) -> tuple[int, float | None]:
     with _url_open(url, "HEAD") as response:
         modified = response.headers.get("Last-Modified")
         when = email.utils.parsedate_to_datetime(modified).timestamp() if modified else None
-        return int(response.headers.get("Content-Length", -1)), when
+        length = response.headers.get("Content-Length")
+        if length is None:  # without it every file would read as different
+            raise ValueError("no Content-Length")
+        return int(length), when
 
 
 def day_name(day: dt.date) -> tuple[str, str]:
@@ -112,6 +117,20 @@ class Result:
     waiting: int = 0
     latest_complete: str | None = None
     config: list[dict] = field(default_factory=list)
+
+
+def _keep(data: bytes, dest: Path) -> None:
+    """Into place whole. The name is per process because fetch_igs_products.sh may be running."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    part = dest.with_name(f"{dest.name}.{os.getpid()}.part")
+    try:
+        with open(part, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(part, dest)
+    finally:
+        part.unlink(missing_ok=True)
 
 
 def fetch_day(
@@ -133,6 +152,10 @@ def fetch_day(
         name = pattern.format(y=year, d=doy)
         dest = datapool / folder / name
         if dest.is_file():
+            # Never replaced, and an empty one would count as present for good.
+            if dest.stat().st_size == 0:
+                complete = False
+                result.errors.append(f"{name}: empty here; delete it to fetch it again")
             continue
         if dry_run:
             print(f"would fetch {name}")
@@ -143,6 +166,7 @@ def fetch_day(
             # A partial body with a success status would otherwise fail only inside a BPE.
             if not gzip.decompress(data):
                 raise ValueError("empty after decompressing")
+            _keep(data, dest)
         except NotPublished:
             complete = False
             if (today - day).days > late_days:
@@ -150,14 +174,11 @@ def fetch_day(
             else:
                 result.waiting += 1
             continue
-        except (OSError, EOFError, zlib.error, ValueError) as exc:
+        # HTTPException: a connection cut mid-body is IncompleteRead, which isn't an OSError.
+        except (OSError, EOFError, zlib.error, ValueError, http.client.HTTPException) as exc:
             complete = False
             result.errors.append(f"{name}: {type(exc).__name__}: {str(exc)[:160]}")
             continue
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        part = dest.with_name(dest.name + ".part")
-        part.write_bytes(data)
-        os.replace(part, dest)
         result.fetched.append(name)
     return complete
 
@@ -188,7 +209,9 @@ def compare_watched(
     """How each watched file compares with AIUB's. Nothing is written.
 
     A different size is what counts as out of date. The mirror's dates alone can't: it
-    re-uploads whole folders, so an unchanged file can carry a newer date.
+    re-uploads whole folders, so an unchanged file can carry a newer date. A file the mirror
+    doesn't have stays in the list as ``not_on_mirror``, because a comparison that didn't
+    happen must not read like one that found nothing.
     """
     head = head or http_head
     out: list[dict] = []
@@ -199,8 +222,9 @@ def compare_watched(
         try:
             size, when = head(f"{base}/BSWUSER54/{mirror_dir}/{name}")
         except NotPublished:
+            out.append({"file": name, "not_on_mirror": True, "out_of_date": False})
             continue
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, http.client.HTTPException) as exc:
             errors.append(f"{name}: {type(exc).__name__}: {str(exc)[:160]}")
             continue
         entry: dict = {"file": name, "aiub_size": size, "aiub_date": _date(when)}
@@ -239,7 +263,21 @@ def main(argv: list[str] | None = None) -> int:
     if not datapool.is_dir():
         print(f"bernese-update-products: {datapool} isn't a directory", file=sys.stderr)
         return 2
+    if args.dry_run:  # it writes nothing, so it can't disturb a real pass
+        return _pass(args, datapool, config_dir)
+    # Cron can't start on top of a long --since, which would race for the same files.
+    path = status_path(args.state)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path.parent / "lock", "a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("bernese-update-products: another pass is still running", file=sys.stderr)
+            return 0
+        return _pass(args, datapool, config_dir)
 
+
+def _pass(args: argparse.Namespace, datapool: Path, config_dir: Path) -> int:
     now = now_utc()
     today = now.date()
     start = args.since or today - dt.timedelta(days=args.lookback)
@@ -253,20 +291,22 @@ def main(argv: list[str] | None = None) -> int:
     for line in result.errors:
         print(f"bernese-update-products: {line}", file=sys.stderr)
     stale = [e for e in result.config if e["out_of_date"]]
+    absent = [e["file"] for e in result.config if e.get("not_on_mirror")]
     print(
         f"{len(result.fetched)} fetched, {result.waiting} not published yet, {len(result.late)} late, "
         f"{len(result.errors)} errors; latest complete day {result.latest_complete}; "
-        f"{len(stale)} of {len(result.config)} watched files differ from AIUB's"
+        f"{len(stale)} of {len(result.config) - len(absent)} watched files differ from AIUB's"
     )
     for entry in stale:
         print(
             f"  differs: {entry['file']}: here {entry['local_size']} bytes, {entry['local_date']}; "
             f"AIUB {entry['aiub_size']} bytes, {entry['aiub_date']}"
         )
+    for name in absent:
+        print(f"  not on the mirror, so not compared: {name}")
     if args.dry_run:
         return 0
     path = status_path(args.state)
-    path.parent.mkdir(parents=True, exist_ok=True)
     write_json_atomic(
         path,
         {
