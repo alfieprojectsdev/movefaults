@@ -115,16 +115,18 @@ The settings can be checked. The driver scripts live in this repository
 PHDEN_DLY) and panels (`${U}/OPT/R2S_*`) are on gps3, not in the repository, so
 the commit history does not answer "which settings were active". The panels are
 Bernese 5.4's stock ones, apart from MAXPAR in two `ADDNEQ2.INP` files, changed
-on the server with a backup beside each. The run record names the PCF each run
-used and keeps a checksum over it and every panel it uses, so a setting that
-changed between two runs shows as a different checksum. That says something
+on the server with a backup beside each. The run record keeps a checksum over
+the PCF and every panel it uses, so a setting that changed between two runs
+shows as a different checksum. That says something
 changed, not what.
 
 Every run is recorded. The run record (`ledger.jsonl`, beside each year's
 `SOL/` folder) keeps one line for each attempt at a day, with its outcome,
-error, duration and station count. For each run it also keeps who started it,
-the exact command, the code version, the PCF, that checksum and the orbit
-products it read. The console shows this on each day's page. What it does not
+error, duration and station count, and that checksum for each run. Runs started
+after 4 November 2026 also keep who started the run, the exact command, the code
+version, the PCF and the orbit products it read. Runs up to that date, including
+LUZON January 2026 and the PHREF 2025 reprocess, don't have these. The console
+shows what a run has on each day's page. What it does not
 yet keep is the ambiguity fixing rate: Bernese's ambiguity summaries are not
 archived.
 
@@ -515,7 +517,7 @@ changes go into the reference files the campaigns read, in `${D}/REF54`.
 | Machine time per day | about 2 h attended (T420) | 5 min 33 s unattended for one LUZON day | measured |
 | A month of processing | weeks of attended work | 53 min for LUZON January 2026, several days at once | in production since 4 November 2026 |
 | Starting a run | the RUNBPE panels, at the machine | the console's Plan page, from any office PC | operators only; the maintainer sets who |
-| Reproducibility | settings not recorded | driver scripts version-controlled; every run recorded with who, what, which code and a checksum of its settings | in use; PCFs and panels are on gps3, not in version control |
+| Reproducibility | settings not recorded | driver scripts version-controlled; every run recorded with a checksum of its settings, and with who, what and which code for runs after 4 November 2026 | in use; PCFs and panels are on gps3, not in version control |
 | Velocity calculation | MATLAB (licensed) | Python, agreeing with the MATLAB | runs in the console; published velocities still come from the MATLAB |
 | Outlier review | right-click, then edit PLOT files | decisions recorded with your name; a side-by-side fit | in use; leaving outliers out of the published fit is still open |
 | Your scripts and `offsets` | one share, some laptops | in version control, mirrored | done, 12 August 2026 |
