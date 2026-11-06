@@ -24,9 +24,9 @@ which ship with 5.4. Hence this.
 WHAT IT CHANGES: only variables. The process graph, script names and OPT
 directories are 5.4's own and are left exactly as installed.
 
-    V_PCV     I20        -> I14        antenna model; see runbook §1.4
-    V_REFINF  IGS20      -> IGS14      reference frame
-    V_REFPSD  IGS20      -> IGS14
+    V_PCV     I20        (--frame i14: I14)    antenna model; see runbook §1.4
+    V_REFINF  IGS20      (--frame i14: IGS14)  reference frame
+    V_REFPSD  IGS20      (--frame i14: IGS14)
     V_CRDINF  EXAMPLE    -> LUZON      merged CRD/VEL
     V_STAINF  EXAMPLE    -> LUZON      station information
     V_BLQINF  EXAMPLE    -> LUZON      ocean loading
@@ -142,12 +142,13 @@ def main() -> int:
     ap.add_argument("--dest", type=Path, default=U / "PCF" / "LUZON_DLY.PCF")
     ap.add_argument("--apply", action="store_true")
     ap.add_argument(
-        "--frame", choices=("i14", "i20"), default="i14",
-        help="i14 reproduces her configuration but cannot run on 5.4 at this "
-             "epoch (runbook §4b.6): the satellite tables end in 2023 and the "
-             "ANTEX fails 5.4's SVN/PRN check. i20 is a PIPELINE TEST ONLY — it "
-             "changes the reference frame and antenna model, so its coordinates "
-             "are NOT comparable with her I14 solutions.",
+        "--frame", choices=("i14", "i20"), default="i20",
+        help="i20 is production's frame and antenna model (docs/SETTLED.md §3), "
+             "and reproduces the live LUZON_DLY.PCF. Its coordinates are NOT "
+             "directly comparable with her I14 solutions. i14 reproduces her "
+             "configuration but cannot run on 5.4 at this epoch (runbook §4b.6): "
+             "the satellite tables end in 2023 and the ANTEX fails 5.4's SVN/PRN "
+             "check.",
     )
     args = ap.parse_args()
 
@@ -156,13 +157,16 @@ def main() -> int:
         return 1
 
     if args.frame == "i20":
-        # Pipeline-test mode. Only the frame/model triple moves; V_SATSYS stays
-        # GPS so exactly one thing differs from the I14 configuration and a
-        # completed run tells us the I14 model set was the blocker.
+        # Production. Only the frame/model triple differs from the I14
+        # configuration; V_SATSYS stays GPS. This began on 2026-08-05 as the test
+        # that showed the I14 model set was the blocker.
         OVERRIDES.update({"V_PCV": "I20", "V_REFINF": "IGS20", "V_REFPSD": "IGS20"})
-        print("*** FRAME: I20 — PIPELINE TEST ONLY ***")
-        print("    Coordinates from this run are NOT comparable with her I14")
-        print("    solutions. See runbook §1.4 and §4b.6.\n")
+        print("FRAME: I20 / IGS20, production's (docs/SETTLED.md §3)")
+        print("    Coordinates from this run are NOT directly comparable with her")
+        print("    I14 solutions. See runbook §1.4 and §4b.6.\n")
+    else:
+        print("*** FRAME: I14 / IGS14: CANNOT RUN ON 5.4 AT THIS EPOCH ***")
+        print("    Kept to reproduce her configuration. See runbook §4b.6.\n")
 
     text, changed = apply_overrides(args.src.read_text(errors="replace"))
 

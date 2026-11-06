@@ -11,6 +11,7 @@ Method and its justification: `phref_vs_production_comparison_plan.md`.*
 | software | BSW **5.4**, Linux, R740 | BSW **5.2**, Windows |
 | cadence | 360 daily NEQ, stacked to weekly | weekly, as retained |
 | stations | 33–41 per day; ~35 per week | 93 in `WK_2375` (2025 weeks: 87–95, median 91) |
+| frame / antenna model | **IGS20 / I20** | **IGS14 / I14** (read on `WK_2375`; `phden_wk2375_densification_results.md`) |
 | weeks | 53 | 53 |
 
 **53 of 53 weeks compared. No week lacked a counterpart.** 1,979 station-week
@@ -18,6 +19,12 @@ residuals in total.
 
 This is an **agreement test, not a reproduction test** — different version,
 network and constraints. It cannot be bit-for-bit and is not presented as such.
+
+*Added 2026-11-06: the frame and antenna-model row above was missing from this
+note. A Helmert alignment absorbs a frame's translation, rotation and scale, but
+not differences that vary by station, which an antenna-model change can produce.
+Its share of these residuals, the vertical especially, has not been measured
+(runbook §1.4).*
 
 ## Headline
 
@@ -54,7 +61,8 @@ constrained solution and our 35-station one. Scale under 2 ppb (≈11 mm over an
 Earth radius) and rotations under 0.6 mas mean there is **no systematic
 geometric distortion** between the two — only an origin offset, which is
 exactly what different constraint sets produce and carries no information about
-processing quality.
+processing quality. *(Added 2026-11-06: this attributes the offset to the
+constraint sets without having separated out the frame difference.)*
 
 ## The one real finding: an East-only signature
 
