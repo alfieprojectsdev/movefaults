@@ -64,13 +64,13 @@ MIN_MASK_LINES = 20
 # all of that, so it always gets at least this long.
 MIN_LAST_CAPTION = 3.0
 
-# The three results that may be stated, in these words (docs/SETTLED.md §2 and §6).
+# The three results that may be stated, in these words (docs/SETTLED.md §2).
 RESULTS = [
     "Production Bernese runs on gps3 have gone through the processing service since "
     "4 November 2026, started on the command line (bernese-run-year).",
     "LUZON January 2026: 31 of 31 days, in 53 minutes.",
     "PHREF 2025 reprocessed: all 360 planned days. Differences from the previous "
-    "solutions aren't explained yet.",
+    "solutions come from the Bernese programs replaced in September.",
 ]
 
 
@@ -298,7 +298,6 @@ CARDS = [
     Card(
         "Still open",
         [
-            "Why the reprocessed PHREF 2025 coordinates differ from the ones they replaced.",
             "How the IGS14/I14 and IGS20/I20 series join.",
             "Whether confirmed outliers leave the published fit.",
         ],
