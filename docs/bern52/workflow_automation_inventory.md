@@ -212,7 +212,8 @@ Everything in §4. Specific blockers:
    step: `bernese-run-year` takes the campaign, working-campaign prefix and PCF
    as arguments, and LUZON and PHREF have run through it. Not done for the steps
    around it: staging is one script per network (`stage_luzon_campaign.sh`,
-   `stage_national_campaign.sh`) and `derive_luzon_pcf.py` defaults to LUZON. The
-   station list (Inventory E) is the parameter to stop hardcoding there.
+   `stage_national_campaign.sh`), and `derive_luzon_pcf.py` hardcodes LUZON's
+   values (`--dest` changes only the output file). The station list (Inventory E)
+   is the parameter to stop hardcoding in staging.
 4. **Stage 1 last**, and start it with the format decision (item 2 above),
    not with scripting.

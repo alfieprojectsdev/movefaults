@@ -2,8 +2,8 @@
 
 This tree is meant to be the **source of truth** for everything PHIVOLCS-specific
 in the Bernese user directory; see *Status* below for what is still missing from
-it. `scripts/provision_gpsuser.py` copies it into `$U`
-(`~/GPSUSER`), sanitizing on the way. Readiness task **P1-H**.
+it. `scripts/provision_gpsuser.py` copies it into `$U` (`~/GPSUSER`), sanitizing
+on the way. Readiness task **P1-H**.
 
 **Never hand-edit `$U` directly.** Edit here, commit, re-provision. That is the
 whole point of the tree existing.
@@ -54,9 +54,9 @@ the T420 and the 12-core R740 was using two of its cores. The provisioner
 
 **Stock Bernese panels and PCFs.** Apart from the files listed under *Status*,
 `$U/OPT` and `$U/PCF` on gps3 match the `$C/USER` template shipped with Bernese
-5.4. Vendor files
-belong to the vendor; committing 47 unmodified panel directories would bury the
-handful of files we actually own. Only *our* additions and deltas go here.
+5.4. Vendor files belong to the vendor; committing 47 unmodified panel directories
+would bury the handful of files we actually own. Only *our* additions and deltas
+go here.
 
 ---
 
@@ -67,15 +67,22 @@ in `$U` on gps3, and re-running the provisioner would not restore them:
 
 | On gps3 | What it is |
 |---|---|
-| `PCF/LUZON_DLY.PCF`, `LZFLT_DLY.PCF`, `PHREF_DLY.PCF`, `PHDEN_DLY.PCF` | The PCFs production and the console use. `scripts/derive_luzon_pcf.py` generates `LUZON_DLY` from stock |
+| `PCF/LUZON_DLY.PCF`, `LZFLT_DLY.PCF`, `PHREF_DLY.PCF`, `PHDEN_DLY.PCF` | The PCFs production and the console use. `scripts/derive_luzon_pcf.py --frame i20` generates the live `LUZON_DLY` from stock; its default, `i14`, does not |
 | `PCF/PHNAT_DLY.PCF`, `PHRCTL_DLY.PCF`, `PHRPAR_DLY.PCF` | PCFs for trial and comparison runs |
+| `SCRIPT/phden_pcs.pl`, `phnat_year.pl`, `LZFLT_DLY_pcs.pl`, `luzon_par.pl` | Perl drivers whose default PCFs are `PHDEN_DLY`, `PHNAT_DLY`, and `LUZON_DLY` for the last two |
 | `OPT/R2S_FIN/ADDNEQ2.INP` | Stock, except `MAXPAR` 6000 (stock 1000). Edited on the server, backups beside it |
 | `OPT/R2S_GEN/ADDNEQ2.INP` | Stock, except `MAXPAR` 4000 (stock 1000). Edited on the server, backup beside it |
 
 Those two panel edits broke the rule at the top of this file. What this tree does
-hold is the drivers in `SCRIPT/` and the PAGENET assets: `PCF/PAGENET_DLY.PCF` and
-`OPT/PGN_WK/`, captured from the T420 on 2026-08-03 (`4e82eaa`). `PROVENANCE.md`
-records what they carry, hazards included.
+hold is the other drivers in `SCRIPT/` and the PAGENET assets: `PCF/PAGENET_DLY.PCF`
+and `OPT/PGN_WK/`, captured from the T420 on 2026-08-03 (`4e82eaa`). They record
+what ran, so don't re-derive them. `PROVENANCE.md` describes them.
+
+**`--apply` refuses this tree today.** `OPT/PGN_WK/` still carries hardcoded dates,
+sessions and campaign names, so the strict check aborts the whole run before
+writing anything, and `OPT/PGN_WK/` is not in `$U` on gps3. The dry run below lists
+every line it objects to; remap those before applying. The refusal is the tool
+working, not a malfunction.
 
 ---
 
