@@ -17,9 +17,18 @@
 >     --from 1 --to 31 --pcf LUZON_DLY --plan
 > ```
 >
-> `--plan` runs nothing; it prints what would run. Then the same command with
-> `--run` in place of `--plan`, started with `setsid nohup` (`docs/SETTLED.md`
-> §2). Or queue it for the run worker:
+> The range shown, January 2026, is already solved, so its plan has nothing to
+> run; put in the days you want. `--plan` runs nothing; it prints what would
+> run. Then start the run itself with `setsid nohup`, so it outlives the
+> terminal (`docs/SETTLED.md` §2):
+>
+> ```bash
+> setsid nohup uv run bernese-run-year --campaign LUZON --repr-prefix LZY \
+>     --year 2026 --from 1 --to 31 --pcf LUZON_DLY --run \
+>     > luzon-2026-001-031.log 2>&1 < /dev/null &
+> ```
+>
+> Or queue it for the run worker:
 > `uv run bernese-worker submit start --campaign LUZON --repr-prefix LZY
 > --year 2026 --from 1 --to 31 --pcf LUZON_DLY`. Options are in
 > `bernese-run-year --help`; the service is described in
