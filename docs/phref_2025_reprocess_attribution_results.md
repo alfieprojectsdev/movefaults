@@ -13,8 +13,10 @@
 2. **Velocities barely moved:** a median change of 0.01 mm/yr East and North and
    0.04 mm/yr Up in one-year rates. The largest is 0.61 mm/yr Up, at LGYE.
 3. **The I14 to I20 antenna change shows up in the comparison with 5.2 production.**
-   It accounts for about 60% of the station-to-station differences in the median Up
-   residual. This is a correlation, not a controlled test.
+   A straight-line fit to the antenna offsets removes about 60% of the
+   station-to-station differences in the median Up residual, but only with a slope of
+   2.1 that isn't explained, so 60% isn't the antenna change's measured share. This is
+   a correlation, not a controlled test.
 
 ## 1. The cause
 
@@ -23,7 +25,8 @@ and `.CRD` and all but one RINEX file were unchanged. The BLQ and ATL edits of 3
 touch only stations PHREF doesn't use. The LORE file changed on 4 Nov, after the parity
 run. The reprocess also matches the parity run of 27 Oct on all 30 shared days, within
 0.001 mm. That left two candidates: the binaries replaced on 2 Sep and the MAXPAR
-values in two `ADDNEQ2.INP` panels (29 Sep).
+values in two `ADDNEQ2.INP` panels (29 Sep). DOY 200 has a third cause as well, a
+different station set (below).
 
 **The test.** Three days, chosen for a whole-network shift (DOY 329), the largest
 single-station difference (DOY 089) and a quiet day (DOY 194). Each ran through
@@ -55,8 +58,10 @@ the sampler saw only the earlier binaries: 1,405 samples, none of today's.
 - It is three days, not 360, chosen to include the two kinds of large difference.
 - **It doesn't separate the patches from the compiler.** A different compiler changing
   results in the last digits would fit the 0.01 mm seen on most days, and the patch plan
-  names B_33 (geomagnetic model) and B_38 (`TRPSTORE`) as able to change numbers. Building
-  the unpatched source with the same gfortran, from
+  names B_33 (geomagnetic model) and B_38 (`TRPSTORE`) as able to change numbers. Its later
+  section argues neither touches this configuration: the PCF applies no higher-order
+  ionosphere correction, and B_38 is a no-op for the numbers. If that holds, it points at
+  the compiler, but it was reasoned, not tested. Building the unpatched source with the same gfortran, from
   `~/BERN54-SOURCE-pre-patch-20260901.tar.gz`, would separate them. That hasn't been done.
 - It doesn't say which set of solutions is better, only that the two aren't
   bit-comparable.
@@ -82,10 +87,16 @@ Over all 360 days, 13,090 station-days:
 - **On DOY 102, 103 and 329 the daily fiducial check's station list changed:** the
   August list has PIMO on 102 and 103 and ALIC on 329, and the November list doesn't.
   DOY 102 and 329 move almost as a block. DOY 103 also has a large single-station
-  change. DOY 172 and 200 also shift as a block with unchanged fiducial lists, which
-  isn't explained.
-- PIMO is in the final solution for DOY 200 only in November, with 2,948 more
-  observations.
+  change. DOY 172 also shifts as a block with an unchanged fiducial list, which isn't
+  explained.
+- **DOY 200 compares two different networks.** Its August SNX is the pre-flight solution,
+  from before PIMO joined the campaign (`bsw54_patch_plan.md`; `docs/SETTLED.md` §3), so it
+  has 33 stations against November's 34, and 2,948 fewer observations. That station set
+  explains the block shift, median 2.8 mm and largest 11.8 mm (ANTP), as it did the 1.88 mm
+  in the patch plan. The day is still in the counts above, including 2 of the 25
+  station-days over 5 mm, and no test day checks it.
+- In `SUPERSEDED/`, `FIN_20252000.NQ0.gz` isn't from August. Only its SNX was restored
+  after the 2 Sep re-run, and the NQ0 decompresses to the same bytes as November's.
 
 ## 2. Velocities
 
@@ -102,7 +113,8 @@ PIMO and S01R as reference, with and without outlier exclusion.
 The largest is LGYE each time, already on the open list for East excursions. These are
 one-year rates, so a multi-year rate would move less, but that wasn't measured. The 13
 stations with fewer shared days weren't measured. Published velocities come from the
-MATLAB and aren't affected.
+5.2 team's solutions through the MATLAB, not from these binaries, so they aren't
+affected.
 
 **One boundary to remember:** LUZON 2025 was solved on the earlier binaries, and LUZON
 January 2026 on today's, so that series crosses this change.
@@ -157,10 +169,14 @@ change. How to handle that is a decision for the team.
 
 ## Reproducing this
 
-The result trees are on gps3 in `~/phref_attrib/results/` (`PHT0`, `PHTB`, `PHTP`, 45 MB),
-moved out of `SAVEDISK` so they aren't mistaken for production. The temporary PCFs,
+The result trees are on gps3 in `~/phref_attrib/results/` (45 MB), moved out of `SAVEDISK`
+so they aren't mistaken for production: `PHT0` is the control, `PHTB` the August MAXPAR run
+and `PHTP` the earlier-binaries run. The PCFs and run scripts are in `~/phref_attrib/`
+(`PHTA_DLY.PCF` is the discarded first attempt). The temporary PCFs,
 panel copies and environment file were removed from `$U` and `$C`, and production's files
-were confirmed to match `config/bernese/gpsuser/`. The analysis scripts weren't committed.
+were confirmed to match `config/bernese/gpsuser/`. The analysis scripts behind sections 1
+to 3 aren't in the repository. Rough working copies are in `~/phref_attrib/analysis/` on
+gps3.
 To repeat the earlier-binaries run: unpack `~/BERN54-EXE_GNU-pre-patch-20260901.tar.gz`, write
 `$C/LOADGPS_<name>.setvar` with `XG` pointing at it, and run `bernese-run-year` with
 `HOST=<name>` and a PCF whose `V_RESULT` is a new tree. Sample `/proc/<pid>/exe` to confirm.
