@@ -67,7 +67,7 @@ in `$U` on gps3, and re-running the provisioner would not restore them:
 
 | On gps3 | What it is |
 |---|---|
-| `PCF/LUZON_DLY.PCF`, `LZFLT_DLY.PCF`, `PHREF_DLY.PCF`, `PHDEN_DLY.PCF` | The PCFs production and the console use. `scripts/derive_luzon_pcf.py --frame i20` generates the live `LUZON_DLY` from stock; its default, `i14`, does not |
+| `PCF/LUZON_DLY.PCF`, `LZFLT_DLY.PCF`, `PHREF_DLY.PCF`, `PHDEN_DLY.PCF` | The PCFs production and the console use. `scripts/derive_luzon_pcf.py` generates the live `LUZON_DLY` from stock |
 | `PCF/PHNAT_DLY.PCF`, `PHRCTL_DLY.PCF`, `PHRPAR_DLY.PCF` | PCFs for trial and comparison runs |
 | `SCRIPT/phden_pcs.pl`, `phnat_year.pl`, `LZFLT_DLY_pcs.pl`, `luzon_par.pl` | Perl drivers whose default PCFs are `PHDEN_DLY`, `PHNAT_DLY`, and `LUZON_DLY` for the last two |
 | `OPT/R2S_FIN/ADDNEQ2.INP` | Stock, except `MAXPAR` 6000 (stock 1000). Edited on the server, backups beside it |

@@ -49,6 +49,7 @@ Two roles appear below.
 | How you see it | The Bernese menu, File Explorer, Notepad++ | The console, in a browser on any office PC |
 | Campaign | One campaign, e.g. `PHIVOLCS`, selected in the menu | Configured campaigns (today LUZON, PHREF and PHDEN), picked in the console's header. Each day runs in its own working campaign (e.g. `LZY250360`), so several days run at once |
 | Final coordinates | `F1_$YSS+0.CRD`, two-digit year (`F1_251520.CRD`) | `FIN_` with a four-digit year (`FIN_20251520.CRD`). The Day page shows the 5.2 name beside each 5.4 name |
+| Frame and antenna model | IGS14, I14 | IGS20, I20, because I14 can't run on 5.4 at these dates. Coordinates and velocities from gps3 are not directly comparable with 5.2 results: the frame and antenna model both differ, and the size of that difference hasn't been measured for our stations |
 | Orbits, clocks, ERP | IGS finals from CDDIS, or `FTP_DWLD` | CODE finals (`COD0OPSFIN`), fetched by the maintainer with `scripts/fetch_igs_products.sh` from a mirror, because the AIUB FTP server is blocked from gps3 |
 | Starting a run | RUNBPE 1 and 2 panels | **Queue preflight**, then **Start**, on the console's Plan page, for operators (section 5). A run that skips steps, changes RNXGRA or uses another PCF is a maintainer task on the command line (see 5.6.1, step 5) |
 | When a run fails | Open `$YSS+0_$PID_$SUBID.LOG` in the BPE folder | The console's Failure page names the step, script and program, and shows the known-errors entry |

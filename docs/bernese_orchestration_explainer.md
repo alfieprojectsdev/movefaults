@@ -89,12 +89,14 @@ Afterwards:
 Every BPE step (RNXGRA, RXOBV3, MAUPRP, GNSQIF, HELMCHK and the rest) is
 Bernese's own. **Orchestration does not change the science.** What changes is
 who carries the files. gps3 does differ from production in other ways: it runs
-Bernese 5.4 with 5.4's stock panels, not your 5.2 panels, and its network and
-constraints are different too, so its results agree with production rather than
-reproduce it. PHREF 2025 against production, week by week, after a 7-parameter
-Helmert alignment: median 1.26 mm north, 2.28 mm east, 6.99 mm up. That was
-measured on the 29 August solutions and hasn't been re-measured on the
-reprocessed year.
+Bernese 5.4 with 5.4's stock panels, not your 5.2 panels. It uses the IGS20
+reference frame and the I20 antenna model, where 5.2 production uses IGS14 and
+I14, because I14 can't run on 5.4 at these dates. Its network and constraints are
+different too. So its results agree with production rather than reproduce it.
+PHREF 2025 against production, week by week, after a 7-parameter Helmert
+alignment: median 1.26 mm north, 2.28 mm east, 6.99 mm up. That was measured on
+the 29 August solutions and hasn't been re-measured on the reprocessed year. How
+much of it comes from the frame and antenna change hasn't been measured either.
 
 ---
 
@@ -337,8 +339,8 @@ Two things came out of the rewrite that are worth knowing.
 original data anyway. That is why the work instruction has you remove outliers
 by hand and re-run. The console's numbers keep the MATLAB's behaviour: flagged
 epochs are reported and stay in the fit, the same method the published
-velocities use. They are fitted to gps3's own daily solutions, so they are not
-the published numbers themselves. **Whether we publish with outliers left out
+velocities use. They are fitted to gps3's own daily solutions, in IGS20, so they
+are not the published numbers themselves. **Whether we publish with outliers left out
 is a decision for the team, not for the code,** and it is still open.
 
 **BR14 and LUZD get wrong velocities from the MATLAB** when their two 2022
