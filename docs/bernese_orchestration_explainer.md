@@ -64,12 +64,16 @@ Before the run (the maintainer, with scripts/):
   - stage the RINEX files and merge the ocean-loading (BLQ) file
 
 The run (the processing service):
-  1. Plan: check every day's products, the PCF's steps and their WAITs, and
-     MAXPAR headroom; optionally check the station files (STA, CRD, BLQ, ATL,
-     ABB) the way Bernese reads them
+  1. Plan: leave out days with fewer than three reference stations; check the
+     PCF's steps and their WAITs, and (on the console's Plan page) every day's
+     products; check the station files (STA, CRD, BLQ, ATL, ABB) the way
+     Bernese reads them, and refuse the run on a blocking finding; show MAXPAR
+     beside the busiest day's station count, and run that day first as the
+     real test of it
   2. Take the machine-wide BPE lock, so only one run uses Bernese at a time
-  3. Run Bernese non-interactively, several days at once, each day in its own
-     working campaign, every step of the PCF
+  3. Check each day's RINEX headers against the .STA and refuse on a mismatch,
+     then run Bernese non-interactively, several days at once, each day in its
+     own working campaign, every step of the PCF
   4. On a failure: name the failed step, look the message up in the
      known-errors list, and decide whether the run stops
   5. Keep each finished day's results in SAVEDISK and mark them done, so a
@@ -83,8 +87,14 @@ Afterwards:
 ```
 
 Every BPE step (RNXGRA, RXOBV3, MAUPRP, GNSQIF, HELMCHK and the rest) is
-Bernese's own, run with PHIVOLCS' panel settings. **The science does not
-change.** What changes is who carries the files.
+Bernese's own. **Orchestration does not change the science.** What changes is
+who carries the files. gps3 does differ from production in other ways: it runs
+Bernese 5.4 with 5.4's stock panels, not your 5.2 panels, and its network and
+constraints are different too, so its results agree with production rather than
+reproduce it. PHREF 2025 against production, week by week, after a 7-parameter
+Helmert alignment: median 1.26 mm north, 2.28 mm east, 6.99 mm up. That was
+measured on the 29 August solutions and hasn't been re-measured on the
+reprocessed year.
 
 ---
 
@@ -99,19 +109,24 @@ recorded anywhere. They lived in a panel file that has since been overwritten.
 
 On gps3 two things are recorded.
 
-The settings are version-controlled. The panels and the driver scripts live in
-this repository (`config/bernese/gpsuser/`) and are applied to the server by one
-command (`scripts/provision_gpsuser.py`), so "which panel settings were active"
-is answered from the commit history, not from memory. The production PCFs
-(LUZON_DLY, PHREF_DLY, PHDEN_DLY) are on gps3, not in the repository; the run
-record names the one each run used.
+The settings can be checked. The driver scripts live in this repository
+(`config/bernese/gpsuser/`) and are applied to the server by one command
+(`scripts/provision_gpsuser.py`). The production PCFs (LUZON_DLY, PHREF_DLY,
+PHDEN_DLY) and panels (`${U}/OPT/R2S_*`) are on gps3, not in the repository, so
+the commit history does not answer "which settings were active". The panels are
+Bernese 5.4's stock ones, apart from MAXPAR in two `ADDNEQ2.INP` files, changed
+on the server with a backup beside each. The run record names the PCF each run
+used and keeps a checksum over it and every panel it uses, so a setting that
+changed between two runs shows as a different checksum. That says something
+changed, not what.
 
 Every run is recorded. The run record (`ledger.jsonl`, beside each year's
 `SOL/` folder) keeps one line for each attempt at a day, with its outcome,
 error, duration and station count. For each run it also keeps who started it,
-the exact command, the code version, the PCF and the orbit products it read.
-The console shows this on each day's page. What it does not yet keep is the
-ambiguity fixing rate: Bernese's ambiguity summaries are not archived.
+the exact command, the code version, the PCF, that checksum and the orbit
+products it read. The console shows this on each day's page. What it does not
+yet keep is the ambiguity fixing rate: Bernese's ambiguity summaries are not
+archived.
 
 **An example from our own files of why this matters.** When the velocity script
 was rewritten in Python (see "Your velocity script runs without MATLAB"), the
@@ -197,18 +212,21 @@ step solving the final system on a single core. Seven days of processing, and
 the machine is gone for the week.
 
 The processing runs on the R740 (gps3) instead. Bernese 5.4 was installed there
-on 29 July 2026 and verified against the reference solution to **0.0000 mm**,
-the same numbers as the laptop. It has 12 cores (24 threads), with the campaign
-data on its own 4 TB volume. Runs are supervised remotely: a run started at the
-office has been followed from a home network, with no terminal left open and
-nothing exposed to the internet.
+on 29 July 2026, and rebuilt on the machine on 2 September with AIUB's published
+patches. The rebuild was compared with the previous binaries: 0.00 mm on one of
+our own days, and at most 0.010 mm on Bernese's 340-station EXAMPLE campaign,
+which is the precision the CRD file prints. The R740 has 12 cores (24 threads),
+with the campaign data on its own 4 TB volume. Runs are supervised remotely: a
+run started at the office has been followed from a home network, with no
+terminal left open and nothing exposed to the internet.
 
 Starting a run from your desk is done in the browser console: an operator
 queues a preflight and then Start on the Plan page, and the run worker on gps3
 carries it out. Your PC stays free. The maintainer decides who is an operator.
 
 LUZON 2025, DOY 121 to 151, ran overnight without supervision: 30 days, zero
-failures. The coordinates have a day-to-day repeatability of **2.8 mm north,
+failures (DOY 139 was left out, because too little data exists for that day).
+The coordinates have a day-to-day repeatability of **2.8 mm north,
 3.0 mm east, 10.9 mm up**, ordinary for daily solutions, which is the point.
 Nobody sat with it.
 
@@ -271,7 +289,9 @@ Three things now stand between a failure and a lost night.
 - The run stops itself. An error marked as a configuration problem (like
   `MAXPAR`) stops the run at once, because every remaining day would fail the
   same way. An error with no entry also stops it at once: there is no remedy on
-  file, so a person has to look. An error that belongs to one day's data is
+  file, so a person has to look. So does a day whose RINEX headers are refused
+  before Bernese starts, or a call that runs past its time limit. An error that
+  belongs to one day's data is
   counted: 3 days in a row failing with the same error stop the run, and so do
   5 failed days in a row of any kind. A day that succeeds resets the count.
 
@@ -296,8 +316,9 @@ have.
 It has been rewritten in Python (`pogf_geodetic_suite.timeseries.analysis`).
 Checked against PHIVOLCS' own `Velocity_rover(regress)_10` for the Luzon
 campaign set, **161 of 165 velocity components agree to better than
-0.000005 mm/yr, and the other four to 0.000023 mm/yr**, which is finer than the
-five decimal places the MATLAB writes. Three sites were left out of that check,
+0.000005 mm/yr**, which is the rounding of the five decimal places the MATLAB
+writes, **and the other four to 0.000023 mm/yr**, two or three units in that
+last place. Three sites were left out of that check,
 each for a reason: BR14 and LUZD (below), and KA08, whose last segment has a
 single point, which the MATLAB reports with no error bars and the Python
 refuses to fit.
@@ -311,16 +332,18 @@ Two things came out of the rewrite that are worth knowing.
 (`rmoutliers`), writes the `outliers` file, and then fits the velocity to the
 original data anyway. That is why the work instruction has you remove outliers
 by hand and re-run. The console's numbers keep the MATLAB's behaviour: flagged
-epochs are reported and stay in the fit, which reproduces the published
-velocities. **Whether we publish with outliers left out is a decision for the
-team, not for the code,** and it is still open.
+epochs are reported and stay in the fit, the same method the published
+velocities use. They are fitted to gps3's own daily solutions, so they are not
+the published numbers themselves. **Whether we publish with outliers left out
+is a decision for the team, not for the code,** and it is still open.
 
 **BR14 and LUZD get wrong velocities from the MATLAB** when their two 2022
 entries in `offsets` are in the wrong order (the later date first), as they
 were in the copy on the file share. The MATLAB builds its time segments in file
 order, which then gives an impossible range, and the calculation silently
 reuses the previous segment's data. It does not error; it just produces a
-number that isn't right. The copy in this repository was put in date order on
+number that isn't right, so velocities already published for those two sites
+from the old order are wrong. The copy in this repository was put in date order on
 21 August 2026, and the Python sorts the catalog when it reads it, so it is not
 affected. **If the copy you run the MATLAB with still lists 2022.8159 before
 2022.5695 for BR14 or LUZD, swap them.** It is worth checking any other site
@@ -344,10 +367,11 @@ Orchestration takes the mechanical steps. The judgement steps stay with people:
 | BPE execution, every step in the PCF | Interpreting the ambiguity fixing rate (not shown in the console yet: the summaries aren't archived) |
 | Listing the stations in each day's solution, and any dropped since the day before | Deciding whether a dropped station reflects a real data problem |
 | Archiving each day's results in SAVEDISK | Velocity model review and publication |
+| Checking each day's results are complete and marking the day done | Final QC sign-off before results enter the velocity product |
 | Showing each run's state in the console | Offset event classification (EQ, VE, CE, UK) |
 | **Outlier flagging** (statistical, automatic) | **Confirming or overriding** each flag |
 | Looking a failed step up in the known-errors list | **Writing and confirming** the entries in that list |
-| Stopping a run: at once on a configuration error or an error with no entry, after 3 same failures in a row, or after 5 failed days in a row | **Deciding what to change** before the run is started again |
+| Stopping a run: at once on a configuration error, an error with no entry, a refused header check or a timeout; after 3 same failures in a row; or after 5 failed days in a row | **Deciding what to change** before the run is started again |
 
 The orchestrator flags; it does not decide. Every exception it raises is a
 question that needs your knowledge of the network to answer.
@@ -415,20 +439,23 @@ documentation describes for automated processing) through a driver script,
 `sessions_pcs.pl`, kept in this repository. Bernese does all the geodetic
 computation. The service handles everything around it. It checks the inputs
 before a run starts, and takes the machine-wide BPE lock so only one run uses
-Bernese at a time. It calls Bernese several days at once and stops a step that
-runs too long. Afterwards it checks that each day's results are complete in
-SAVEDISK and marks the day done. On a failure it names the step and program,
+Bernese at a time. It calls Bernese several days at once and stops a call that
+runs past its time limit, with every job that call started. Afterwards it
+checks that each day's results are complete in SAVEDISK and marks the day done.
+On a failure it names the step and program,
 looks the message up in the known-errors list, and decides whether the run
 stops. Throughout, it writes the run record: one line per attempt, with who
 started the run, the command, the code version, the PCF and the products.
 
 The panel settings (the GPSEST ionosphere configuration, the MAUPRP cycle-slip
 thresholds, the HELMR1 reference station list, the ADDNEQ2 outlier thresholds)
-are kept in `config/bernese/gpsuser/`. The daily PCFs are derived from the
-stock Bernese 5.4 `RNX2SNX.PCF`, changing only its variables (the LUZON one by
-`scripts/derive_luzon_pcf.py`), and a PCF in which a step waits on one that
-will never run is refused before it is copied to the server. None of it changes unless
-someone deliberately changes it, and every change is in the commit history.
+are the panels in `${U}/OPT` on gps3: Bernese 5.4's stock R2S panels, with MAXPAR
+raised in two `ADDNEQ2.INP` files. The daily PCFs are derived from the stock
+Bernese 5.4 `RNX2SNX.PCF`, changing only its variables (the LUZON one by
+`scripts/derive_luzon_pcf.py`); the float fallback, `LZFLT_DLY`, also leaves out
+the ambiguity-resolution steps. A PCF in which a step waits on one that will
+never run is refused when a run is planned. These files live on gps3, not in the
+commit history; the checksum in the run record is what shows that one changed.
 
 ---
 
@@ -471,11 +498,11 @@ mirrored onto agency hardware.
 - Stock Bernese panels: we have the vendor's own files. We only want the
   ones PHIVOLCS has actually changed.
 
-Everything you supply goes into `config/bernese/gpsuser/` and is applied by a
-single command, so the environment can be rebuilt from scratch if the server is
-ever reconfigured, which matters because the MIS team does reconfigure it. Your
-production settings are kept exactly as they are; nothing is silently
-reinterpreted.
+Panel settings you supply go into `config/bernese/gpsuser/` and are applied by a
+single command, which matters because the MIS team does reconfigure the server.
+That command corrects path separators and sizes MAXPAR in `ADDNEQ2.INP` from the
+station count, and stops on anything it will not fix safely. `.STA` and `.CRD`
+changes go into the reference files the campaigns read, in `${D}/REF54`.
 
 ---
 
@@ -486,7 +513,7 @@ reinterpreted.
 | Machine time per day | about 2 h attended (T420) | 5 min 33 s unattended for one LUZON day | measured |
 | A month of processing | weeks of attended work | 53 min for LUZON January 2026, several days at once | in production since 4 November 2026 |
 | Starting a run | the RUNBPE panels, at the machine | the console's Plan page, from any office PC | operators only; the maintainer sets who |
-| Reproducibility | settings not recorded | settings version-controlled; every run recorded with who, what and which code | in use |
+| Reproducibility | settings not recorded | driver scripts version-controlled; every run recorded with who, what, which code and a checksum of its settings | in use; PCFs and panels are on gps3, not in version control |
 | Velocity calculation | MATLAB (licensed) | Python, agreeing with the MATLAB | runs in the console; published velocities still come from the MATLAB |
 | Outlier review | right-click, then edit PLOT files | decisions recorded with your name; a side-by-side fit | in use; leaving outliers out of the published fit is still open |
 | Your scripts and `offsets` | one share, some laptops | in version control, mirrored | done, 12 August 2026 |
