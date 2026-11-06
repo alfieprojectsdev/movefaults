@@ -186,13 +186,13 @@ movefaults_clean/
 >
 > | when | what ran through the service |
 > |---|---|
-> | 2026-10-27 | **Parity** (#307): PHREF 2025 DOY 091–120, 30/30 days ok in 1h15m, into a separate result tree (PHRPAR). Not identical to the August production run, because of the Bernese patches. **Control:** the `scripts/` driver on DOY 094, 096 and 098 with the same configuration gave SNX and CRD files identical to the service's, 3 of 3, which is the evidence that the service reproduces `scripts/` |
+> | 2026-10-27 | **Parity** (#307): PHREF 2025 DOY 091–120, 30/30 days ok in 1h15m, into a separate result tree (PHRPAR). Not identical to the August production run, because of the binaries replaced on 2026-09-02. **Control:** the `scripts/` driver on DOY 094, 096 and 098 with the same configuration gave SNX and CRD files identical to the service's, 3 of 3, which is the evidence that the service reproduces `scripts/` |
 > | 2026-11-04 | **First production run:** LUZON January 2026, run `7ca9ccb9`, 31/31 days ok in 53 min, 23–25 stations a day |
 > | 2026-11-04 to 05 | **PHREF 2025 reprocessed:** runs `3341af5c` and `0def7ca1`, all 360 planned days solved |
 >
 > **Compared 2026-11-05:** the reprocessed PHREF 2025 coordinates differ from
 > the superseded ones on every day (median 0.02 mm, maximum 40.5 mm). The cause is
-> the Bernese patches, and one-year velocities barely moved
+> the binaries replaced on 2026-09-02, and one-year velocities barely moved
 > (`docs/phref_2025_reprocess_attribution_results.md`). Still true: nothing writes solutions to TimescaleDB,
 > and the ingestion pipeline is not in the loop.
 >

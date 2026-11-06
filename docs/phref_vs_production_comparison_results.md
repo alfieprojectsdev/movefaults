@@ -27,8 +27,8 @@ Its share of these residuals, the vertical especially, has not been measured
 (runbook §1.4).*
 
 *Added 2026-11-06: the antenna offsets correlate with the median Up residuals here
-(`phref_2025_reprocess_attribution_results.md`). These figures are from the unpatched
-solutions of 29 August.*
+(`phref_2025_reprocess_attribution_results.md`). These figures are from the 29 August
+solutions, on the binaries from before 2026-09-02.*
 
 ## Headline
 

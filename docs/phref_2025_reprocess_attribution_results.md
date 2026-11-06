@@ -4,10 +4,12 @@
 
 ## Results
 
-1. **The reprocessed PHREF 2025 coordinates differ from the August ones because of
-   the 2024-11-11 Bernese patches.** The pre-patch binaries reproduce the August
+1. **The reprocessed PHREF 2025 coordinates differ from the August ones because of the
+   binaries replaced on 2 September.** The earlier binaries reproduce the August
    solutions exactly on all three days tested, including the largest difference in
-   the year (40.5 mm). The raised MAXPAR values aren't the cause.
+   the year (40.5 mm). The raised MAXPAR values aren't the cause. That replacement
+   changed two things at once, the 2024-11-11 patches and a move from AIUB's prebuilt
+   executables to a local gfortran build, and **this test can't separate them**.
 2. **Velocities barely moved:** a median change of 0.01 mm/yr East and North and
    0.04 mm/yr Up in one-year rates. The largest is 0.61 mm/yr Up, at LGYE.
 3. **The I14 to I20 antenna change shows up in the comparison with 5.2 production.**
@@ -20,8 +22,8 @@ Between the August run (29 Aug) and the reprocess (4 Nov), the products, `PHNAT.
 and `.CRD` and all but one RINEX file were unchanged. The BLQ and ATL edits of 30 Sep
 touch only stations PHREF doesn't use. The LORE file changed on 4 Nov, after the parity
 run. The reprocess also matches the parity run of 27 Oct on all 30 shared days, within
-0.001 mm. That left two candidates: the patched binaries (2 Sep) and the MAXPAR values
-in two `ADDNEQ2.INP` panels (29 Sep).
+0.001 mm. That left two candidates: the binaries replaced on 2 Sep and the MAXPAR
+values in two `ADDNEQ2.INP` panels (29 Sep).
 
 **The test.** Three days, chosen for a whole-network shift (DOY 329), the largest
 single-station difference (DOY 089) and a quiet day (DOY 194). Each ran through
@@ -29,34 +31,37 @@ single-station difference (DOY 089) and a quiet day (DOY 194). Each ran through
 
 | Run | Binaries | MAXPAR, `R2S_FIN` / `R2S_GEN` |
 |---|---|---|
-| Control | Patched | 6000 / 4000 |
-| August MAXPAR | Patched | 3000 / 1000 |
-| Pre-patch | Pre-patch | 6000 / 4000 |
+| Control | Today's (patched, built locally) | 6000 / 4000 |
+| August MAXPAR | Today's | 3000 / 1000 |
+| Earlier binaries | From the September snapshot (unpatched, AIUB prebuilt) | 6000 / 4000 |
 
 Largest station difference and median, in mm, from `SOLUTION/ESTIMATE` of the `FIN` SINEX:
 
-| DOY | November vs August | Control vs November | August MAXPAR vs November | Pre-patch vs August |
+| DOY | November vs August | Control vs November | August MAXPAR vs November | Earlier binaries vs August |
 |---|---|---|---|---|
 | 329 | 5.2334 / 4.9115 | 0.0000 / 0.0000 | 0.0000 / 0.0000 | **0.0000 / 0.0000** |
 | 089 | 40.5227 / 0.5412 | 0.0000 / 0.0000 | 0.0000 / 0.0000 | **0.0000 / 0.0000** |
 | 194 | 0.0066 / 0.0053 | 0.0000 / 0.0000 | 0.0000 / 0.0000 | **0.0000 / 0.0000** |
 
-**How the runs were checked.** The pre-patch executables matched the fingerprint in
+**How the runs were checked.** The earlier executables matched the fingerprint in
 `~/bsw-patch-baseline/exe-sha256-pre.txt`, 88 of 88. A first attempt set `XG` in the
-shell and still ran the patched binaries, because BPE jobs load their environment from
+shell and still ran today's binaries, because BPE jobs load their environment from
 a file, not the calling shell. A sampler of `/proc/<pid>/exe` caught this, and that run
 was thrown away. The valid run used Bernese's own `LOADGPS_$HOST.setvar` switch, and
-the sampler saw only pre-patch binaries: 1,405 samples, none patched.
+the sampler saw only the earlier binaries: 1,405 samples, none of today's.
 
 **What this doesn't settle.**
 
 - It is three days, not 360, chosen to include the two kinds of large difference.
-- The patch set was applied as a whole, so this doesn't say which patch. The patch plan
-  names B_33 (geomagnetic model) and B_38 (`TRPSTORE`) as able to change numbers.
-- It doesn't say which set of solutions is better. Patching was the right call on its
-  own grounds, and these results only say the two aren't bit-comparable.
+- **It doesn't separate the patches from the compiler.** A different compiler changing
+  results in the last digits would fit the 0.01 mm seen on most days, and the patch plan
+  names B_33 (geomagnetic model) and B_38 (`TRPSTORE`) as able to change numbers. Building
+  the unpatched source with the same gfortran, from
+  `~/BERN54-SOURCE-pre-patch-20260901.tar.gz`, would separate them. That hasn't been done.
+- It doesn't say which set of solutions is better, only that the two aren't
+  bit-comparable.
 
-**The earlier check was too narrow.** `docs/SETTLED.md` recorded the patches as
+**The earlier check was too narrow.** `docs/SETTLED.md` recorded the patched build as
 "verified inert" from DOY 201 and EXAMPLE. DOY 201 is a quiet day: its largest
 difference here is 0.01 mm.
 
@@ -99,8 +104,8 @@ one-year rates, so a multi-year rate would move less, but that wasn't measured. 
 stations with fewer shared days weren't measured. Published velocities come from the
 MATLAB and aren't affected.
 
-**One boundary to remember:** LUZON 2025 was solved on the unpatched build, and LUZON
-January 2026 on the patched one, so that series crosses this change.
+**One boundary to remember:** LUZON 2025 was solved on the earlier binaries, and LUZON
+January 2026 on today's, so that series crosses this change.
 
 ## 3. The I14/I20 join
 
@@ -138,7 +143,7 @@ things already on hand:
 
 **Limits.**
 
-- It's a correlation, on the August (unpatched) solutions.
+- It's a correlation, on the August solutions (the earlier binaries).
 - It uses offsets only, not elevation-dependent variations or satellite antennas.
 - **A slope of 2.1 isn't explained.** A pure offset would give about 1. Troposphere
   correlation or the variations could raise it, but neither was tested. So use the table
@@ -156,6 +161,6 @@ The result trees are on gps3 in `~/phref_attrib/results/` (`PHT0`, `PHTB`, `PHTP
 moved out of `SAVEDISK` so they aren't mistaken for production. The temporary PCFs,
 panel copies and environment file were removed from `$U` and `$C`, and production's files
 were confirmed to match `config/bernese/gpsuser/`. The analysis scripts weren't committed.
-To repeat the pre-patch run: unpack `~/BERN54-EXE_GNU-pre-patch-20260901.tar.gz`, write
+To repeat the earlier-binaries run: unpack `~/BERN54-EXE_GNU-pre-patch-20260901.tar.gz`, write
 `$C/LOADGPS_<name>.setvar` with `XG` pointing at it, and run `bernese-run-year` with
 `HOST=<name>` and a PCF whose `V_RESULT` is a new tree. Sample `/proc/<pid>/exe` to confirm.

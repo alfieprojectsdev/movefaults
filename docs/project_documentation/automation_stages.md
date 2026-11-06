@@ -186,8 +186,8 @@ the script port is downstream of it.**
 ### What is not done
 
 - **The reprocessed PHREF 2025 coordinates differ from the ones they superseded**
-  (median 0.02 mm, maximum 40.5 mm a day) **because of the Bernese patches**, shown on
-  three days on 2026-11-06, and one-year velocities barely moved
+  (median 0.02 mm, maximum 40.5 mm a day) **because of the Bernese binaries replaced on
+  2026-09-02**, shown on three days on 2026-11-06, and one-year velocities barely moved
   (`docs/phref_2025_reprocess_attribution_results.md`). Production's BPE step moved to
   `services/bernese-workflow` on 2026-11-04 (table above). Until then the first item here was "Production
   still runs through `scripts/`": the service sat listed at "~10% complete"
@@ -206,7 +206,7 @@ month through `services/bernese-workflow` instead of `scripts/`, compared
 against the `scripts/` output. The parity run and its `scripts/` control
 (table above) were that comparison, and LUZON January 2026 then ran in
 production through the service. The differences between the reprocessed PHREF 2025
-year and the solutions it superseded have since been attributed to the Bernese patches,
+year and the solutions it superseded have since been attributed to the binaries replaced on 2026-09-02,
 and one-year velocities measured (`docs/phref_2025_reprocess_attribution_results.md`).
 
 ---
