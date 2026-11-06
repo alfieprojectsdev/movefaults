@@ -546,7 +546,10 @@ def test_every_committed_gold_pcf_has_no_dangling_references():
     for pcf in pcfs:
         text = pcf.read_text(errors="replace")
         assert find_dangling_waits(text) == [], pcf.name
-        assert find_dangling_jumps(text).dangling == [], pcf.name
+        jumps = find_dangling_jumps(text)
+        assert jumps.dangling == [], pcf.name
+        # An empty list from a check that read no jumps would pass the line above.
+        assert jumps.checked > 0, pcf.name
 
 
 @pytest.mark.parametrize(("panel", "maxpar"), [("R2S_FIN", 6000), ("R2S_GEN", 4000)])

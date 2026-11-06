@@ -52,7 +52,7 @@ DEFAULT_GOLD = REPO_ROOT / "config" / "bernese" / "gpsuser"
 # Assets run_pagenet_week.sh needs in $U before an acceptance test can run.
 REQUIRED_FOR_PAGENET = (
     ("SCRIPT/pagenet_pcs.pl", "BPE driver (parameterized rnx2snx_pcs.pl)"),
-    ("PCF/PAGENET_DLY.PCF", "daily PCF, modules 1-14 — capture from the T420"),
+    ("PCF/PAGENET_DLY.PCF", "daily PCF, modules 1-14 — captured, in the gold tree"),
 )
 
 
@@ -285,17 +285,27 @@ def main() -> int:
     all_errors: list[str] = []
     all_warnings: list[str] = []
 
-    all_actions += provision_scripts(args.gold, args.user, args.apply)
-    acts, errs = provision_pcfs(args.gold, args.user, args.apply)
+    # Check everything before writing anything. SCRIPT/ and PCF/ used to be written
+    # before the panels were checked, so a refusal left $U partly updated.
+    apply = args.apply
+    if apply:
+        _, pcf_errors = provision_pcfs(args.gold, args.user, False)
+        _, _, panel_errors = provision_panels(
+            args.gold, args.user, False, args.stations
+        )
+        if pcf_errors or panel_errors:
+            apply = False
+            print(f"{Colors.ERR}Refused: nothing will be written.{Colors.OFF}\n")
+
+    all_actions += provision_scripts(args.gold, args.user, apply)
+    acts, errs = provision_pcfs(args.gold, args.user, apply)
     all_actions += acts
     all_errors += errs
-    acts, warns, errs = provision_panels(
-        args.gold, args.user, args.apply, args.stations
-    )
+    acts, warns, errs = provision_panels(args.gold, args.user, apply, args.stations)
     all_actions += acts
     all_warnings += warns
     all_errors += errs
-    acts, warns = provision_user_cpu(args.user, args.apply, args.maxjobs)
+    acts, warns = provision_user_cpu(args.user, apply, args.maxjobs)
     all_actions += acts
     all_warnings += warns
 
@@ -324,13 +334,13 @@ def main() -> int:
             print(f"  {Colors.ERR}MISSING {m}{Colors.OFF}")
         print(
             f"\n  {Colors.DIM}See config/bernese/gpsuser/README.md — "
-            f"PAGENET_DLY.PCF must be captured from the T420, not re-derived."
+            f"PAGENET_DLY.PCF is a capture: copy it from there, don't re-derive it."
             f"{Colors.OFF}"
         )
     else:
         print(f"  {Colors.OK}all required assets present{Colors.OFF}")
 
-    if not args.apply and all_actions:
+    if not args.apply and all_actions and not all_errors:
         print(f"\n{Colors.DIM}Re-run with --apply to write.{Colors.OFF}")
 
     return 1 if all_errors else 0

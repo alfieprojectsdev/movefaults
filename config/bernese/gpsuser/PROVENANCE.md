@@ -123,7 +123,7 @@ found.
 | `PCF/PHNAT_DLY.PCF` | 2026-08-28 | National network |
 | `PCF/PHRCTL_DLY.PCF`, `PCF/PHRPAR_DLY.PCF` | 2026-10-27 | The parity run and its control (`docs/SETTLED.md` §2) |
 | `SCRIPT/luzon_par.pl` | 2026-08-12 | Driver, default PCF `LUZON_DLY` |
-| `SCRIPT/LZFLT_DLY_pcs.pl` | 2026-08-25 | Driver, default PCF `LUZON_DLY` |
+| `SCRIPT/LZFLT_DLY_pcs.pl` | 2026-08-25 | Driver, default PCF `LZFLT_DLY`, campaign `LZFLT`. Its help text still says `LUZON_DLY`, which is wrong; kept, since this is a byte-for-byte copy |
 | `SCRIPT/phnat_year.pl` | 2026-08-28 | Driver, default PCF `PHNAT_DLY` |
 | `SCRIPT/phden_pcs.pl` | 2026-09-30 | Driver, default PCF `PHDEN_DLY` |
 | `OPT/R2S_FIN/ADDNEQ2.INP` | 2026-09-29 | Stock, except `MAXPAR` 6000 (stock 1000) |
@@ -133,4 +133,4 @@ The dates are the files' own, so the history before 2026-11-06 is not in git. Ea
 panel's edit was made on the server, against the rule in `README.md`, with backups
 beside it (`ADDNEQ2.INP.pre-maxpar*`). Those backups stay on gps3.
 
-All of these use I20 and IGS20 (`docs/SETTLED.md` §3).
+All seven PCFs set `V_PCV = I20` and `V_REFINF = IGS20` (`docs/SETTLED.md` §3).
