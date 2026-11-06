@@ -23,7 +23,7 @@ THE DATA IS THE TEST SUITE'S, NOT GPS3'S, through scripts/console_screenshots.py
 same made-up tree, scratch folder, free port and "demo" sign-in. Nothing here can queue
 a real run or write to the real decision record: Queue preflight and the outlier
 decision go to the scratch folder. The Failure page's protocol file is a real captured
-failure with gps3's paths in it; its header lines are covered in the video (MASK_LINES).
+failure with gps3's paths in it; its header (every line above the message table) is covered in the video.
 
 LAYOUT. One 1920x1080 page: on the left a text panel for the 5.2 step, on the right the
 console in an iframe at its own size, with "Made-up data, for demonstration" above it
@@ -36,11 +36,13 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from playwright.sync_api import Frame, Locator, Page, sync_playwright
@@ -53,9 +55,10 @@ YEAR = shots.YEAR
 BASE = f"#/c/LUZON/{YEAR}"
 WIDTH, HEIGHT = 1920, 1080
 FRAME_W, FRAME_H = 1280, 864
-# Protocol file lines on the Failure page that are covered: 1-22 hold the campaign,
-# user and server paths and the system pid of the captured failure.
-MASK_LINES = 22
+# On the Failure page, every protocol file line above the message table (the line
+# starting "Date") is covered: the header holds the campaign, user and server paths
+# and the system pid of the captured failure. At least this many lines, or no video.
+MIN_MASK_LINES = 20
 
 # The three results that may be stated, in these words (docs/SETTLED.md §2 and §6).
 RESULTS = [
@@ -85,7 +88,6 @@ class Scene:
     captions: list[str]
     seconds: float
     action: str
-    extra: dict = field(default_factory=dict)
 
 
 OPENING = Card(
@@ -509,12 +511,17 @@ class Show:
         self.say(s, 2)
 
     def failure_masks(self) -> None:
-        """Cover protocol file lines 1..MASK_LINES wherever they are on screen."""
+        """Cover the protocol file's header, every line above the message table,
+        wherever it is on screen. Stops the recording if the table isn't found."""
         frame_box = self.page.locator("iframe").bounding_box()
         viewer = self.frame.locator(".viewer").first.bounding_box()
         lines = self.frame.locator(".viewer .ln")
+        texts = self.frame.locator(".viewer .ln > span:last-child").all_inner_texts()
+        table = next((i for i, t in enumerate(texts) if t.strip().startswith("Date")), None)
+        if table is None or table < MIN_MASK_LINES:
+            raise SystemExit("the protocol file's header was not found: nothing to cover")
         first = lines.nth(0).bounding_box()
-        last = lines.nth(MASK_LINES - 1).bounding_box()
+        last = lines.nth(table - 1).bounding_box()
         top = max(first["y"], viewer["y"], frame_box["y"])
         bottom = min(
             last["y"] + last["height"],
@@ -650,8 +657,7 @@ def main() -> int:
     if out == REPO or REPO in out.parents:
         raise SystemExit(f"--out must be outside the repository, not {out}")
     out.mkdir(parents=True, exist_ok=True)
-    raw = out / "raw"
-    shutil.rmtree(raw, ignore_errors=True)
+    raw = Path(tempfile.mkdtemp(prefix="bsw-console-demo-video-"))
 
     s = shots.settings()
     worker = shots.pretend_worker(s)
@@ -721,7 +727,7 @@ def main() -> int:
         subprocess.run(cmd, check=True)
         print(mp4)
     else:
-        print("no ffmpeg on PATH; convert with:\n  " + " ".join(cmd))
+        print("no ffmpeg on PATH; convert with:\n  " + shlex.join(cmd))
     print(f"{webm}\n{out / 'demo.srt'}\nlength {end - offset:.1f} s")
     return 0
 
