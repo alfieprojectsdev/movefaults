@@ -249,16 +249,18 @@ RINEX into the same working folder and consuming each other's files.
 
 The fix is also in the manual: **one campaign directory per session**. That was
 tested next. Five sessions, each in its own campaign, finished in 16 minutes 51
-seconds, and their results were byte-identical to running the same days one at
-a time. That is how production runs now: each day in its own working campaign
-(for example `LZY250360`), several at a time.
+seconds. The evidence that this gives the same answer comes from a later test
+on PHREF 2025: DOY 094, 096 and 098, run one at a time, came out identical,
+coordinates included, to the same days run six at a time. That is three days,
+not a whole year. It is how production runs now: each day in its own working
+campaign (for example `LZY250360`), several at a time.
 
 This stays written up because a failed test that gets recorded is worth more
 than a successful one that gets assumed. The whole point of this work is that
 results come with evidence attached.
 
 *(Nothing was lost. The 30-day results were copied aside before the test and
-verified identical afterwards, all 30 solutions, byte for byte.)*
+checked identical afterwards, all 30 solutions, coordinates included.)*
 
 ---
 
