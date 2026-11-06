@@ -177,7 +177,7 @@ the script port is downstream of it.**
 | Service vs `scripts/` on the same inputs | 2026-10-27 (#307): `bernese-run-year`, PHREF 2025 DOY 091–120, **30/30 days, 1h15m**; a `scripts/` control run of DOY 094, 096 and 098 on the same configuration gave **identical SNX and CRD, 3 of 3** |
 | Production BPE run through the service | 2026-11-04: `bernese-run-year`, LUZON January 2026, run `7ca9ccb9`, **31/31 days, 53 min**, 23–25 stations a day |
 | A year reprocessed through the service | 2026-11-04 to 05: PHREF 2025, runs `3341af5c` and `0def7ca1`, **all 360 planned days solved** |
-| Parallel multi-session | `REPR_MODE` — **5/5 sessions, 16m51s, byte-identical to sequential baseline** |
+| Parallel multi-session | `REPR_MODE`, one campaign per session: **5/5 sessions, 16m51s**. Same solutions as one session at a time on **3 PHREF days**, coordinates included (the 2026-10-27 control above). The 5-session comparison itself is invalid and can't be re-checked (`docs/SETTLED.md` §5) |
 | Precision QC | `scripts/coord_repeatability.py` — median N 2.8 / E 3.0 / U 10.9 mm |
 | Multi-station coherence | `scripts/network_coherence_scan.py` — found DOY 126 (14 stations) that single-station thresholds missed |
 | Run comparison | `scripts/compare_solutions.sh` |
