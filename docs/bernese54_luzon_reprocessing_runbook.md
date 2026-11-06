@@ -6,33 +6,46 @@
 > `bernese-run-year`, or `bernese-worker` for queued requests, which is what
 > the console's Start uses. `scripts/run_luzon_month.sh`,
 > `scripts/run_luzon_year.sh` and `scripts/run_phref_year.sh` are kept for
-> comparison runs only. Staging, product fetch and BLQ merge are still the
-> `scripts/` described below.
+> comparison runs only. Staging, product fetch, BLQ merge, PCF derivation and
+> the QC and comparison scripts after the run are still `scripts/`
+> (`scripts/README.md`).
 >
-> To run a range today, on gps3, from the repository checkout:
+> To run a range today, work on gps3 in the production checkout `~/repos/mf_run`.
+> The worker and the console run from it, and the deploy script moves it to
+> `main`. A development checkout on gps3 can be far behind `main`, and may not
+> have these commands at all.
 >
 > ```bash
+> cd ~/repos/mf_run
 > source ~/BERN54/LOADGPS.setvar
-> uv run bernese-run-year --campaign LUZON --repr-prefix LZY --year 2026 \
+> .venv/bin/bernese-run-year --campaign LUZON --repr-prefix LZY --year 2026 \
 >     --from 1 --to 31 --pcf LUZON_DLY --plan
 > ```
 >
 > The range shown, January 2026, is already solved, so its plan has nothing to
 > run; put in the days you want. `--plan` runs nothing; it prints what would
 > run. Then start the run itself with `setsid nohup`, so it outlives the
-> terminal (`docs/SETTLED.md` §2):
+> terminal (`docs/SETTLED.md` §2). The log goes in your home directory, not the
+> checkout:
 >
 > ```bash
-> setsid nohup uv run bernese-run-year --campaign LUZON --repr-prefix LZY \
+> setsid nohup .venv/bin/bernese-run-year --campaign LUZON --repr-prefix LZY \
 >     --year 2026 --from 1 --to 31 --pcf LUZON_DLY --run \
->     > luzon-2026-001-031.log 2>&1 < /dev/null &
+>     > ~/luzon-2026-001-031.log 2>&1 < /dev/null &
 > ```
 >
-> Or queue it for the run worker:
-> `uv run bernese-worker submit start --campaign LUZON --repr-prefix LZY
-> --year 2026 --from 1 --to 31 --pcf LUZON_DLY`. Options are in
-> `bernese-run-year --help`; the service is described in
-> `services/bernese-workflow/README.md`.
+> Or queue it for the run worker, and check that it was picked up. A submit
+> only writes the request: it succeeds even with no worker running, and a
+> request still waiting after 24 hours expires.
+>
+> ```bash
+> .venv/bin/bernese-worker submit start --campaign LUZON --repr-prefix LZY \
+>     --year 2026 --from 1 --to 31 --pcf LUZON_DLY
+> .venv/bin/bernese-worker list
+> ```
+>
+> Options are in `.venv/bin/bernese-run-year --help`; the service is described
+> in `services/bernese-workflow/README.md`.
 
 **Written:** 2026-08-05, on gps3, after the Bernese 5.2 LUZON set was copied off
 the DOSTB drive to `/srv/gnss-archive/processed/luzon-bern52/`.
