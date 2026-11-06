@@ -271,7 +271,7 @@ a header position good to ~100 m cannot distinguish a mark from another mark
 | **All substantive work reaches `main` through a PR**; branches live ≤1 week | a branch that outlived its purpose became a second trunk and cost a full session to reconcile (PR #57) |
 | **Comms between the T420 and R740 sessions go as PR comments** when PR-scoped; rsync'd markdown otherwise. Never paste, never hand-relay through the user | SOP 2026-08-25 |
 | **Human-in-the-loop at outlier review.** The target is decision support, not autonomy | `automation_stages.md` |
-| **No cron for the scientific pipeline.** Run *status* has cron; the pipeline does not | its failure mode is silent wrong numbers; scheduling removes the person who would notice |
+| **No cron for the scientific pipeline.** Run *status* has cron, and so does fetching input products (`bernese-update-products`, approved 2026-11-06: it only adds missing files and replaces no reference file); the pipeline does not | its failure mode is silent wrong numbers; scheduling removes the person who would notice |
 | **Non-commercial free tiers are a legitimate fit** (Vercel Hobby et al.) | PHIVOLCS work generates no profit by design |
 | **`analysis/` `01 RINEX conversion` is not ported yet** | downstream of the digital logsheet; porting now automates the wrong half |
 | **Decimal year is `year + DOY/365.25`** — DOY 1 is `year + 0.0027`, not `year.0000`. Do not "correct" it to `(DOY-1)/365.25` | the `offsets` catalog, every published PLOT file and every published velocity are written in it, and staff compute catalog entries by hand this way. The absolute epoch has no scientific meaning; agreement with the catalog does. Settled 2026-08-25, pinned by tests in `test_crd_pipeline.py` |
@@ -704,6 +704,12 @@ worked on:
   fiducials reach back that far, and about 11,600 1990s RINEX files are on gps3,
   but nothing has been run. `docs/project_documentation/legacy_1996_pilot_plan.md`
   is the proposed test.
+
+- **Whether to update the CONFIG and REF files that differ from AIUB's.** On 2026-11-06 five
+  of the eleven compared differ: `SAT_2026.CRX`, `SATELLIT_I20.SAT`, `SAT_GNSS.CRX`, `DATUM.BSW`
+  and `ANTENNA_I20.PCV`, some unchanged here since 2024. Updating them changes results for days
+  already solved, so it should happen at a boundary and be recorded, like the 2026-09-02 binaries
+  (§2). Nothing has been measured about what they'd change. `bernese-update-products` reports them.
 
 - **Whether flagged outliers are excluded from the published velocity fit.**
   Two documents record this as decided on 2026-08-13 in favour of excluding:

@@ -115,9 +115,33 @@ different account, point `mail_conf` at another file with the same five `MAIL_` 
 The Plan page says whether alerts are working. Details of a failed send are in
 `~/.local/state/bernese-workflow/worker/notify/status.json`.
 
+## Keeping products current (`bernese-update-products`)
+
+`bernese-update-products` runs nightly from cron. It fetches any CODE orbits, clocks, ERP,
+biases and ionosphere maps missing from the last 60 days, and checks each one decompresses
+before keeping it. It never replaces a file. A recent day not yet on the mirror is normal,
+and a file still missing after 21 days is reported as late.
+
+It also compares the `CONFIG` and `REF54` files a run reads with AIUB's, and **only reports
+the differences**. Updating one changes results for days already solved, so that stays a
+person's decision. `bernese-notify` mails the maintainer about failures, late files and
+differences, once each until they change, and if the nightly job stops running.
+
+```bash
+~/repos/mf_run/.venv/bin/bernese-update-products --dry-run           # writes nothing
+~/repos/mf_run/.venv/bin/bernese-update-products --since 2026-04-01  # fill an older gap, once
+```
+
+```cron
+20 2 * * * $HOME/repos/mf_run/.venv/bin/bernese-update-products >> $HOME/bernese_products.log 2>&1
+```
+
+`scripts/fetch_igs_products.sh` stays for a manual range, and also fetches the IGS
+cross-check files, which no run reads. The Plan page shows which days lack products.
+
 ## Using it
 
-Five command-line entry points (root `pyproject.toml`), then the library below them:
+Six command-line entry points (root `pyproject.toml`), then the library below them:
 
 - `bernese-run-year` plans and runs a range of days as parallel BPE blocks (the
   production BPE step since 2026-11-04);
@@ -127,7 +151,8 @@ Five command-line entry points (root `pyproject.toml`), then the library below t
   (read-only);
 - `bernese-check-equipment` compares the `.STA` equipment with field-ops records
   (read-only, advisory);
-- `bernese-notify` emails the person who started a run (above).
+- `bernese-notify` emails the person who started a run (above);
+- `bernese-update-products` fetches new products and reports stale reference files (above).
 
 ```python
 from pathlib import Path

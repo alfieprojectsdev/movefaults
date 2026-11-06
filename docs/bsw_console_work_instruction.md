@@ -238,14 +238,16 @@ the console is planned but not built.
 #### 5.6.5 Updating the GEN folder
 
 Maintainer task. It can't follow 5.2 as written, because the AIUB FTP server is
-blocked from gps3. Not in the console.
+blocked from gps3. Not in the console. A nightly job compares these files with AIUB's
+and tells the maintainer what differs. It doesn't replace them, because updating one
+changes results for days already solved.
 
 ### 5.7 Manual download of external inputs
 
 Maintainer task. gps3 uses CODE products (orbits, clocks, ERP and biases, all
 from the one analysis centre) from a mirror of the AIUB data, through
-`scripts/fetch_igs_products.sh`, instead of the CDDIS and AIUB FTP downloads in
-5.7.1. **Plan** shows which days are missing products.
+`scripts/fetch_igs_products.sh` and a nightly job, instead of the CDDIS and AIUB FTP
+downloads in 5.7.1. **Plan** shows which days are missing products.
 
 The IGS reference stations are set per campaign. The 5.2 work instruction lists
 twelve (5.7.2.3). The LUZON campaign uses nine, and only seven of them are on
@@ -308,7 +310,7 @@ writes GMT `psvelo` input. It is not in the console.
 | Listing queued requests | Not built. A queued request can be cancelled only on gps3 |
 | Start with skipped steps, another RNXGRA or another PCF | Refused on purpose: the console runs the PCF whole. These stay on the command line |
 | Editing station files, adding a site, "use as a priori", checking a BLQ reply | Planned (console stage 4). **Station files** is read-only today |
-| GEN folder age against AIUB's | Planned, read-only. Not built |
+| GEN folder age against AIUB's | Not in the console. A nightly job emails the maintainer what differs (5.6.5) |
 | Confirmed outliers leaving the published fit | Waiting on the team's decision (section 9, question 2). Today they change only the side-by-side fit |
 | Ambiguity fixing rate on the Day page | Not available: the AMB summaries are not archived |
 | Days left out of a run on purpose | Never shown as "excluded", because the run record does not keep plans |

@@ -74,6 +74,7 @@ from .run_queue import (
 
 DEFAULT_CONFIG = Path.home() / ".config/bernese-workflow/notify.toml"
 SUBJECT_PREFIX = "[BSW]"
+PRODUCTS_STALE_DAYS = 3
 
 
 class ConfigError(ValueError):
@@ -422,6 +423,7 @@ class Notifier:
             self._active(ledgers)
             self._worker()
             self._halted()
+            self._products()
             self._direct(ledgers)
         self._save()
         self._report()
@@ -708,6 +710,59 @@ class Notifier:
             self._body(["The worker will claim no new run until this is cleared.", "", text], missing),
         )
         self._record(mail, self.state, halted=digest)
+
+    # --- products ---------------------------------------------------------------------
+
+    def _products(self) -> None:
+        """What bernese-update-products found, mailed to the maintainer when it changes."""
+        try:
+            status = json.loads((self.queue.root / "products/status.json").read_text())
+            age_days = (self.now() - dt.datetime.fromisoformat(status["last_pass"])).days
+        except FileNotFoundError:
+            return  # not installed
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+            status, age_days = {}, 0
+            self.errors.append(f"products/status.json can't be read: {type(exc).__name__}")
+        lines: list[str] = []
+        if age_days >= PRODUCTS_STALE_DAYS:
+            lines += [f"The nightly product fetch last ran {age_days} days ago.", ""]
+        if status.get("errors"):
+            lines += ["These failed, and will be tried again:", *status["errors"], ""]
+        if status.get("late"):
+            lines += ["Not on the mirror, later than expected:", *status["late"], ""]
+        stale = [e for e in status.get("config", []) if e.get("out_of_date")]
+        if stale:
+            lines += ["These differ from AIUB's. Nothing was changed: updating them changes results."]
+            lines += [
+                f"{e['file']}: here {e.get('local_size')} bytes, {e.get('local_date')}; "
+                f"AIUB {e.get('aiub_size')} bytes, {e.get('aiub_date')}"
+                for e in stale
+            ]
+            lines.append("")
+        absent = [e["file"] for e in status.get("config", []) if e.get("not_on_mirror")]
+        if absent:
+            lines += ["Not on the mirror, so not compared:", *absent]
+        # Not the text: the day count moves daily, and the mirror's dates move whenever it
+        # re-uploads a folder, and neither is a change worth another message.
+        digest = hashlib.sha256(
+            json.dumps(
+                [
+                    age_days >= PRODUCTS_STALE_DAYS,
+                    status.get("errors"),
+                    status.get("late"),
+                    [[e["file"], e.get("local_size"), e.get("aiub_size")] for e in stale],
+                    absent,
+                ]
+            ).encode()
+        ).hexdigest()
+        if not lines:
+            self.state.pop("products", None)
+            return
+        if self.state.get("products") == digest:
+            return
+        to, _ = self._to()
+        mail = Mail(to, f"{SUBJECT_PREFIX} Bernese products and reference files", "\n".join(lines) + "\n")
+        self._record(mail, self.state, products=digest)
 
     # --- runs started directly --------------------------------------------------------
 
