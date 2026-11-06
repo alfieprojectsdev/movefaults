@@ -184,6 +184,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(404, f"no PCF {pcf}")
         skipped = {int(x) for x in skip.split(",") if x.strip().isdigit()}
         out = plans.build(s, c, year, start, end, pcf=pcf, skipped=skipped, rnxgra=rnxgra)
+        out["email_alerts"] = actions.email_alerts(s)
         why = list(out["start_blocked_because"])
         mismatch = actions.plan_mismatch(c, pcf, skipped, rnxgra)
         if mismatch:

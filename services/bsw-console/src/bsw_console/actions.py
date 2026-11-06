@@ -80,6 +80,27 @@ def worker_status(s: Settings) -> dict:
     return {"alive": alive, "status": last if isinstance(last, dict) else None}
 
 
+def email_alerts(s: Settings, now: dt.datetime | None = None) -> dict[str, str]:
+    """Whether bernese-notify is working, for the Plan page, so that silence isn't
+    mistaken for "all fine". The text names no address and no mail error: the
+    details are in <worker state>/notify/status.json."""
+    try:
+        last = json.loads((queue(s).root / "notify" / "status.json").read_text())
+        at = dt.datetime.fromisoformat(last["last_pass"])
+        errors = len(last.get("errors", []))
+    except (OSError, ValueError, KeyError, TypeError):
+        return {"state": "off", "text": "Email alerts are not running: nobody will be emailed about this run."}
+    age = ((now or dt.datetime.now(dt.UTC)) - at).total_seconds() / 60
+    if age > 30:
+        return {
+            "state": "stale",
+            "text": f"Email alerts last checked {age:.0f} minutes ago, so they may have stopped.",
+        }
+    if errors:
+        return {"state": "failing", "text": f"{errors} email alert(s) could not be sent, and will be retried."}
+    return {"state": "ok", "text": "You and the maintainer are emailed when this run starts, every few hours, and when it ends or has a problem."}
+
+
 def gate_failures(s: Settings, user: str) -> list[tuple[int, str]]:
     """THE GATE, as (status, message) pairs in order; empty when ``user`` may act.
 

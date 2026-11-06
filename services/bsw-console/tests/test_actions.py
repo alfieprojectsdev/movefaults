@@ -8,6 +8,7 @@ Each test checks the answer and that nothing reached the queue when refused.
 from __future__ import annotations
 
 import dataclasses
+import datetime as dt
 import fcntl
 import json
 from collections.abc import Iterator
@@ -15,6 +16,7 @@ from pathlib import Path
 
 import pytest
 from bernese_workflow import run_queue
+from bsw_console import actions
 from bsw_console.main import create_app
 from bsw_console.settings import Settings
 from fastapi.testclient import TestClient
@@ -344,6 +346,34 @@ def test_the_plan_page_lists_the_missing_preflight_and_the_gate(on: Settings, wo
     assert "the preflight for these days has not finished ok" in why
     signed_out = c.get(f"/api/campaigns/LUZON/years/{YEAR}/plan?start=35&end=36").json()
     assert any("nobody is signed in" in m for m in signed_out["start_blocked_because"])
+
+
+def _notify_status(s: Settings, *, age_min: float, errors: int = 0) -> dt.datetime:
+    now = dt.datetime(2026, 11, 6, 12, 0, tzinfo=dt.UTC)
+    d = s.worker_state / "notify"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "status.json").write_text(
+        json.dumps(
+            {
+                "last_pass": (now - dt.timedelta(minutes=age_min)).isoformat(),
+                "sent": 0,
+                "errors": ["smtp said no to someone@example.org"] * errors,
+            }
+        )
+    )
+    return now
+
+
+def test_email_alerts_say_when_nobody_will_be_told(on: Settings) -> None:
+    assert actions.email_alerts(on)["state"] == "off"
+    now = _notify_status(on, age_min=5)
+    assert actions.email_alerts(on, now)["state"] == "ok"
+    now = _notify_status(on, age_min=31)
+    assert actions.email_alerts(on, now)["state"] == "stale"
+    now = _notify_status(on, age_min=5, errors=2)
+    failing = actions.email_alerts(on, now)
+    assert failing["state"] == "failing"
+    assert "example.org" not in failing["text"]
 
 
 def test_the_server_trusts_the_connecting_address_not_x_forwarded_for(monkeypatch) -> None:
