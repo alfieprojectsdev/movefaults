@@ -109,6 +109,7 @@ export default function Plan({ campaign, year, from, to }: { campaign: string; y
                 <button type="button" className="btn" disabled={!data.can_start} onClick={() => stage3('runs/start')}>Start</button>
               </div>
               {!data.can_start && <p className="muted" style={{ fontSize: 13 }}>Start is off: {data.start_blocked_because.join('; ')}.</p>}
+              {data.email_alerts && <p className="muted" style={{ fontSize: 13 }}>{data.email_alerts.text}</p>}
               {msg && <div className={`banner ${msg.kind}`} role="status">{msg.text}</div>}
             </>
           )}
