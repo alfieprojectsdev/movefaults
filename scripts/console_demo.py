@@ -22,8 +22,9 @@ ffmpeg -i demo.mp4 -vf fps=1/5 frame_%03d.png
 THE DATA IS THE TEST SUITE'S, NOT GPS3'S, through scripts/console_screenshots.py: the
 same made-up tree, scratch folder, free port and "demo" sign-in. Nothing here can queue
 a real run or write to the real decision record: Queue preflight and the outlier
-decision go to the scratch folder. The Failure page's protocol file is a real captured
-failure with gps3's paths in it; its header (every line above the message table) is covered in the video.
+decision go to the scratch folder. Two things on the Failure page are real, and its
+captions say so: the known-errors entry, and the protocol file, a captured failure with
+gps3's paths in it; its header (every line above the message table) is covered in the video.
 
 LAYOUT. One 1920x1080 page: on the left a text panel for the 5.2 step, on the right the
 console in an iframe at its own size, with "Made-up data, for demonstration" above it
@@ -59,10 +60,14 @@ FRAME_W, FRAME_H = 1280, 864
 # starting "Date") is covered: the header holds the campaign, user and server paths
 # and the system pid of the captured failure. At least this many lines, or no video.
 MIN_MASK_LINES = 20
+# A scene's last caption holds for what is left of its time. A slow page load can use
+# all of that, so it always gets at least this long.
+MIN_LAST_CAPTION = 3.0
 
 # The three results that may be stated, in these words (docs/SETTLED.md §2 and §6).
 RESULTS = [
-    "Production Bernese runs on gps3 have gone through this service since 4 November 2026.",
+    "Production Bernese runs on gps3 have gone through the processing service since "
+    "4 November 2026, started on the command line (bernese-run-year).",
     "LUZON January 2026: 31 of 31 days, in 53 minutes.",
     "PHREF 2025 reprocessed: all 360 planned days. Differences from the previous "
     "solutions aren't explained yet.",
@@ -91,17 +96,14 @@ class Scene:
 
 
 OPENING = Card(
-    "The BSW console on Bernese 5.4: what changes for the processing team",
+    "The BSW console: what changes from 5.2",
     [
-        "Bernese processing moves from individual Windows PCs to one Linux server, gps3. "
-        "The team follows it in a browser.",
-        *RESULTS,
-        "The work instruction for the console is a draft. The processing team hasn't "
-        "reviewed it yet.",
+        "Bernese processing can now run on one Linux server, gps3, and the team follows "
+        "it in a browser.",
+        "The console's work instruction is still a draft.",
     ],
     9,
-    note="Each scene: a step from the 5.2 work instruction on the left, the console on "
-    "the right. The console shows made-up data.",
+    note="Left: the 5.2 step. Right: the console.",
 )
 
 SCENES = [
@@ -164,8 +166,8 @@ SCENES = [
             "Plan: choose the first and last day. The page checks the plan before "
             "anything runs: reference stations, products, and the steps of the process "
             "control file (PCF).",
-            "Operators queue a check before the run starts (preflight). It runs the "
-            "hardest day first, so a setup error shows up early.",
+            "Operators queue a check before the run starts (preflight). It runs only "
+            "the plan's busiest day, the hardest one, so a setup error shows up early.",
             "Start stays off until the preflight for these days has finished. A run that "
             "skips steps or uses another PCF stays on the command line.",
         ],
@@ -182,10 +184,10 @@ SCENES = [
         [
             "The Failure page names the failed step (PID 513), its script (HELMCHK) and "
             "its program (HELMR1).",
-            "It shows the known-errors entry: what the error means here, and what to "
-            "check and change.",
-            "Below, the step's own protocol file, error line marked. Its header is "
-            "covered in this video: it holds the server's paths.",
+            "It shows the project's real known-errors entry: what the error means here, "
+            "and what to check and change.",
+            "Below, the step's own protocol file, a real captured failure, error line "
+            "marked. Its header is covered in this video: it holds the server's paths.",
         ],
         15,
         "failure",
@@ -194,8 +196,9 @@ SCENES = [
         "A run that keeps failing",
         None,
         [
-            "The run stops itself: at once on a configuration error, after 3 identical "
-            "failures in a row, or after 5 failed days of any kind.",
+            "The run stops itself: at once on a configuration error or one not on the "
+            "known-errors list, after 3 identical failures in a row, or after 5 failed "
+            "days in a row of any kind.",
             "Nothing is changed automatically. A person decides what happens next.",
         ],
         11,
@@ -429,8 +432,7 @@ class Show:
         self.page.evaluate("([l, n]) => showScene(l, n)", [left, scene.left is None])
         getattr(self, f"do_{scene.action}")(scene)
         rest = scene.seconds - (self.now() - start)
-        if rest > 0:
-            self.page.wait_for_timeout(rest * 1000)
+        self.page.wait_for_timeout(max(rest, MIN_LAST_CAPTION) * 1000)
         self.ring(None)
 
     def say(self, scene: Scene, i: int, hold: float = 0.0) -> None:
@@ -656,13 +658,17 @@ def main() -> int:
     out = args.out.expanduser().resolve()
     if out == REPO or REPO in out.parents:
         raise SystemExit(f"--out must be outside the repository, not {out}")
+    scratch = shots.SCRATCH.resolve()  # emptied at the start and removed at the end
+    if out == scratch or scratch in out.parents:
+        raise SystemExit(f"--out must be outside the scratch folder, not {out}")
     out.mkdir(parents=True, exist_ok=True)
     raw = Path(tempfile.mkdtemp(prefix="bsw-console-demo-video-"))
 
-    s = shots.settings()
-    worker = shots.pretend_worker(s)
-    url, server = shots.serve(s)
+    worker = server = None
     try:
+        s = shots.settings()
+        worker = shots.pretend_worker(s)
+        url, server = shots.serve(s)
         with sync_playwright() as p:
             browser = p.chromium.launch()
             context = browser.new_context(
@@ -693,8 +699,10 @@ def main() -> int:
             webm = out / "demo.webm"
             shutil.move(video.path(), webm)
     finally:
-        server.should_exit = True
-        worker.close()
+        if server:
+            server.should_exit = True
+        if worker:
+            worker.close()
         shutil.rmtree(shots.SCRATCH, ignore_errors=True)
         shutil.rmtree(raw, ignore_errors=True)
 
@@ -723,11 +731,11 @@ def main() -> int:
         "-an",
         str(mp4),
     ]
-    if shutil.which("ffmpeg"):
-        subprocess.run(cmd, check=True)
+    # Playwright's own ffmpeg, for one, has no libx264. The webm and srt are safe by now.
+    if shutil.which("ffmpeg") and subprocess.run(cmd, check=False).returncode == 0:
         print(mp4)
     else:
-        print("no ffmpeg on PATH; convert with:\n  " + shlex.join(cmd))
+        print("no ffmpeg with libx264 on PATH; convert with:\n  " + shlex.join(cmd))
     print(f"{webm}\n{out / 'demo.srt'}\nlength {end - offset:.1f} s")
     return 0
 
