@@ -140,8 +140,8 @@ rather than hardcode either list. Relevant to the subnetwork plan.
 | §5.3.10 BLQ web form + paste | `scripts/merge_blq.py` | **done** (still needs the manual Onsala email round-trip) |
 | §5.2–5.3 GUI campaign setup | `scripts/stage_luzon_campaign.sh` | **done for LUZON**, not generalised |
 | §5.4 PCF editing in `EDITPCF` | `scripts/derive_luzon_pcf.py` | **done** (BSW 5.4 format) |
-| §5.6.1 daily BPE via GUI | `scripts/run_luzon_month.sh` | **done** (idempotent, resumable) |
-| §5.5.5 check `.PRC` output | `run_luzon_month.sh` freshness check | **done** |
+| §5.6.1 daily BPE via GUI | `bernese-run-year` (`services/bernese-workflow`), or `bernese-worker` for queued requests | **done**, production since 2026-11-04 (resumable: a day with a `FIN` is left alone). First automated by `scripts/run_luzon_month.sh` in August 2026, now kept for comparison runs |
+| §5.5.5 check `.PRC` output | `bernese-run-year`: a day counts only with a fresh, intact `FIN`; a failed day is diagnosed from its own BPE output | **done** |
 | — | `coord_repeatability.py`, `network_coherence_scan.py` | **new QC, not in the SOP at all** |
 
 ### Stage 1 — not started

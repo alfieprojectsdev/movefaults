@@ -1,5 +1,30 @@
 # Reprocessing the LUZON network under Bernese 5.4
 
+> **Status, 2026-11-06: this is the record of the August 2026 run, not today's
+> procedure.** That run (2025 DOY 121–151) went through
+> `scripts/run_luzon_month.sh`. Since 2026-11-04 production's BPE step is
+> `bernese-run-year`, or `bernese-worker` for queued requests, which is what
+> the console's Start uses. `scripts/run_luzon_month.sh`,
+> `scripts/run_luzon_year.sh` and `scripts/run_phref_year.sh` are kept for
+> comparison runs only. Staging, product fetch and BLQ merge are still the
+> `scripts/` described below.
+>
+> To run a range today, on gps3, from the repository checkout:
+>
+> ```bash
+> source ~/BERN54/LOADGPS.setvar
+> uv run bernese-run-year --campaign LUZON --repr-prefix LZY --year 2026 \
+>     --from 1 --to 31 --pcf LUZON_DLY --plan
+> ```
+>
+> `--plan` runs nothing; it prints what would run. Then the same command with
+> `--run` in place of `--plan`, started with `setsid nohup` (`docs/SETTLED.md`
+> §2). Or queue it for the run worker:
+> `uv run bernese-worker submit start --campaign LUZON --repr-prefix LZY
+> --year 2026 --from 1 --to 31 --pcf LUZON_DLY`. Options are in
+> `bernese-run-year --help`; the service is described in
+> `services/bernese-workflow/README.md`.
+
 **Written:** 2026-08-05, on gps3, after the Bernese 5.2 LUZON set was copied off
 the DOSTB drive to `/srv/gnss-archive/processed/luzon-bern52/`.
 
