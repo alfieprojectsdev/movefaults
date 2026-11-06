@@ -11,8 +11,8 @@ VERIFIED AGAINST PRODUCTION, 2026-08-12
 Diffed against PHIVOLCS' own `Velocity_rover(regress)_10` for the Luzon
 campaign set. With `exclude_outliers=False`, **161 of 165 velocity components
 match to better than 5e-6 mm/yr**; the remaining four agree to 2.3e-5 mm/yr,
-which is below the reference file's own 5-decimal precision. In short: it
-reproduces production.
+which is two or three units in the reference file's fifth decimal place. In
+short: it reproduces production.
 
 Three sites are excluded from that comparison and each for a reason worth
 knowing:

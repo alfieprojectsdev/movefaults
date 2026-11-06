@@ -13,8 +13,8 @@ production solution (LUZON 2025, 358 days; PHREF 2025, 360 days) came from the
 shell and Perl drivers in the repo-root `scripts/`, which still do everything
 around the BPE: staging, product fetch, BLQ merge, QC and comparison
 (`docs/SETTLED.md` §2). The service still drives BSW through a Perl driver,
-`sessions_pcs.pl`, and `startBPE.pm`. Status as of 2026-10-14: about 60%,
-12 modules, 250 tests.
+`sessions_pcs.pl`, and `startBPE.pm`. Its measured size, test count and status
+are in `docs/project_documentation/implementation_maturity.md`.
 
 ## What is here
 

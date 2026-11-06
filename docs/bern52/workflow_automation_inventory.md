@@ -208,7 +208,12 @@ Everything in §4. Specific blockers:
 2. **Stage 3 before stage 1.** It is closer to the science, the MATLAB
    dependency is the sharpest single-point risk, and FODITS may collapse
    items 2–5 into one configured BSW program we already have installed.
-3. **Generalise stage 2 from LUZON to arbitrary campaigns** — the station list
-   (Inventory E) is the parameter that must stop being hardcoded.
+3. **Generalise stage 2 from LUZON to arbitrary campaigns.** Done for the BPE
+   step: `bernese-run-year` takes the campaign, working-campaign prefix and PCF
+   as arguments, and LUZON and PHREF have run through it. Not done for the steps
+   around it: staging is one script per network (`stage_luzon_campaign.sh`,
+   `stage_national_campaign.sh`), and `derive_luzon_pcf.py` hardcodes LUZON's
+   values (`--dest` changes only the output file). The station list (Inventory E)
+   is the parameter to stop hardcoding in staging.
 4. **Stage 1 last**, and start it with the format decision (item 2 above),
    not with scripting.
