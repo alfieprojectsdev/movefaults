@@ -83,8 +83,8 @@ the cheap checks on stage 1 for now.
 | # | Task | Why now | Who | Status, 2026-11-06 |
 |---|---|---|---|---|
 | 1 | **Put a second person through a real run on the console**, and have the team review the console's work instruction (`docs/bsw_console_work_instruction.md`, not the 5.2 one this document's stages come from) and answer its section 9 questions | Stage 2 has one operator, and that instruction is unreviewed | Maintainer and the team | Not started |
-| 2 | **Explain the PHREF 2025 differences and measure whether any velocity moved** | Stage 2's named next step (below) | Maintainer | In progress |
-| 3 | **Measure the I14/I20 join on our stations** | gps3 and 5.2 results can't be compared directly until this exists, and it decides what the agreement figures in `docs/SETTLED.md` §2 mean | Maintainer | In progress |
+| 2 | **Explain the PHREF 2025 differences and measure whether any velocity moved** | Was stage 2's named next step | Maintainer | Done on three days: the binaries replaced on 2026-09-02, and one-year rates barely moved. Patches versus compiler isn't separated (`docs/phref_2025_reprocess_attribution_results.md`) |
+| 3 | **Measure the I14/I20 join on our stations** | gps3 and 5.2 results can't be compared directly until this exists, and it decides what the agreement figures in `docs/SETTLED.md` §2 mean | Maintainer | Partly: the antenna offsets are known and correlate with the Up residuals, with no controlled test. How to handle the join is the team's decision (same document) |
 | 4 | **Check why field-ops holds zero logsheets** while a handset shows three as `synced` (`docs/SETTLED.md` §6) | The digital logsheet is what unlocks stage 1, and this may mean it's silently losing data | Maintainer | In progress: the count needs a login |
 | 5 | **Snapshot the continuous `offsets` catalog** | Only the campaign catalog is captured, and ALBU, a continuous site, had a live defect | Maintainer | Not started |
 | 6 | **Detect outliers on residuals from the fit** | The trend can hide real outliers today | Maintainer | Not started |
@@ -240,11 +240,11 @@ the script port is downstream of it.**
 
 ### What is not done
 
-- **Why the reprocessed PHREF 2025 coordinates differ from the ones they
-  superseded is not attributed.** Compared 2026-11-05: they differ on every
-  day (median 0.02 mm, maximum 40.5 mm; `docs/SETTLED.md` §6), and no
-  downstream velocity has been re-measured. Production's BPE step moved to `services/bernese-workflow`
-  on 2026-11-04 (table above). Until then the first item here was "Production
+- **The reprocessed PHREF 2025 coordinates differ from the ones they superseded**
+  (median 0.02 mm, maximum 40.5 mm a day) **because of the Bernese binaries replaced on
+  2026-09-02**, shown on three days on 2026-11-06, and one-year velocities barely moved
+  (`docs/phref_2025_reprocess_attribution_results.md`). Production's BPE step moved to
+  `services/bernese-workflow` on 2026-11-04 (table above). Until then the first item here was "Production
   still runs through `scripts/`": the service sat listed at "~10% complete"
   for months while carrying its tests, which made it the most misreported
   fact in the project's history. Around the BPE, staging, product fetch, BLQ
@@ -260,10 +260,9 @@ the script port is downstream of it.**
 month through `services/bernese-workflow` instead of `scripts/`, compared
 against the `scripts/` output. The parity run and its `scripts/` control
 (table above) were that comparison, and LUZON January 2026 then ran in
-production through the service. **The next step is to attribute the
-differences** between the reprocessed PHREF 2025 year and the solutions it
-superseded (compared 2026-11-05: median 0.02 mm, maximum 40.5 mm a day), and
-to measure whether any velocity moved.
+production through the service. The differences between the reprocessed PHREF 2025
+year and the solutions it superseded have since been attributed, on the three days tested, to the binaries replaced on 2026-09-02,
+and one-year velocities measured (`docs/phref_2025_reprocess_attribution_results.md`).
 
 ---
 

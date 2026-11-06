@@ -46,6 +46,10 @@ is explicitly the damaging one. **Do not cherry-pick.**
 
 ### 2. This changes the software mid-project
 
+*Added 2026-11-06: the binaries replaced in this work change PHREF 2025 solutions, by up
+to 40.5 mm for one station on one day, which the DOY 201 check below did not show.
+Whether the patches or the local build did it isn't separated. See `docs/phref_2025_reprocess_attribution_results.md`.*
+
 B_33 alters the geomagnetic field model used for higher-order ionosphere
 corrections. B_38 touches `TRPSTORE.f90`, which is on the GPSEST/ADDNEQ2 path.
 **Both can change numbers.**
@@ -336,6 +340,10 @@ pipeline and on a campaign we did not design.
 
 ### Why zero and not merely small
 
+*Added 2026-11-06: PHREF 2025 differs on all 360 days, so "comparable" below doesn't hold,
+and "reproduces" above held only on the days checked. The reasoning about B_33 and B_38
+was not tested. See `docs/phref_2025_reprocess_attribution_results.md`.*
+
 B_33 changes the geomagnetic field model used for **higher-order ionosphere
 corrections**, which this PCF does not apply. B_38 removes redundant station-ID
 lookups when troposphere SINEX output is disabled — a no-op for the numbers.
@@ -361,6 +369,9 @@ than the pre-flight test day. Recorded rather than silently patched, because
 the same trap will recur for anyone re-verifying later.
 
 ### Test days restored
+
+*Added 2026-11-06: for DOY 200 only the SNX was restored. `FIN_20252000.NQ0.gz` in the
+superseded tree is still from the 2 Sep re-run, and its bytes match November's.*
 
 The re-runs overwrote `FIN_20252000` and `FIN_20252010` in `$S`, leaving 358
 unpatched days and 2 patched ones. Both were restored from the saved baselines,

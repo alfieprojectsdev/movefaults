@@ -161,8 +161,8 @@ after the run. **No longer the production path:** `scripts/run_luzon_year.sh`,
 
 - **Parity, 2026-10-27** (merged in #307): `bernese-run-year` ran PHREF 2025
   DOY 091–120, 30/30 days ok in 1h15m, into a separate result tree (PHRPAR).
-  It was not identical to the August production run, and **the cause is not
-  yet attributed**. The cutover does not rest on that comparison.
+  It was not identical to the August production run, because of the binaries
+  replaced on 2026-09-02 (below). The cutover does not rest on that comparison.
 - **Control, the same day:** the `scripts/` driver ran DOY 094, 096 and 098
   with the same configuration as the service, and its SNX and CRD files were
   identical to the service's, 3 of 3. **That is the evidence that the
@@ -173,8 +173,10 @@ after the run. **No longer the production path:** `scripts/run_luzon_year.sh`,
 - **PHREF 2025 reprocessed, 2026-11-04 to 05:** runs `3341af5c` and
   `0def7ca1`; all 360 planned days solved. Compared with the solutions they
   superseded on 2026-11-05: the coordinates differ on every day (median of
-  each day's largest station difference 0.02 mm, maximum 40.5 mm), and **the
-  cause is not yet attributed** (`docs/SETTLED.md` §6).
+  each day's largest station difference 0.02 mm, maximum 40.5 mm). **The cause
+  is the binaries replaced on 2026-09-02,** both the patches and a move to a local
+  build: the earlier binaries reproduce the August solutions exactly on the three
+  days tested (`docs/phref_2025_reprocess_attribution_results.md`).
 
 The run IDs are the ledger's `run` field. By default the ledger is
 `ledger.jsonl` beside the year's `SOL/`; `$BPE_LEDGER_DIR` moves it.

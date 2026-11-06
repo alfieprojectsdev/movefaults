@@ -11,8 +11,9 @@ Where things stand:
   days, in 53 minutes.
 - **PHREF 2025 has been reprocessed through it**, all 360 planned days. Its
   positions differ from the ones it replaced, by 0.02 mm on a typical day and
-  by 40.5 mm at most. **Why is not yet known**, and no velocity has been
-  re-measured from the reprocessed year yet.
+  by 40.5 mm at most. **The cause is the Bernese programs replaced in September**,
+  with patches and a local build, shown on three test days. One-year velocities moved by a median of 0.01 mm/yr
+  horizontally and 0.04 mm/yr in Up, and by 0.61 mm/yr at most.
 - Preparing a campaign (staging, products, ocean loading) and checking results
   afterwards are still done with the scripts in `scripts/`.
 - A browser console on gps3 shows the processing to anyone with a login. Its
@@ -526,7 +527,7 @@ changes go into the reference files the campaigns read, in `${D}/REF54`.
 | Your scripts and `offsets` | one share, some laptops | in version control, mirrored | done, 12 August 2026 |
 | When a run fails | read the log files after the run | failed step named, known errors looked up, run stops itself | in use |
 | Running many days | one session at a time | several days at once, each in its own campaign | in use |
-| PHREF 2025 reprocessed | | all 360 planned days | differences from the old solutions not yet explained |
+| PHREF 2025 reprocessed | | all 360 planned days | differences from the old solutions come from the Bernese programs replaced in September |
 
 The goal is not to make the software do the science. The goal is to make the
 software do the filing, so that you can do the science.
