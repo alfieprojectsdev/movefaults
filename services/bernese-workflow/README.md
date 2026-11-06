@@ -74,9 +74,50 @@ because the exit codes mean different things. `bernese-check-stations` exits 1
 on a problem that refuses a run, while this report must exit 0 on any
 disagreement.
 
+## Email alerts (`bernese-notify`)
+
+`bernese-notify` emails the person who started a run, and the maintainer: when it
+starts, every 6 hours while it runs, when it ends, and at once if it fails, looks
+stuck for 2 hours, or the worker goes down or halts. It runs from cron and only
+reads the queue and ledgers, so a mail failure can't affect a run, and a dead worker
+can still be reported. A run started directly with `bernese-run-year` has no named
+person, so it emails only the maintainer.
+
+To set it up on gps3, as the user that runs the worker:
+
+```bash
+mkdir -p ~/.config/bernese-workflow
+cat > ~/.config/bernese-workflow/notify.toml <<'EOF'
+mail_conf = "~/.luzon_mail.conf"
+console_url = "https://<address>:8443"
+
+[operators]
+# AB = "ab@example.org"
+EOF
+chmod 600 ~/.config/bernese-workflow/notify.toml
+
+~/repos/mf_run/.venv/bin/bernese-notify --test      # one message, to the maintainer
+~/repos/mf_run/.venv/bin/bernese-notify --test AB   # and to that operator
+~/repos/mf_run/.venv/bin/bernese-notify --dry-run   # what it would send; sends and records nothing
+```
+
+Then add this one line with `crontab -e`:
+
+```cron
+*/5 * * * * $HOME/repos/mf_run/.venv/bin/bernese-notify >> $HOME/bernese_notify.log 2>&1
+```
+
+The first pass only records what already exists, so it doesn't mail the history, and
+a `--dry-run` before it has nothing to show and says so. An
+operator with no address in the file is named in the message, and only the maintainer
+gets it. Addresses stay in that file, not in this public repository. To send from a
+different account, point `mail_conf` at another file with the same five `MAIL_` keys.
+The Plan page says whether alerts are working. Details of a failed send are in
+`~/.local/state/bernese-workflow/worker/notify/status.json`.
+
 ## Using it
 
-Four command-line entry points (root `pyproject.toml`), then the library below them:
+Five command-line entry points (root `pyproject.toml`), then the library below them:
 
 - `bernese-run-year` plans and runs a range of days as parallel BPE blocks (the
   production BPE step since 2026-11-04);
@@ -85,7 +126,8 @@ Four command-line entry points (root `pyproject.toml`), then the library below t
 - `bernese-check-stations` checks the station files the way Bernese reads them
   (read-only);
 - `bernese-check-equipment` compares the `.STA` equipment with field-ops records
-  (read-only, advisory).
+  (read-only, advisory);
+- `bernese-notify` emails the person who started a run (above).
 
 ```python
 from pathlib import Path
