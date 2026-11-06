@@ -72,6 +72,7 @@ reading the headers of this one day.
 | Orbits, clocks, ERP, biases | **Not on gps3.** CODE's `REPRO_2020` lists `COD0R03FIN_*` files for each day, with GPS orbits since 1994 |
 | Satellite clocks | **Unknown.** AIUB describes 30 s clocks from 2000. What exists for 1996 has to be read from the files, and Selective Availability was on until May 2000 |
 | Ionosphere map | **Unknown.** `REPRO_2020`'s description lists no `GIM.ION` file, and production's `COD0OPSFIN` set has one |
+| IGSR3 reference set, for run A | **To write.** `$D/REF54` has the `IGS14` and `IGS20` sets and nothing for IGSR3. `R2S_COP` and the planner need `IGS14R3.FIX`, `IGS14R3_R.CRD`, `IGS14R3_R.VEL` and `IGS14R3.PSD`, written from `IGS14R3.SNX`. How is not yet worked out |
 | Station information | **To write.** Only GUAM, PERT, PLWN and S01R are in `LUZON.STA`, and marker and antenna names need mapping |
 | Ocean loading | **To obtain.** Of the 14, only PLWN and S01R have blocks in `LUZON.BLQ` |
 | Atmospheric loading | **To check** per station, since the plan refuses a station with no ATL block |
@@ -83,9 +84,12 @@ reading the headers of this one day.
 describes `igs20.atx` as a minor update of `igsR3.atx`, and neither source gives
 its size for our stations. So the pilot runs the day twice:
 
-- **A, consistent with the products:** `V_PCV=R20`, CODE's `ANT_COD_R20.PCV`,
-  `SATELLIT_R20.SAT`, and the IGSR3 fiducials from `IGS14R3.SNX`.
-- **B, the frame we want:** `V_PCV=I20`, `V_REFINF=IGS20`, with the same orbits.
+- **A, consistent with the products:** `V_PCV=R20`, `V_PCVINF=ANT_COD`,
+  `V_REFINF=IGS14R3` and `V_REFPSD=IGS14R3`, with `SATELLIT_R20.SAT`. `V_PCVINF`
+  matters: left at stock, the run reads `ANTENNA_R20.PCV`, which is already in
+  `$D/REF54`, instead of CODE's `ANT_COD_R20.PCV`, and nothing reports it.
+- **B, the frame we want:** `V_PCV=I20`, `V_PCVINF=ANTENNA`, `V_REFINF=IGS20` and
+  `V_REFPSD=IGS20`, with the same orbits.
 
 A runs first, so a failure there can't come from mixing the two. The difference
 between A and B is the first measurement of what that mix costs.
@@ -96,14 +100,23 @@ Before starting: production idle, the BPE lock free, and only one BPE at a time.
 Stop at any step that fails, and write down what it said.
 
 1. **Download.** From `REPRO_2020`: `CODE/1996/` for DOY 067 (orbit, ERP, bias,
-   clock), plus `BSWUSER54/REF` and `BSWUSER54/CONFIG`. A test request from gps3 to
-   AIUB's page on 2026-11-06 returned nothing usable, so this may need another
-   route. The product's use has to be acknowledged in anything published (reference
-   in `docs/bern52/AIUB_AFTP.TXT`).
-2. **Copy, don't move.** Copy the 14 RINEX files out of the recovered tree into
-   `$D/LEG96`, and leave the tree unchanged.
-3. **Write the campaign's own files:** `LEG96.STA`, `.ABB`, `.CRD`, `.BLQ` and
-   `.ATL` in `$D/REF54`. Don't edit the `LUZON` or `PHNAT` files. Map
+   clock), plus `BSWUSER54/REF` and `BSWUSER54/CONFIG`. Download into an empty
+   directory of its own, not `$D/REF54` or `GLOBAL/CONFIG`: production reads those,
+   and files there can share a name. Then copy across only what the pilot needs and
+   whose name isn't already taken, such as `ANT_COD_R20.PCV` into `$D/REF54`, and the
+   products into `$D/COD0R03FIN`. A test request from gps3 to AIUB's page on
+   2026-11-06 returned nothing usable, so this may need another route. The product's
+   use has to be acknowledged in anything published (reference in
+   `docs/bern52/AIUB_AFTP.TXT`).
+2. **Copy, don't move, and rename the session.** Copy the 14 RINEX files from
+   `960307A/RAW/` into `$D/LEG96`, and leave the tree unchanged. They are session 1
+   (`GUAM0671.96O`) and the run is session 0, so name the copies `GUAM0670.96O`, and
+   so on. `RNX_COP` looks for `????0670.96[DdOo]*`, and `bernese-run-year` has no
+   session option. The plan in step 5 can't catch this: it counts a day's files
+   whatever their session character.
+3. **Write the campaign's own files:** `LEG96.STA`, `.ABB`, `.CRD`, `.VEL`, `.CLU`,
+   `.BLQ` and `.ATL` in `$D/REF54`. `R2S_COP` needs all seven, and the plan in step 5
+   doesn't check `.VEL` or `.CLU`. Don't edit the `LUZON` or `PHNAT` files. Map
    `DORNE MARGOLIN T` to `AOAD/M_T` and `DORNE MARGOLIN B` to `AOAD/M_B`, and
    markers `USUDA` and `TAIWAN` to their codes. `STA/ABBREV.ABB` in the old campaign
    has its abbreviations, and `STA/FN960671.CRD` gives a priori positions.
@@ -111,8 +124,10 @@ Stop at any step that fails, and write down what it said.
    `derive_luzon_pcf.py` hardcodes LUZON's values, so copy stock
    `RNX2SNX.PCF` by hand to `LEG96A_DLY.PCF` and `LEG96B_DLY.PCF`, with
    `V_CRDINF`, `V_STAINF`, `V_BLQINF`, `V_ATLINF`=`LEG96`, `V_RNXDIR=${D}/LEG96`,
-   `V_RESULT=${S}/LEG96A/$Y+0` (or `LEG96B`), `V_ORB` and `V_ORBDIR` for the
-   products, `V_SATSYS=GPS` and `V_DEL=N`.
+   `V_RESULT=${S}/LEG96A/$Y+0` (or `LEG96B`), `V_ORB=COD0R03FIN` and
+   `V_ORBDIR=${D}/COD0R03FIN` for the products, the frame variables of each
+   configuration above, and production's `V_SATSYS=GPS`, `V_GNSSAR=ALL`, `V_CLU=10`,
+   `V_SAVOBS=N` and `V_DEL=N`, so that those aren't further differences to separate.
 5. **Plan, from the production checkout:**
 
    ```bash
@@ -154,7 +169,8 @@ Stop at any step that fails, and write down what it said.
 1. **Ocean loading.** The five LUZ marks, VRC2, TAIW and possibly the fiducials need
    BLQ blocks. `FES2014b.BLQ` in `REPRO_2020` may cover the fiducials. The rest would
    come from a request to an outside loading service, which sends those stations'
-   positions outside PHIVOLCS. That needs the maintainer's go-ahead.
+   positions outside PHIVOLCS. The maintainer gave the go-ahead on 2026-11-06.
+   Nothing has been sent yet.
 2. **Whether the frame for old data has to match production.** B assumes it does.
 
 ## Not in this pilot

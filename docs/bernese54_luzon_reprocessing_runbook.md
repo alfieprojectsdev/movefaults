@@ -10,8 +10,8 @@
 > the QC and comparison scripts after the run are still `scripts/`
 > (`scripts/README.md`). IGS20 with I20 is production's frame and antenna model
 > since the maintainer's decision of 2026-11-06 (`docs/SETTLED.md` §3), so
-> "pipeline test" below describes August, not today. It is still not comparable
-> with the `F1_25*` series.
+> "pipeline test" below describes August, not today. It is still not directly
+> comparable with the `F1_25*` series.
 >
 > To run a range today, work on gps3 in the production checkout `~/repos/mf_run`.
 > The worker and the console run from it, and the deploy script moves it to
