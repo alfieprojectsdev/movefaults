@@ -534,3 +534,26 @@ def test_variable_table_is_not_read_for_jumps():
     )
     r = find_dangling_jumps(pcf)
     assert r.dangling == [] and r.checked == 0
+
+
+_GOLD = _REPO / "config/bernese/gpsuser"
+
+
+def test_every_committed_gold_pcf_has_no_dangling_references():
+    """Restoring these is a plain copy, so nothing else checks them on the way."""
+    pcfs = sorted((_GOLD / "PCF").glob("*.PCF"))
+    assert {"LUZON_DLY", "LZFLT_DLY", "PHREF_DLY", "PHDEN_DLY"} <= {p.stem for p in pcfs}
+    for pcf in pcfs:
+        text = pcf.read_text(errors="replace")
+        assert find_dangling_waits(text) == [], pcf.name
+        jumps = find_dangling_jumps(text)
+        assert jumps.dangling == [], pcf.name
+        # An empty list from a check that read no jumps would pass the line above.
+        assert jumps.checked > 0, pcf.name
+
+
+@pytest.mark.parametrize(("panel", "maxpar"), [("R2S_FIN", 6000), ("R2S_GEN", 4000)])
+def test_committed_production_panels_keep_their_maxpar(panel, maxpar):
+    """Production's values on 2026-11-06; stock is 1000 in both."""
+    text = (_GOLD / "OPT" / panel / "ADDNEQ2.INP").read_text(errors="replace")
+    assert set_addneq2_maxpar(text, maxpar) == (text, True)

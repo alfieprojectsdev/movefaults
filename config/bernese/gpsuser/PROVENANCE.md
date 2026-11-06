@@ -103,3 +103,34 @@ this panel is already past it. Do not "fix" it back down.
 the pre-sanitization state, which this file now records in diff form. They
 remain on the T420 at `/home/finch/GPSUSER/OPT/PGN_WK/` if the original is ever
 needed as evidence.
+
+---
+
+# Production files captured from gps3
+
+**Captured 2026-11-06 from `$U` on gps3**, because they existed nowhere else and a
+reconfiguration of the server could have lost them. Copied byte for byte, and
+compared with `$U` afterwards. Searched before committing for IP addresses, home
+paths, email addresses, credentials and the staff names we thought to check: none
+found.
+
+| File | Last changed on gps3 | What it is |
+|---|---|---|
+| `PCF/LUZON_DLY.PCF` | 2026-08-06 | LUZON. `scripts/derive_luzon_pcf.py` reproduces it byte for byte |
+| `PCF/LZFLT_DLY.PCF` | 2026-08-25 | LUZON's float fallback, without the ambiguity-resolution steps |
+| `PCF/PHREF_DLY.PCF` | 2026-08-28 | PHREF |
+| `PCF/PHDEN_DLY.PCF` | 2026-09-30 | PHDEN |
+| `PCF/PHNAT_DLY.PCF` | 2026-08-28 | National network |
+| `PCF/PHRCTL_DLY.PCF`, `PCF/PHRPAR_DLY.PCF` | 2026-10-27 | The parity run and its control (`docs/SETTLED.md` §2) |
+| `SCRIPT/luzon_par.pl` | 2026-08-12 | Driver, default PCF `LUZON_DLY` |
+| `SCRIPT/LZFLT_DLY_pcs.pl` | 2026-08-25 | Driver, default PCF `LZFLT_DLY`, campaign `LZFLT`. Its help text still says `LUZON_DLY`, which is wrong; kept, since this is a byte-for-byte copy |
+| `SCRIPT/phnat_year.pl` | 2026-08-28 | Driver, default PCF `PHNAT_DLY` |
+| `SCRIPT/phden_pcs.pl` | 2026-09-30 | Driver, default PCF `PHDEN_DLY` |
+| `OPT/R2S_FIN/ADDNEQ2.INP` | 2026-09-29 | Stock, except `MAXPAR` 6000 (stock 1000) |
+| `OPT/R2S_GEN/ADDNEQ2.INP` | 2026-09-29 | Stock, except `MAXPAR` 4000 (stock 1000) |
+
+The dates are the files' own, so the history before 2026-11-06 is not in git. Each
+panel's edit was made on the server, against the rule in `README.md`, with backups
+beside it (`ADDNEQ2.INP.pre-maxpar*`). Those backups stay on gps3.
+
+All seven PCFs set `V_PCV = I20` and `V_REFINF = IGS20` (`docs/SETTLED.md` §3).

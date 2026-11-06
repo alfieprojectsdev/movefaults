@@ -2,11 +2,12 @@
 
 This tree is meant to be the **source of truth** for everything PHIVOLCS-specific
 in the Bernese user directory; see *Status* below for what is still missing from
-it. `scripts/provision_gpsuser.py` copies it into `$U` (`~/GPSUSER`), sanitizing
-on the way. Readiness task **P1-H**.
+it, and for how to restore what is here. `scripts/provision_gpsuser.py` copies it
+into `$U` (`~/GPSUSER`), sanitizing on the way. Readiness task **P1-H**.
 
-**Never hand-edit `$U` directly.** Edit here, commit, re-provision. That is the
-whole point of the tree existing.
+**Never hand-edit `$U` directly.** Edit here, commit, then copy it out as *Status*
+describes, since the provisioner refuses this tree today. That is the whole point
+of the tree existing.
 
 ---
 
@@ -52,37 +53,69 @@ bug found on gps3 on 2026-08-03, where `USER.CPU` still read `maxjobs 2` from
 the T420 and the 12-core R740 was using two of its cores. The provisioner
 **generates** this file from the detected hardware instead.
 
-**Stock Bernese panels and PCFs.** Apart from the files listed under *Status*,
-`$U/OPT` and `$U/PCF` on gps3 match the `$C/USER` template shipped with Bernese
-5.4. Vendor files belong to the vendor; committing 47 unmodified panel directories
-would bury the handful of files we actually own. Only *our* additions and deltas
-go here.
+**Stock Bernese panels and PCFs.** Apart from the files in this tree, `$U/OPT` and
+`$U/PCF` on gps3 match the `$C/USER` template shipped with Bernese 5.4. Vendor files
+belong to the vendor; committing 47 unmodified panel directories would bury the
+handful of files we actually own. Only *our* additions and deltas go here. The two
+`R2S_*` panels are whole files because `$U` needs a whole file, and each differs
+from stock on one line.
 
 ---
 
-## Status: what this tree does not hold yet
+## Status: restoring production, and what is still missing
 
-**The environment can't yet be rebuilt from this tree alone.** These exist only
-in `$U` on gps3, and re-running the provisioner would not restore them:
+**Production's PCFs, drivers and two changed panels are here since 2026-11-06**,
+byte-identical to `$U` on gps3 that day. `PROVENANCE.md` lists them. Runs read the
+copies in `$U`, not these.
 
-| On gps3 | What it is |
+**Restore them by copying, not with `--apply`.** The provisioner refuses this
+tree's panels: `OPT/PGN_WK/` carries hardcoded dates, sessions and campaign names,
+and the two `R2S_*` panels carry the stock panels' own dates and sessions. Editing
+those panels to satisfy it would stop them matching what production ran.
+
+A refused `--apply` writes nothing and exits 1.
+
+On a machine with Bernese installed and `$U` populated from stock, from the
+repository root:
+
+```bash
+# Not "T": LOADGPS.setvar exports $T as Bernese's temporary directory.
+GOLD=config/bernese/gpsuser
+cp -p "$GOLD"/PCF/*.PCF "$U/PCF/"
+cp -p "$GOLD"/SCRIPT/* "$U/SCRIPT/"
+cp -p "$GOLD"/OPT/R2S_FIN/ADDNEQ2.INP "$U/OPT/R2S_FIN/"
+cp -p "$GOLD"/OPT/R2S_GEN/ADDNEQ2.INP "$U/OPT/R2S_GEN/"
+```
+
+**To see whether gps3 has drifted from this tree,** three checks, because each
+covers what the others can't:
+
+1. The dry run below, for files in `SCRIPT/` and `PCF/`. `=` means the same content;
+   for a PCF, line endings aren't compared. It ends with `Refused:` and exit 1 because
+   of the panels, which is expected.
+2. `cmp "$GOLD"/OPT/R2S_FIN/ADDNEQ2.INP "$U"/OPT/R2S_FIN/ADDNEQ2.INP`, and the same
+   for `R2S_GEN`. The dry run doesn't compare panels.
+3. For files created or changed on the server that this tree doesn't know about,
+   which the dry run can't show because it only walks this tree:
+
+   ```bash
+   for d in OPT PCF SCRIPT; do diff -rq "$C/USER/$d" "$U/$d"; done | grep -v "^Only in $C"
+   ```
+
+   This lists everything in `$U` that isn't stock. Apart from backups, each entry
+   should be in this tree.
+
+A change made on the server still has to be copied back here by hand.
+
+**This doesn't yet rebuild gps3 on its own.** Still outside this tree:
+
+| Where | What it is |
 |---|---|
-| `PCF/LUZON_DLY.PCF`, `LZFLT_DLY.PCF`, `PHREF_DLY.PCF`, `PHDEN_DLY.PCF` | The PCFs production and the console use. `scripts/derive_luzon_pcf.py` generates the live `LUZON_DLY` from stock |
-| `PCF/PHNAT_DLY.PCF`, `PHRCTL_DLY.PCF`, `PHRPAR_DLY.PCF` | PCFs for trial and comparison runs |
-| `SCRIPT/phden_pcs.pl`, `phnat_year.pl`, `LZFLT_DLY_pcs.pl`, `luzon_par.pl` | Perl drivers whose default PCFs are `PHDEN_DLY`, `PHNAT_DLY`, and `LUZON_DLY` for the last two |
-| `OPT/R2S_FIN/ADDNEQ2.INP` | Stock, except `MAXPAR` 6000 (stock 1000). Edited on the server, backups beside it |
-| `OPT/R2S_GEN/ADDNEQ2.INP` | Stock, except `MAXPAR` 4000 (stock 1000). Edited on the server, backup beside it |
+| `$U/PAN/MENU_CMP.INP` | Lists the campaigns, hand-edited in August 2026. The provisioner doesn't handle it; add `${P}/<CAMPAIGN>` lines by hand |
+| `$D/REF54` | The campaigns' `.CRD`, `.VEL`, `.ABB`, `.STA`, `.BLQ`, `.ATL` and `.CLU` files (all seven are required, `docs/SETTLED.md` §2). Data, not configuration |
 
-Those two panel edits broke the rule at the top of this file. What this tree does
-hold is the other drivers in `SCRIPT/` and the PAGENET assets: `PCF/PAGENET_DLY.PCF`
-and `OPT/PGN_WK/`, captured from the T420 on 2026-08-03 (`4e82eaa`). They record
-what ran, so don't re-derive them. `PROVENANCE.md` describes them.
-
-**`--apply` refuses this tree today.** `OPT/PGN_WK/` still carries hardcoded dates,
-sessions and campaign names, so the strict check aborts the whole run before
-writing anything, and `OPT/PGN_WK/` is not in `$U` on gps3. The dry run below lists
-every line it objects to; remap those before applying. The refusal is the tool
-working, not a malfunction.
+The PAGENET assets, `PCF/PAGENET_DLY.PCF` and `OPT/PGN_WK/`, were captured from the
+T420 on 2026-08-03 (`4e82eaa`). They record what ran, so don't re-derive them.
 
 ---
 
@@ -92,10 +125,11 @@ working, not a malfunction.
 # Show what would change. Default — writes nothing.
 uv run python scripts/provision_gpsuser.py
 
-# Apply, sizing ADDNEQ2 MAXPAR for a 72-station network
+# Apply, sizing ADDNEQ2 MAXPAR for a 72-station network.
+# Not usable on this tree today: see *Status*.
 uv run python scripts/provision_gpsuser.py --apply --stations 72
 ```
 
-The provisioner is **strict by default**: a panel carrying a hazard it cannot
-safely auto-fix aborts the whole run before anything is written, so `$U` is
-never left half-updated.
+The provisioner is **strict by default**: a panel or PCF carrying a hazard it cannot
+safely auto-fix aborts the whole run before anything is written, so `$U` is never
+left half-updated.

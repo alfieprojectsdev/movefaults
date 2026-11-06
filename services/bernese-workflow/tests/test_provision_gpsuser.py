@@ -217,3 +217,54 @@ def test_physical_cores_never_returns_logical_count(prov):
     assert cores >= 1
     logical = os.cpu_count() or 1
     assert cores <= logical
+
+
+# --- main: check everything, then write ----------------------------------------
+
+
+USER_CPU = '\nLIST_OF_CPUS 1\n  "localhost" "<COMMAND> <ARGV>" "FAST" "2" "0" "0"\n'
+_HAZARDOUS_PANEL = (
+    Path(__file__).resolve().parents[3]
+    / "config/bernese/gpsuser/OPT/R2S_FIN/ADDNEQ2.INP"
+)
+
+
+def _main_tree(tmp_path: Path, *, panel: bool) -> tuple[Path, Path]:
+    gold, user = tmp_path / "gold", tmp_path / "user"
+    (gold / "SCRIPT").mkdir(parents=True)
+    (gold / "PCF").mkdir()
+    (gold / "SCRIPT" / "new.pl").write_text("print 1;\n")
+    (gold / "PCF" / "NEW.PCF").write_text(_pcf(dangling=False))
+    if panel:
+        (gold / "OPT" / "R2S_FIN").mkdir(parents=True)
+        (gold / "OPT" / "R2S_FIN" / "ADDNEQ2.INP").write_bytes(_HAZARDOUS_PANEL.read_bytes())
+    (user / "PAN").mkdir(parents=True)
+    (user / "PAN" / "USER.CPU").write_text(USER_CPU)
+    return gold, user
+
+
+def _run_main(prov, monkeypatch, gold: Path, user: Path) -> int:
+    monkeypatch.setattr(
+        sys, "argv",
+        ["provision_gpsuser.py", "--apply", "--gold", str(gold), "--user", str(user),
+         "--maxjobs", "11", "--no-color"],
+    )
+    return prov.main()
+
+
+def test_a_refused_apply_writes_nothing(prov, tmp_path, monkeypatch, capsys):
+    gold, user = _main_tree(tmp_path, panel=True)
+    assert _run_main(prov, monkeypatch, gold, user) == 1
+    assert not (user / "SCRIPT").exists()
+    assert not (user / "PCF").exists()
+    assert not (user / "OPT").exists()
+    assert (user / "PAN" / "USER.CPU").read_text() == USER_CPU
+    assert "nothing will be written" in capsys.readouterr().out
+
+
+def test_an_accepted_apply_still_writes(prov, tmp_path, monkeypatch):
+    gold, user = _main_tree(tmp_path, panel=False)
+    assert _run_main(prov, monkeypatch, gold, user) == 0
+    assert (user / "SCRIPT" / "new.pl").exists()
+    assert (user / "PCF" / "NEW.PCF").exists()
+    assert (user / "PAN" / "USER.CPU").read_text() != USER_CPU
