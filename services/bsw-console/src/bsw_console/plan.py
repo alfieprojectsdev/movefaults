@@ -20,6 +20,7 @@ import uuid
 from pathlib import Path
 
 from bernese_workflow import run_plan
+from bernese_workflow.product_update import PRODUCTS
 
 from .settings import Campaign, Settings
 from .status import GROUPS, _group, day_info, day_results, lock_status, year_dir
@@ -35,15 +36,6 @@ RNXGRA_PRESETS = {
     "continuous": "Continuous · min 200 obs, max 10 bad epochs, 3 obs per bad epoch",
     "campaign": "Campaign survey · min 100 obs, max 70 bad epochs, 3 obs per bad epoch",
 }
-
-PRODUCTS = [
-    ("orbits", "COD0OPSFIN", "COD0OPSFIN_{y}{d}0000_01D_05M_ORB.SP3.gz"),
-    ("clocks", "COD0OPSFIN", "COD0OPSFIN_{y}{d}0000_01D_30S_CLK.CLK.gz"),
-    ("ERP", "COD0OPSFIN", "COD0OPSFIN_{y}{d}0000_01D_01D_ERP.ERP.gz"),
-    ("DCB/OSB", "COD0OPSFIN", "COD0OPSFIN_{y}{d}0000_01D_01D_OSB.BIA.gz"),
-    ("ionosphere", "BSW54", "COD0OPSFIN_{y}{d}0000_01D_01H_GIM.ION.gz"),
-]
-
 
 def pcf_steps(pcf_text: str) -> list[dict]:
     """The PCF's process table: PID, script, option dir and what each WAITs for."""

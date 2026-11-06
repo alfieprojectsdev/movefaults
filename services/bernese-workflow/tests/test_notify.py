@@ -414,6 +414,60 @@ def test_tally_does_not_count_banked_days_as_still_to_do(tmp_path: Path) -> None
     assert "2 already solved" in t.line()
 
 
+# --- products ---------------------------------------------------------------------
+
+
+def _products(rig: Rig, **fields: object) -> None:
+    d = rig.queue.root / "products"
+    d.mkdir(exist_ok=True)
+    (d / "status.json").write_text(json.dumps({"last_pass": rig.now.isoformat(), **fields}))
+
+
+def test_products_stay_quiet_when_not_installed_or_nothing_is_wrong(rig: Rig) -> None:
+    rig.run()
+    _products(rig, errors=[], late=[], config=[{"file": "DATUM.BSW", "out_of_date": False}])
+    rig.run()
+    assert rig.sent == []
+
+
+def test_a_product_problem_mails_the_maintainer_once_until_it_changes(rig: Rig) -> None:
+    _products(rig, errors=["a.gz: OSError: reset"])
+    rig.run()
+    rig.run()
+    assert len(rig.sent) == 1
+    assert rig.sent[0].to == (BOSS,)
+    assert "a.gz" in rig.sent[0].body
+    _products(rig, errors=["b.gz: OSError: reset"])
+    rig.run()
+    assert len(rig.sent) == 2
+
+
+def test_an_out_of_date_file_is_reported_as_unchanged(rig: Rig) -> None:
+    _products(
+        rig,
+        config=[
+            {
+                "file": "SATELLIT_I20.SAT",
+                "out_of_date": True,
+                "local_size": 1,
+                "local_date": "2024-10-22",
+                "aiub_size": 2,
+                "aiub_date": "2026-10-20",
+            }
+        ],
+    )
+    rig.run()
+    assert "SATELLIT_I20.SAT" in rig.sent[0].body
+    assert "Nothing was changed" in rig.sent[0].body
+
+
+def test_a_nightly_fetch_that_stopped_is_reported(rig: Rig) -> None:
+    _products(rig)
+    rig.now += dt.timedelta(days=3)
+    rig.run()
+    assert "last ran 3 days ago" in rig.sent[0].body
+
+
 # --- configuration ----------------------------------------------------------------
 
 

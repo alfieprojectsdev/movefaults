@@ -705,6 +705,12 @@ worked on:
   but nothing has been run. `docs/project_documentation/legacy_1996_pilot_plan.md`
   is the proposed test.
 
+- **Whether to update the CONFIG and REF files that differ from AIUB's.** On 2026-11-06 five
+  of the eleven compared differ: `SAT_2026.CRX`, `SATELLIT_I20.SAT`, `SAT_GNSS.CRX`, `DATUM.BSW`
+  and `ANTENNA_I20.PCV`, some unchanged here since 2024. Updating them changes results for days
+  already solved, so it should happen at a boundary and be recorded, like the 2026-09-02 binaries
+  (§2). Nothing has been measured about what they'd change. `bernese-update-products` reports them.
+
 - **Whether flagged outliers are excluded from the published velocity fit.**
   Two documents record this as decided on 2026-08-13 in favour of excluding:
   `velocity_outlier_policy_delta.md` ("publish the `exclude_outliers=True`

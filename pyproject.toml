@@ -56,6 +56,8 @@ bernese-run-year = "bernese_workflow.run_year:main"
 bernese-worker = "bernese_workflow.run_worker:main"
 # Emails the person who started a run: started, still running, finished, in trouble.
 bernese-notify = "bernese_workflow.notify:main"
+# Nightly: fetches new CODE products, and reports CONFIG and REF files that differ from AIUB's.
+bernese-update-products = "bernese_workflow.product_update:main"
 # STA overlaps, BLQ after END TABLE, ATL names, stations missing from STA/CRD/BLQ.
 bernese-check-stations = "bernese_workflow.station_files:main"
 # Advisory, read-only: .STA equipment against field-ops records (exits 0 on disagreement).
