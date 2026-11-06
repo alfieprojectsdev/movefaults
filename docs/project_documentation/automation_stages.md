@@ -73,7 +73,7 @@ omission is visible in the artefact itself, not only in a log nobody opens.
 
 ## What to work on next
 
-**Recommended 2026-11-06, against this document, `workflow_automation_inventory.md`
+**Recommended 2026-11-06, against this document, `docs/bern52/workflow_automation_inventory.md`
 and `docs/SETTLED.md` §6.** The remaining gap is less about more pipeline than about
 this document's own test, "does production use it?": 5.4 has one operator, and
 published velocities still come from the MATLAB. So: get stage 2 trusted and used
@@ -82,13 +82,13 @@ the cheap checks on stage 1 for now.
 
 | # | Task | Why now | Who | Status, 2026-11-06 |
 |---|---|---|---|---|
-| 1 | **Put a second person through a real run on the console**, and have the team review the work instruction and answer its section 9 questions | Stage 2 has one operator, and the instruction is unreviewed | Maintainer and the team | Not started |
+| 1 | **Put a second person through a real run on the console**, and have the team review the console's work instruction (`docs/bsw_console_work_instruction.md`, not the 5.2 one this document's stages come from) and answer its section 9 questions | Stage 2 has one operator, and that instruction is unreviewed | Maintainer and the team | Not started |
 | 2 | **Explain the PHREF 2025 differences and measure whether any velocity moved** | Stage 2's named next step (below) | Maintainer | In progress |
-| 3 | **Measure the I14/I20 join on our stations** | Nobody can compare gps3 with 5.2 results until this exists, and it decides what the agreement figures mean | Maintainer | In progress |
+| 3 | **Measure the I14/I20 join on our stations** | gps3 and 5.2 results can't be compared directly until this exists, and it decides what the agreement figures in `docs/SETTLED.md` §2 mean | Maintainer | In progress |
 | 4 | **Check why field-ops holds zero logsheets** while a handset shows three as `synced` (`docs/SETTLED.md` §6) | The digital logsheet is what unlocks stage 1, and this may mean it's silently losing data | Maintainer | In progress: the count needs a login |
 | 5 | **Snapshot the continuous `offsets` catalog** | Only the campaign catalog is captured, and ALBU, a continuous site, had a live defect | Maintainer | Not started |
 | 6 | **Detect outliers on residuals from the fit** | The trend can hide real outliers today | Maintainer | Not started |
-| 7 | **Show offset candidates in the console** for an analyst to confirm or reject | The domain owner's top unbuilt request, and it fits decision support | Maintainer | Not started |
+| 7 | **Build offset detection, and show its candidates in the console** for an analyst to confirm or reject | The domain owner's top unbuilt request, and it fits decision support. No detector exists yet, so most of this task is that new machinery (stage 3 below) | Maintainer | Not started |
 | 8 | **Run the cheap stage 1 checks**: are the `.exe`s builds of the Python we hold, what are `splname.exe` and `compress.exe`, and does `runpkr00` work on a real Trimble `.T0x` | They close a succession risk and may change the stage 1 plan | Maintainer, with files from the team | Not started |
 
 **Order:** 2 and 3 come before 7, because a detector run over reprocessed series
@@ -98,18 +98,23 @@ in anywhere.
 **Decisions only the maintainer or the team can make:**
 
 - **Outliers in the published fit:** still open (`docs/SETTLED.md` §6), and it decides
-  how much task 6 changes published numbers.
-- **Post-seismic velocities:** decide whether to publish them before the next run,
-  because a straight-line fit depends on the window chosen (stage 3 below).
+  how much task 6 would change published numbers once they come from `analysis.py`.
+  Until then published velocities come from the MATLAB, which task 6 doesn't touch.
+- **Post-seismic velocities:** decide whether to publish them before the next velocities
+  are published, because a straight-line fit depends on the window chosen (stage 3 below).
 - **`RUNX_v2.py` to `crd-to-plots`:** compare them in parallel for one cycle, and don't
   switch until the join in task 3 is understood.
+- **The MATLAB to `analysis.py`:** no task above makes this switch, and the succession
+  risk stays until someone does. It waits on the outlier decision: `analysis.py` reproduces
+  the published velocities with `exclude_outliers=False`, and its default is `True`.
 
 **Left for later:**
 
 - **Generalising staging and PCF derivation:** this becomes urgent at the next new
   campaign, because `derive_luzon_pcf.py` still hardcodes LUZON.
-- **The 1996 pilot** (`legacy_1996_pilot_plan.md`): blocked on the IGSR3 reference
-  files, and no production work depends on it.
+- **The 1996 pilot** (`legacy_1996_pilot_plan.md`): not run. Its products aren't on gps3
+  yet, and the IGSR3 reference files, station information and loading are still to do
+  (the plan's table). No production work depends on it.
 - **FODITS:** evaluate it alongside task 7, not before.
 - **TimescaleDB and the public portal:** the domain owner asked for data and plots in
   one place, and the console already covers part of that. Rescope against that request
@@ -126,7 +131,7 @@ in the same PR that moves it.
 |---|---|---|---|
 | **1** | §4 | RAW → RINEX | ⏳ **Untouched** — Windows `.exe` + interactive Python |
 | **2** | §5 | RINEX → coordinates | ✅ **Largely automated** (2026-08) |
-| **3** | §6 | coordinates → velocities | 🔄 **Inverted** — the hard part is done, the plumbing is not |
+| **3** | §6 | coordinates → velocities | 🔄 **Inverted** — the hard part and the plumbing are ported, and production uses neither |
 
 **Live defect, found 2026-08-13.** ALBU's continuous plot, generated
 2025-11-11, reports `V=-539 mm/yr` East and `V=-1846 mm/yr` Up against a true
@@ -265,8 +270,8 @@ to measure whether any velocity moved.
 ## Stage 3 — coordinates → velocities (§6)
 
 **Status: inverted, and this is the interesting one.** The part everyone
-assumed was hardest is finished and verified; the trivial plumbing around it is
-untouched.
+assumed was hardest is ported and verified; the trivial plumbing around it is
+ported too, and production still runs the originals of both.
 
 ### The workflow as it stands
 
