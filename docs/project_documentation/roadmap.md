@@ -13,6 +13,8 @@
 
 ---
 
+**The current recommended next tasks are in `automation_stages.md`, under "What to work on next" (2026-11-06).**
+
 ## 0. Where the human's day actually goes
 
 This roadmap is organised by dependency tier — what must be built before what.

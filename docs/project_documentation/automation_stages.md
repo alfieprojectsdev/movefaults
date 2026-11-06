@@ -71,13 +71,67 @@ implementation of this posture — stations it cannot vouch for become commented
 rows carrying their reason, so reinstating one is uncommenting a line and the
 omission is visible in the artefact itself, not only in a log nobody opens.
 
+## What to work on next
+
+**Recommended 2026-11-06, against this document, `docs/bern52/workflow_automation_inventory.md`
+and `docs/SETTLED.md` §6.** The remaining gap is less about more pipeline than about
+this document's own test, "does production use it?": 5.4 has one operator, and
+published velocities still come from the MATLAB. So: get stage 2 trusted and used
+by someone else, then build what the domain owner asked for in stage 3, and do only
+the cheap checks on stage 1 for now.
+
+| # | Task | Why now | Who | Status, 2026-11-06 |
+|---|---|---|---|---|
+| 1 | **Put a second person through a real run on the console**, and have the team review the console's work instruction (`docs/bsw_console_work_instruction.md`, not the 5.2 one this document's stages come from) and answer its section 9 questions | Stage 2 has one operator, and that instruction is unreviewed | Maintainer and the team | Not started |
+| 2 | **Explain the PHREF 2025 differences and measure whether any velocity moved** | Stage 2's named next step (below) | Maintainer | In progress |
+| 3 | **Measure the I14/I20 join on our stations** | gps3 and 5.2 results can't be compared directly until this exists, and it decides what the agreement figures in `docs/SETTLED.md` §2 mean | Maintainer | In progress |
+| 4 | **Check why field-ops holds zero logsheets** while a handset shows three as `synced` (`docs/SETTLED.md` §6) | The digital logsheet is what unlocks stage 1, and this may mean it's silently losing data | Maintainer | In progress: the count needs a login |
+| 5 | **Snapshot the continuous `offsets` catalog** | Only the campaign catalog is captured, and ALBU, a continuous site, had a live defect | Maintainer | Not started |
+| 6 | **Detect outliers on residuals from the fit** | The trend can hide real outliers today | Maintainer | Not started |
+| 7 | **Build offset detection, and show its candidates in the console** for an analyst to confirm or reject | The domain owner's top unbuilt request, and it fits decision support. No detector exists yet, so most of this task is that new machinery (stage 3 below) | Maintainer | Not started |
+| 8 | **Run the cheap stage 1 checks**: are the `.exe`s builds of the Python we hold, what are `splname.exe` and `compress.exe`, and does `runpkr00` work on a real Trimble `.T0x` | They close a succession risk and may change the stage 1 plan | Maintainer, with files from the team | Not started |
+
+**Order:** 2 and 3 come before 7, because a detector run over reprocessed series
+can't tell an artefact from an earthquake. 1 can run alongside them, and 4 to 6 fit
+in anywhere.
+
+**Decisions only the maintainer or the team can make:**
+
+- **Outliers in the published fit:** still open (`docs/SETTLED.md` §6), and it decides
+  how much task 6 would change published numbers once they come from `analysis.py`.
+  Until then published velocities come from the MATLAB, which task 6 doesn't touch.
+- **Post-seismic velocities:** decide whether to publish them before the next velocities
+  are published, because a straight-line fit depends on the window chosen (stage 3 below).
+- **`RUNX_v2.py` to `crd-to-plots`:** compare them in parallel for one cycle, and don't
+  switch until the join in task 3 is understood.
+- **The MATLAB to `analysis.py`:** no task above makes this switch, and the succession
+  risk stays until someone does. It waits on the outlier decision: `analysis.py` reproduces
+  the published velocities with `exclude_outliers=False`, and its default is `True`.
+
+**Left for later:**
+
+- **Generalising staging and PCF derivation:** this becomes urgent at the next new
+  campaign, because `derive_luzon_pcf.py` still hardcodes LUZON.
+- **The 1996 pilot** (`legacy_1996_pilot_plan.md`): not run. Its products aren't on gps3
+  yet, and the IGSR3 reference files, station information and loading are still to do
+  (the plan's table). No production work depends on it.
+- **FODITS:** evaluate it alongside task 7, not before.
+- **TimescaleDB and the public portal:** the domain owner asked for data and plots in
+  one place, and the console already covers part of that. Rescope against that request
+  first, rather than building the full schema.
+- **The old roadmap's menu** (`docs/gnss_automation_roadmap.md`): OCR, ML outliers, QR
+  inventory, USB hot-drop. Nothing there removes more work than the tasks above.
+
+This is a recommendation, not a schedule. Update the status column when a task moves,
+in the same PR that moves it.
+
 ## Status at a glance
 
 | Stage | Work instruction | What it does | Status |
 |---|---|---|---|
 | **1** | §4 | RAW → RINEX | ⏳ **Untouched** — Windows `.exe` + interactive Python |
 | **2** | §5 | RINEX → coordinates | ✅ **Largely automated** (2026-08) |
-| **3** | §6 | coordinates → velocities | 🔄 **Inverted** — the hard part is done, the plumbing is not |
+| **3** | §6 | coordinates → velocities | 🔄 **Inverted** — the hard part and the plumbing are ported, and production uses neither |
 
 **Live defect, found 2026-08-13.** ALBU's continuous plot, generated
 2025-11-11, reports `V=-539 mm/yr` East and `V=-1846 mm/yr` Up against a true
@@ -116,7 +170,7 @@ no version control before that.
 | Tool | References | Linux status |
 |---|---|---|
 | `teqc` | 2684 | Installed on gps3. **RINEX 2 only** — refuses RINEX 3 on line 1 |
-| `runpkr00` | 777 | Trimble raw unpacker. **Linux binaries exist** — [UNAVCO KB 744](https://kb.unavco.org/article/trimble-runpkr00-latest-versions-744.html). Not yet tested on gps3 |
+| `runpkr00` | 777 | Trimble raw unpacker. **Linux binaries exist** — [UNAVCO KB 744](https://kb.unavco.org/article/trimble-runpkr00-latest-versions-744.html). On gps3 in `~/bin` since 2026-09-03; not yet shown to work on a real Trimble `.T0x` |
 | `gfzrnx` | 11 | Installed. Reads RINEX 3. Licence terms to be documented per use |
 | `crx2rnx` / `rnx2crx` | 6 | Hatanaka compression. Trivially available on Linux |
 | `campv5.exe`, `campv6.exe`, `campv5_mounted.exe`, `campv5_combine.exe` | — | Almost certainly PyInstaller builds of `campaign_v5.py`, `campaign_v6.py`, `campaign_v5_mounted.py`, `campaign_v5_combine.py` — the naming matches 4-for-4 and we hold the Python. **Verify before relying on it.** |
@@ -152,7 +206,8 @@ the script port is downstream of it.**
    half-day and it either closes a succession risk or reveals one. Do it soon —
    it is cheap and the answer changes the plan.
 2. **Identify `splname.exe` and `compress.exe`.** Same argument.
-3. **Test the `runpkr00` Linux build on gps3.** Located 2026-08-13 at
+3. **Test the `runpkr00` Linux build on gps3,** where it has been since 2026-09-03.
+   Located 2026-08-13 at
    [UNAVCO KB 744](https://kb.unavco.org/article/trimble-runpkr00-latest-versions-744.html).
    This was the dependency most likely to pin stage 1 to Windows, and it
    apparently does not. Expect the same trial-and-error across builds that
@@ -214,8 +269,8 @@ and one-year velocities measured (`docs/phref_2025_reprocess_attribution_results
 ## Stage 3 — coordinates → velocities (§6)
 
 **Status: inverted, and this is the interesting one.** The part everyone
-assumed was hardest is finished and verified; the trivial plumbing around it is
-untouched.
+assumed was hardest is ported and verified; the trivial plumbing around it is
+ported too, and production still runs the originals of both.
 
 ### The workflow as it stands
 
@@ -234,15 +289,16 @@ FNyyddd0.CRD  (filtered final coordinates)
 
 ### Done
 
-**The MATLAB dependency is removed.**
-`pogf_geodetic_suite.timeseries.analysis` reproduces
+**The MATLAB can now be replaced, but it hasn't been: published velocities still
+come from it.** `pogf_geodetic_suite.timeseries.analysis` reproduces
 `vel_line_v8_newvelduetooffset_v4.m` — 161 of 165 velocity components agree to
 better than 5e-6 mm/yr with `exclude_outliers=False`, verified against
 PHIVOLCS' own published output. `crd_pipeline.py` covers CRD → ENU (matching
 `RUNX_v2.py` only since 2026-11-05; see `docs/SETTLED.md` section 5).
 
-That closes a licensed proprietary dependency sitting in the **final step of
-the scientific output**, which was a genuine succession risk.
+That gives a way out of a licensed proprietary dependency sitting in the **final
+step of the scientific output**, which was a genuine succession risk. The risk
+stays until production switches.
 
 It also surfaced things nobody was looking for — see
 [`velocity_outlier_policy_delta.md`](velocity_outlier_policy_delta.md):
