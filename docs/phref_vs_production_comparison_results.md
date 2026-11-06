@@ -26,6 +26,10 @@ not differences that vary by station, which an antenna-model change can produce.
 Its share of these residuals, the vertical especially, has not been measured
 (runbook §1.4).*
 
+*Added 2026-11-06: the antenna offsets correlate with the median Up residuals here
+(`phref_2025_reprocess_attribution_results.md`). These figures are from the unpatched
+solutions of 29 August.*
+
 ## Headline
 
 Post-Helmert residuals, per week, across all 53:

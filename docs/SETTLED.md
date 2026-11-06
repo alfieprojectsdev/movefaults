@@ -51,7 +51,7 @@ from `CLAUDE.md` because both duplicates were removed.
 |---|---|
 | Bernese 5.4 installed and verified on the **T420** (≤0.09 mm vs reference) and the **R740** (0.0000 mm, no `objcopy` patch needed) | 2026-02 / 2026-07-29. **BRN-001 is DONE** |
 | `services/bernese-workflow` **invokes BSW for real** — `backends.py` → `startBPE.pm` over Perl | verified in code |
-| **The service path gives the same solutions as `scripts/` on the same inputs** (shown on 3 days). `bernese-run-year` ran PHREF 2025 DOY 091–120 (30/30 days, MAXSESS 6, 1h15m, ledger and campaign cleanup as designed); a control run of DOY 094/096/098 through `phref_year.pl` from a PCF differing only in `V_RESULT` is identical to it, coordinates included (`compare_solutions.sh` after #306, and the STAX/STAY/STAZ lines byte-compared). The control ran each day alone (NUM_SESS 1, MAXSESS 1), so the identity also shows **parallel sessions (6 at a time, each in its own REPR campaign) give the same solutions as one session at a time**, for those days: the claim the §21 LZP test could not support (§5). Both differ from **production** PHREF 2025 (run 29 Aug) by up to 16 mm for single stations; not the service, since the two paths agree with each other. This row first put the difference down to the 29–30 Sep input fixes, but those concern four stations PHREF never estimates (the BLQ row below), so **the cause is unattributed** (§6) | gps3, 2026-10-27; results in `SAVEDISK/PHRPAR` and `SAVEDISK/PHRCTL` |
+| **The service path gives the same solutions as `scripts/` on the same inputs** (shown on 3 days). `bernese-run-year` ran PHREF 2025 DOY 091–120 (30/30 days, MAXSESS 6, 1h15m, ledger and campaign cleanup as designed); a control run of DOY 094/096/098 through `phref_year.pl` from a PCF differing only in `V_RESULT` is identical to it, coordinates included (`compare_solutions.sh` after #306, and the STAX/STAY/STAZ lines byte-compared). The control ran each day alone (NUM_SESS 1, MAXSESS 1), so the identity also shows **parallel sessions (6 at a time, each in its own REPR campaign) give the same solutions as one session at a time**, for those days: the claim the §21 LZP test could not support (§5). Both differ from **production** PHREF 2025 (run 29 Aug) by up to 16 mm for single stations; not the service, since the two paths agree with each other. This row first put the difference down to the 29–30 Sep input fixes, but those concern four stations PHREF never estimates (the BLQ row below), and the cause is the patch set (the patches row below) | gps3, 2026-10-27; results in `SAVEDISK/PHRPAR` and `SAVEDISK/PHRCTL` |
 | `timeseries/analysis.py` reproduces `vel_line_v8_newvelduetooffset_v4.m` — 161/165 components to <5e-6 mm/yr | verified against PHIVOLCS' own published MATLAB output |
 | The 2025 LUZON year is **358/365**, over three runs plus a DOY 036 recovery; the final run was **249 days in 476 min = 1.91 min/day** | session log §24.1, corrected in PR #138 after review |
 | **DOY 036** failed on wrongly-fixed integer ambiguities. Float RMS 1.68 mm vs fixed 37.98 mm; recovered as a float solution at 1.79 mm | §24.3, closed by controlled experiment |
@@ -86,12 +86,13 @@ from `CLAUDE.md` because both duplicates were removed.
 | **No 2025 daily solutions exist on the file server.** `F1_` dailies are retained for 2012, 2015–17, 2019, 2026 only. 2025 has 53/53 weeklies and 12/12 monthlies | surveyed 2026-08-29; comparison must run at weekly cadence |
 | **BSWMAIL is an announcement list, not a support forum** — 429 messages over 31 years (~5–11/yr), and it contains **zero** hits for `neqckdim`, `MAXPAR` or `DIMENSION TOO SMALL`. The AIUB **FAQ** is the real precedent: 11 error entries with causes and remedies | measured against a local mirror 2026-08-29 |
 
-| **PHREF 2025 agrees with PHIVOLCS production at 1.26 mm N / 2.28 mm E / 6.99 mm U (median, 53 of 53 weeks)** after 7-parameter Helmert alignment, outliers rejected on local N/E. An agreement test, not reproduction — different BSW version, network and constraints, and a different frame and antenna model (IGS20/I20 against IGS14/I14), whose share of these figures has not been measured | `phref_vs_production_comparison_results.md`, 2026-09-01, unpatched build; revised 2026-10-11 (was 1.29 / 2.37 / 7.09 with the ECEF X/Y outlier test). Measured on the 29 Aug solutions, superseded 2026-11-04; not re-measured on the reprocess |
+| **PHREF 2025 agrees with PHIVOLCS production at 1.26 mm N / 2.28 mm E / 6.99 mm U (median, 53 of 53 weeks)** after 7-parameter Helmert alignment, outliers rejected on local N/E. An agreement test, not reproduction — different BSW version, network and constraints, and a different frame and antenna model (IGS20/I20 against IGS14/I14). The antenna offsets correlate with the median Up residuals (§6, the join), and their share of these figures isn't otherwise measured | `phref_vs_production_comparison_results.md`, 2026-09-01, unpatched build; revised 2026-10-11 (was 1.29 / 2.37 / 7.09 with the ECEF X/Y outlier test). Measured on the 29 Aug solutions, superseded 2026-11-04; not re-measured on the reprocess |
 | **A single day's ADDNEQ2 NEQ needs ~1000–1040 EXPLICIT parameters** (coords + site troposphere) for 33–35 stations, i.e. **~30 per station**; adjusted total incl. pre-eliminated ambiguities is 2153–2448. `neqckdim` checks the *explicit* count | measured from a successful stack, `WKG_2375.OUT`, 2026-09-01 |
 | **Outliers in the comparison are East-dominated: 17 of 18 station-weeks over 15 mm.** Overall RMS N 1.86 vs E 7.47 mm. The asymmetry points at ambiguity resolution, not metadata or site motion | 1,979 station-weeks |
 
 | **`CBERN COMPLINK` deletes every executable before rebuilding.** Running it without a toolchain leaves the install with zero working programs | 2026-09-02: 88 → 0, recovered from snapshot. `bsw54_patch_plan.md` |
-| **The 2024-11-11 patches are APPLIED and verified inert on this configuration.** DOY 201 (same 35 stations): 0.00 mm. EXAMPLE (340 stations): max 0.010 mm, which is CRD print precision | 2026-09-02, `bsw54_patch_plan.md`. B_33's IGRF14 affects higher-order ionosphere corrections this PCF does not apply; B_38 is a no-op for the numbers |
+| **The 2024-11-11 patches are APPLIED, and they change solutions.** Solutions from before and after 2026-09-02 are not bit-comparable. PHREF 2025 differs on all 360 days: median largest difference 0.02 mm, 25 station-days over 5 mm, maximum 40.5 mm. The pre-patch binaries reproduce the August solutions at 0.0000 mm on the three days tested (DOY 329, 089, 194), and the August MAXPAR values change nothing. Which patch isn't known. **This supersedes "verified inert"**, which rested on DOY 201, a quiet day (0.01 mm here), and on EXAMPLE | tested 2026-11-06, `docs/phref_2025_reprocess_attribution_results.md`; patching 2026-09-02, `bsw54_patch_plan.md`. Three days, not the year |
+| **The patches moved one-year PHREF rates very little:** median 0.01 mm/yr East and North, 0.04 mm/yr Up; largest 0.61 mm/yr Up, at LGYE. Published velocities come from the MATLAB and aren't affected. LUZON 2025 is unpatched and LUZON January 2026 is patched, so that series crosses the change | 29 stations, `analysis.estimate_velocity`, 2026-11-06, same document |
 | **BSW on gps3 is now LOCALLY COMPILED** (gfortran 13.3.0), not AIUB prebuilt. All 88 executables rebuilt 2026-09-02 | verified to reproduce the prebuilt binaries on both our pipeline and EXAMPLE |
 | **gps3 had no compiler until 2026-09-02** — BSW was installed from prebuilt AIUB binaries. `gfortran`/`gcc`/`make` now present (gfortran 13.3.0) | the absence surfaced as `pytest` failing to collect `test_dc3d.py` with `No such file or directory: 'cc'` |
 
@@ -635,7 +636,7 @@ Old documents and older memory still assert these. They are wrong.
 | `CLAUDE.md`: repo-root `src/` is "`src/db/` alone, **four files**" (twice) | **two** tracked source files — `__init__.py` and `models.py`. The four counts `__pycache__/*.pyc`, which is not in the repository. Verified 2026-08-25 |
 | `crd_pipeline.py` is a port of `RUNX_v2.py`'s ENU step, so `crd-to-plots` and the console's Time series give PHIVOLCS' numbers (until 2026-11-05) | **They did not.** `RUNX_v2.py` reads the reference's position from each day's own file, which subtracts its motion. The port read it once, from the first file, and used it for every day, so plate motion stayed in every series: ALAB against PIMO, one year of LUZON, was -24.63, 20.97, -8.16 mm/yr (E, N, U) instead of 2.82, 13.23, -0.52. Fixed 2026-11-05; on all of LUZON 2025 against PIMO and AIRA the port now equals the script's logic exactly (9327 and 8872 epochs), and a day with no reference gives no epoch, as in the script. **`analysis.py`'s 161/165 agreement with the MATLAB is unaffected**: that check starts from PHIVOLCS' PLOT files, after this step, which is why it never caught this. PLOT files made by `crd-to-plots` before the fix are wrong, and the figures in `docs/figures/phref-vs-production/` were made from such files (see its README). Production runs `RUNX_v2.py` and was not affected |
 | this file's own §6, until 2026-11-04: production PHREF 2025 was solved without ocean loading for four IGS fiducials (CUSV, GUUG, NTUS, PTAG), "datum stations" of it, with effects "up to 16 mm"; and "whether to reprocess the 360 days" was the project lead's decision, open | **The premise was wrong for PHREF.** The four are in 0 of 360 days of PHREF's `FIN_*.SNX`, in the 29 Aug solutions and the reprocessed ones alike (gps3, 2026-11-05), so they were never its datum stations and their missing loading did not affect it; the 16 mm was not their effect. §2's BLQ row was right. **The decision was made and done**: reprocessed 2026-11-04 (runs `3341af5c` and `0def7ca1`), 360/360, the 29 Aug results kept under `SUPERSEDED/` (§2, the PHREF reprocess row). What remains open is why the coordinates changed (§6) |
-| this file's own §6, until 2026-09-21: our BSW install has "none of its 7 published patches applied" | **applied and verified inert on 2026-09-02** — see §2. The §6 bullet was written 2026-08-29, three days before the patching, and outlived it. Re-verified on disk 2026-09-21: `IONOSP2.f90` carries IGRF14, `IGRF14SYN.f` is present, 12 `.pre-patch` copies remain in `SOURCE`, and all 88 executables in `SOURCE/PGM/EXE_GNU` are dated 2026-09-02 |
+| this file's own §6, until 2026-09-21: our BSW install has "none of its 7 published patches applied" | **applied on 2026-09-02** — see §2, which no longer calls them inert. The §6 bullet was written 2026-08-29, three days before the patching, and outlived it. Re-verified on disk 2026-09-21: `IONOSP2.f90` carries IGRF14, `IGRF14SYN.f` is present, 12 `.pre-patch` copies remain in `SOURCE`, and all 88 executables in `SOURCE/PGM/EXE_GNU` are dated 2026-09-02 |
 
 ---
 
@@ -645,23 +646,13 @@ A settled-list that suppresses live questions is worse than none. These are
 genuinely unresolved as of 2026-09-24, re-checked 2026-10-14, and *should* be
 worked on:
 
-- **The reprocessed PHREF 2025 coordinates differ from the superseded ones on
-  every day.** Measured 2026-11-05 on gps3, from `SOLUTION/ESTIMATE` and
-  `SITE/ID` of `FIN_*.SNX.gz`, new (2026-11-04) against the 29 Aug solutions in
-  `$S/PHREF/2025/SUPERSEDED/20261104-0953-blq-atl-fix`. Taking each day's
-  largest 3D station difference: 0 of 360 days identical; median 0.02 mm; 90th
-  percentile 2.3 mm; maximum 40.5 mm (VIGN, DOY 089). Next largest: LGYE on DOY
-  050 (39.2 mm), 075 (34.0) and 205 (28.7), and MONT on DOY 191 (21.5). One
-  day's station list differs between the two. **Whether any downstream velocity
-  moved has not been measured.** LGYE is also the subject of the East-excursion
-  item below; no link between the two has been looked for.
-
-- **The cause of the old-vs-new PHREF 2025 differences is unattributed.** It is
-  not the four fiducials' ocean or atmospheric loading, the stated reason for
-  reprocessing: CUSV, GUUG, NTUS and PTAG are in none of PHREF's solutions,
-  old or new (§2, the BLQ row). Other things changed between 29 Aug and 4 Nov,
-  for example the MAXPAR change recorded in §2, but none has been tested as
-  the cause.
+- **Which of the 2024-11-11 patches changes PHREF's solutions, and how a tiny change
+  becomes up to 40.5 mm.** The patch set is the cause (§2), tested on three days. The
+  mechanism, a change tipping ambiguity fixing, screening or the fiducial check, is
+  inferred. DOY 172 and 200 shift as a block with unchanged fiducial lists, which isn't
+  explained. LGYE has the largest differences and is also the subject of the
+  East-excursion item below; no link between the two has been looked for. Whether a
+  multi-year velocity moved hasn't been measured.
 
 - **GitHub Actions is ENABLED and still runs nothing: the account is
   billing-locked.** Enabled 2026-09-24 (it had been disabled repo-wide since
@@ -701,10 +692,13 @@ worked on:
   covers what gps3 can run, and it reports nothing if its cron stops — check
   `scripts/local_ci.py status`, which exits 1 when the heartbeat is stale.
 
-- **How the IGS14/I14 series and new IGS20/I20 solutions join.** The runbook
-  (§1.4) expects a cm-level, largely vertical shift from the antenna model. It
-  has not been measured for our stations, including in the PHREF comparison in
-  §2, and nothing yet says how a velocity spanning both series should treat it.
+- **How the IGS14/I14 series and new IGS20/I20 solutions join.** The antenna offsets
+  differ by -7.5 to +4.8 mm in Up for PHREF's antennas, and that accounts for about 60%
+  of the between-station differences in the median Up residual against production
+  (correlation 0.79, 2026-11-06, `docs/phref_2025_reprocess_attribution_results.md`).
+  That is a correlation, with a slope of 2.1 that isn't explained, and no controlled
+  test exists, because I14 can't run on 5.4 at these dates. Nothing yet says how a
+  velocity spanning both series should treat it.
 - **Whether Bernese 5.4 can process the 1990s data we hold.** Its tables and
   fiducials reach back that far, and about 11,600 1990s RINEX files are on gps3,
   but nothing has been run. `docs/project_documentation/legacy_1996_pilot_plan.md`

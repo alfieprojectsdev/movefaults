@@ -8,7 +8,7 @@ It invokes BSW for real, through the Perl `startBPE.pm` API.
 `7ca9ccb9`, 31/31 days ok in 53 min); PHREF 2025 was then reprocessed through
 it (runs `3341af5c` and `0def7ca1`, all 360 planned days solved); its
 coordinates differ from the solutions it superseded on every day (median
-0.02 mm, maximum 40.5 mm), for a cause not yet attributed. Before 2026-11-04 every
+0.02 mm, maximum 40.5 mm), because of the Bernese patches of 2026-09-02. Before 2026-11-04 every
 production solution (LUZON 2025, 358 days; PHREF 2025, 360 days) came from the
 shell and Perl drivers in the repo-root `scripts/`, which still do everything
 around the BPE: staging, product fetch, BLQ merge, QC and comparison
@@ -136,8 +136,8 @@ the roadmap (deliverable 1.3) listed are built:
 
 **The parity run is done** (gps3, 2026-10-27, #307): PHREF 2025 DOY 091–120
 through `bernese-run-year`, 30/30 days ok in 1h15m, into a separate result tree
-(PHRPAR). It was not identical to the August production run, and the cause is
-not yet attributed. The control is what shows the service reproduces
+(PHRPAR). It was not identical to the August production run, because of the
+Bernese patches. The control is what shows the service reproduces
 `scripts/`: the `scripts/` driver re-ran DOY 094, 096 and 098 with the same
 configuration, and its SNX and CRD files were identical to the service's, 3 of
 3 (`docs/SETTLED.md` §2). The `scripts/` drivers take the same machine-wide BPE

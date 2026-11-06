@@ -46,6 +46,10 @@ is explicitly the damaging one. **Do not cherry-pick.**
 
 ### 2. This changes the software mid-project
 
+*Added 2026-11-06: this warning was right. The patch set changes PHREF 2025 solutions,
+by up to 40.5 mm for one station on one day, which the DOY 201 check below did not show.
+See `docs/phref_2025_reprocess_attribution_results.md`.*
+
 B_33 alters the geomagnetic field model used for higher-order ionosphere
 corrections. B_38 touches `TRPSTORE.f90`, which is on the GPSEST/ADDNEQ2 path.
 **Both can change numbers.**
