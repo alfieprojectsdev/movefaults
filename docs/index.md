@@ -17,7 +17,7 @@ Start here instead:
 - [`project_documentation/automation_stages.md`](project_documentation/automation_stages.md):
   the three processing stages and how far each is automated.
 - [`bernese54_luzon_reprocessing_runbook.md`](bernese54_luzon_reprocessing_runbook.md):
-  how production Bernese runs are done today.
+  the record of the August 2026 LUZON run; its status block gives today's command.
 
 Dated records (session logs, handovers, `CR-*` briefs, results notes) describe
 what was true when they were written and are not updated afterwards.
