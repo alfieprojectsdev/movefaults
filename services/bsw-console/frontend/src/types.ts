@@ -145,7 +145,7 @@ export type Plan = {
   checks: Check[]
   can_start: boolean
   start_blocked_because: string[]
-  email_alerts?: { state: 'ok' | 'off' | 'stale' | 'failing'; text: string }
+  email_alerts?: { state: 'ok' | 'off' | 'stale' | 'failing' | 'no-address'; text: string }
   pcfs: string[]
 }
 export type SavedPlan = { id: string; saved: string; by: string; name?: string; campaign: string; year: number; from: number; to: number; pcf: string; skipped: number[] }

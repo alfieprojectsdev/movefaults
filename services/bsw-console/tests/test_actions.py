@@ -348,7 +348,9 @@ def test_the_plan_page_lists_the_missing_preflight_and_the_gate(on: Settings, wo
     assert any("nobody is signed in" in m for m in signed_out["start_blocked_because"])
 
 
-def _notify_status(s: Settings, *, age_min: float, errors: int = 0) -> dt.datetime:
+def _notify_status(
+    s: Settings, *, age_min: float, errors: int = 0, operators: tuple[str, ...] = ()
+) -> dt.datetime:
     now = dt.datetime(2026, 11, 6, 12, 0, tzinfo=dt.UTC)
     d = s.worker_state / "notify"
     d.mkdir(parents=True, exist_ok=True)
@@ -358,6 +360,7 @@ def _notify_status(s: Settings, *, age_min: float, errors: int = 0) -> dt.dateti
                 "last_pass": (now - dt.timedelta(minutes=age_min)).isoformat(),
                 "sent": 0,
                 "errors": ["smtp said no to someone@example.org"] * errors,
+                "operators": list(operators),
             }
         )
     )
@@ -367,13 +370,22 @@ def _notify_status(s: Settings, *, age_min: float, errors: int = 0) -> dt.dateti
 def test_email_alerts_say_when_nobody_will_be_told(on: Settings) -> None:
     assert actions.email_alerts(on)["state"] == "off"
     now = _notify_status(on, age_min=5)
-    assert actions.email_alerts(on, now)["state"] == "ok"
+    assert actions.email_alerts(on, now=now)["state"] == "ok"
     now = _notify_status(on, age_min=31)
-    assert actions.email_alerts(on, now)["state"] == "stale"
+    assert actions.email_alerts(on, now=now)["state"] == "stale"
     now = _notify_status(on, age_min=5, errors=2)
-    failing = actions.email_alerts(on, now)
+    failing = actions.email_alerts(on, now=now)
     assert failing["state"] == "failing"
     assert "example.org" not in failing["text"]
+
+
+def test_email_alerts_say_when_the_person_looking_has_no_address(on: Settings) -> None:
+    now = _notify_status(on, age_min=5, operators=("AB",))
+    assert actions.email_alerts(on, "ab", now)["state"] == "ok"
+    missing = actions.email_alerts(on, "ZZ", now)
+    assert missing["state"] == "no-address"
+    assert "ZZ" in missing["text"]
+    assert actions.email_alerts(on, "", now)["state"] == "ok"
 
 
 def test_the_server_trusts_the_connecting_address_not_x_forwarded_for(monkeypatch) -> None:
@@ -388,3 +400,10 @@ def test_the_server_trusts_the_connecting_address_not_x_forwarded_for(monkeypatc
     monkeypatch.setattr(main, "create_app", lambda: object())
     main.start()
     assert seen["proxy_headers"] is False
+
+
+def test_email_alerts_read_a_time_with_no_zone_as_off(on: Settings) -> None:
+    d = on.worker_state / "notify"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "status.json").write_text(json.dumps({"last_pass": "2026-11-06T12:00:00", "errors": []}))
+    assert actions.email_alerts(on)["state"] == "off"

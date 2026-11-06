@@ -7,8 +7,10 @@ files in a temporary directory, written by the code that writes them in producti
 from __future__ import annotations
 
 import datetime as dt
+import fcntl
 import json
 import os
+import smtplib
 from pathlib import Path
 
 import pytest
@@ -18,7 +20,10 @@ from bernese_workflow.notify import (
     ConfigError,
     Mail,
     Notifier,
+    PartialDelivery,
     load_config,
+    main,
+    smtp_sender,
     tally,
 )
 from bernese_workflow.run_queue import PREFLIGHT, START, STOP, Queue, make_request
@@ -33,6 +38,7 @@ class Rig:
     def __init__(self, tmp: Path) -> None:
         self.queue = Queue(tmp / "worker").ensure()
         self.savedisk = tmp / "SAVEDISK"
+        self.savedisk.mkdir()
         self.now = T0
         self.sent: list[Mail] = []
         self.fail = False
@@ -286,6 +292,91 @@ def test_a_direct_run_that_died_is_reported(rig: Rig) -> None:
     assert "direct run died" in rig.sent[1].subject
 
 
+def test_a_direct_run_that_hangs_is_reported_once_as_stuck(rig: Rig) -> None:
+    ledger = rig.ledger()
+    os.utime(ledger.path, (rig.now.timestamp(), rig.now.timestamp()))
+    rig.run()
+    rig.sent.clear()
+    rig.now += dt.timedelta(minutes=121)
+    rig.run()
+    rig.run()
+    stuck = [m for m in rig.sent if "stuck" in m.subject]
+    assert len(stuck) == 1
+    assert stuck[0].to == (BOSS,)
+
+
+def test_a_direct_run_older_than_the_baseline_is_history_when_it_appears(tmp_path: Path) -> None:
+    """SAVEDISK wasn't there at the first pass: its old runs mustn't all be mailed later."""
+    r = Rig(tmp_path)
+    r.now = dt.datetime.now(dt.UTC) + dt.timedelta(days=1)
+    r.run()
+    r.ledger()
+    r.run()
+    r.run()
+    assert r.sent == []
+
+
+def test_a_missing_savedisk_is_reported_not_read_as_no_runs(tmp_path: Path) -> None:
+    r = Rig(tmp_path)
+    r.savedisk.rmdir()
+    assert r.run() == 1
+    status = json.loads((r.queue.root / "notify/status.json").read_text())
+    assert "SAVEDISK" in status["errors"][0]
+
+
+def test_a_partial_delivery_is_reported_and_not_sent_again(rig: Rig) -> None:
+    rig.finish(rig.request(), "ok")
+    attempts = []
+
+    def refuse(m: Mail) -> None:
+        attempts.append(m)
+        raise PartialDelivery("refused: ab@example.org")
+
+    rig._send = refuse  # type: ignore[method-assign]
+    assert rig.run() == 1
+    status = json.loads((rig.queue.root / "notify/status.json").read_text())
+    assert "refused" in status["errors"][0]
+    assert rig.run() == 0
+    assert len(attempts) == 1
+
+
+def test_a_pass_already_running_means_this_one_does_nothing(rig: Rig) -> None:
+    rig.finish(rig.request(), "ok")
+    with open(rig.queue.root / "notify/lock", "a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        assert rig.run() == 0
+        assert rig.sent == []
+    rig.run()
+    assert len(rig.sent) == 1
+
+
+def test_a_worker_down_message_is_saved_before_anything_later_can_fail(rig: Rig) -> None:
+    rig.alive = False
+    rig.run()
+    rig.now += dt.timedelta(minutes=11)
+    rig.ledger()  # a direct run, so _direct has a message to send after _worker's
+
+    def fail_on_direct(m: Mail) -> None:
+        if "direct" in m.subject:
+            raise SystemExit("killed mid-pass")
+        rig.sent.append(m)
+
+    rig._send = fail_on_direct  # type: ignore[method-assign]
+    with pytest.raises(SystemExit):
+        rig.run()
+    state = json.loads((rig.queue.root / "notify/state.json").read_text())
+    assert state["worker"]["sent"] is True
+
+
+def test_worker_down_mail_survives_a_queue_file_that_is_not_a_request(rig: Rig) -> None:
+    (rig.queue.queue / "junk.json").write_text("[]")
+    rig.alive = False
+    rig.run()
+    rig.now += dt.timedelta(minutes=11)
+    rig.run()
+    assert rig.subjects() == ["[BSW] The run worker is down"]
+
+
 def test_a_queued_run_is_not_also_reported_as_direct(rig: Rig) -> None:
     req = rig.request()
     rig.activate(req)
@@ -311,6 +402,16 @@ def test_tally_uses_each_days_latest_attempt(tmp_path: Path) -> None:
     entries = [json.loads(line) for line in (tmp_path / "ledger.jsonl").read_text().splitlines()]
     t = tally(entries, run)
     assert (t.ok, len(t.failed), t.left) == (1, 0, 1)
+
+
+def test_tally_does_not_count_banked_days_as_still_to_do(tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "ledger.jsonl")
+    run = ledger.run_start(campaign="X", year=2026, doys=[1, 2, 3], banked=[1, 2])
+    ledger.attempt_end(doy=3, session="0030", outcome="ok", seconds=1)
+    entries = [json.loads(line) for line in (tmp_path / "ledger.jsonl").read_text().splitlines()]
+    t = tally(entries, run)
+    assert t.left == 0
+    assert "2 already solved" in t.line()
 
 
 # --- configuration ----------------------------------------------------------------
@@ -349,3 +450,83 @@ def test_config_refuses_a_bad_address_without_quoting_secrets(tmp_path: Path) ->
     with pytest.raises(ConfigError) as exc:
         load_config(path)
     assert "secret" not in str(exc.value)
+
+
+# --- the real send function, against a fake server ---------------------------------
+
+
+class FakeSMTP:
+    refused: dict = {}
+    sent: list = []
+
+    def __init__(self, *_a: object, **_k: object) -> None:
+        pass
+
+    def __enter__(self) -> FakeSMTP:
+        return self
+
+    def __exit__(self, *_a: object) -> None:
+        pass
+
+    def login(self, *_a: object) -> None:
+        pass
+
+    def send_message(self, msg: object) -> dict:
+        FakeSMTP.sent.append(msg)
+        return FakeSMTP.refused
+
+
+MAIL = {
+    "MAIL_URL": "smtps://smtp.example.org:465",
+    "MAIL_FROM": "BSW <a@example.org>",
+    "MAIL_USER": "a@example.org",
+    "MAIL_PASS": "secret",
+}
+
+
+@pytest.fixture
+def fake_smtp(monkeypatch: pytest.MonkeyPatch) -> type[FakeSMTP]:
+    monkeypatch.setattr(smtplib, "SMTP_SSL", FakeSMTP)
+    monkeypatch.setattr(FakeSMTP, "refused", {})
+    monkeypatch.setattr(FakeSMTP, "sent", [])
+    return FakeSMTP
+
+
+def test_a_message_carries_a_date_and_a_message_id(fake_smtp: type[FakeSMTP]) -> None:
+    smtp_sender(MAIL)(Mail((BOSS,), "s", "b\n"))
+    msg = fake_smtp.sent[0]
+    assert msg["Date"]
+    assert msg["Message-ID"].endswith("@example.org>")
+
+
+def test_a_recipient_refused_beside_an_accepted_one_is_not_silent(
+    fake_smtp: type[FakeSMTP], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(fake_smtp, "refused", {AB: (550, b"no such user")})
+    with pytest.raises(PartialDelivery, match=AB):
+        smtp_sender(MAIL)(Mail((BOSS, AB), "s", "b\n"))
+
+
+# --- --dry-run ----------------------------------------------------------------------
+
+
+def test_dry_run_says_when_it_has_nothing_to_show_and_records_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("S", str(tmp_path))
+    state_dir = tmp_path / "worker"
+    damaged = state_dir / "notify/state.json"
+    damaged.parent.mkdir(parents=True)
+    damaged.write_text("{not json")
+    config = str(_write_config(tmp_path))
+    assert main(["--config", config, "--state", str(state_dir), "--dry-run"]) == 0
+    assert "first pass" in capsys.readouterr().out
+    assert damaged.read_text() == "{not json"
+    assert not (state_dir / "notify/status.json").exists()
+
+
+def test_config_refuses_a_limit_that_isnt_a_number(tmp_path: Path) -> None:
+    path = _write_config(tmp_path)
+    path.write_text('stall_minutes = "soon"\n' + path.read_text())
+    with pytest.raises(ConfigError, match="must be numbers"):
+        load_config(path)

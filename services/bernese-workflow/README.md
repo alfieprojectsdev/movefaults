@@ -97,7 +97,7 @@ chmod 600 ~/.config/bernese-workflow/notify.toml
 
 ~/repos/mf_run/.venv/bin/bernese-notify --test      # one message, to the maintainer
 ~/repos/mf_run/.venv/bin/bernese-notify --test AB   # and to that operator
-~/repos/mf_run/.venv/bin/bernese-notify --dry-run   # what it would send; sends nothing
+~/repos/mf_run/.venv/bin/bernese-notify --dry-run   # what it would send; sends and records nothing
 ```
 
 Then add this one line with `crontab -e`:
@@ -106,7 +106,8 @@ Then add this one line with `crontab -e`:
 */5 * * * * $HOME/repos/mf_run/.venv/bin/bernese-notify >> $HOME/bernese_notify.log 2>&1
 ```
 
-The first pass only records what already exists, so it doesn't mail the history. An
+The first pass only records what already exists, so it doesn't mail the history, and
+a `--dry-run` before it has nothing to show and says so. An
 operator with no address in the file is named in the message, and only the maintainer
 gets it. Addresses stay in that file, not in this public repository. To send from a
 different account, point `mail_conf` at another file with the same five `MAIL_` keys.
@@ -124,7 +125,8 @@ Five command-line entry points (root `pyproject.toml`), then the library below t
 - `bernese-check-stations` checks the station files the way Bernese reads them
   (read-only);
 - `bernese-check-equipment` compares the `.STA` equipment with field-ops records
-  (read-only, advisory).
+  (read-only, advisory);
+- `bernese-notify` emails the person who started a run (above).
 
 ```python
 from pathlib import Path
