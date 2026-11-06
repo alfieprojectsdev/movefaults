@@ -83,8 +83,8 @@ the cheap checks on stage 1 for now.
 | # | Task | Why now | Who | Status, 2026-11-06 |
 |---|---|---|---|---|
 | 1 | **Put a second person through a real run on the console**, and have the team review the console's work instruction (`docs/bsw_console_work_instruction.md`, not the 5.2 one this document's stages come from) and answer its section 9 questions | Stage 2 has one operator, and that instruction is unreviewed | Maintainer and the team | Not started |
-| 2 | **Explain the PHREF 2025 differences and measure whether any velocity moved** | Stage 2's named next step (below) | Maintainer | In progress |
-| 3 | **Measure the I14/I20 join on our stations** | gps3 and 5.2 results can't be compared directly until this exists, and it decides what the agreement figures in `docs/SETTLED.md` §2 mean | Maintainer | In progress |
+| 2 | **Explain the PHREF 2025 differences and measure whether any velocity moved** | Stage 2's named next step (below) | Maintainer | Done on three days: the binaries replaced on 2026-09-02, and one-year rates barely moved. Patches versus compiler isn't separated (`docs/phref_2025_reprocess_attribution_results.md`) |
+| 3 | **Measure the I14/I20 join on our stations** | gps3 and 5.2 results can't be compared directly until this exists, and it decides what the agreement figures in `docs/SETTLED.md` §2 mean | Maintainer | Partly: the antenna offsets are known and correlate with the Up residuals, with no controlled test. How to handle the join is the team's decision (same document) |
 | 4 | **Check why field-ops holds zero logsheets** while a handset shows three as `synced` (`docs/SETTLED.md` §6) | The digital logsheet is what unlocks stage 1, and this may mean it's silently losing data | Maintainer | In progress: the count needs a login |
 | 5 | **Snapshot the continuous `offsets` catalog** | Only the campaign catalog is captured, and ALBU, a continuous site, had a live defect | Maintainer | Not started |
 | 6 | **Detect outliers on residuals from the fit** | The trend can hide real outliers today | Maintainer | Not started |
