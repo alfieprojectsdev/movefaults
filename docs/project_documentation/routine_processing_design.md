@@ -24,8 +24,8 @@ with `automation_stages.md`, whose gaps this treats as dependencies, and
    acceptance. That's the case for reopening, and the conditions are in
    section 6.
 4. **Velocities are already computed in the console, but not published from it.**
-   Publishing from it waits on two open team decisions, not on more code
-   (section 5).
+   Publishing from it waits on two open team decisions and one parallel
+   comparison with the MATLAB, not on more velocity code (section 5).
 
 ## A correction: the MATLAB
 
@@ -105,12 +105,16 @@ writes a status file the console and the notifier read.
 after the week ends) and the late-data wait has passed. Weekly matches how both
 teams already look at results. On current arrival times the late-data wait is
 by far the longer of the two (D1, measured below). Our weeklies include Sunday, and the 5.2 team's
-2025 weeklies don't (each of the 53 stacks lists 6 inputs; found in the PHPAR pilot),
-so the two must be stacked on the same days when compared.
+2025 weeklies don't: each stack's output lists its input days by name, and in
+all 52 full weeks the one day missing is the Sunday (the 53rd, GPS week 2347,
+holds only DOY 1–4 of 2025 and omits nothing). Found in the PHPAR pilot. So the
+two must be stacked on the same days when compared.
 
 **Why this is allowed under §3:** it doesn't run Bernese and doesn't change a
 result. Its failure mode is a proposal that is wrong or missing, which is
-visible to the person who would press Start.
+visible to the person who would press Start. §3's cron exemption names only run
+status and product fetching, so building this job means adding it to that list,
+with this argument, in the same change.
 
 ## 3. Phase B: accept results before they are used
 
@@ -122,7 +126,7 @@ yet accepted are shown, marked, never silently mixed in.
 
 | Check | Why | Source |
 |---|---|---|
-| Stations solved against stations staged, by name | a station Bernese dropped shows here, not weeks later in a plot | ledger `stations`, FIN SINEX |
+| Stations solved against stations staged, by name | a station Bernese dropped shows here, not weeks later in a plot | FIN SINEX `SITE/ID` against the staged RINEX (the ledger's `stations` is only a count) |
 | Fiducials passing the datum check, and the datum RMS | a datum resting on 2 stations is a different solution | BPE output |
 | Station-set fingerprint, and whether it changed from the previous day | a set change makes a step with no physical cause (`provenance_record_design.md`) | sorted codes, hashed |
 | Each station's departure from its own recent median | the jumps found in the 5.2 solutions (D14) would show here on day one | `coord_repeatability.py` logic |
@@ -161,7 +165,8 @@ the automatic cycle until a person restarts it.
 
 ## 5. Stage 3: from accepted coordinates to velocities
 
-**Recomputed on acceptance.** When a week is accepted, the console recomputes
+**Recomputed on acceptance.** When a week's days have all been accepted or
+rejected (acceptance is per day, section 3), the console recomputes
 each station's series and velocity from accepted days only. This is the existing
 Time series code reading a narrower set of files, plus a record of which
 accepted set produced which numbers.
@@ -185,7 +190,8 @@ outlier mode and the code commit. Without those, a published number can't be
 reproduced, which is what happened with `Velocity_rover(regress)_10`
 (`provenance_record_design.md`).
 
-**What blocks publishing from gps3**, all decisions rather than code:
+**What blocks publishing from gps3**, two decisions and one comparison, none of
+them new code:
 
 1. **Outliers in the published fit** (`SETTLED.md` §6). The console records
    decisions but can't publish a velocity until the team decides whether
@@ -233,7 +239,7 @@ Read from the file server's `DATAPOOL\PHIVOLCS\2026` folder over SMB on
 | 181–240 | 54.5 (range 25–79) |
 | 241–270 | 15 |
 | 271–285 | 6 |
-| 286–296 | 3 (DGOS, MAR2, MASM, VNHS) |
+| 286–296 | 3 (four stations in all: DGOS, MAR2, MASM, VNHS) |
 
 The last day with 50 or more stations is DOY 214 (2 August). Files are written
 in batches: of those for the last 60 days on file, 183 were written on 30
@@ -244,7 +250,10 @@ IGS stations' RINEX 3 files are in a separate folder (3,552 for 2026, not
 analysed here).
 
 **What this means for the design.** Products arrive about 7 days after a day.
-Most stations' RINEX arrives about three months after it. So a weekly schedule
+Most stations' RINEX arrives about three months after it: the last full-strength
+day was about 97 days before the count. The 33-day median above is lower
+because it counts only files that had arrived, so it leaves out the stations
+still missing. So a weekly schedule
 would mostly report that days aren't ready yet. Processing earlier, on whatever
 is in, would solve each day thin and again later at full strength. That makes
 two solutions per day, and the time series would show a station-set step
@@ -266,7 +275,8 @@ That changes the order of work:
 
 ## 7. Order of work
 
-Nothing below needs the BPE, so it can proceed while PHPAR and PHSUP run.
+Only item 5 needs the BPE (it is a real run), so the rest can proceed while
+PHPAR and PHSUP run.
 
 1. **Ask the team how files reach the file server** (D1): who converts them, how
    often, and where the VADASE sites' FTP channel delivers its files, in what

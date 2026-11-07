@@ -90,7 +90,7 @@ the cheap checks on stage 1 for now.
 | 6 | **Detect outliers on residuals from the fit** | The trend can hide real outliers today | Maintainer | Not started |
 | 7 | **Build offset detection, and show its candidates in the console** for an analyst to confirm or reject | The domain owner's top unbuilt request, and it fits decision support. No detector exists yet, so most of this task is that new machinery (stage 3 below) | Maintainer | Not started |
 | 8 | **Run the cheap stage 1 checks**: are the `.exe`s builds of the Python we hold, what are `splname.exe` and `compress.exe`, and does `runpkr00` work on a real Trimble `.T0x` | They close a succession risk and may change the stage 1 plan | Maintainer, with files from the team | Not started |
-| 9 | **Fetch new products nightly, and report CONFIG and REF files that differ from AIUB's** (`bernese-update-products`) | Products were fetched only by hand, and gps3's tables had fallen up to two years behind without anyone being told | Maintainer | Built; runs once its cron line is added |
+| 9 | **Fetch new products nightly, and report CONFIG and REF files that differ from AIUB's** (`bernese-update-products`) | Products were fetched only by hand, and gps3's tables had fallen up to two years behind without anyone being told | Maintainer | Built; on gps3's crontab at 02:20 (checked 2026-11-07) |
 
 **Order:** 2 and 3 come before 7, because a detector run over reprocessed series
 can't tell an artefact from an earthquake. 1 can run alongside them, and 4 to 6 fit
