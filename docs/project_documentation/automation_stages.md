@@ -318,7 +318,11 @@ what it was actually doing.**
   one-parameter change to a script rather than a reprocessing decision.
 - **Outlier flagging is still browser-based point selection** by an analyst.
   The automatic IQR detection exists but the MATLAB never fed it to the fit,
-  which is *why* the manual step exists.
+  which is *why* the manual step exists. Since 2026-11-05 the BSW console
+  records these decisions from its Time series plot, with the person's name
+  (`outlier_review_design.md`); they change only a fit marked as not published,
+  because whether confirmed outliers leave the published fit is still open
+  (`docs/SETTLED.md` §6).
 - **`offsets` is hand-maintained**, unsorted, and has already caused real
   damage. See the delta document.
 - **20 versions of `vel_line*.m` are snapshotted.** Only `v8_..._v4` is in
