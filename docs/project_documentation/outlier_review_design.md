@@ -1,6 +1,10 @@
 # Outlier review in the BSW console
 
-**Status: proposal, 2026-11-05. Nothing here is built.** It designs the step
+**Status: proposal, 2026-11-05; the review view and the decision record were
+built the same day** (`6405d2a`, `c076a61`: `bsw_console/outliers.py` and the
+Time series page's plot). The rest of this document has not been re-checked
+against the code since, so read "what exists today" below as of the proposal.
+It designs the step
 `docs/bernese_orchestration_explainer.md` calls "manual outlier removal stays
 human": a person looks at each station's time series, confirms or overrides the
 automatic outlier flags, and the decision is recorded with their name, *not* by
