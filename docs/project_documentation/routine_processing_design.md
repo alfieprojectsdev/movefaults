@@ -99,15 +99,19 @@ writes a status file the console and the notifier read.
    button that submits the existing `start` request. Nothing is queued without a
    person.
 6. **Tell someone** through `bernese-notify`: days ready, days blocked and why.
-   A day blocked for a week is a message, not a silent gap.
+   A day blocked for a week is a message, not a silent gap. A person can close
+   a blocked day as not run, with a reason (say, a reference station's RINEX
+   that won't arrive). It's recorded like a rejection, so its week can still be
+   recomputed (section 5).
 
 **Cadence.** Weekly, by GPS week, once its final products are in (about 7 days
 after the week ends) and the late-data wait has passed. Weekly matches how both
 teams already look at results. On current arrival times the late-data wait is
 by far the longer of the two (D1, measured below). Our weeklies include Sunday, and the 5.2 team's
 2025 weeklies don't: each stack's output lists its input days by name, and in
-all 52 full weeks the one day missing is the Sunday (the 53rd, GPS week 2347,
-holds only DOY 1–4 of 2025 and omits nothing). Found in the PHPAR pilot. So the
+all 52 full weeks, GPS weeks 2348–2399, the one day missing is the Sunday
+(2399 runs to 3 January 2026; week 2347 holds only DOY 1–4 of 2025 and omits
+nothing). Found in the PHPAR pilot. So the
 two must be stacked on the same days when compared.
 
 **Why this is allowed under §3:** it doesn't run Bernese and doesn't change a
@@ -134,10 +138,12 @@ yet accepted are shown, marked, never silently mixed in.
 | Header mismatches the run continued past | they were allowed, so they must be visible | the run's log |
 
 **Accepting** is one click with a name, as outlier decisions are already
-recorded: an append-only line naming the day, the files' sha256 and who accepted
-it. Rejecting needs a reason and offers Redo. A reprocessed day loses its
-acceptance, because the sha256 no longer matches, the same rule
-`outliers.py` uses for decisions made on a superseded solution.
+recorded: an append-only line naming the day, the ledger's run ID, the files'
+sha256 and who accepted it. Rejecting needs a reason and offers Redo. A
+reprocessed day loses its acceptance when either no longer matches: the sha256
+(the same rule `outliers.py` uses for decisions made on a superseded solution),
+or the run ID, so a Redo that fails before overwriting the files doesn't keep
+the old acceptance.
 
 **The aim is under a minute for a normal day**, not yet measured. The report
 highlights only what is outside its thresholds. Like outlier review, this is decision support: the
@@ -165,8 +171,8 @@ the automatic cycle until a person restarts it.
 
 ## 5. Stage 3: from accepted coordinates to velocities
 
-**Recomputed on acceptance.** When a week's days have all been accepted or
-rejected (acceptance is per day, section 3), the console recomputes
+**Recomputed on acceptance.** When a week's days have all been accepted,
+rejected, or closed as not run (acceptance is per day, section 3), the console recomputes
 each station's series and velocity from accepted days only. This is the existing
 Time series code reading a narrower set of files, plus a record of which
 accepted set produced which numbers.
@@ -213,7 +219,7 @@ PHPAR 2025 work. The column on the right says which phase it blocks.
 | D1 | **How new RINEX reaches the file server, and how late.** Stage 1 is manual on Windows (`automation_stages.md` stage 1), so arrival depends on people. Measured below | **about three months behind**, in batches | A, and it sets the cadence |
 | D2 | **Bringing it to gps3.** `transfer_phivolcs_datapool.py` copies the whole share once; there's no incremental mode | not built | A |
 | D3 | **Which campaign runs routinely.** LUZON runs in production; PHREF is the 35-station reference; the national network (PHNAT, 102 stations) is undiagnosed (`SETTLED.md` §6). PHPAR and PHSUP, now running, will show what a 90–100 station national run looks like on 5.4 | decision needed | A |
-| D4 | **The header check against Bernese's own settings.** It found 466 receiver or antenna mismatches in 2025's solved station-days; RXOBV3 is set to warn, not drop, on these, so the check's message that they "will be silently dropped" is wrong for these panels. It reads the station name from `MARKER NUMBER` where RXOBV3 uses the file name (`STANAM FILE_NAME`), so MNAY's files, whose marker number says `MNA2`, are reported missing when Bernese finds them. A routine run needs the check to agree with the panels it guards. `--allow-header-mismatches` (in review, `feat/parity-2025`) is the stopgap | partly fixed | A |
+| D4 | **The header check against Bernese's own settings.** It found 466 receiver or antenna mismatches in 2025's solved station-days; RXOBV3 is set to warn, not drop, on these, so the check's message that they "will be silently dropped" is wrong for these panels. It reads the station name from `MARKER NUMBER` where RXOBV3 uses the file name (`STANAM FILE_NAME`), so MNAY's files, whose marker number says `MNA2`, are reported missing when Bernese finds them. A routine run needs the check to agree with the panels it guards. `--allow-header-mismatches` (in the parity pull request, branch `feat/parity-2025`, not yet opened) is the stopgap | partly fixed | A |
 | D5 | **Loading for new stations.** BLQ still needs the Onsala email round-trip; 5.4 stops on a station without it, which is the right failure but a slow one | manual | A |
 | D6 | **Generalised staging and PCF derivation.** `derive_luzon_pcf.py` hardcodes LUZON; staging is one script per network | not built | A |
 | D7 | **Current CONFIG and REF files.** 5 of 11 differ from AIUB's, and `SAT_2026.CRX` (satellite problems, 2026-06-23 here, 2026-11-06 at AIUB) matters most for new days: a satellite problem it doesn't list goes into the solution unflagged. Updating changes solved days, so it needs a boundary and a record (`SETTLED.md` §6) | decision needed | A for new days |
@@ -271,7 +277,7 @@ That changes the order of work:
   send files over a separate FTP channel. Where those files land, in what format
   and how soon after the day hasn't been checked, and it's the first lead.
 - Phase A is still worth building. It turns "has anyone uploaded March yet?"
-  into a status the console shows, and runs a day as soon as it is complete.
+  into a status the console shows, and proposes a day as soon as it is complete.
 
 ## 7. Order of work
 
@@ -308,3 +314,113 @@ PHPAR and PHSUP run.
 | Outliers in the published fit (D11) | team | publishing |
 | How to join I14 and I20 series (D12) | team | publishing |
 | Whether to reopen `SETTLED.md` §3 (Phase C) | maintainer | Phase C, with the evidence in section 4 |
+
+## 9. How GSI runs GEONET: what is published, and what isn't
+
+Added 2026-11-08 for context. GEONET is the closest working example of what this
+design is aiming at: about 1,300 stations, Bernese, solved every day for 30 years.
+`geonet_bernese_strategy_research.md` and `geo006_network_architecture.md` cover
+GSI's *strategy* (models, frames, clusters). This section covers how the
+processing is *run*, and who builds the systems.
+
+### The published record is thin on operations
+
+GSI publishes its analysis strategy in detail and its operations hardly at all.
+None of the documents below describes the scheduler, the checks a solution
+passes before it's published, who looks at it, or what happens when a run fails.
+What they do say:
+
+- **Automation is Perl scripts around Bernese**, rebuilt when GSI moved to
+  Bernese 5.0 "for maintainability and readability" (中川ほか 2009, §2.2). Ours
+  is the same arrangement (`sessions_pcs.pl` → `startBPE.pm`).
+- **Three schedules, with a trade-off written down.** Final (24 h, IGS final
+  orbits), rapid (24 h, daily) and quick (6 h of data, every 3 h). With version
+  4, GSI moved the rapid solution from ultra-rapid to rapid orbits. That made it
+  about a day later, and they covered the gap with a moving average of eight
+  quick solutions (中川ほか 2009, §2.8). That's the kind of decision Phase A's
+  tiers will need, recorded with its reason.
+- **The final solution is published once a week.** F5.1, from 2026-04-01 the
+  standard, is published "週に1回のペース" (about once a week), like F5
+  (大野ほか FY2025, §3.1). This supports stage 3's weekly recompute (section 5).
+- **Offsets from maintenance are recomputed for the whole archive when the
+  strategy changes.** GSI did more than 1,000 antenna changes in 2012 alone, and
+  recomputed every offset for F5.1 (大野ほか FY2025, §3.2). Our offsets catalogue
+  will need the same when the series moves from I14 to I20 (D12).
+- **Quality checking automated solutions was still open in 2020.** GSI's
+  three-year prototype for a 2-hour nationwide solution (PPP-AR, RTKLIB with
+  MADOCA, not Bernese) lists "how to quality-check the correction data and the
+  coordinate series" (補正情報等や座標時系列の品質チェックの方法の検討) as
+  remaining work before handover "from the research division to operations"
+  (中川 FY2017–19, slide 17). For Phase B this means that GSI hasn't published
+  acceptance as a solved problem, so it has to be designed here.
+- **They excluded stations by cause before measuring precision:** 136 of 1,306
+  stations, for equipment faults (63), poor sky view or trees (74) and radio
+  interference (4), overlapping (中川 FY2017–19, slides 14 and 23). Those categories
+  are a starting point for the day report's reason codes.
+- **Throughput collapsed when jobs overlapped.** The prototype normally finished
+  in about 2.5 hours. When format conversion or reanalysis ran at the same time,
+  it took 3 to 10 hours, because of concentrated disk reads and writes (中川
+  FY2017–19, slide 29). On gps3, that argues for running Phase A's transfer outside a
+  BPE run, not only keeping to one BPE at a time.
+- **A bad reference station shows up as motion everywhere.** In the real-time
+  system (REGARD), an error at a fixed station "spreads to all stations as
+  apparent motion" (固定点で…見かけの変動として全点に波及). GSI is moving to
+  PPP to remove that dependency (川元, 第51回報告会, slides 20 and 22). This is the same reason
+  `outlier_review_design.md` stores the reference with each decision.
+- **REGARD is automatic by design, and it's a different system.** It detects
+  the earthquake, computes the displacements, estimates a fault model within
+  3 minutes and emails the result to designated recipients. It was duplicated
+  for redundancy in 2013 (佐藤ほか 2015). It's the analogue of VADASE here, not
+  of the daily processing, and its automation doesn't argue for unattended daily
+  runs.
+
+### Who builds it: two regular contractors, by competitive tender
+
+GSI's own bid records (入札調書) for 2025 and 2026 show its analysis equipment
+and system work being bought by general competitive tender. They go mostly to
+two firms, which bid against each other:
+
+| Opened | Procurement (GSI's title) | Awarded to | Yen, before 10% tax |
+|---|---|---|---|
+| 2025-08-07 | データ品質監視環境の構築（ＧＥＯＮＥＴ再解析装置の更新）, renewal of the GEONET reanalysis equipment | Mitsubishi Electric Software | 34,300,000 |
+| 2025-08-07 | 位置情報インフラの強靭化（精密暦解析装置の更新）, renewal of the precise-orbit analysis equipment | Mitsubishi Electric Software | 19,700,000 |
+| 2025-09-25 | 災害時解析システムの調査・改修業務（機器更新）, survey and modification of the disaster-time analysis system | Kanadevia | 23,600,000 |
+| 2025-09-25 | 電子基準点データ提供管理装置の更新業務, renewal of the data-provision equipment | Mitsubishi Electric Software | 19,800,000 |
+| 2026-05-13 | 地殻情報管理・解析装置の更新（機器調達）, renewal of the crustal-information management and analysis equipment | Kanadevia | 12,900,000 |
+| 2026-06-03 | 電子基準点網の耐災害性強化（精密暦解析装置の購入）, purchase of precise-orbit analysis equipment | Kanadevia | 18,000,000 |
+| 2026-09-08 | 電子基準点網の耐災害性強化（精密暦解析装置の高度化）, upgrade of the precise-orbit analysis equipment | Mitsubishi Electric Software | 5,850,000 |
+
+In five of the seven, the other firm also bid. On 2026-05-13 Kanadevia was the
+only bidder, and on 2026-06-03 the other bidder was a third firm (株式会社ホサカ).
+Kanadevia is Hitachi Zosen (日立造船) under its name since October 2024.
+Hitachi Zosen also won the 2024 renewal of the GEONET analysis equipment for the
+seven-satellite QZSS constellation (みちびき７機体制への対応（ＧＥＯＮＥＴ解析装置の更新）),
+for 21,340,000 yen. That figure comes from a search engine's excerpt of the
+government's award notice, because the notice page refuses automated reading.
+Hitachi Zosen says it built about 1,100 of the roughly 1,300 stations (its own
+2022 seminar slides). Three of its staff are co-authors of the 2015 REGARD
+description, alongside GSI and Tohoku University (佐藤ほか 2015).
+
+So "GSI outsourced the architecture" is half right. The vendors build and
+modify the systems and the stations. The analysis strategy and the research
+prototypes are GSI's, written up by GSI staff. How a solution is checked
+before it's published would be in the tender specifications (仕様書), which go
+to bidders and aren't on the results pages. Asking GSI for one, for example the
+2025 reanalysis-equipment specification, is the only lead found to the
+operations GEONET doesn't publish.
+
+### Not read
+
+Takamatsu et al. (2023), the F5 paper, is still unread past its abstract. The
+publisher's site redirects automated readers to a login, as it did in August.
+A copy opened in a browser would answer whether it describes operations.
+
+### Sources
+
+- 中川弘之ほか (2009), GPS 連続観測システム（GEONET）の新しい解析戦略（第４版）によるルーチン解析システムの構築について, *国土地理院時報* 118, 1–8. <https://www.gsi.go.jp/common/000054716.pdf>
+- 中川弘之 (FY2017–2019), 迅速・高精度なGNSS定常解析システムの構築に関する研究 (special research, FY2017–2019, final report slides). <https://www.gsi.go.jp/common/000223870.pdf>
+- 大野圭太郎ほか (FY2025), GEONET の次世代化（第 7 年次）, GSI research report, 68–73. <https://www.gsi.go.jp/common/000279496.pdf>
+- 川元智司, GNSS連続観測システム（GEONET）の解析手法とその発展, 第51回国土地理院報告会. <https://www.gsi.go.jp/REPORT/HAPPYOU/pdf/51_07.pdf>
+- 佐藤雄大ほか (2015), GEONET リアルタイム解析を用いた地震規模即時推定システム（REGARD）の概要, JpGU 2015, SSS24-P04. <https://www2.jpgu.org/meeting/2015/session/PDF/S-SS24/SSS24-P04.pdf>
+- GSI, 一般競争（政府調達）入札結果情報, FY2025: <https://www.gsi.go.jp/SERVICE/keiyaku/bu_seifutyoutatu2025_R0701.html>; 一般競争入札結果情報, FY2026: <https://www.gsi.go.jp/SERVICE/keiyaku/bu_ipaan2026_R0802.html>. The amounts in the table are from the linked 入札調書 PDFs.
+- 日立造船株式会社 (2022-09-26), GNSS技術による農地整備からスマート農業への展開手法, seminar slides. <https://nn-tsushin.jp/wp/wp-content/uploads/2023/03/nntsushin-seminar-220926-%E4%B8%AD%E5%9B%BD%E5%9B%9B%E5%9B%BD%E4%B9%9D%E5%B7%9E%E6%B2%96%E7%B8%84-%E6%97%A5%E7%AB%8B%E9%80%A0%E8%88%B9.pdf>
