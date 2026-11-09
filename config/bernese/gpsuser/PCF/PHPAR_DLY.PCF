@@ -1,0 +1,209 @@
+#
+# ============================================================================
+# RNX2SNX.PCF
+# ============================================================================
+#
+# Purpose:      
+# RINEX-TO-SINEX (RNX2SNX): standard double difference
+# processing for regional networks for static, dual-frequency
+# stations.
+#
+# The purpose of this BPE is to compute station coordinates
+# and troposphere parameters for all included stations in
+# a given reference frame using the translation conditions
+# from a minimum constraint solution. In addition normal
+# equation files are generated.
+#
+# ----------------------------------------------------------------------------
+#
+# A description of the BPE, the use of the BPE server variables,
+# input and output files as well as the important points to be
+# checked in the processing summary are accessible via
+# Menu > Help > Readme > EXAMPLE BPE
+#
+# ----------------------------------------------------------------------------
+#
+#
+# Author:       R. Dach
+# Created:      10-Aug-2011
+#
+# Changes:      21-Jan-2022 LP: Add V_HOURLY variable
+#
+# ============================================================================
+#
+#
+
+PID  SCRIPT    OPT_DIR   PARAMETERS
+#
+# Skip session (reprocessing)
+# ---------------------------
+000  SKIP_SES  R2S_GEN   CPU=ANY;  NEXTJOB= 999
+#
+# Copy required files
+# -------------------
+001  R2S_COP   R2S_GEN   CPU=ANY; WAIT=000
+002  ATX2PCV   R2S_GEN   CPU=ANY; WAIT=001
+003  COOVEL    R2S_GEN   CPU=ANY; WAIT=001
+004  COOVEL    R2S_GE2   CPU=ANY; WAIT=001
+005  CRDMERGE  R2S_GEN   CPU=ANY; WAIT=003 004
+011  RNX_COP   R2S_GEN   CPU=ANY; WAIT=001;  NEXTJOB= 099 999
+021  CCRNXOAP  R2S_GEN   CPU=ANY; WAIT=011
+022  CCRNXO_P  R2S_GEN   CPU=ANY; WAIT=021;  PARALLEL=021
+031  ION_MRG   R2S_GEN   CPU=ANY; WAIT=011
+099  DUMMY     R2S_GEN   CPU=ANY; WAIT=002 005 022 031
+#
+# Prepare the pole and orbit information
+# --------------------------------------
+101  POLUPD    R2S_GEN   CPU=ANY; WAIT=001
+111  ORBMRG    R2S_GEN   CPU=ANY; WAIT=001
+112  ORBGEN    R2S_GEN   CPU=ANY; WAIT=101 111
+113  SATCLK    R2S_GEN   CPU=ANY; WAIT=111
+199  DUMMY     NO_OPT    CPU=ANY; WAIT=112 113
+#
+# Preprocess, convert, and synchronize observation data
+# -----------------------------------------------------
+201  RNXGRA    R2S_GEN   CPU=ANY; WAIT=099;  NEXTJOB= 901
+211  RNXSMTAP  R2S_GEN   CPU=ANY; WAIT=201
+212  RNXSMT_P  R2S_GEN   CPU=ANY; WAIT=211;  PARALLEL=211
+221  RXOBV3AP  R2S_GEN   CPU=ANY; WAIT=212
+222  RXOBV3_P  R2S_GEN   CPU=ANY; WAIT=221;  PARALLEL=221
+231  CODSPPAP  R2S_GEN   CPU=ANY; WAIT=199 222
+232  CODSPP_P  R2S_GEN   CPU=ANY; WAIT=231;  PARALLEL=231
+233  CODXTR    R2S_GEN   CPU=ANY; WAIT=232;  NEXTJOB= 901
+299  DUMMY     NO_OPT    CPU=ANY; WAIT=233
+#
+# Form baselines and pre-process phase data (incl. residual screening)
+# --------------------------------------------------------------------
+301  INIT_BSL  R2S_GEN   CPU=ANY; WAIT=299
+302  SNGDIF    R2S_GEN   CPU=ANY; WAIT=301
+303  SNGDIF    R2S_GE2   CPU=ANY; WAIT=302
+311  MAUPRPAP  R2S_GEN   CPU=ANY; WAIT=302
+312  MAUPRP_P  R2S_GEN   CPU=ANY; WAIT=311;  PARALLEL=311
+313  MPRXTR    R2S_GEN   CPU=ANY; WAIT=312;  NEXTJOB= 301 901
+321  GPSEDTAP  R2S_EDT   CPU=ANY; WAIT=313;  PARAM2=V_FLT
+322  GPSEDT_P  R2S_EDT   CPU=ANY; WAIT=321;  PARALLEL=321
+323  GPSXTR    R2S_EDT   CPU=ANY; WAIT=322
+331  RES_SUM   R2S_GEN   CPU=ANY; WAIT=322;  NEXTJOB= 301
+341  ADDNEQ2   R2S_GEN   CPU=ANY; WAIT=331
+342  GPSXTR    R2S_GEN   CPU=ANY; WAIT=341
+399  DUMMY     NO_OPT    CPU=ANY; WAIT=303 323 342
+#
+# Resolve phase ambiguities
+# -------------------------
+401  SATMRK    R2S_GEN   CPU=ANY; WAIT=399
+411  GNSAMBAP  R2S_AMB   CPU=ANY; WAIT=401
+412  GNSAMB_P  R2S_AMB   CPU=ANY; WAIT=411;  PARALLEL=411
+421  GNSL53AP  R2S_L53   CPU=ANY; WAIT=412
+422  GNSL53_P  R2S_L53   CPU=ANY; WAIT=421;  PARALLEL=421
+431  GNSQIFAP  R2S_QIF   CPU=ANY; WAIT=422
+432  GNSQIF_P  R2S_QIF   CPU=ANY; WAIT=431;  PARALLEL=431
+441  GNSL12AP  R2S_L12   CPU=ANY; WAIT=432
+442  GNSL12_P  R2S_L12   CPU=ANY; WAIT=441;  PARALLEL=441
+443  AMBXTR    R2S_AMB   CPU=ANY; WAIT=442
+499  DUMMY     NO_OPT    CPU=ANY; WAIT=443
+#
+# Compute ambiguity-fixed network solution, create final NEQ/SNX/TRO files
+# ------------------------------------------------------------------------
+501  GPSCLUAP  R2S_FIN   CPU=ANY; WAIT=499;  PARAM2=V_FIN
+502  GPSCLU_P  R2S_FIN   CPU=ANY; WAIT=501;  PARALLEL=501
+511  ADDNEQ2   R2S_FIN   CPU=ANY; WAIT=502
+512  GPSXTR    R2S_FIN   CPU=ANY; WAIT=511
+513  HELMCHK   R2S_FIN   CPU=ANY; WAIT=511;  NEXTJOB= 511
+514  COMPARF   R2S_FIN   CPU=ANY; WAIT=513
+521  ADDNEQ2   R2S_RED   CPU=ANY; WAIT=513
+522  GPSXTR    R2S_RED   CPU=ANY; WAIT=521
+599  DUMMY     NO_OPT    CPU=ANY; WAIT=512 514 522
+#
+# Create summary file and delete files
+# ------------------------------------
+901  R2S_SUM   R2S_GEN   CPU=ANY; WAIT=599
+902  R2S_SAV   R2S_GEN   CPU=ANY; WAIT=901
+903  OBS_SAV   R2S_GEN   CPU=ANY; WAIT=901
+904  R2S_DEL   R2S_GEN   CPU=ANY; WAIT=902 903;  PARAM1=(10)
+991  BPE_CLN   R2S_GEN   CPU=ANY; WAIT=904
+#
+# End of BPE
+# ----------
+999  DUMMY     NO_OPT    CPU=ANY; WAIT=991
+#
+#
+
+VARIABLE   DEFAULT           PARAMETERS
+# General and model files:
+# -----------------------
+V_MEANPL = IERS2010_v1.2.0;  DESCRIPTION=Mean pole model
+V_SUBMOD = DESAI2016;        DESCRIPTION=Subdaily pole model
+V_NUTMOD = IAU2000R06;       DESCRIPTION=Nutation model
+V_PCV    = I20;              DESCRIPTION=Antenna phase center (PCV) model
+V_PCVINF = ANTENNA;          DESCRIPTION=PCV information file
+V_SATINF = SATELLIT;         DESCRIPTION=Satellite information file
+V_SATCRX = SAT_$Y+0;         DESCRIPTION=Satellite problem file
+V_ORBDIR = ${D}/COD0OPSFIN;  DESCRIPTION=Directory with orbit prodcuts
+V_ORB    = COD0OPSFIN;       DESCRIPTION=Orbit/ERP, CLK, bias information
+V_STOCH_NUMBER = Orbit_midnight;    DESCRIPTION=_Stochastic pulses (Orbit_midnight or Spacing)
+#
+# Reference frame and station related files:
+# -----------------------------------------
+V_REFDIR = ${D}/REF54;       DESCRIPTION=Directory with basic Bernese files
+V_REFINF = IGS20;            DESCRIPTION=Master/reference CRD/VEL filename
+V_REFPSD = IGS20;            DESCRIPTION=PSD corrections (ITRF2014 or higher)
+V_CRDINF = PHPAR;          DESCRIPTION=Merged CRD/VEL filename
+V_STAINF = PHPAR;          DESCRIPTION=_Station information file
+V_CRXINF = ;                 DESCRIPTION=_Accepted station inform.inconsistencies
+V_BLQINF = PHPAR;          DESCRIPTION=_BLQ file name, CMC corrections
+V_ATLINF = PHPAR;                 DESCRIPTION=_ATL file name, CMC corrections
+V_BSWDIR = ${D}/BSW54;       DESCRIPTION=Directory with basic Bernese files
+V_HOIFIL = HOI_$YYYSS+0;     DESCRIPTION=_Ionosphere model for higher order iono
+V_OSBFIL = IAR_$YYYSS+0;     DESCRIPTION=_OSB-file with GNSS satellite biases
+#
+# Data selection:
+# --------------
+V_RNXDIR = ${D}/PHPAR;       DESCRIPTION=Directory with the RINEX files
+V_RNXSEL = ;                 DESCRIPTION=Station selection file (blank: all)
+V_OBSSEL = OBSERV;       DESCRIPTION=Observation selection file
+V_SAMPL  = 180;              DESCRIPTION=Data sampling interval (in seconds)
+#
+V_SATSYS = GPS;              DESCRIPTION=Select the GNSS (max. supported: GRECJ)
+#
+# Ambiguity resolution:
+# --------------------
+V_GNSSAR = ALL;              DESCRIPTION=Select the GNSS for amb. resolu. (GECJ)
+V_BL_AMB = 6000;             DESCRIPTION=Maximum baseline length for MW/L3 AR
+V_BL_QIF = 2000;             DESCRIPTION=Maximum baseline length for QIF AR
+V_BL_L53 = 200;              DESCRIPTION=Maximum baseline length for L5/L3 AR
+V_BL_L12 = 20;               DESCRIPTION=Maximum baseline length for L1&L2 AR
+#
+# Processing flow related variables:
+# ---------------------------------
+V_CLU    = 10;                DESCRIPTION=Maximum number of files per cluster
+V_CLUEDT = 5;                DESCRIPTION=Same as V_CLU but for GPSEDT
+V_CLUFIN = A;                DESCRIPTION=N: skip A: auto clustering in GPSCLU
+#
+V_MINUS  = -6;               DESCRIPTION=Session range begin (for COMPAR)
+V_PLUS   = +0;               DESCRIPTION=Session range end
+#
+V_HOURLY = 8;                DESCRIPTION=Number of hourly sessions proc. together
+V_SKIP   = ${S}/RNX2SNX/$Y+0/OUT/R2S_$YYYSS+0.PRC_;  DESCRIPTION=PRC file: indicator to repeat the sess.
+#
+# Storing the results:
+# -------------------
+V_RESULT = ${S}/PHPAR/$Y+0;  DESCRIPTION=Directory name for the RNX2SNX results
+V_SAV    = Y;                DESCRIPTION=Save results (Y/N)?
+V_SAVOBS = N;                DESCRIPTION=Save observation files (Y/N)?
+V_FIN    = FIN;              DESCRIPTION=_Final (ambiguity-fixed) results
+V_RED    = RED;              DESCRIPTION=_Size-reduced NEQ information
+#
+# Other solution IDs used in the BPE:
+# ----------------------------------
+V_APR    = APR;              DESCRIPTION=A priori information
+V_FLT    = FLT;              DESCRIPTION=Preliminary (ambiguity-float) results
+#
+# Other variables:
+# ---------------
+V_SNXINF = SINEX_RNX2SNX;    DESCRIPTION=SINEX header file
+V_MYATX  = ;                 DESCRIPTION=ANTEX file for update (name incl. ext)
+V_DEL    = N;                DESCRIPTION=Delete result files in the campaign (Y/N)?
+#
+# DO NOT USE V_D, V_J, V_M, V_Y VARIABLES!
+# (they are used already by the menu)
+#
