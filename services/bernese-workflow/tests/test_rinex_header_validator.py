@@ -21,6 +21,7 @@ from bernese_workflow.rinex_header_validator import (
     _parse_sta_type002,
     _resolve_station_code,
     _strip_compression_suffixes,
+    read_stanam,
     validate_rinex_headers,
 )
 
@@ -442,6 +443,51 @@ def test_linux_bpe_run_raises_validation_error_on_mismatch(tmp_path):
 
     assert "BOST" in str(exc_info.value)
     assert exc_info.value.report.mismatches[0].field == "receiver"
+
+
+def _backend_with_mismatch(tmp_path, source, **kwargs):
+    from bernese_workflow.backends import LinuxBPEBackend
+
+    source.mkdir(parents=True)
+    _write_rinex(source, "BOST0100.23o", _rinex2_obs("BOST", "TRIMBLE NETR9", "LEIAR20      NONE"))
+    sta = tmp_path / "TESTCAMP.STA"
+    sta.write_text(
+        _make_sta_content([{"name": "BOST", "receiver": "LEICA GR50", "antenna": "LEIAR20"}]),
+        encoding="ascii",
+    )
+    return LinuxBPEBackend(
+        bernese_root=tmp_path / "BERN54",
+        user_dir=tmp_path / "GPSUSER",
+        campaign_dir=tmp_path / "GPSDATA",
+        rinex_source_dir=source,
+        sta_file=sta,
+        preflight_required=True,
+        **kwargs,
+    )
+
+
+def test_a_header_mismatch_refuses_by_default(tmp_path):
+    backend = _backend_with_mismatch(tmp_path, tmp_path / "DATAPOOL")
+    with pytest.raises(ValidationError):
+        backend._preflight_rinex("TESTCAMP", 2023, "0100")
+
+
+def test_an_allowed_header_mismatch_is_logged_and_does_not_refuse(tmp_path, caplog):
+    backend = _backend_with_mismatch(
+        tmp_path, tmp_path / "DATAPOOL", allow_header_mismatches=True
+    )
+    with caplog.at_level("WARNING", logger="bernese_workflow.backends"):
+        backend._preflight_rinex("TESTCAMP", 2023, "0100")
+    assert "BOST" in caplog.text
+    assert "continuing" in caplog.text
+
+
+def test_allowing_mismatches_still_refuses_a_session_with_no_rinex(tmp_path):
+    backend = _backend_with_mismatch(
+        tmp_path, tmp_path / "DATAPOOL", allow_header_mismatches=True
+    )
+    with pytest.raises(ValidationError):
+        backend._preflight_rinex("TESTCAMP", 2023, "0200")
 
 
 def test_linux_bpe_run_skips_check_when_raw_missing(tmp_path):
@@ -1330,3 +1376,105 @@ def test_both_checks_agree_on_single_instant_rows(tmp_path, one, two, expected):
     assert ("sta_overlap" in kinds) is expected, kinds
     report = validate_rinex_headers(raw_dir, sta, day=dt.date(2025, 4, 15))
     assert any("overlap" in w for w in report.warnings) is expected, report.warnings
+
+
+# --- naming stations the way RXOBV3 will (STANAM) ----------------------------
+
+def _user_dir_with_stanam(tmp_path: Path, stanam: str | None, pcf: str = "PHSUP_DLY") -> Path:
+    """A GPSUSER with a PCF whose RXOBV3 steps run in R2S_GEN, and that panel."""
+    user = tmp_path / "GPSUSER"
+    (user / "PCF").mkdir(parents=True)
+    (user / "PCF" / f"{pcf}.PCF").write_text(
+        "PID SCRIPT   OPT_DIR   PID/SUB\n"
+        "221  RXOBV3AP  R2S_GEN   CPU=ANY; WAIT=212\n"
+        "222  RXOBV3_P  R2S_GEN   CPU=ANY; WAIT=221;  PARALLEL=221\n"
+    )
+    if stanam is not None:
+        (user / "OPT" / "R2S_GEN").mkdir(parents=True)
+        (user / "OPT" / "R2S_GEN" / "RXOBV3.INP").write_text(
+            '  STAINFO 1 "./DUMMY/STA/$(STAINF).STA"\n'
+            f'  STANAM 1 "{stanam}"\n'
+            "  ## widget = combobox\n"
+        )
+    return user
+
+
+def test_read_stanam_follows_the_pcf_to_its_rxobv3_panel(tmp_path):
+    user = _user_dir_with_stanam(tmp_path, "FILE_NAME")
+    assert read_stanam(user, "PHSUP_DLY") == "FILE_NAME"
+    assert read_stanam(user, "PHSUP_DLY.PCF") == "FILE_NAME"
+
+
+def test_read_stanam_is_none_when_it_cannot_be_read(tmp_path):
+    user = _user_dir_with_stanam(tmp_path, None)
+    assert read_stanam(user, "PHSUP_DLY") is None  # no panel
+    assert read_stanam(user, "OTHER") is None  # no PCF
+
+
+def test_file_name_mode_names_the_station_from_the_file(tmp_path):
+    """MNAY 2025 DOY 289: MARKER NUMBER says MNA2, Bernese reads it as MNAY."""
+    src = tmp_path / "RNX"
+    src.mkdir()
+    _write_rinex(src, "MNAY2890.25o", _rinex2_with_markers("MNAY", "MNA2"))
+    assert set(_parse_rinex_headers(src, year=2025, session="2890")) == {"MNA2"}
+    assert set(
+        _parse_rinex_headers(src, year=2025, session="2890", name_from_file=True)
+    ) == {"MNAY"}
+
+
+def test_preflight_names_stations_as_the_pcf_rxobv3_panel_does(tmp_path):
+    """With STANAM FILE_NAME the MNA2 header is not a missing station."""
+    from bernese_workflow.backends import LinuxBPEBackend
+
+    src = tmp_path / "RNX"
+    src.mkdir()
+    _write_rinex(src, "MNAY2890.25o", _rinex2_with_markers("MNAY", "MNA2"))
+    sta = tmp_path / "PHSUP.STA"
+    sta.write_text(
+        _make_sta_content([{"name": "MNAY", "antenna": "LEIAR25.R4"}]), encoding="ascii"
+    )
+
+    def backend(stanam):
+        sub = tmp_path / str(stanam)
+        return LinuxBPEBackend(
+            bernese_root=sub / "BERN54",
+            user_dir=_user_dir_with_stanam(sub, stanam),
+            campaign_dir=sub / "GPSDATA",
+            pcf_file="PHSUP_DLY",
+            rinex_source_dir=src,
+            sta_file=sta,
+            preflight_required=True,
+        )
+
+    backend("FILE_NAME")._preflight_rinex("PHSUP", 2025, "2890")
+    with pytest.raises(ValidationError) as exc_info:
+        backend("MARKER_DOMES")._preflight_rinex("PHSUP", 2025, "2890")
+    assert exc_info.value.report.missing_from_sta == ["MNA2"]
+
+
+def test_receiver_names_match_whatever_their_case(tmp_path):
+    """TNML: headers 'Trimble NetR9', STA 'TRIMBLE NETR9'; it solves every day."""
+    src = tmp_path / "RNX"
+    src.mkdir()
+    _write_rinex(src, "TNML0100.25o", _rinex2_obs("TNML", "Trimble NetR9", "LEIAR20      NONE"))
+    sta = tmp_path / "X.STA"
+    sta.write_text(
+        _make_sta_content([{"name": "TNML", "receiver": "TRIMBLE NETR9", "antenna": "LEIAR20"}]),
+        encoding="ascii",
+    )
+    report = validate_rinex_headers(src, sta, year=2025, session="0100")
+    assert report.ok, report.mismatches
+
+
+def test_antenna_names_still_compare_case_sensitively(tmp_path):
+    """No antenna differs by case alone in 2025, so that stays a mismatch."""
+    src = tmp_path / "RNX"
+    src.mkdir()
+    _write_rinex(src, "TNML0100.25o", _rinex2_obs("TNML", "TRIMBLE NETR9", "Leiar20      NONE"))
+    sta = tmp_path / "X.STA"
+    sta.write_text(
+        _make_sta_content([{"name": "TNML", "receiver": "TRIMBLE NETR9", "antenna": "LEIAR20"}]),
+        encoding="ascii",
+    )
+    report = validate_rinex_headers(src, sta, year=2025, session="0100")
+    assert [m.field for m in report.mismatches] == ["antenna"]

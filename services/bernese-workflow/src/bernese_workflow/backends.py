@@ -315,6 +315,7 @@ class LinuxBPEBackend:
         max_par: int | None = None,
         sta_file: str | Path | None = None,
         preflight_required: bool = False,
+        allow_header_mismatches: bool = False,
     ) -> None:
         self.bernese_root = Path(bernese_root).expanduser()
         self.user_dir = Path(user_dir).expanduser()
@@ -352,6 +353,10 @@ class LinuxBPEBackend:
         # True: a check that cannot run (no source dir, no STA) raises instead of
         # logging a warning and letting the BPE start unchecked.
         self.preflight_required = preflight_required
+        # True: disagreements between the headers and the STA are logged, not
+        # refused. For a run that must process what another run processed. A
+        # session with no RINEX at all is still refused.
+        self.allow_header_mismatches = allow_header_mismatches
 
     def prepare_campaign(
         self,
@@ -457,11 +462,25 @@ class LinuxBPEBackend:
 
         logger.info("Campaign files generated in %s", sta_dir)
 
+    def _stanam(self, read_stanam) -> str | None:
+        """RXOBV3's STANAM for this backend's PCF, read once and warned about once."""
+        if not hasattr(self, "_stanam_value"):
+            self._stanam_value = read_stanam(self.user_dir, self.pcf_file)
+            if self._stanam_value is None:
+                logger.warning(
+                    "cannot read RXOBV3's STANAM for PCF %s under %s; the header "
+                    "check names stations from their headers",
+                    self.pcf_file,
+                    self.user_dir,
+                )
+        return self._stanam_value
+
     def _preflight_rinex(self, campaign_name: str, year: int, session: str) -> None:
         """Validate a session's RINEX headers against the STA; raise ValidationError."""
         from .rinex_header_validator import (
             PreflightUnavailable,
             ValidationError,
+            read_stanam,
             validate_rinex_headers,
         )
 
@@ -521,9 +540,16 @@ class LinuxBPEBackend:
                 # RAW/ is validated unfiltered: an equipment change is otherwise
                 # judged against the latest entry and a correct file refused.
                 day=_session_date(year, session),
+                # Name stations the way this PCF's RXOBV3 will, or a file whose
+                # headers name another station is checked against the wrong one.
+                name_from_file=self._stanam(read_stanam) == "FILE_NAME",
             )
             if not report.ok:
-                raise ValidationError(report, session=session)
+                error = ValidationError(report, session=session)
+                if self.allow_header_mismatches and not report.no_rinex_found:
+                    logger.warning("continuing, header mismatches allowed: %s", error)
+                    return
+                raise error
         elif self.preflight_required:
             raise PreflightUnavailable(
                 f"pre-flight RINEX header check cannot run for {campaign_name}: "
