@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { lineClass, when } from '../lib'
 
 export function Loading({ what }: { what: string }) {
@@ -33,5 +33,50 @@ export function TextViewer({ lines, first = 0, search = '' }: { lines: string[];
         ))}
       </div>
     </div>
+  )
+}
+
+export type Jump = { label: string; onClick: () => void; disabled?: boolean }
+
+/** A row of links that move the page to the part that matters, for any page
+ *  long enough to need scrolling. `children` sit after them (filters, say). */
+export function JumpBar({ jumps, children }: { jumps: Jump[]; children?: ReactNode }) {
+  return (
+    <nav aria-label="Jump to" className="jumpbar">
+      <span className="muted">Jump to</span>
+      {jumps.map((j) => (
+        <button key={j.label} type="button" className="btn2 sm" disabled={j.disabled} onClick={j.onClick}>{j.label}</button>
+      ))}
+      {children}
+    </nav>
+  )
+}
+
+/** Scroll an element into the middle of the view. jsdom has no scrollIntoView. */
+export function scrollToId(id: string): boolean {
+  const el = document.getElementById(id)
+  if (!el) return false
+  el.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+  return true
+}
+
+/** A "Top" button that appears once the page is more than two screens down. */
+export function BackToTop() {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    const on = () => setShow(window.scrollY > 2 * window.innerHeight)
+    on()
+    window.addEventListener('scroll', on, { passive: true })
+    window.addEventListener('resize', on)
+    return () => {
+      window.removeEventListener('scroll', on)
+      window.removeEventListener('resize', on)
+    }
+  }, [])
+  if (!show) return null
+  return (
+    <button type="button" className="btn2 totop" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+      Top
+    </button>
   )
 }

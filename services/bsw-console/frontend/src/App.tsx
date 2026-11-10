@@ -11,6 +11,7 @@ import Redo from './pages/Redo'
 import KnownErrors from './pages/KnownErrors'
 import StationFiles from './pages/StationFiles'
 import TimeSeries from './pages/TimeSeries'
+import { BackToTop } from './pages/common'
 
 const thisYear = new Date().getFullYear()
 
@@ -26,7 +27,7 @@ export function LockPill({ lock }: { lock: Lock | null }) {
   const run = lock.run
   if (lock.held && run) {
     return (
-      <a className="lockpill" href={href.run(run.campaign, run.year, run.run)}>
+      <a className="lockpill" href={href.run(run.campaign, run.year, run.run, 'running')} title="Open this run at the days now running">
         <span aria-hidden="true" className="dot-live" />
         <span>
           BPE lock held · <strong>{run.campaign} {run.year} · DOY {pad3(run.doys[0])}–{pad3(run.doys[1])}</strong> · {run.done} of {run.total} days
@@ -77,7 +78,7 @@ export default function App() {
   switch (route.page) {
     case 'campaigns': page = <Campaigns />; break
     case 'calendar': page = <Calendar campaign={route.campaign} year={route.year} />; break
-    case 'run': page = <Run campaign={route.campaign} year={route.year} run={route.run} />; break
+    case 'run': page = <Run key={`${route.campaign}/${route.year}/${route.run ?? ''}/${route.at ?? ''}`} campaign={route.campaign} year={route.year} run={route.run} at={route.at} />; break
     case 'day': page = <Day campaign={route.campaign} year={route.year} doy={route.doy} />; break
     case 'failure': page = <Failure campaign={route.campaign} year={route.year} doy={route.doy} />; break
     case 'redo': page = <Redo campaign={route.campaign} year={route.year} doy={route.doy} lock={lock.data} />; break
@@ -108,6 +109,7 @@ export default function App() {
         </span>
       </header>
       <main>{page}</main>
+      <BackToTop />
     </>
   )
 }

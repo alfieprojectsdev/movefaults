@@ -68,3 +68,40 @@ export async function post<T>(url: string, body: unknown): Promise<{ ok: boolean
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   return { ok: r.ok, status: r.status, body: (await r.json().catch(() => ({}))) as T }
 }
+
+/** What a run-table row counts as, for the filters and the jump links. */
+export type RowKind = 'running' | 'failed' | 'queued' | 'solved' | 'other'
+
+export function rowKind(outcome: string): RowKind {
+  if (outcome === 'running' || outcome === 'failed' || outcome === 'queued') return outcome
+  if (outcome === 'solved' || outcome === 'already solved') return 'solved'
+  return 'other' // not started, not started (halted)
+}
+
+export type JumpTargets = {
+  running: [number, number] | null // first and last DOY now running
+  failed: number | null
+  queued: number | null
+  solved: number | null
+}
+
+/** Where each jump link goes: the first DOY of each kind, in table order. */
+export function jumpTargets(rows: { doy: number; outcome: string }[]): JumpTargets {
+  const first = (k: RowKind) => rows.find((r) => rowKind(r.outcome) === k)?.doy ?? null
+  const running = rows.filter((r) => rowKind(r.outcome) === 'running').map((r) => r.doy)
+  return {
+    running: running.length ? [Math.min(...running), Math.max(...running)] : null,
+    failed: first('failed'),
+    queued: first('queued'),
+    solved: first('solved'),
+  }
+}
+
+/** The DOY a link's `at=` names: a number, or running / failed / queued. */
+export function resolveAt(at: string | undefined, t: JumpTargets): number | null {
+  if (!at) return null
+  if (/^\d+$/.test(at)) return Number(at)
+  if (at === 'running') return t.running?.[0] ?? null
+  if (at === 'failed' || at === 'queued' || at === 'solved') return t[at]
+  return null
+}
