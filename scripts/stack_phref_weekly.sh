@@ -16,6 +16,14 @@
 #   * TRP_ELIM and GRD_ELIM must both be BEFORE_STACKING to get a
 #     coordinates-only weekly comparable with the production one
 #
+#   * a minimum-constraint datum needs its reference stations named: with
+#     FREESTA FROM_FILE and FREESTA_F blank, no station carries the condition,
+#     the weekly datum floats with the orbits, and the run still succeeds.
+#     PHPAR 2025's weeklies sat a median 35 mm from their own dailies that way;
+#     with IGS20.FIX named, 3.8 mm. STACK_FIX names the file; a template that
+#     needs one and names none that exists (blank, or the BPE's ./DUMMY/
+#     placeholder) is refused below.
+#
 # MAXPAR here is set high deliberately and is NOT the daily value: stacking
 # several days needs several times a single day's parameters. This does not
 # touch $U/OPT/R2S_FIN/ADDNEQ2.INP, which produced the 360 daily solutions.
@@ -24,6 +32,7 @@ YEAR="${STACK_YEAR:-2025}"
 CAMP="${STACK_CAMP:-PHRWK}"
 TEMPLATE="${STACK_TEMPLATE:?set STACK_TEMPLATE to the ADDNEQ2 panel template}"
 OUTDIR="${STACK_OUTDIR:-$HOME/phref-weekly}"
+FIX="${STACK_FIX:-}"   # reference-station .FIX file for the datum condition
 FIRST="${1:-2347}"; LAST="${2:-2399}"
 
 # shellcheck disable=SC1091
@@ -41,6 +50,29 @@ if [ "$n_avail" -eq 0 ]; then
     exit 3
 fi
 echo "  source: $NQ_SRC  ($n_avail daily NEQ)"
+
+# ADDNEQ2 runs from $W, so a relative STACK_FIX would name a different file.
+[ -n "$FIX" ] && FIX=$(realpath -m -- "$FIX")
+
+# Refuse a datum condition with no stations under it before stacking 53 weeks.
+python3 - "$TEMPLATE" "$FIX" <<'PY' || exit 3
+import os, pathlib, re, sys
+tpl, fix = sys.argv[1:]
+s = pathlib.Path(tpl).read_text()
+key = lambda k: (m.group(1) if (m := re.search(rf'^{k} \d+ +"([^"]*)"', s, re.M)) else None)
+if key("RADIO2_3") == "1" and key("FREESTA") == "FROM_FILE":
+    if fix and not pathlib.Path(fix).is_file():
+        sys.exit(f"FATAL: STACK_FIX={fix} does not exist")
+    # A panel copied from a PCF's OPT dir names "./DUMMY/STA/..." until the BPE
+    # fills it in; outside the BPE that file does not exist, which floats the
+    # datum the same way a blank name does.
+    named = key("FREESTA_F")
+    if not fix and not (named and pathlib.Path(os.path.expandvars(named)).is_file()):
+        sys.exit("FATAL: the template sets a minimum-constraint datum from a file but\n"
+                 f"       names no existing file (FREESTA_F={named!r}), so the weekly\n"
+                 "       datum would float; set STACK_FIX, e.g. STACK_FIX=$D/REF54/IGS20.FIX")
+PY
+[ -n "$FIX" ] && echo "  datum stations: $FIX"
 W="$P/$CAMP"
 mkdir -p "$W"/{SOL,OUT,STA} "$OUTDIR"
 
@@ -75,9 +107,9 @@ for i in range(7):
     fi
 
     panel="$W/ADDNEQ2_${wk}.INP"
-    python3 - "$TEMPLATE" "$panel" "$W" "$wk" "${inputs[@]}" <<'PY'
+    python3 - "$TEMPLATE" "$panel" "$W" "$wk" "$FIX" "${inputs[@]}" <<'PY'
 import sys, pathlib, re
-tpl, dst, W, wk, *inp = sys.argv[1:]
+tpl, dst, W, wk, fix, *inp = sys.argv[1:]
 s = pathlib.Path(tpl).read_text()
 blk = "INPFILE %d\n" % len(inp) + "".join('  "%s"\n' % f for f in inp)
 s = re.sub(r'^INPFILE \d+.*\n(?:\s+"[^"]*"\n)*', blk, s, count=1, flags=re.M)
@@ -86,6 +118,8 @@ s = setk(s, "SYSOUT",  f"{W}/OUT/WKG_{wk}.OUT")
 s = setk(s, "NEQOUT",  f"{W}/SOL/WKG_{wk}.NQ0")
 s = setk(s, "SINEXRS", f"{W}/SOL/WKG_{wk}.SNX")
 s = setk(s, "COORDRS", f"{W}/STA/WKG_{wk}.CRD")
+if fix:
+    s = setk(s, "FREESTA_F", fix)
 pathlib.Path(dst).write_text(s)
 PY
 

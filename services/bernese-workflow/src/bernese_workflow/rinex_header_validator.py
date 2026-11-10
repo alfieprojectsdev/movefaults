@@ -382,19 +382,54 @@ def _resolve_station_code(
     return chosen
 
 
+def read_stanam(user_dir: Path, pcf_file: str) -> str | None:
+    """RXOBV3's STANAM setting ("FILE_NAME", "MARKER_DOMES", ...) for this PCF.
+
+    The PCF names the option directory RXOBV3 runs with; its RXOBV3.INP holds
+    STANAM, which decides where Bernese takes each station's name from. None
+    when the PCF, the step or the panel cannot be read: the caller then keeps
+    the header-based guess of ``_resolve_station_code``.
+    """
+    name = pcf_file if pcf_file.upper().endswith(".PCF") else f"{pcf_file}.PCF"
+    try:
+        lines = (Path(user_dir) / "PCF" / name).read_text(errors="replace").splitlines()
+    except OSError:
+        return None
+    opt_dir = next(
+        (t[2] for t in (line.split() for line in lines)
+         if len(t) >= 3 and t[0].isdigit() and t[1].upper().startswith("RXOBV3")),
+        None,
+    )  # fmt: skip
+    if opt_dir is None:
+        return None
+    try:
+        inp = (Path(user_dir) / "OPT" / opt_dir / "RXOBV3.INP").read_text(errors="replace")
+    except OSError:
+        return None
+    for line in inp.splitlines():
+        t = line.split(None, 2)
+        if len(t) == 3 and t[0] == "STANAM" and t[2].startswith('"'):
+            return t[2][1:].split('"', 1)[0]
+    return None
+
+
 def _parse_rinex_headers(
     raw_dir: Path,
     *,
     year: int | None = None,
     session: str | None = None,
+    name_from_file: bool = False,
 ) -> dict[str, dict[str, str]]:
     """Scan RAW/ recursively for RINEX observation files; extract REC/ANT types.
 
     Returns a dict keyed by 4-char station code:
         {"receiver": "<type>", "antenna": "<type>"}
 
-    Station code comes from the MARKER NAME header if present, else the
-    first 4 chars of the filename (upper-cased).
+    The station code is the one Bernese will use. With ``name_from_file``
+    (RXOBV3 set to STANAM FILE_NAME, as production's R2S_GEN is) that is the
+    first 4 characters of the file name, whatever the headers say: MNAY's
+    files for 2025 DOY 289-294 carry MARKER NUMBER MNA2, and Bernese reads them
+    as MNAY. Otherwise it is ``_resolve_station_code``'s pick from the headers.
 
     When both ``year`` and ``session`` are given, only files belonging to that
     session are parsed (per-session validation against a multi-day source dir).
@@ -460,12 +495,14 @@ def _parse_rinex_headers(
             logger.warning("Cannot read %s: %s", p, exc)
             continue
 
-        station_code = _resolve_station_code(
+        from_headers = _resolve_station_code(
             filename_code=station_code,
             marker_name=marker_name,
             marker_number=marker_number,
             source=p.name,
         )
+        if not name_from_file:
+            station_code = from_headers
 
         if rec_type or ant_type:
             result[station_code] = {"receiver": rec_type, "antenna": ant_type}
@@ -737,6 +774,8 @@ def _ant_types_match(hdr_ant: str, sta_ant: str, atx_types: frozenset[str] | Non
     RINEX headers include the radome: "LEIAR20      NONE"
     STA TYPE 002 may store just the model: "LEIAR20"
     Two types match if their first whitespace-delimited token is identical.
+    Case counts here, unlike for receivers: no 2025 antenna differs from its
+    STA entry by case alone, so there is no evidence of how Bernese treats one.
     """
     if hdr_ant == sta_ant:
         return True
@@ -759,6 +798,7 @@ def validate_rinex_headers(
     session: str | None = None,
     require_stations: bool = True,
     day: dt.date | None = None,
+    name_from_file: bool = False,
 ) -> ValidationReport:
     """Cross-check RINEX OBS headers in raw_dir against the campaign STA file.
 
@@ -785,6 +825,9 @@ def validate_rinex_headers(
                    FROM/TO window. Taken from ``year`` and ``session`` when
                    those are given. Without either, the latest entry is used,
                    which wrongly rejects any day before an equipment change.
+        name_from_file: Name each station from its file name, as RXOBV3 does
+                   with STANAM FILE_NAME (see ``read_stanam``), instead of from
+                   its headers.
 
     Returns:
         ValidationReport.  Call .ok to see if validation passed.
@@ -792,7 +835,9 @@ def validate_rinex_headers(
     """
     report = ValidationReport()
 
-    rinex_headers = _parse_rinex_headers(raw_dir, year=year, session=session)
+    rinex_headers = _parse_rinex_headers(
+        raw_dir, year=year, session=session, name_from_file=name_from_file
+    )
     if not rinex_headers and require_stations:
         report.no_rinex_found = True
         logger.error(
@@ -868,8 +913,11 @@ def validate_rinex_headers(
         # match one entry and the antenna the other: a file that mixes the old
         # and the new equipment passes. Accepted, since the change day is the
         # one day either is plausible.
+        # Receivers match whatever their case, as in RXOBV3: TNML's headers say
+        # 'Trimble NetR9' against the STA's 'TRIMBLE NETR9', and TNML is in the
+        # 5.4 solution on all 195 of its 2025 days.
         hdr_rec = hdr.get("receiver", "")
-        if not any(hdr_rec == e.receiver for e in candidates):
+        if not any(hdr_rec.upper() == e.receiver.upper() for e in candidates):
             report.mismatches.append(
                 Mismatch(
                     station=station,

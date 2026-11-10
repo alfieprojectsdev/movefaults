@@ -610,6 +610,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--no-preflight", action="store_true")
     ap.add_argument(
+        "--allow-header-mismatches",
+        action="store_true",
+        help="log RINEX header and STA disagreements instead of refusing the day; for "
+        "a comparison run that must process the same files as another run",
+    )
+    ap.add_argument(
         "--sol-dir",
         type=Path,
         help="where R2S_SAV archives FIN files; default the PCF's V_RESULT + /SOL",
@@ -692,6 +698,7 @@ def main(argv: list[str] | None = None) -> int:
                 C, U, P, pcf_file=args.pcf,
                 rinex_source_dir=planned.rinex_dir, sta_file=planned.sta_file,
                 preflight_required=True,
+                allow_header_mismatches=args.allow_header_mismatches,
             )  # fmt: skip
             out = run_year(
                 backend, planned.plan,

@@ -122,6 +122,7 @@ found.
 | `PCF/PHDEN_DLY.PCF` | 2026-09-30 | PHDEN |
 | `PCF/PHNAT_DLY.PCF` | 2026-08-28 | National network |
 | `PCF/PHRCTL_DLY.PCF`, `PCF/PHRPAR_DLY.PCF` | 2026-10-27 | The parity run and its control (`docs/SETTLED.md` §2) |
+| `PCF/PHPAR_DLY.PCF`, `PCF/PHSUP_DLY.PCF` | 2026-11-07 | 2025 against the 5.2 run on gps2: PHPAR on its station set, PHSUP on every file on hand. Each is `PHREF_DLY` with only the six campaign lines changed (CRD, STA, BLQ, ATL, RINEX directory, results directory). Copied 2026-11-09 |
 | `SCRIPT/luzon_par.pl` | 2026-08-12 | Driver, default PCF `LUZON_DLY` |
 | `SCRIPT/LZFLT_DLY_pcs.pl` | 2026-08-25 | Driver, default PCF `LZFLT_DLY`, campaign `LZFLT`. Its help text still says `LUZON_DLY`, which is wrong; kept, since this is a byte-for-byte copy |
 | `SCRIPT/phnat_year.pl` | 2026-08-28 | Driver, default PCF `PHNAT_DLY` |
