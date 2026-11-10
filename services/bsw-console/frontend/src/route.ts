@@ -5,7 +5,9 @@ import { useEffect, useState } from 'react'
 export type Route =
   | { page: 'campaigns' }
   | { page: 'calendar'; campaign: string; year: number }
-  | { page: 'run'; campaign: string; year: number; run?: string }
+  /** `at` scrolls the day table to a DOY, or to the first day that is `running`,
+   *  `failed` or `queued`, so a link can open on the part that matters. */
+  | { page: 'run'; campaign: string; year: number; run?: string; at?: string }
   | { page: 'day'; campaign: string; year: number; doy: number }
   | { page: 'failure'; campaign: string; year: number; doy: number }
   | { page: 'redo'; campaign: string; year: number; doy: number }
@@ -26,7 +28,7 @@ export function parse(hash: string): Route {
     if (p[2] === 'time-series') return { page: 'time-series', campaign, year: new Date().getFullYear() }
     const year = num(p[2]) ?? new Date().getFullYear()
     const what = p[3]
-    if (what === 'run') return { page: 'run', campaign, year, run: q.get('run') || undefined }
+    if (what === 'run') return { page: 'run', campaign, year, run: q.get('run') || undefined, at: q.get('at') || undefined }
     if (what === 'plan') return { page: 'plan', campaign, year, from: num(q.get('from')), to: num(q.get('to')) }
     if (what === 'stations') return { page: 'stations', campaign, year }
     if (what === 'time-series') return { page: 'time-series', campaign, year }
@@ -44,7 +46,13 @@ export function parse(hash: string): Route {
 export const href = {
   campaigns: () => '#/',
   calendar: (c: string, y: number) => `#/c/${c}/${y}`,
-  run: (c: string, y: number, run?: string) => `#/c/${c}/${y}/run${run ? `?run=${run}` : ''}`,
+  run: (c: string, y: number, run?: string, at?: string | number) => {
+    const q = new URLSearchParams()
+    if (run) q.set('run', run)
+    if (at !== undefined) q.set('at', String(at))
+    const qs = q.toString()
+    return `#/c/${c}/${y}/run${qs ? `?${qs}` : ''}`
+  },
   day: (c: string, y: number, d: number) => `#/c/${c}/${y}/day/${d}`,
   failure: (c: string, y: number, d: number) => `#/c/${c}/${y}/day/${d}/failure`,
   redo: (c: string, y: number, d: number) => `#/c/${c}/${y}/day/${d}/redo`,
