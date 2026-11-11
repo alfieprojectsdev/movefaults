@@ -54,7 +54,7 @@ export default function Calendar({ campaign, year }: { campaign: string; year: n
           <span key={k}><span aria-hidden="true" className={`key st-${k}`} />{label} ({data.counts[k]})</span>
         ))}
       </div>
-      <div className="cols" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
+      <div className="cols calcols">
         <section aria-label="Days of the year" className="panel pad scroll">
           <div className="cal">
             {months.map((m) => (
