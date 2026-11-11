@@ -7,7 +7,7 @@ import { Failed, Loading } from './common'
 /** One step of the chain: what has arrived there, and what waits before it. */
 function Step({ title, children, off }: { title: string; children: React.ReactNode; off?: string }) {
   return (
-    <div className="panel pad stack" style={{ minWidth: 0 }}>
+    <div className="panel pad stack" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
       <h2 style={{ fontSize: 14 }}>{title}</h2>
       {off ? <p className="faint" style={{ fontSize: 13 }}><span className="stub">not connected</span> {off}</p> : <div style={{ fontSize: 13 }}>{children}</div>}
     </div>
@@ -65,7 +65,7 @@ export default function Inventory({ campaign, year }: { campaign: string; year: 
                 <td>{r.in_sta == null ? <span className="faint">not known</span> : r.in_sta ? 'yes' : r.processed_days ? 'no' : <strong style={{ color: 'var(--warn-strong)' }}>no: never processed</strong>}</td>
                 <td className="num">{r.rinex_days}</td>
                 <td className="num">{r.processed_days}</td>
-                <td>{r.waiting_days ? <>{r.waiting_days} days: {r.waiting_first.map((d, i) => <span key={d}>{i > 0 && ', '}<a href={href.day(c, y, d)}>{pad3(d)}</a></span>)}{r.waiting_days > r.waiting_first.length && ', …'}</> : '—'}</td>
+                <td>{r.waiting_days ? <>{r.waiting_days} {r.waiting_days === 1 ? 'day' : 'days'}: {r.waiting_first.map((d, i) => <span key={d}>{i > 0 && ', '}<a href={href.day(c, y, d)}>{pad3(d)}</a></span>)}{r.waiting_days > r.waiting_first.length && ', …'}</> : '—'}</td>
                 <td>{r.span_years == null ? '—' : <>{r.span_years.toFixed(2)} yr{r.velocity === false && <span className="faint"> · too short for a velocity</span>}</>}</td>
               </tr>
             ))}

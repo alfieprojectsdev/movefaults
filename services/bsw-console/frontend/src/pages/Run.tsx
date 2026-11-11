@@ -8,8 +8,6 @@ const MARK: Record<string, string> = { done: '✓', failed: '✕', running: '●
 type Filter = 'all' | Exclude<RowKind, 'other'>
 const FILTERS: Filter[] = ['all', 'running', 'failed', 'queued', 'solved']
 const rowId = (doy: number) => `doy-${pad3(doy)}`
-/** Above this many days the table scrolls inside its own box, so its header can stay put. */
-const TALL = 40
 
 export default function Run({ campaign, year, run, at }: { campaign: string; year: number; run?: string; at?: string }) {
   const { data, error } = useApi<RunDetail>(`/api/campaigns/${campaign}/years/${year}/runs${run ? `?run=${run}` : ''}`)
@@ -153,7 +151,7 @@ export default function Run({ campaign, year, run, at }: { campaign: string; yea
           )
         })}
       </JumpBar>
-      <section aria-label="Days by PCF step" className={`panel scroll${rows.length > TALL ? ' tall' : ''}`}>
+      <section aria-label="Days by PCF step" className="panel tall">
         <table className="g">
           <thead>
             <tr>
