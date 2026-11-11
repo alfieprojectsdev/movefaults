@@ -14,6 +14,7 @@ export type Route =
   | { page: 'plan'; campaign: string; year: number; from?: number; to?: number }
   | { page: 'known-errors' }
   | { page: 'stations'; campaign: string; year: number }
+  | { page: 'inventory'; campaign: string; year: number }
   | { page: 'time-series'; campaign: string; year: number }
 
 export function parse(hash: string): Route {
@@ -31,6 +32,7 @@ export function parse(hash: string): Route {
     if (what === 'run') return { page: 'run', campaign, year, run: q.get('run') || undefined, at: q.get('at') || undefined }
     if (what === 'plan') return { page: 'plan', campaign, year, from: num(q.get('from')), to: num(q.get('to')) }
     if (what === 'stations') return { page: 'stations', campaign, year }
+    if (what === 'inventory') return { page: 'inventory', campaign, year }
     if (what === 'time-series') return { page: 'time-series', campaign, year }
     if (what === 'day' && num(p[4])) {
       const doy = num(p[4])!
@@ -46,6 +48,7 @@ export function parse(hash: string): Route {
 export const href = {
   campaigns: () => '#/',
   calendar: (c: string, y: number) => `#/c/${c}/${y}`,
+  inventory: (c: string, y: number) => `#/c/${c}/${y}/inventory`,
   run: (c: string, y: number, run?: string, at?: string | number) => {
     const q = new URLSearchParams()
     if (run) q.set('run', run)

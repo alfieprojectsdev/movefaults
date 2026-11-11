@@ -266,3 +266,17 @@ export type AprioriPreview = {
   not_estimated: string[]
   warnings: string[]
 }
+/** The inventory (bsw_console/inventory.py): per station, how far a year's data has got. */
+export type InventoryRow = {
+  station: string; in_sta: boolean | null; rinex_days: number; processed_days: number
+  waiting_days: number; waiting_first: number[]; span_years: number | null; velocity: boolean | null
+}
+export type Inventory = {
+  campaign: string; year: number; rinex_dir: string; sta: string | null; min_span_years: number
+  not_connected: Record<'field_visits' | 'raw_data' | 'rinex_qc', string>
+  totals: {
+    rinex_station_days: number; rinex_stations: number; processed_station_days: number; processed_stations: number
+    waiting_in_sta: number; waiting_not_in_sta: number; in_time_series: number; short_for_velocity: number
+  }
+  rows: InventoryRow[]
+}

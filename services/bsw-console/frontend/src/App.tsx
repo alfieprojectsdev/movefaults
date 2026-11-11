@@ -10,6 +10,7 @@ import Plan from './pages/Plan'
 import Redo from './pages/Redo'
 import KnownErrors from './pages/KnownErrors'
 import StationFiles from './pages/StationFiles'
+import Inventory from './pages/Inventory'
 import TimeSeries from './pages/TimeSeries'
 import { BackToTop } from './pages/common'
 
@@ -61,6 +62,7 @@ export default function App() {
 
   const nav: [string, string, Route['page'][]][] = [
     ['Campaigns', href.campaigns(), ['campaigns']],
+    ['Inventory', href.inventory(campaign, year), ['inventory']],
     ['Calendar', href.calendar(campaign, year), ['calendar', 'day', 'failure', 'redo']],
     ['Runs', href.run(campaign, year), ['run']],
     ['Plan', href.plan(campaign, year), ['plan']],
@@ -85,6 +87,7 @@ export default function App() {
     case 'plan': page = <Plan campaign={route.campaign} year={route.year} from={route.from} to={route.to} />; break
     case 'known-errors': page = <KnownErrors />; break
     case 'stations': page = <StationFiles campaign={route.campaign} year={route.year} />; break
+    case 'inventory': page = <Inventory campaign={route.campaign} year={route.year} />; break
     case 'time-series': page = <TimeSeries key={route.campaign} campaign={route.campaign} />; break
   }
 
