@@ -40,6 +40,7 @@ export default function Campaigns() {
               <div className="row" style={{ justifyContent: 'space-between' }}>
                 <h2 style={{ fontSize: 18 }}>{c.name}</h2>
                 <span className="muted" style={{ fontSize: 12 }}>PCF {c.pcf}{c.float_pcf ? ` · float ${c.float_pcf}` : ''}</span>
+                {c.allow_header_mismatches && <span className="stub" title="RINEX header and STA disagreements are written to the log and the day still runs, as bernese-run-year --allow-header-mismatches does">header mismatches allowed</span>}
               </div>
               <RunState c={c} />
               <table className="t">

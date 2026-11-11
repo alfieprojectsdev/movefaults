@@ -9,6 +9,7 @@ import dataclasses
 import json
 import os
 
+import pytest
 from bernese_workflow.bpe_scanner import kind_of
 from bsw_console import plan as plans
 from bsw_console import stations, status
@@ -287,6 +288,16 @@ def test_setvar_and_campaign_specs(tmp_path):
     c = parse_campaigns("luzon:LUZON_DLY:lzy:LZFLT_DLY, PHREF")
     assert c[0] == Campaign("LUZON", "LUZON_DLY", "LZY", "LZFLT_DLY")
     assert c[1] == Campaign("PHREF", "PHREF_DLY", "", "")
+
+
+def test_a_campaign_may_allow_header_mismatches_and_a_misspelt_option_is_an_error():
+    c = parse_campaigns("PHSUP:PHSUP_DLY:PSU::allow-header-mismatches,PHREF:PHREF_DLY:PHR")
+    assert c[0] == Campaign("PHSUP", "PHSUP_DLY", "PSU", "", allow_header_mismatches=True)
+    assert not c[1].allow_header_mismatches
+    with pytest.raises(ValueError, match="unknown option allow-header-mismatch"):
+        parse_campaigns("PHSUP:PHSUP_DLY:PSU::allow-header-mismatch")
+    with pytest.raises(ValueError, match="more than five"):
+        parse_campaigns("PHSUP:PHSUP_DLY:PSU::allow-header-mismatches:x")
 
 
 # --- the equipment report panel (read-only) ----------------------------------------------

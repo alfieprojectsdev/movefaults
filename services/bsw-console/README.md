@@ -25,7 +25,7 @@ environment, or `BSW_SETVAR`). It binds to 127.0.0.1 only. On gps3 a login proxy
 
 | Variable | Default | What it sets |
 |---|---|---|
-| `BSW_CONSOLE_CAMPAIGNS` | `LUZON:LUZON_DLY:LZY:LZFLT_DLY,PHREF:PHREF_DLY:PHR,PHDEN:PHDEN_DLY:PHD` | campaign, daily PCF, per-day campaign prefix, float PCF |
+| `BSW_CONSOLE_CAMPAIGNS` | `LUZON:LUZON_DLY:LZY:LZFLT_DLY,PHREF:PHREF_DLY:PHR,PHDEN:PHDEN_DLY:PHD` | campaign, daily PCF, per-day campaign prefix, float PCF, and options joined by `+`. The one option, `allow-header-mismatches`, sends the worker `--allow-header-mismatches` with the campaign's Start, preflight and Redo, and the Campaigns card and Redo page say so; for a comparison campaign only (PHSUP). An unknown option stops the console from starting |
 | `BSW_CONSOLE_HOST`, `PORT` | `127.0.0.1`, `8002` | where it listens |
 | `BSW_CONSOLE_KB` | `config/bernese/bpe_errors.yaml` | the known-errors list |
 | `BPE_LOCK` | bernese-workflow's default | the lock file it reads |

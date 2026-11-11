@@ -46,25 +46,53 @@ class Campaign:
     ``float_pcf`` is the PCF a day falls back to when its fixed solution fails
     its checks; days solved only there are shown as float. Its results go to a
     different SAVEDISK directory, so the two never mix.
+
+    ``allow_header_mismatches`` makes the console's runs and redos for this
+    campaign log RINEX header and STA disagreements instead of refusing the day,
+    as ``bernese-run-year --allow-header-mismatches`` does. It is for a comparison
+    campaign that must process the same files as another run (PHSUP against the
+    5.2 run), never for production.
     """
 
     name: str
     pcf: str
     prefix: str = ""
     float_pcf: str = ""
+    allow_header_mismatches: bool = False
+
+
+# Options a campaign entry may carry after its fourth field, separated by "+".
+CAMPAIGN_OPTIONS = ("allow-header-mismatches",)
 
 
 def parse_campaigns(spec: str) -> list[Campaign]:
-    """``NAME:PCF[:PREFIX[:FLOAT_PCF]]``, comma-separated."""
+    """``NAME:PCF[:PREFIX[:FLOAT_PCF[:OPTION[+OPTION]]]]``, comma-separated.
+
+    The only option is ``allow-header-mismatches``. An unknown one is an error,
+    not ignored: a misspelt option would otherwise quietly leave the check on.
+    """
     out = []
     for item in spec.split(","):
         parts = [p.strip() for p in item.split(":")]
         if not parts[0]:
             continue
-        parts += [""] * (4 - len(parts))
+        if len(parts) > 5:
+            raise ValueError(f"campaign entry {item.strip()!r} has more than five fields")
+        parts += [""] * (5 - len(parts))
+        options = {o.strip().lower() for o in parts[4].split("+") if o.strip()}
+        unknown = sorted(options - set(CAMPAIGN_OPTIONS))
+        if unknown:
+            raise ValueError(
+                f"campaign {parts[0].upper()}: unknown option {', '.join(unknown)} "
+                f"(known: {', '.join(CAMPAIGN_OPTIONS)})"
+            )
         out.append(
             Campaign(
-                parts[0].upper(), parts[1] or f"{parts[0].upper()}_DLY", parts[2].upper(), parts[3]
+                parts[0].upper(),
+                parts[1] or f"{parts[0].upper()}_DLY",
+                parts[2].upper(),
+                parts[3],
+                allow_header_mismatches="allow-header-mismatches" in options,
             )
         )
     return out

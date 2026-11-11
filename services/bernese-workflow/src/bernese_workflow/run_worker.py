@@ -148,8 +148,9 @@ def describe(req: dict) -> str:
     """One line: what a request asks for and who asked."""
     if req.get("kind") == STOP:
         return f"stop {req.get('target') or 'the running request'} by {req.get('submitted_by')}"
+    allowed = ", header mismatches allowed" if req.get("allow_header_mismatches") is True else ""
     return (
-        f"{req['kind']} {req['campaign']} {req['year']} {_days(req)} ({req['pcf']}) "
+        f"{req['kind']} {req['campaign']} {req['year']} {_days(req)} ({req['pcf']}){allowed} "
         f"by {req['submitted_by']}"
     )
 
@@ -447,9 +448,15 @@ class Worker:
     ) -> list[DayOutcome]:
         ledger = None
         if s.ledger is not None:
+            # Only when set, so every other run's run_start reads as before.
+            allowed = (
+                {"allow_header_mismatches": True}
+                if req.get("allow_header_mismatches") is True
+                else {}
+            )
             ledger = _TaggedLedger(
                 s.ledger, request=req["id"], kind=req["kind"],
-                submitted_by=req["submitted_by"], reason=req.get("reason", ""),
+                submitted_by=req["submitted_by"], reason=req.get("reason", ""), **allowed,
             )  # fmt: skip
         counts = getattr(s.plan, "station_counts", None)
         return run_year(
@@ -683,6 +690,7 @@ def bsw_setup(req: dict) -> Setup:
         env["C"], env["U"], env["P"], pcf_file=req["pcf"],
         rinex_source_dir=planned.rinex_dir, sta_file=planned.sta_file,
         preflight_required=True,
+        allow_header_mismatches=req.get("allow_header_mismatches") is True,
     )  # fmt: skip
     return Setup(
         backend=backend,
@@ -748,6 +756,12 @@ def _add_run_fields(sp: argparse.ArgumentParser, *, redo: bool) -> None:
         sp.add_argument("--to", dest="doy_to", type=int, required=True)
     sp.add_argument("--pcf", required=True)
     sp.add_argument("--maxsess", type=int, default=MAXSESS_DEFAULT)
+    sp.add_argument(
+        "--allow-header-mismatches",
+        action="store_true",
+        help="as bernese-run-year's: log RINEX header and STA disagreements instead of "
+        "refusing the day; for a comparison run that must process the same files as another",
+    )
 
 
 def _positive_seconds(text: str) -> float:
@@ -820,6 +834,7 @@ def main(argv: list[str] | None = None) -> int:
             fields.update(
                 campaign=args.campaign, repr_prefix=args.repr_prefix, year=args.year,
                 pcf=args.pcf, maxsess=args.maxsess,
+                allow_header_mismatches=True if args.allow_header_mismatches else None,
             )  # fmt: skip
             if kind == REDO:
                 fields["doy"] = args.doy

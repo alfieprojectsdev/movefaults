@@ -31,6 +31,11 @@ export default function Redo({ campaign, year, doy, lock }: { campaign: string; 
         <p className="muted" style={{ maxWidth: '80ch' }}>
           Deleting a day's FIN files is not a redo on 5.4: only 2 of the day's 7 results would be replaced, and the next combination would pick up the old ones by name. This moves <strong>all of them</strong> aside first, as one step.
         </p>
+        {data.allow_header_mismatches && (
+          <div className="banner warn" role="status">
+            <strong>{campaign} runs with header mismatches allowed.</strong> <span>A RINEX file whose header disagrees with the STA file is logged and processed, not refused, because this campaign must process the same files as the run it is compared with.</span>
+          </div>
+        )}
       </div>
       <section aria-labelledby="moves" className="stack">
         <h2 id="moves">What will be moved</h2>
