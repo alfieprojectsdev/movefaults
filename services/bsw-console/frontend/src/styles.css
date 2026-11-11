@@ -116,9 +116,31 @@ dl.kv dd { margin:0; min-width:0; overflow-wrap:anywhere; }
 .legend { display:flex; flex-wrap:wrap; gap:8px 18px; font-size:13px; color:var(--ink2); }
 
 .cal { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.cal .m { display:flex; align-items:center; gap:3px; }
-.cal .m > span { width:34px; font-size:12px; color:var(--muted); flex:none; }
-.cell { width:26px; height:26px; border-radius:3px; font:inherit; font-size:11px; padding:0; cursor:pointer; box-sizing:border-box; flex:none; }
+/* Every month is the same 31-column grid, so the days line up down the year. The
+   squares shrink from 28px to 18px before the panel has to scroll sideways, so a
+   whole month stays in view on a laptop or a zoomed browser. */
+.cal .m { display:grid; grid-template-columns:34px repeat(31, minmax(18px, 28px)); align-items:center; gap:3px; }
+.cal .m > span { font-size:12px; color:var(--muted); }
+/* The calendar and its day panel side by side, one above the other when narrow.
+   The 31-day grid needs about 685px at its smallest squares; side by side that
+   is only there above about 1100px. */
+.calcols { grid-template-columns:minmax(0,1fr) 300px; }
+@media (max-width: 1100px) { .calcols { grid-template-columns:minmax(0,1fr); } }
+/* A phone or narrow window has room for half a month: each month takes two lines,
+   16 days and 15. */
+@media (max-width: 780px) {
+  .cal { gap:8px; }
+  .cal .m { grid-template-columns:28px repeat(16, minmax(12px, 28px)); gap:2px; }
+  .cal .m > span { grid-row:span 2; align-self:start; padding-top:2px; }
+  .cal .cell { font-size:10px; }
+}
+/* A small phone: three lines of 11, so the squares stay big enough to read and tap.
+   Below about 480px, 16 columns would make the squares smaller than 11 do. */
+@media (max-width: 480px) {
+  .cal .m { grid-template-columns:28px repeat(11, minmax(12px, 28px)); }
+  .cal .m > span { grid-row:span 3; }
+}
+.cell { width:100%; aspect-ratio:1; border-radius:3px; font:inherit; font-size:11px; padding:0; cursor:pointer; box-sizing:border-box; }
 .cell[aria-pressed="true"] { outline:2px solid var(--ink); outline-offset:1px; }
 
 table.g { border-collapse:collapse; font-size:12px; width:100%; }
