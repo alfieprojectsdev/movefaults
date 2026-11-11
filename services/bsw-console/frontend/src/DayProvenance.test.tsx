@@ -62,3 +62,26 @@ it('a new run: its own record is shown, and an older run still says not recorded
   expect(rows[1].textContent).toMatch(/by processing · code 0123456789 · COD0OPSFIN \(final\)/)
   expect(within(rows[2]).getByText('not recorded for this run')).toBeTruthy()
 })
+
+it('quality: one row per ambiguity method, from the day summary', async () => {
+  serve()
+  await day()
+  const block = screen.getByRole('heading', { name: 'Quality' }).parentElement!
+  const rows = within(block).getAllByRole('row')
+  expect(rows.map((r) => r.textContent)).toEqual([
+    'MethodBaselinesAmbiguitiesLeft unresolvedResolved',
+    'Code-Based Narrowlane (NL)13, under 6000 km87831763.9%',
+    'Phase-Based Narrowlane (L3)23, under 200 km207273864.4%',
+  ])
+  expect(within(block).getByText('OUT/R2S_20250350.PRC:4')).toBeTruthy()
+})
+
+it('quality: a summary without the ambiguity part says so, with no table', async () => {
+  const base = JSON.parse(JSON.stringify(responses[DAY])) as { quality: Record<string, unknown> }
+  base.quality = { ...base.quality, ambiguities: null }
+  serve({ [DAY]: base })
+  await day()
+  const block = screen.getByRole('heading', { name: 'Quality' }).parentElement!
+  expect(within(block).getByText("not in this day's summary")).toBeTruthy()
+  expect(within(block).queryByRole('table')).toBeNull()
+})
