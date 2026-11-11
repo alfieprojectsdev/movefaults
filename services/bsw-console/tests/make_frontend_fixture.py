@@ -37,6 +37,7 @@ URLS = [
     "/api/campaigns/LUZON/years/2025/station-files",
     "/api/campaigns/LUZON/years/2025/station-files/onsala-request",
     "/api/campaigns/LUZON/years/2025/station-files/apriori-preview",
+    "/api/campaigns/LUZON/years/2025/inventory",
     "/api/campaigns/LUZON/time-series",
     "/api/campaigns/LUZON/time-series/SYN1",
     "/api/equipment-report",

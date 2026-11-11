@@ -35,7 +35,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import actions, equipment, outliers, station_tools, stations, status, timeseries
+from . import actions, equipment, inventory, outliers, station_tools, stations, status, timeseries
 from . import plan as plans
 from .actions import STAGE3_REASON
 from .settings import Settings
@@ -227,6 +227,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return station_tools.apriori_preview(s, campaign(name), year, final)
         except KeyError as exc:
             raise HTTPException(404, str(exc)) from None
+
+    @app.get("/api/campaigns/{name}/years/{year}/inventory")
+    def inventory_(name: str, year: int) -> dict:
+        return inventory.inventory(s, campaign(name), year)
 
     @app.get("/api/campaigns/{name}/years/{year}/station-files")
     def station_files(name: str, year: int) -> dict:
