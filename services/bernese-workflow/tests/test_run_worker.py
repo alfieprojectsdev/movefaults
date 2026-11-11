@@ -993,3 +993,65 @@ def test_redo_still_recognises_a_day_the_stop_left_not_run(env: Env) -> None:
     entries, _ = read_entries(env.year_dir / "ledger.jsonl")
     end = [e for e in entries if e["event"] == "run_end"][-1]
     assert end["halt_reason"]["kind"] == "stopped"
+
+
+# --- allow_header_mismatches: a comparison campaign's runs ---------------------------------
+
+
+@pytest.mark.parametrize("value", ["yes", 1, None])
+def test_allow_header_mismatches_must_be_true_or_false(value) -> None:
+    f = {"campaign": "PHSUP", "repr_prefix": "PSU", "year": YEAR, "pcf": "PHSUP_DLY",
+         "from": 1, "to": 2}  # fmt: skip
+    # make_request drops None fields, so the bad value is set after it.
+    req = {**make_request(START, USER, **f), "allow_header_mismatches": value}
+    with pytest.raises(InvalidRequest, match="allow_header_mismatches"):
+        validate(req)
+
+
+def test_allow_header_mismatches_true_is_accepted() -> None:
+    req = make_request(START, USER, campaign="PHSUP", repr_prefix="PSU", year=YEAR,
+                       pcf="PHSUP_DLY", allow_header_mismatches=True, **{"from": 1, "to": 2})  # fmt: skip
+    assert req["allow_header_mismatches"] is True
+
+
+def test_the_ledger_records_a_run_that_allowed_header_mismatches_and_only_then(env: Env) -> None:
+    env.submit(START, allow_header_mismatches=True, **{"from": 10, "to": 10})
+    env.submit(START, **{"from": 11, "to": 11})
+    with env.worker() as w:
+        w.step(), w.step()
+    entries, _ = read_entries(env.year_dir / "ledger.jsonl")
+    first, second = [e for e in entries if e["event"] == "run_start"]
+    assert first["allow_header_mismatches"] is True
+    assert "allow_header_mismatches" not in second
+
+
+def test_bsw_setup_passes_allow_header_mismatches_to_the_backend(monkeypatch, tmp_path) -> None:
+    from types import SimpleNamespace
+
+    from bernese_workflow import backends, run_plan, run_worker
+    from bernese_workflow import run_year as ry
+
+    for name in ("P", "U", "C", "S", "D"):
+        monkeypatch.setenv(name, str(tmp_path / name))
+    made: list[dict] = []
+    monkeypatch.setattr(backends, "LinuxBPEBackend", lambda *a, **kw: made.append(kw) or object())
+    planned = SimpleNamespace(pcf_text="", rinex_dir=tmp_path, sta_file=tmp_path / "X.STA",
+                              plan=SimplePlan(YEAR, [5]), sol_dir=tmp_path / "SOL", pcf_path=tmp_path)  # fmt: skip
+    monkeypatch.setattr(run_plan, "plan_from_env", lambda **kw: planned)
+    monkeypatch.setattr(run_plan, "product_tier", lambda text: ("COD", "final"))
+    monkeypatch.setattr(ry, "run_config_hash", lambda *a: "h")
+    f = {"campaign": "PHSUP", "repr_prefix": "PSU", "year": YEAR, "pcf": "PHSUP_DLY", "doy": 5,
+         "reason": "r"}  # fmt: skip
+    run_worker.bsw_setup(make_request(REDO, USER, allow_header_mismatches=True, **f))
+    run_worker.bsw_setup(make_request(REDO, USER, **f))
+    assert [kw["allow_header_mismatches"] for kw in made] == [True, False]
+
+
+def test_cli_submit_allow_header_mismatches(env: Env) -> None:
+    state = ["--state-dir", str(env.queue.root)]
+    args = ["--campaign", "PHSUP", "--repr-prefix", "PSU", "--year", "2025", "--from", "1",
+            "--to", "2", "--pcf", "PHSUP_DLY", "--by", USER]  # fmt: skip
+    assert main([*state, "submit", "start", *args, "--allow-header-mismatches"]) == 0
+    assert main([*state, "submit", "start", *args]) == 0
+    reqs = [read_json(p) for p in sorted(env.queue.queue.glob("*.json"))]
+    assert [r.get("allow_header_mismatches") for r in reqs] == [True, None]

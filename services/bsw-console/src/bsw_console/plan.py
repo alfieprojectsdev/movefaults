@@ -297,4 +297,5 @@ def redo_preview(s: Settings, c: Campaign, year: int, doy: int) -> dict:
         "to": str(base / "SUPERSEDED" / stamp),
         "files": files,
         "lock": lock_status(s),
+        "allow_header_mismatches": c.allow_header_mismatches,
     }

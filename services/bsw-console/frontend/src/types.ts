@@ -28,6 +28,7 @@ export type CampaignCard = {
   name: string
   pcf: string
   float_pcf: string
+  allow_header_mismatches: boolean
   prefix: string
   years: { year: number; fixed: number; float: number; failed: number; not_run: number }[]
   last_run: (RunSummary & { year: number }) | null
@@ -150,7 +151,7 @@ export type Plan = {
 }
 export type SavedPlan = { id: string; saved: string; by: string; name?: string; campaign: string; year: number; from: number; to: number; pcf: string; skipped: number[] }
 
-export type Redo = DayInfo & { campaign: string; from: string; to: string; files: ResultFile[]; lock: Lock }
+export type Redo = DayInfo & { campaign: string; from: string; to: string; files: ResultFile[]; lock: Lock; allow_header_mismatches: boolean }
 
 export type StationFiles = {
   campaign: string

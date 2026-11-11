@@ -56,12 +56,14 @@ def checks_pass(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def preflight_ok(s: Settings, a: int = 35, b: int = 36, *, outcome: str = "ok") -> None:
+def preflight_ok(
+    s: Settings, a: int = 35, b: int = 36, *, outcome: str = "ok", allowed: bool | None = None
+) -> None:
     """A finished preflight for these days, as the worker leaves it in done/."""
     q = run_queue.Queue(s.worker_state).ensure()
     req = run_queue.make_request(
         run_queue.PREFLIGHT, "abc", campaign="LUZON", repr_prefix="LZY", pcf="LUZON_DLY",
-        year=YEAR, **{"from": a, "to": b},
+        year=YEAR, allow_header_mismatches=allowed, **{"from": a, "to": b},
     )  # fmt: skip
     req.update(outcome=outcome, finished=run_queue.now_utc().isoformat())
     (q.done / f"{req['id']}.json").write_text(json.dumps(req))
@@ -171,6 +173,35 @@ def test_redo_needs_a_reason_and_then_queues_one_day(on: Settings, worker) -> No
     assert r.status_code == 202, r.text
     (req,) = queued(on)
     assert (req["kind"], req["doy"], req["reason"]) == (run_queue.REDO, 35, "wrong STA row")
+
+
+def test_a_campaign_that_allows_header_mismatches_sends_it_with_its_requests(
+    on: Settings, worker
+) -> None:
+    flagged = [
+        dataclasses.replace(c, allow_header_mismatches=c.name == "LUZON") for c in on.campaigns
+    ]
+    c = TestClient(create_app(dataclasses.replace(on, campaigns=flagged)))
+    preview = c.get(f"/api/campaigns/LUZON/years/{YEAR}/days/35/redo").json()
+    assert preview["allow_header_mismatches"] is True
+    r = c.post("/api/redo", json={"campaign": "LUZON", "year": YEAR, "doy": 35, "reason": "r"},
+               headers=OPERATOR)  # fmt: skip
+    assert r.status_code == 202, r.text
+    (req,) = queued(on)
+    assert req["allow_header_mismatches"] is True
+
+
+def test_any_other_campaign_sends_no_such_field(on: Settings, worker) -> None:
+    c = TestClient(create_app(on))
+    assert (
+        c.get(f"/api/campaigns/LUZON/years/{YEAR}/days/35/redo").json()["allow_header_mismatches"]
+        is False
+    )
+    r = c.post("/api/redo", json={"campaign": "LUZON", "year": YEAR, "doy": 35, "reason": "r"},
+               headers=OPERATOR)  # fmt: skip
+    assert r.status_code == 202, r.text
+    (req,) = queued(on)
+    assert "allow_header_mismatches" not in req
 
 
 def _running(q: run_queue.Queue, campaign: str) -> str:
@@ -293,6 +324,19 @@ def test_start_needs_a_finished_preflight_for_the_same_days(
     assert r.status_code == 409
     assert "preflight" in r.json()["detail"]
     assert queued(on) == []
+
+
+def test_a_preflight_counts_only_under_the_same_header_rule(
+    on: Settings, worker, checks_pass
+) -> None:
+    preflight_ok(on, allowed=True)  # passed only because mismatches were allowed
+    c = TestClient(create_app(on))
+    assert c.post("/api/runs/start", json=start_body(), headers=OPERATOR).status_code == 409
+    flagged = [
+        dataclasses.replace(x, allow_header_mismatches=x.name == "LUZON") for x in on.campaigns
+    ]
+    c = TestClient(create_app(dataclasses.replace(on, campaigns=flagged)))
+    assert c.post("/api/runs/start", json=start_body(), headers=OPERATOR).status_code == 202
 
 
 def test_failing_checks_refuse_start_and_preflight(on: Settings, worker) -> None:

@@ -901,6 +901,7 @@ def campaign_summary(s: Settings, c: Campaign) -> dict:
         "name": c.name,
         "pcf": c.pcf,
         "float_pcf": c.float_pcf,
+        "allow_header_mismatches": c.allow_header_mismatches,
         "prefix": c.prefix,
         "years": years,
         "last_run": last_run,

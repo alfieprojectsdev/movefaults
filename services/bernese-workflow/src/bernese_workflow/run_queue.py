@@ -128,6 +128,12 @@ def validate(req: object) -> dict:
         raise InvalidRequest("repr_prefix must differ from the campaign name")
     year = _int(req, "year", 1980, 2100)
     _int(req, "maxsess", 1, 64)
+    # bernese-run-year's --allow-header-mismatches, for a comparison campaign that
+    # must process the same files as another run. Absent means false.
+    if not isinstance(req.get("allow_header_mismatches", False), bool):
+        raise InvalidRequest(
+            f"allow_header_mismatches must be true or false, got {req['allow_header_mismatches']!r}"
+        )
     last = _days_in_year(year)
     if kind == REDO:
         _int(req, "doy", 1, last)

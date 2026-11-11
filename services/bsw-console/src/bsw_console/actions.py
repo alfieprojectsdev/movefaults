@@ -175,6 +175,8 @@ def preflight_done(s: Settings, c: Campaign, year: object, a: object, b: object)
             and r.get("outcome") == "ok"
             and (r.get("campaign"), r.get("year"), r.get("pcf")) == (c.name, year, c.pcf)
             and (r.get("from"), r.get("to")) == (a, b)
+            # A preflight run under the other header rule says nothing about this one.
+            and (r.get("allow_header_mismatches") is True) == c.allow_header_mismatches
             and now - finished <= PREFLIGHT_MAX_AGE
             and (best is None or r["finished"] > best["finished"])
         ):
@@ -198,6 +200,12 @@ def _submit(s: Settings, kind: str, user: str, **fields: object) -> dict:
     return {"queued": req["id"], "kind": kind, "by": user, "file": path.name}
 
 
+def _options(c: Campaign) -> dict:
+    """The campaign's run options, as request fields. Only those set, so a
+    request for any other campaign is the same as before."""
+    return {"allow_header_mismatches": True} if c.allow_header_mismatches else {}
+
+
 def start(s: Settings, c: Campaign, user: str, kind: str, body: dict) -> dict:
     """Queue a start or a preflight for ``body``'s days. The caller has passed gate()."""
     why = plan_mismatch(c, body.get("pcf"), body.get("skipped"), body.get("rnxgra"))
@@ -219,7 +227,7 @@ def start(s: Settings, c: Campaign, user: str, kind: str, body: dict) -> dict:
         )
     return _submit(
         s, kind, user, campaign=c.name, repr_prefix=c.prefix, pcf=c.pcf, year=year,
-        reason=str(body.get("reason") or ""), **{"from": a, "to": b},
+        reason=str(body.get("reason") or ""), **{"from": a, "to": b}, **_options(c),
     )  # fmt: skip
 
 
@@ -231,6 +239,7 @@ def redo(s: Settings, c: Campaign, user: str, body: dict) -> dict:
     return _submit(
         s, run_queue.REDO, user, campaign=c.name, repr_prefix=c.prefix, pcf=c.pcf,
         year=body.get("year"), doy=body.get("doy"), reason=str(body.get("reason") or ""),
+        **_options(c),
     )  # fmt: skip
 
 
