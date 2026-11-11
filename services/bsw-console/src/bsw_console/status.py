@@ -295,13 +295,54 @@ def _solved(sol_dir: Path, year: int, doy: int) -> bool:
     return fin_present(sol_dir, year, doy)
 
 
+# run_plan's reasons. "solved" is not a judgement on the day, only that it was done.
+_EXCLUDED_REASONS = {"short": "too little data", "listed": "listed by hand"}
+
+
+def plan_exclusions(entries: list[dict]) -> dict[int, dict]:
+    """The days whose most recent mention in the ledger is a plan leaving them out.
+
+    Walked in ledger order: a run_start's ``excluded`` marks its days, and a
+    later run that planned a day (its ``doys``) or attempted it clears it, so a
+    day excluded once and planned or run later is judged by that run. A
+    run_start with no ``excluded`` (older runs, or a driver without a plan) says
+    nothing about the days it left out.
+    """
+    out: dict[int, dict] = {}
+    for e in entries:
+        ev = e.get("event")
+        if ev == "run_start":
+            for d in e.get("doys") or []:
+                if isinstance(d, int):
+                    out.pop(d, None)
+            if not isinstance(e.get("excluded"), list):
+                continue
+            for x in e["excluded"]:
+                if not isinstance(x, dict) or not isinstance(x.get("doy"), int):
+                    continue
+                reason = _EXCLUDED_REASONS.get(str(x.get("reason")))
+                if reason is None:
+                    out.pop(x["doy"], None)
+                    continue
+                out[x["doy"]] = {
+                    "run": e.get("run"),
+                    "reason": reason,
+                    "detail": str(x.get("detail") or ""),
+                }
+        elif isinstance(ev, str) and ev.startswith("attempt") and isinstance(e.get("doy"), int):
+            out.pop(e["doy"], None)
+    return out
+
+
 def day_states(s: Settings, c: Campaign, year: int) -> dict:
     """Every day of the year, with a state the calendar colours by.
 
     solved fixed / float from the FIN files in SAVEDISK (float: solved only by
-    the float PCF); failed, running and queued from the ledger. ``excluded`` is
-    a plan's decision and the ledger does not record plans, so it is never
-    reported from here.
+    the float PCF); failed, running and queued from the ledger. ``excluded``
+    from the ``excluded`` list a run's run_start records: a day the most recent
+    run to mention it left out, as too short or listed by hand, and that has no
+    solution. A day excluded only because it was already solved is solved here,
+    and a run before the field existed recorded nothing, so shows nothing.
     """
     sol = year_dir(s, c.pcf, c.name, year) / "SOL"
     fsol = year_dir(s, c.float_pcf, c.name, year) / "SOL" if c.float_pcf else None
@@ -310,6 +351,7 @@ def day_states(s: Settings, c: Campaign, year: int) -> dict:
     latest: dict[int, Attempt] = {}
     for a in atts:
         latest[a.doy] = a
+    left_out = plan_exclusions(entries)
     runs = runs_in(entries)
     live = runs[0] if runs and runs[0]["state"] in ("running", "slow", "unknown") else None
     live_doys = set(live["doys"]) if live else set()
@@ -322,6 +364,10 @@ def day_states(s: Settings, c: Campaign, year: int) -> dict:
             state = "fixed"
         elif fsol is not None and fsol.is_dir() and _solved(fsol, year, doy):
             state = "float"
+        elif doy in left_out:
+            # Only days whose latest mention is the exclusion are in left_out, so
+            # it outranks an older failure or an earlier run's leftover attempt.
+            state = "excluded"
         elif a is not None and a.outcome is None and live and a.run == live["run"]:
             state = "running"
         elif a is not None and a.outcome == "failed":
@@ -334,6 +380,10 @@ def day_states(s: Settings, c: Campaign, year: int) -> dict:
         note = ""
         if a is not None and state in ("failed", "running"):
             note = a.error or a.note
+        elif state == "excluded":
+            e = left_out[doy]
+            why = f"{e['reason']}, {e['detail']}" if e["detail"] else e["reason"]
+            note = f"excluded by run {e['run']}: {why}"
         days.append({**day_info(year, doy), "state": state, "note": note})
     return {"campaign": c.name, "year": year, "counts": counts, "days": days}
 

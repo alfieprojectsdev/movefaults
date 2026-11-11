@@ -33,6 +33,64 @@ def test_calendar_states_come_from_savedisk_and_the_ledger(client):
     assert by[36]["date"] == "2025-02-05" and by[36]["gps_week"] == 2352 and by[36]["gps_day"] == 3
 
 
+def _start(run: str, excluded: object) -> dict:
+    return {"v": 1, "ts": 1.0, "event": "run_start", "run": run, "campaign": "LUZON",
+            "year": YEAR, "doys": [], "excluded": excluded}  # fmt: skip
+
+
+def test_plan_exclusions_follow_the_latest_mention_of_each_day():
+    entries = [
+        _start("a", [{"doy": 40, "reason": "short", "detail": "2 of 5 reference stations"},
+                     {"doy": 41, "reason": "listed", "detail": "antenna swap"},
+                     {"doy": 42, "reason": "listed", "detail": ""},
+                     {"doy": 43, "reason": "solved", "detail": ""}]),
+        # A later run attempted DOY 041: the attempt, not the old plan, decides.
+        {"v": 1, "ts": 2.0, "event": "attempt_start", "run": "b", "doy": 41},
+        # A later plan found DOY 042 solved: no longer a judgement against it.
+        _start("c", [{"doy": 42, "reason": "solved", "detail": ""}]),
+        # An older run_start with no plan says nothing about any day.
+        _start("d", None),
+    ]  # fmt: skip
+    got = status.plan_exclusions(entries)
+    assert got == {
+        40: {"run": "a", "reason": "too little data", "detail": "2 of 5 reference stations"}
+    }
+
+
+def test_a_later_plan_that_includes_a_day_clears_its_exclusion():
+    # Run b planned DOY 040 but halted before reaching it: b, not a, is the latest word.
+    later = {**_start("b", []), "doys": [40]}
+    entries = [_start("a", [{"doy": 40, "reason": "short", "detail": ""}]), later]
+    assert status.plan_exclusions(entries) == {}
+
+
+def test_a_day_listed_by_hand_after_it_failed_shows_excluded(bsw):
+    led = bsw.savedisk / "LUZON" / str(YEAR) / "ledger.jsonl"
+    with led.open("a") as fh:
+        fh.write(
+            json.dumps(_start("r9", [{"doy": 36, "reason": "listed", "detail": "bad day"}])) + "\n"
+        )
+    cal = TestClient(create_app(bsw)).get(f"/api/campaigns/LUZON/years/{YEAR}/days").json()
+    by = {d["doy"]: d for d in cal["days"]}
+    assert by[36]["state"] == "excluded"
+    assert by[36]["note"] == "excluded by run r9: listed by hand, bad day"
+
+
+def test_the_calendar_shows_days_a_plan_left_out_unless_solved(bsw):
+    led = bsw.savedisk / "LUZON" / str(YEAR) / "ledger.jsonl"
+    with led.open("a") as fh:
+        fh.write(json.dumps(_start("r9", [
+            {"doy": 35, "reason": "listed", "detail": "x"},  # solved: stays fixed
+            {"doy": 50, "reason": "listed", "detail": "antenna swap"},
+        ])) + "\n")  # fmt: skip
+    cal = TestClient(create_app(bsw)).get(f"/api/campaigns/LUZON/years/{YEAR}/days").json()
+    by = {d["doy"]: d for d in cal["days"]}
+    assert by[35]["state"] == "fixed"
+    assert by[50]["state"] == "excluded"
+    assert by[50]["note"] == "excluded by run r9: listed by hand, antenna swap"
+    assert cal["counts"]["excluded"] == 1
+
+
 def test_run_grid_names_the_failed_pid_from_the_protocol_file(client):
     r = client.get(f"/api/campaigns/LUZON/years/{YEAR}/runs").json()
     rows = {x["doy"]: x for x in r["rows"]}
