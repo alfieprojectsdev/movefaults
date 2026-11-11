@@ -7,7 +7,7 @@ import { Failed, Loading } from './common'
 /** One step of the chain: what has arrived there, and what waits before it. */
 function Step({ title, children, off }: { title: string; children: React.ReactNode; off?: string }) {
   return (
-    <div className="panel pad stack" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+    <div className="panel pad stack" style={{ minWidth: 0 }}>
       <h2 style={{ fontSize: 14 }}>{title}</h2>
       {off ? <p className="faint" style={{ fontSize: 13 }}><span className="stub">not connected</span> {off}</p> : <div style={{ fontSize: 13 }}>{children}</div>}
     </div>
@@ -39,12 +39,12 @@ export default function Inventory({ campaign, year }: { campaign: string; year: 
         <Step title="1. Field visit logged" off={data.not_connected.field_visits}>{null}</Step>
         <Step title="2. Raw data received" off={data.not_connected.raw_data}>{null}</Step>
         <Step title="3. RINEX in the datapool">
-          <p><strong>{t.rinex_station_days}</strong> station-days, {t.rinex_stations} stations, in <span className="mono">{data.rinex_dir}</span>.</p>
+          <p><strong>{t.rinex_station_days}</strong> station-days, {t.rinex_stations} stations, in <span className="mono" style={{ overflowWrap: 'anywhere' }}>{data.rinex_dir}</span>.</p>
           <p className="faint"><span className="stub">not connected</span> QC: {data.not_connected.rinex_qc}</p>
         </Step>
         <Step title="4. Processed">
           <p><strong>{t.processed_station_days}</strong> station-days estimated by a final solution.</p>
-          <p>Waiting: <strong>{t.waiting_in_sta}</strong> station-days with RINEX and no solution that estimated the station.{data.sta == null && <> The STA could not be read, so which stations a run would process is not known.</>}{t.waiting_not_in_sta > 0 && <> Another <strong>{t.waiting_not_in_sta}</strong> belong to stations not in <span className="mono">{data.sta}</span>, which no run of this campaign processes.</>}</p>
+          <p>Waiting: <strong>{t.waiting_in_sta}</strong> station-days with RINEX and no solution that estimated the station.{data.sta == null && <> The STA could not be read, so which stations a run would process is not known.</>}{t.waiting_not_in_sta > 0 && <> Another <strong>{t.waiting_not_in_sta}</strong> belong to stations not in <span className="mono" style={{ overflowWrap: 'anywhere' }}>{data.sta}</span>, which no run of this campaign processes.</>}</p>
         </Step>
         <Step title="5. Time series and velocity">
           <p><strong>{t.in_time_series}</strong> of these stations in the series, from a fixed solution in any year of the campaign.</p>
