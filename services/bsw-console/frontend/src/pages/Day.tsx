@@ -64,8 +64,32 @@ export default function Day({ campaign, year, doy }: { campaign: string; year: n
               {q.helmert_rms_mm != null ? `${q.helmert_rms_mm.toFixed(2)} mm` : '—'}{' '}
               {q.sources.helmert_rms_mm && prc && <button type="button" className="btn2" style={{ padding: '1px 8px', fontSize: 12 }} onClick={() => setOpen(prc.path)}>{q.sources.helmert_rms_mm}</button>}
             </dd>
-            <dt>Ambiguity fixing rate</dt><dd className="faint">not available: the AMB summaries are not archived</dd>
+            <dt>Ambiguities resolved</dt>
+            <dd>
+              {q.ambiguities ? <>by method, below{' '}
+                {q.sources.ambiguities && prc && <button type="button" className="btn2" style={{ padding: '1px 8px', fontSize: 12 }} onClick={() => setOpen(prc.path)}>{q.sources.ambiguities}</button>}</>
+                : <span className="faint">not in this day's summary</span>}
+            </dd>
           </dl>
+          {q.ambiguities && (
+            <div className="scroll">
+              <table className="t" style={{ fontSize: 13 }}>
+                <caption className="faint" style={{ textAlign: 'left', fontSize: 12 }}>Each method works on its own baselines, by length, so the rates are not added together.</caption>
+                <thead><tr><th scope="col">Method</th><th scope="col">Baselines</th><th scope="col" className="num">Ambiguities</th><th scope="col" className="num">Left unresolved</th><th scope="col" className="num">Resolved</th></tr></thead>
+                <tbody>
+                  {q.ambiguities.map((a) => (
+                    <tr key={`${a.tag ?? a.method}-${a.system}`}>
+                      <td>{a.method}{a.system !== 'G' && ` · ${a.system}`}</td>
+                      <td>{a.baselines}, {a.max_length.replace('<', 'under ').replace('km', ' km')}</td>
+                      <td className="num">{a.before}</td>
+                      <td className="num">{a.after}</td>
+                      <td className="num"><strong>{a.percent.toFixed(1)}%</strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </div>
 

@@ -64,8 +64,46 @@ def test_day_lists_results_with_52_names_and_quality(client):
     assert d["present"] == 7
     assert d["quality"]["stations"] == 2
     assert d["quality"]["helmert_rms_mm"] == 6.53
+    # PART 6 of the summary, one row per method; the station-wise block is not one.
+    amb = d["quality"]["ambiguities"]
+    assert [(a["tag"], a["baselines"], a["before"], a["after"], a["percent"]) for a in amb] == [
+        ("NL", 13, 878, 317, 63.9),
+        ("L3", 23, 2072, 738, 64.4),
+    ]
+    assert amb[1]["max_length"] == "<200km"
+    assert d["quality"]["sources"]["ambiguities"] == "OUT/R2S_20250350.PRC:4"
     # Not recorded by the ledger: reported as missing, not invented.
     assert d["provenance"]["started_by"] is None
+
+
+def test_a_summary_without_part_6_reports_no_ambiguities():
+    from bsw_console.status import ambiguity_summary
+
+    assert ambiguity_summary([" RMS OF TRANSFORMATION :    6.53 MM"]) == []
+    # A Tot: line before any method heading belongs to nothing.
+    assert ambiguity_summary([" Tot:  13  700.683   878  1.6   317  1.7  63.9 G"]) == []
+
+
+def test_multi_gnss_totals_keep_each_system_apart():
+    from bsw_console.status import ambiguity_summary
+
+    # From EXAMPLE's R2S_20230100.PRC: one Tot: per system, then all together.
+    lines = [
+        " Code-Based Widelane (WL) Ambiguity Resolution (<6000 km)",
+        " Tot:  15   686.887   904  0.0    74  0.3  91.8 G       0.150  0.072   #AR_WL",
+        " Tot:  13   708.942   485  0.0    23  0.3  95.3   E     0.149  0.061   #AR_WL",
+        " Tot:  15   686.887  1389  0.0    97  0.3  93.0 G E     0.150  0.068   #AR_WL",
+        " Tot:  15   686.887  1648  1.2   796  1.2  51.7 GRE     0.486  0.150   #AR_WL",
+        "PART 7: GNSS COORDINATE/TROPOSPHERE SOLUTION STATISTICS",
+        " Tot:   9     9.999    99  1.0    11  1.0  88.9 G",
+    ]
+    amb = ambiguity_summary(lines)
+    assert [(a["system"], a["before"]) for a in amb] == [
+        ("G", 904),
+        ("E", 485),
+        ("GE", 1389),
+        ("GRE", 1648),
+    ]
 
 
 def test_file_viewer_serves_only_names_it_listed(client):

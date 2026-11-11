@@ -702,6 +702,54 @@ def _snx_sites(p: Path) -> set[str]:
 
 
 _HELM_RMS = re.compile(r"RMS OF TRANSFORMATION\s*:\s*([\d.]+)\s*MM")
+# PART 6 of the RNX2SNX summary: one section per resolution method, each ending
+# in a "Tot:" line per GNSS, e.g.
+#  Code-Based Narrowlane (NL) Ambiguity Resolution (<6000 km)
+#  Tot:  13   700.683   878  1.6   317  1.7  63.9 G   0.177  0.069   #AR_NL
+# A multi-GNSS run has a Tot: line per system and one for all together, whose
+# system column is "G E" or "GRE" (spaces kept from the fixed-width column).
+_AMB_HEAD = re.compile(r"^\s*(.+?) Ambiguity Resolution \((<\s*[\d.]+ km)\)")
+_AMB_TOT = re.compile(
+    r"^\s*Tot:\s+(\d+)\s+([\d.]+)\s+(\d+)\s+[\d.]+\s+(\d+)\s+[\d.]+\s+([\d.]+)\s+([A-Z](?: ?[A-Z])*)\s.*?(#AR_\w+)?\s*$"
+)
+
+
+def ambiguity_summary(lines: list[str]) -> list[dict]:
+    """Each method's totals from PART 6 of an RNX2SNX summary (R2S_*.PRC).
+
+    `percent` is the summary's own Res (%): the share of the ambiguities on that
+    method's baselines that it resolved. The methods cover different baselines
+    (by length), so they are listed and not added into one rate.
+    """
+    out: list[dict] = []
+    head: tuple[str, str] | None = None
+    for i, line in enumerate(lines):
+        if "Station-wise" in line or line.startswith("PART "):
+            # Per-station statistics, or another PART, follow; their Tot:
+            # lines belong to no method.
+            head = None
+            continue
+        h = _AMB_HEAD.match(line)
+        if h:
+            head = (h[1].strip(), h[2].replace(" ", ""))
+            continue
+        m = _AMB_TOT.match(line)
+        if m and head:
+            out.append(
+                {
+                    "method": head[0],
+                    "max_length": head[1],
+                    "tag": (m[7] or "").removeprefix("#AR_") or None,
+                    "system": m[6].replace(" ", ""),
+                    "baselines": int(m[1]),
+                    "mean_length_km": float(m[2]),
+                    "before": int(m[3]),
+                    "after": int(m[4]),
+                    "percent": float(m[5]),
+                    "line": i + 1,
+                }
+            )
+    return out
 
 
 def day_quality(s: Settings, c: Campaign, year: int, doy: int) -> dict:
@@ -718,7 +766,7 @@ def day_quality(s: Settings, c: Campaign, year: int, doy: int) -> dict:
         "stations": None,
         "dropped": [],
         "helmert_rms_mm": None,
-        "ambiguity_rate": None,
+        "ambiguities": None,
         "sources": {},
     }
     now = snx(doy)
@@ -731,13 +779,18 @@ def day_quality(s: Settings, c: Campaign, year: int, doy: int) -> dict:
             q["dropped"] = sorted(_snx_sites(before) - sites)
     prc = base / "OUT" / f"R2S_{year}{doy:03d}0.PRC"
     if prc.is_file():
-        for i, line in enumerate(_open_text(prc)):
+        lines = _open_text(prc)
+        for i, line in enumerate(lines):
             m = _HELM_RMS.search(line)
             if m:
                 q["helmert_rms_mm"] = float(m[1])
                 q["sources"]["helmert_rms_mm"] = f"OUT/{prc.name}:{i + 1}"
-    # The ambiguity fixing rate is in the AMB_*.SUM listings, which the archive
-    # step does not keep. Not reported rather than estimated.
+        # The summary repeats the AMB_*.SUM totals in its PART 6. None when the
+        # PRC has no such part (a float-only PCF, or a truncated file).
+        amb = ambiguity_summary(lines)
+        if amb:
+            q["ambiguities"] = amb
+            q["sources"]["ambiguities"] = f"OUT/{prc.name}:{amb[0]['line']}"
     return q
 
 

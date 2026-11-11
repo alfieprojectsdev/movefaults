@@ -81,7 +81,7 @@ export type DayDetail = DayInfo & {
   attempts: Attempt[]
   results: ResultFile[]
   present: number
-  quality: { stations: number | null; dropped: string[]; helmert_rms_mm: number | null; ambiguity_rate: number | null; sources: Record<string, string> }
+  quality: { stations: number | null; dropped: string[]; helmert_rms_mm: number | null; ambiguities: AmbiguityTotal[] | null; sources: Record<string, string> }
   provenance: {
     pcf: string; ambiguities: string; campaign_dir: string
     /** The latest attempt's run; its run_start is what the fields below come from. */
@@ -239,4 +239,10 @@ export type EquipmentAbout =
 export type EquipmentReport = EquipmentAbout & { summary?: Record<string, number> }
 export type StationEquipment = EquipmentAbout & {
   station: string; current?: EquipmentCurrent[]; visits?: EquipmentVisit[]; names?: { station: string; problem: string; sta_names: string[] }[]
+}
+
+/** One method's totals from PART 6 of the day's RNX2SNX summary. */
+export type AmbiguityTotal = {
+  method: string; max_length: string; tag: string | null; system: string
+  baselines: number; mean_length_km: number; before: number; after: number; percent: number; line: number
 }

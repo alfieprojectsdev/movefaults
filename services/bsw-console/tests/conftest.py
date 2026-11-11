@@ -85,7 +85,18 @@ def build(tmp_path: Path) -> Settings:
         "ATM/FIN_20250350.TRP",
     ):
         (year / name).write_text("x\n")
-    (year / "OUT" / "R2S_20250350.PRC").write_text(" RMS OF TRANSFORMATION :    6.53 MM\n")
+    (year / "OUT" / "R2S_20250350.PRC").write_text(
+        " RMS OF TRANSFORMATION :    6.53 MM\n"
+        "PART 6: AMBIGUITY RESOLUTION SUMMARY\n"
+        " Code-Based Narrowlane (NL) Ambiguity Resolution (<6000 km)\n"
+        " Tot:  13              700.683   878  1.6   317  1.7  63.9 G       0.177  0.069"
+        "                                                     #AR_NL\n"
+        " Phase-Based Narrowlane (L3) Ambiguity Resolution (<200 km)\n"
+        " Tot:  23               85.665  2072  1.7   738  1.8  64.4 G       0.183  0.070"
+        "                                                     #AR_L3\n"
+        " Station-wise Ambiguity Resolution Statistics\n"
+        " Tot:   9                9.999    99  1.0    11  1.0  88.9 G\n"
+    )
 
     t0 = time.time() - 3600
     _ledger(
