@@ -100,7 +100,7 @@ export default function Calendar({ campaign, year }: { campaign: string; year: n
           )}
         </aside>
       </div>
-      <p className="faint" style={{ fontSize: 12 }}>Fixed and float come from the FIN files in SAVEDISK (float: solved only by the float PCF). Failed, running and queued come from the service's run record. Days excluded by a plan are shown on the Plan screen; the run record does not keep plans.</p>
+      <p className="faint" style={{ fontSize: 12 }}>Fixed and float come from the FIN files in SAVEDISK (float: solved only by the float PCF). Failed, running, queued and excluded come from the service's run record: a day is excluded when the latest run to mention it left it out (too little data, or listed by hand) and it has no solution. Runs recorded before plans were kept show no exclusions.</p>
     </>
   )
 }
