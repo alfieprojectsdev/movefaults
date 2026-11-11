@@ -31,7 +31,7 @@ const screens: [string, RegExp][] = [
   ['#/c/LUZON/2025/day/35/redo', /What will be moved/],
   ['#/c/LUZON/2025/plan?from=35&to=40', /Checks before the run/],
   ['#/known-errors', /The list the run looks failures up in/],
-  ['#/c/LUZON/2025/stations', /BLQ, still by email/],
+  ['#/c/LUZON/2025/stations', /Ocean loading \(BLQ\)/],
   ['#/c/LUZON/2021/time-series', /Outlier mode/],
 ]
 

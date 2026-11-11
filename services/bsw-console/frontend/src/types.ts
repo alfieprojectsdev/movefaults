@@ -247,3 +247,22 @@ export type AmbiguityTotal = {
   method: string; max_length: string; tag: string | null; system: string
   baselines: number; mean_length_km: number; before: number; after: number; percent: number; line: number
 }
+/** Station files, the read-only helpers (bsw_console/station_tools.py). */
+export type OnsalaRequest = {
+  campaign: string; sta: string; crd: string; crd_datum: string | null; crd_epoch: string | null; blq: string
+  lines: string[]; no_coordinates: string[]; two_names: string[]
+  settings: Record<string, string | null>; form: string
+}
+export type BlqCheck = {
+  campaign: string; blq: string; problems: string[]; settings_differ: string[]; new: string[]; ready: boolean; command: string
+  stations: { station: string; status: string; key_line: 'ok' | 'early' | 'missing' | 'late'; problems: string[] }[]
+}
+export type AprioriPreview = {
+  campaign: string
+  apriori: { file: string; datum: string | null; epoch: string | null }
+  final: { file: string | null; datum: string | null; epoch: string | null }
+  finals: string[]
+  rows: { station: string; change: 'moved' | 'added'; neu_mm: [number, number, number] | null; horizontal_mm: number | null }[]
+  not_estimated: string[]
+  warnings: string[]
+}

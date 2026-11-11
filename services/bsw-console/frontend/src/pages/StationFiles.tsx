@@ -3,6 +3,7 @@ import { useApi } from '../lib'
 import type { StationFiles as SF } from '../types'
 import { Failed, Loading } from './common'
 import EquipmentPanel from './EquipmentPanel'
+import { AprioriPreviewPanel, OceanLoading } from './StationTools'
 
 export default function StationFiles({ campaign, year }: { campaign: string; year: number }) {
   const { data, error } = useApi<SF>(`/api/campaigns/${campaign}/years/${year}/station-files`)
@@ -20,8 +21,7 @@ export default function StationFiles({ campaign, year }: { campaign: string; yea
           <p className="muted" style={{ maxWidth: '80ch' }}>Where each station is listed in the campaign's eight files, read from <span className="mono">{data.refdir}</span> as the PCF names them. A station missing from a file a run needs will block the plan once this check is wired into it.</p>
         </div>
         <div className="row">
-          <button type="button" className="btn2" disabled title="Stage 4: a reviewed change with a diff and a backup">Add a site…</button>
-          <button type="button" className="btn2" disabled title="Stage 4: a reviewed change with a diff and a backup">Use a final CRD as a priori…</button>
+          <button type="button" className="btn2" disabled title="Not built: adding a site writes all eight campaign files, and how such a change is reviewed is not decided yet">Add a site…</button>
         </div>
       </div>
       <div className="row" style={{ fontSize: 13 }}>
@@ -53,10 +53,8 @@ export default function StationFiles({ campaign, year }: { campaign: string; yea
         </table>
       </div>
       <EquipmentPanel stations={data.rows.map((r) => r.station)} />
-      <div className="panel pad stack" style={{ fontSize: 13 }}>
-        <p><strong>BLQ, still by email.</strong> The console will write the coordinate block for the Chalmers ocean loading form for the stations missing from the BLQ, and check the emailed reply for missing stations and for anything after <span className="mono">$$ END TABLE</span> before it is merged.</p>
-        <p className="faint">Not built yet (stage 4).</p>
-      </div>
+      <OceanLoading campaign={campaign} year={year} />
+      <AprioriPreviewPanel campaign={campaign} year={year} />
     </>
   )
 }
