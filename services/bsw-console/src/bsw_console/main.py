@@ -35,7 +35,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import actions, equipment, outliers, stations, status, timeseries
+from . import actions, equipment, outliers, station_tools, stations, status, timeseries
 from . import plan as plans
 from .actions import STAGE3_REASON
 from .settings import Settings
@@ -208,6 +208,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def known_errors() -> dict:
         return status.known_errors(s)
 
+    @app.get("/api/campaigns/{name}/years/{year}/station-files/onsala-request")
+    def onsala_request(name: str, year: int) -> dict:
+        return station_tools.onsala_request(s, campaign(name), year)
+
+    @app.post("/api/campaigns/{name}/years/{year}/station-files/blq-check")
+    async def blq_check(request: Request, name: str, year: int) -> dict:
+        # Reads the pasted reply and writes nothing; a POST only for the body's size.
+        body = await _json_body(request, MAX_BLQ_REPLY_BYTES)
+        reply = body.get("reply")
+        if not isinstance(reply, str):
+            raise HTTPException(422, 'Send {"reply": "<the pasted text>"}.')
+        return station_tools.check_blq_reply(s, campaign(name), year, reply)
+
+    @app.get("/api/campaigns/{name}/years/{year}/station-files/apriori-preview")
+    def apriori_preview(name: str, year: int, final: str | None = None) -> dict:
+        try:
+            return station_tools.apriori_preview(s, campaign(name), year, final)
+        except KeyError as exc:
+            raise HTTPException(404, str(exc)) from None
+
     @app.get("/api/campaigns/{name}/years/{year}/station-files")
     def station_files(name: str, year: int) -> dict:
         return stations.coverage(s, campaign(name), year)
@@ -322,10 +342,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 MAX_PLAN_BYTES = 4096
+MAX_BLQ_REPLY_BYTES = 2_000_000  # an Onsala reply for a few hundred stations
 _PLAN_FIELDS = {"name", "campaign", "year", "from", "to", "pcf", "skipped", "rnxgra"}
 
 
-def _same_origin_json(request: Request) -> None:
+def _same_origin_json(request: Request, max_bytes: int = MAX_PLAN_BYTES) -> None:
     """Refuse a write a page on another site could have sent.
 
     Browsers send text/plain, form and multipart POSTs cross-site without a
@@ -341,8 +362,8 @@ def _same_origin_json(request: Request) -> None:
     if origin is not None and urlsplit(origin).netloc != request.headers.get("host", ""):
         raise HTTPException(403, "cross-origin request refused")
     declared = request.headers.get("content-length")
-    if declared and declared.isdigit() and int(declared) > MAX_PLAN_BYTES:
-        raise HTTPException(413, f"a plan is at most {MAX_PLAN_BYTES} bytes")
+    if declared and declared.isdigit() and int(declared) > max_bytes:
+        raise HTTPException(413, f"a request body is at most {max_bytes} bytes")
 
 
 def _valid_plan(s: Settings, body: object) -> dict:
@@ -420,18 +441,18 @@ if __name__ == "__main__":
     start()
 
 
-async def _json_body(request: Request) -> dict:
-    """A same-origin JSON object of at most MAX_PLAN_BYTES, read as it streams.
+async def _json_body(request: Request, max_bytes: int = MAX_PLAN_BYTES) -> dict:
+    """A same-origin JSON object of at most ``max_bytes``, read as it streams.
 
     Reading the stream with a cutoff caps a chunked upload that declares no
     Content-Length; request.body() would buffer the whole of it first.
     """
-    _same_origin_json(request)
+    _same_origin_json(request, max_bytes)
     raw = bytearray()
     async for chunk in request.stream():
         raw += chunk
-        if len(raw) > MAX_PLAN_BYTES:
-            raise HTTPException(413, f"a request body is at most {MAX_PLAN_BYTES} bytes")
+        if len(raw) > max_bytes:
+            raise HTTPException(413, f"a request body is at most {max_bytes} bytes")
     try:
         body = json.loads(bytes(raw))
     except ValueError:

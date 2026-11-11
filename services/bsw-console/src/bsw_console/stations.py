@@ -66,18 +66,29 @@ def stations_in(ext: str, text: str) -> dict[str, set[str]]:
     return out
 
 
-def coverage(s: Settings, c: Campaign, year: int) -> dict:
+def refdir_of(s: Settings, c: Campaign, year: int) -> str:
     text = _pcf_text(s, c.pcf) or ""
-    env = s.env
-    refdir = expand_bsw_path(pcf_variable(text, "V_REFDIR") or "", env, year) or str(
+    return expand_bsw_path(pcf_variable(text, "V_REFDIR") or "", s.env, year) or str(
         s.datapool / "REF54"
     )
+
+
+def campaign_files(s: Settings, c: Campaign, year: int) -> dict[str, Path]:
+    """The eight station files the campaign's PCF names, as the BPE reads them."""
+    text = _pcf_text(s, c.pcf) or ""
+    refdir = Path(refdir_of(s, c, year))
     crd = pcf_variable(text, "V_CRDINF") or c.name
+    return {
+        ext: refdir / f"{pcf_variable(text, _VAR.get(ext, 'V_CRDINF')) or crd}.{ext}"
+        for ext in FILES
+    }
+
+
+def coverage(s: Settings, c: Campaign, year: int) -> dict:
+    refdir = refdir_of(s, c, year)
     found: dict[str, dict[str, set[str]]] = {}
     files = {}
-    for ext in FILES:
-        name = pcf_variable(text, _VAR.get(ext, "V_CRDINF")) or crd
-        p = Path(refdir) / f"{name}.{ext}"
+    for ext, p in campaign_files(s, c, year).items():
         files[ext] = {"name": p.name, "present": p.is_file()}
         found[ext] = stations_in(ext, p.read_text(errors="replace")) if p.is_file() else {}
     codes = sorted(set().union(*[set(v) for v in found.values()]))
