@@ -39,12 +39,12 @@ export default function Inventory({ campaign, year }: { campaign: string; year: 
         <Step title="1. Field visit logged" off={data.not_connected.field_visits}>{null}</Step>
         <Step title="2. Raw data received" off={data.not_connected.raw_data}>{null}</Step>
         <Step title="3. RINEX in the datapool">
-          <p><strong>{t.rinex_station_days}</strong> station-days, {t.rinex_stations} stations, in <span className="mono">{data.rinex_dir}</span>.</p>
+          <p><strong>{t.rinex_station_days}</strong> station-days, {t.rinex_stations} stations, in <span className="mono" style={{ overflowWrap: 'anywhere' }}>{data.rinex_dir}</span>.</p>
           <p className="faint"><span className="stub">not connected</span> QC: {data.not_connected.rinex_qc}</p>
         </Step>
         <Step title="4. Processed">
           <p><strong>{t.processed_station_days}</strong> station-days estimated by a final solution.</p>
-          <p>Waiting: <strong>{t.waiting_in_sta}</strong> station-days with RINEX and no solution that estimated the station.{data.sta == null && <> The STA could not be read, so which stations a run would process is not known.</>}{t.waiting_not_in_sta > 0 && <> Another <strong>{t.waiting_not_in_sta}</strong> belong to stations not in <span className="mono">{data.sta}</span>, which no run of this campaign processes.</>}</p>
+          <p>Waiting: <strong>{t.waiting_in_sta}</strong> station-days with RINEX and no solution that estimated the station.{data.sta == null && <> The STA could not be read, so which stations a run would process is not known.</>}{t.waiting_not_in_sta > 0 && <> Another <strong>{t.waiting_not_in_sta}</strong> belong to stations not in <span className="mono" style={{ overflowWrap: 'anywhere' }}>{data.sta}</span>, which no run of this campaign processes.</>}</p>
         </Step>
         <Step title="5. Time series and velocity">
           <p><strong>{t.in_time_series}</strong> of these stations in the series, from a fixed solution in any year of the campaign.</p>
@@ -65,7 +65,7 @@ export default function Inventory({ campaign, year }: { campaign: string; year: 
                 <td>{r.in_sta == null ? <span className="faint">not known</span> : r.in_sta ? 'yes' : r.processed_days ? 'no' : <strong style={{ color: 'var(--warn-strong)' }}>no: never processed</strong>}</td>
                 <td className="num">{r.rinex_days}</td>
                 <td className="num">{r.processed_days}</td>
-                <td>{r.waiting_days ? <>{r.waiting_days} days: {r.waiting_first.map((d, i) => <span key={d}>{i > 0 && ', '}<a href={href.day(c, y, d)}>{pad3(d)}</a></span>)}{r.waiting_days > r.waiting_first.length && ', …'}</> : '—'}</td>
+                <td>{r.waiting_days ? <>{r.waiting_days} {r.waiting_days === 1 ? 'day' : 'days'}: {r.waiting_first.map((d, i) => <span key={d}>{i > 0 && ', '}<a href={href.day(c, y, d)}>{pad3(d)}</a></span>)}{r.waiting_days > r.waiting_first.length && ', …'}</> : '—'}</td>
                 <td>{r.span_years == null ? '—' : <>{r.span_years.toFixed(2)} yr{r.velocity === false && <span className="faint"> · too short for a velocity</span>}</>}</td>
               </tr>
             ))}

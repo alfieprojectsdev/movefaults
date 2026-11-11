@@ -45,7 +45,7 @@ export default function Calendar({ campaign, year }: { campaign: string; year: n
         </div>
         <div className="seg" role="group" aria-label="Year">
           {[year - 1, year, year + 1].map((y) => (
-            <a key={y} className="btn2" href={href.calendar(campaign, y)} aria-current={y === year ? 'page' : undefined} style={y === year ? { background: 'var(--badge)', color: 'var(--badge-ink)' } : undefined}>{y}</a>
+            <a key={y} className="btn2" href={href.calendar(campaign, y)} aria-current={y === year ? 'page' : undefined}>{y}</a>
           ))}
         </div>
       </div>
