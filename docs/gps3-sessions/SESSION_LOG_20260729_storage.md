@@ -5354,3 +5354,255 @@ before relying on it, or looking directly instead of inferring, and several
 came from the other machine's review. Two machines arguing their own results
 down is the mechanism that works here; it is worth keeping when the T420 is
 replaced.
+
+---
+
+## 38. Weeks 1 and 2 of the cutover plan, and a review across machines — 2026-10-15 → 10-28
+
+### 38.1 The decision layer
+
+The plan in §36.4 built, in order:
+
+- **#284, the error scanner:** reads a failed BPE step's output into an error
+  signature.
+- **#285, the knowledge base:** a YAML file of signatures, causes and fixes that
+  the domain owner can extend without code.
+- **#286, the circuit breaker:** stops a multi-day run by error, not by count.
+  K=3 for one signature, and a cap of 5 consecutive failed days of any error,
+  both approved by Alfie (2026-10-15 and 10-20).
+- **#287:** finds `NEXTJOB` and `PARALLEL` targets that name no process.
+- **Step D (#300):** the append-only run ledger, with status that tells a slow
+  run from a dead one.
+- **Step E (#299):** a run planned from the datapool, with PCFs refused when
+  they have dangling jumps.
+- **Step F (#302, #303):** a range of days as parallel BPE blocks, each in its
+  own campaign, under a machine-wide BPE lock (`bpe_lock.py`), which the shell
+  drivers now take too (#308).
+
+### 38.2 Post-merge review, split by machine
+
+At Alfie's request (2026-10-25), each machine reviewed the other's merged PRs.
+The fixes came back as #288–#297 and all merged on 10-26. Two of them change
+what a result means:
+
+- **#293:** a stale `.done` marker could bank a failed redo.
+- **#289:** any exception from the backend now halts the run, and the halt
+  names the program that failed.
+
+### 38.3 Parity, and the comparison that had never compared
+
+The service ran PHREF 2025 DOY 091–120 into a separate tree (PHRPAR): 30 of 30
+days in 1h15m. A control run of DOY 094, 096 and 098 through `phref_year.pl`,
+same configuration, gave identical SNX and CRD files, 3 of 3. That control is
+the evidence that the service reproduces `scripts/` (CLAUDE.md records it).
+
+Getting there exposed `compare_solutions.sh` (#306). Every "identical" it had
+printed compared covariances and statistics, not coordinates:
+- its run-timestamp pattern also matched each estimate line's epoch and deleted
+  the estimates;
+- plain `.CRD` files went through `zcat 2>/dev/null` and compared empty on both
+  sides.
+
+SETTLED records which old verdicts still hold.
+
+### 38.4 The T420 steps back
+
+The T420 reset unexpectedly on 10-28. From that day (Alfie's decision), development
+moves to gps3 and reese, and the T420 only relays decisions, reviews and
+merges. Its irreplaceable files, about 33 GB, are copied to
+`/srv/gnss-archive/finch-migration/`, all sha256-verified.
+
+---
+
+## 39. The cutover: production runs through the service — 2026-11-04 → 11-06
+
+- **LUZON January 2026**, the first production run through `bernese-run-year`:
+  run `7ca9ccb9`, 31 of 31 days in 53 min, 23–25 stations a day. Before it,
+  LUZON.STA's S01R had overlapping TYPE 002 windows. Two lines were deleted, with a
+  backup kept, and DOY 001–004 were moved to `SUPERSEDED/` and rerun.
+- **PHREF 2025 reprocessed**, runs `3341af5c` and `0def7ca1`, all 360 planned
+  days. Every day's coordinates differ from the August run (median of each day's
+  largest difference 0.02 mm, maximum 40.5 mm).
+- **The cause is the binaries replaced on 2 September**
+  (`phref_2025_reprocess_attribution_results.md`). The earlier binaries reproduce
+  August exactly on the three days tested, the 40.5 mm day included. That change
+  bundled the patches and a move to a local build, and the test can't separate
+  them. One-year velocities moved a median 0.01 mm/yr horizontally.
+- **IGS20 is production's frame** (Alfie, 2026-11-06, #364). It had run since
+  the cutover with nothing recording a decision. gps3's results are not directly
+  comparable with 5.2's IGS14 series until the join is measured.
+- **Production's PCFs, drivers and changed panels are in the repo** (#365): 13
+  files that existed only in `$U`, byte-identical. Restoring them is a copy, not
+  `provision_gpsuser.py`.
+- **Nightly products and run mail** (#370, #368): `bernese-update-products` at
+  02:20 fetches missing products and only *reports* reference files that differ
+  from AIUB's. 5 of 11 watched files differ, including `ANTENNA_I20.PCV` and
+  `SATELLIT_I20.SAT`. Whether to update them is an open decision, because it
+  changes solved days. `bernese-notify` mails the starter and the maintainer.
+  Both are in gps3's crontab.
+- **Routine processing without cron** (#371, design only): SETTLED §3 keeps
+  scheduling out of the scientific pipeline. A nightly job may *propose* runs,
+  and a person presses Start. Data arrival sets the pace: files reach the file
+  server a median of 33 days after the day.
+
+---
+
+## 40. The Bernese processing console — 2026-11-03 → 11-11
+
+Built from the brief (`docs/web_console_design_brief.md`) at
+`services/bsw-console`: FastAPI and React, read-only first, then stage 3. About
+30 PRs between #315 and #380. What matters for a successor:
+
+- **It acts on Bernese only through `services/bernese-workflow`.** The run
+  worker (#316) takes queued Start, Stop, Redo and Preflight requests and calls
+  the same `run_year` as the CLI. The buttons shipped off (#334) and were turned
+  on for four named operators on 11-11.
+- **Sign-in trusts the connecting address, not `X-Forwarded-For`** (#338). Only
+  the front end may pass a user name.
+- **The Time series page found a real defect** (#347). `crd_pipeline.py` read
+  the reference station's position once, from the first file. `RUNX_v2.py`
+  reads it from each day's file. So plate motion stayed in every series: ALAB
+  against PIMO gave −24.63/20.97/−8.16 mm/yr instead of 2.82/13.23/−0.52. The
+  161/165 MATLAB agreement never caught it, because that check starts from
+  PHIVOLCS' PLOT files, downstream of this step. Production runs `RUNX_v2.py`
+  and was not affected.
+- **Outlier decisions** are recorded from the plot (#344, #346, #352), and
+  confirmed epochs leave the fit (#340). Whether the *published* fit uses them
+  is an open team decision.
+- **Stage 4's read-only parts** (#375–#379), from the backlog:
+  - each ambiguity method's resolution on the Day page;
+  - days a plan left out, on the calendar;
+  - the Onsala ocean-loading request and a check of the emailed reply;
+  - an a priori CRD preview;
+  - a per-station inventory: RINEX, processed, in the series.
+
+  On real PHREF days, QIF resolves only about 9% of its ambiguities. That's what
+  BSW's own summary says, and it's worth a look.
+- **The work instruction**, `docs/bsw_console_work_instruction.md`, is for 5.2
+  staff, in their own vocabulary.
+
+**Deploying from a stale checkout (11-11).** `add_phpar_console_gps3.sh` was
+handed over from `/home/gps3/repos/movefaults_clean`, which was still on the old
+main, so the old script ran. **Fast-forward the main checkout before handing
+over any `scripts/sudo/` path.**
+
+---
+
+## 41. 2025 with Bernese 5.4 against the 5.2 run — 2026-11-07 → 11-11
+
+PHPAR reprocessed exactly the 32,546 station-days of the 5.2 run on gps2, and
+PHSUP every file on hand (`docs/phpar_2025_parity_results.md`, #372):
+
+- **PHPAR:** 365 of 365 days. On the 259 days where both runs agree with PHREF to
+  10 mm, PHPAR against 5.2 has a median daily RMS of 3.4 mm horizontal and
+  8.2 mm vertical.
+- **5.2's days:** 97 of 360 are above 10 mm against PHREF, 55 above 50 mm,
+  73 of them in February–May. PHPAR has 9 above 10 mm.
+- **PHSUP:** 357 of 365 days solved when its last run ended on 11-11. Console
+  reruns may now allow header mismatches (#376); whether the 8 missing days are
+  those is not checked here.
+
+Preparing this found three faults in our own tooling:
+- **The weekly datum floated.** The weekly ADDNEQ2 template asked for a
+  minimum-constraint datum from a station file and named no file. ADDNEQ2 didn't
+  complain, and the weeklies sat a median 35.2 mm from their own dailies; with
+  `IGS20.FIX` it is 3.8 mm. The script now refuses such a template.
+- **The header check named stations differently from Bernese.** It read names
+  from the RINEX headers, while RXOBV3 uses `STANAM FILE_NAME`.
+- **Receiver names were compared case-sensitively,** although Bernese accepts
+  case differences.
+
+---
+
+## 42. The Leyte bootstrap, checked — 2026-11-12
+
+A read-only review of the Southern and Northern Leyte 2-D dislocation
+bootstraps, done on a field PC, raised about 20 findings. The input and output
+files were brought to gps3 afterwards. They stay **outside the repository** in
+`~/leyte_bootstrap_20261112/`, with a manifest; they are not ours to publish.
+
+- **A Python copy reproduces the MATLAB.** Projection, Green's functions, the
+  grid and both picks match `velproj_loop.m` and `makeG_2ds_v3_loop.m` on one
+  saved iteration per segment: 978,432 and 698,880 rows, relative difference at
+  most 1e-7.
+- **The speed comes from the method, not the language.** The Green's functions
+  depend on the geometry and the station positions, never on the resample, so
+  the Python computes them once per segment (about 1 s) and then fits every
+  model of an iteration with one closed-form weighted sum: 0.04 s per
+  iteration for Southern Leyte, 0.02 s for Northern Leyte, measured on gps3. The
+  MATLAB starts the engine twice per iteration, recomputes the Green's functions
+  for every one of the 978,432 models, solves each with `\`, and writes a
+  1-million-row text file that the Python driver then reads twice. Northern
+  Leyte's output gained 2 iterations between 08:46 and 11:42 on 11-12, about
+  1.5 hours each. At that rate a 1,000-iteration run is several weeks of
+  machine time, which matches the stop-and-start runs reported. A MATLAB
+  rewrite with the same restructuring would be as fast.
+- **The profile-normal σ is wrong in every copy of `velproj`.** It scales the
+  total horizontal error by sin(velocity azimuth − Az), so a site moving along the
+  profile gets almost no error. The correct σ, from σE and σN, doesn't depend on
+  the velocity.
+  - Southern Leyte: two sites' σ are 5–14× too small.
+  - Northern Leyte: σ is about 1.35× too large almost everywhere.
+- **The "rχ² closest to 1" pick turns any σ scale error into a different
+  model.** Over 1,000 identical resamples, Northern Leyte's pick changed in every
+  iteration with the corrected σ (median width 2→1 km, slip 30.8→32.8 mm/yr).
+  The min-wrms pick was the same set in 73% of iterations.
+- **Southern Leyte doesn't fit with either σ.** The best rχ² on the full data is
+  177 with the old σ and 42 with the corrected one, and 87–97% of picks sit on the
+  grid edge. Its East, Depth and Width intervals are the grid's limits.
+  Most of its `parameters_wrms.txt` is zero-width faults tied with each other.
+- **Our port (`modeling/inversion.py`) has the same block-step and width-0
+  choices, and no E1.** The fixes are planned, not made:
+  - E1 as a parameter, with the step at the fault;
+  - a separate null model;
+  - χ²/(n−p), with min-χ² primary;
+  - `velproj` ported with a `legacy_sigma` switch;
+  - a seeded, manifested bootstrap.
+
+  Which method to adopt still waits on PHIVOLCS (`inversion_method_decision.md`).
+
+---
+
+## 43. The consoles, as decided
+
+Asked on 11-12 whether separate consoles multiply the problem. **What has been
+decided adds up to one console we build**, plus a dashboard we don't build and
+command-line tools:
+
+| Concern | Where it lives | Decided |
+|---|---|---|
+| Bernese processing (the only part that writes) | `services/bsw-console` | 10-26 brief, §1a |
+| Status of the rest of the workflow | panels in the same app, each fed by its owner's status endpoint | 10-26 brief, §1a |
+| VADASE live view and alerts | Grafana over TimescaleDB (dashboards already in `services/vadase-rt-monitor/grafana/`), a separate process | 11-05 |
+| Velocities, and inputs for modelling | pages in the BSW console: a velocity field, then an export of model inputs | 11-11 |
+| Inversion and bootstrap | CLI or notebook reading that export; not in the console | 11-11 |
+
+**VADASE is separate because of failure domains, not screens.** The ingestor and
+its alerts must stay up during an earthquake, independent of console deploys and
+of BPE load. A status panel in the console (stream health, last message) is
+fine; the alert path is not the console's.
+
+**One of the 11-11 reasons for keeping modelling out has weakened.** "It
+competes with the BPE" assumed MATLAB's cost. Reproduced in Python (§42), a
+segment's 1,000-iteration bootstrap takes under a minute of computing. The other two reasons still
+hold: the geometry and ranges need scientific judgement, and the method isn't
+chosen.
+
+---
+
+## 44. The shape of this period's mistakes
+
+| what was believed | what was actually true | § |
+|---|---|---|
+| `compare_solutions.sh` "identical" | it compared covariances, and empty files | 38.3 |
+| the time series matched PHIVOLCS (161/165) | the check started downstream of the step that was wrong | 40 |
+| ADDNEQ2 ran clean, so the weekly datum held | it was never told which stations to fix; 35 mm | 41 |
+| the header check names stations as Bernese does | it read headers; Bernese read file names | 41 |
+| the run table's header was sticky | the rule applied only above 40 days; a month has 31 | 40 |
+| the script I handed over was the new one | the checkout it ran from was a merge behind | 40 |
+| a bootstrap interval measures resampling uncertainty | with "closest to 1" and the wrong σ, it measures the σ scale | 42 |
+
+The pattern from §37 continues: **a check that passed was answering a
+different question.** Most were found by preparing the next real run or by a
+person reading real data on a page. None was found by the check that had
+passed.
