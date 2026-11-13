@@ -54,9 +54,12 @@ TABLE_HEADER = (
 
 # The MATLAB's own line format: velocities to 5 decimals, sigmas to 1.
 #   fprintf('%s %10.5f +- %4.1f    %10.5f +- %4.1f    %10.5f +- %4.1f\n', ...)
+# MATLAB prints NaN/Inf, Python nan/inf: accept both, or a non-finite line
+# would vanish from the comparison instead of showing as a difference.
+_NUM = r"(-?[\d.]+|-?(?i:nan|inf))"
 _LINE = re.compile(
-    r"^(\S+)\s+(-?[\d.]+|NaN)\s+\+-\s+(-?[\d.]+|NaN)\s+(-?[\d.]+|NaN)\s+\+-\s+(-?[\d.]+|NaN)"
-    r"\s+(-?[\d.]+|NaN)\s+\+-\s+(-?[\d.]+|NaN)\s*$"
+    rf"^(\S+)\s+{_NUM}\s+\+-\s+{_NUM}\s+{_NUM}\s+\+-\s+{_NUM}"
+    rf"\s+{_NUM}\s+\+-\s+{_NUM}\s*$"
 )
 
 
@@ -87,15 +90,24 @@ def compute_velocities(
     *,
     exclude_outliers: bool,
     iqr_factor: float = 3.0,
-) -> tuple[list[tuple[str, VelocityResult]], list[SiteFailure]]:
+) -> tuple[
+    list[tuple[str, VelocityResult]], list[SiteFailure], list[SiteFailure], dict[str, str]
+]:
     """Fit every site in `sites`, in that order.
 
     A site that cannot be fitted is reported, not raised, so one bad file does
     not cost the other sites their velocities. The caller must show the
     failures; this function never drops a site silently.
+
+    Returns (results, failures, short, trailing_dropped): `short` names fitted
+    sites that lost a segment of fewer than 3 epochs, and `trailing_dropped`
+    maps station code to reason where that segment was the final one, shaped
+    for `gmt.write_psvelo(withhold=...)`.
     """
     results: list[tuple[str, VelocityResult]] = []
     failures: list[SiteFailure] = []
+    short: list[SiteFailure] = []
+    trailing_dropped: dict[str, str] = {}
     for name in sites:
         path = plot_dir / name
         if not path.is_file():
@@ -113,13 +125,29 @@ def compute_velocities(
                 exclude_outliers=exclude_outliers,
             )
         except ValueError as exc:
+            # estimate_velocity raises when no segment has 3 or more epochs,
+            # so every result appended below has at least one segment.
             failures.append(SiteFailure(name, str(exc)))
             continue
-        if not res.segments:
-            failures.append(SiteFailure(name, "no segment has 3 or more epochs"))
-            continue
         results.append((name, res))
-    return results, failures
+        # estimate_velocity skips a segment of fewer than 3 epochs without
+        # saying so. Name it: a dropped TRAILING segment makes the last line
+        # in the table the pre-offset rate, which a map would draw as current.
+        fitted = sum(len(s.rows) for s in res.segments)
+        if fitted < len(t):
+            last_fitted = res.segments[-1].t_end
+            trailing = bool(np.max(t) > last_fitted)
+            short.append(SiteFailure(
+                name,
+                f"{len(t) - fitted} epoch(s) in segment(s) of fewer than 3 epochs "
+                "not fitted" + ("; the final segment is one of them, so the last "
+                                "line is NOT the current rate" if trailing else ""),
+            ))
+            if trailing:
+                trailing_dropped[code] = (
+                    f"final segment after {last_fitted:.4f} has fewer than 3 epochs"
+                )
+    return results, failures, short, trailing_dropped
 
 
 def format_velocity_table(results: Iterable[tuple[str, VelocityResult]]) -> str:
@@ -165,6 +193,8 @@ def write_manifest(
     n_sites: int,
     failures: list[SiteFailure],
     written: Iterable[Path],
+    short_segments: Iterable[SiteFailure] = (),
+    missing_positions: Iterable[str] = (),
 ) -> None:
     """Record what produced the outputs, beside them."""
     manifest = {
@@ -181,6 +211,8 @@ def write_manifest(
         "sites_listed": n_sites,
         "sites_fitted": n_sites - len(failures),
         "failures": [{"site": f.site, "reason": f.reason} for f in failures],
+        "short_segments": [{"site": f.site, "reason": f.reason} for f in short_segments],
+        "missing_positions": list(missing_positions),
         "outputs": {p.name: sha256_file(p) for p in written},
     }
     path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

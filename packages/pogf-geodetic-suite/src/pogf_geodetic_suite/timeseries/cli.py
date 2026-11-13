@@ -155,9 +155,6 @@ def status(
     click.echo(json.dumps(result, indent=indent, allow_nan=False))
 
 
-if __name__ == "__main__":
-    main()
-
 
 @group.command()
 @click.argument("plot_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
@@ -232,18 +229,20 @@ def velocities(
         raise click.UsageError(f"No site list at {site_list}; pass --sites.")
     out_dir = out_dir or plot_dir
 
+    # Read every input before writing anything: a failure after the table is
+    # written would leave the previous run's manifest describing new outputs.
     try:
         catalog = load_offsets_catalog(offsets_catalog) if offsets_catalog else {}
         sites = read_site_list(site_list)
+        positions = gmt.station_positions(crd_file) if crd_file else None
+        results, failures, short, trailing_dropped = compute_velocities(
+            plot_dir, sites, catalog,
+            exclude_outliers=outlier_mode == OutlierMode.EXCLUDE.value,
+            iqr_factor=iqr_factor,
+        )
     except (ValueError, OSError) as exc:
         click.echo(f"Error: {exc}", err=True)
         raise SystemExit(1) from exc
-
-    results, failures = compute_velocities(
-        plot_dir, sites, catalog,
-        exclude_outliers=outlier_mode == OutlierMode.EXCLUDE.value,
-        iqr_factor=iqr_factor,
-    )
 
     out_dir.mkdir(parents=True, exist_ok=True)
     table = out_dir / TABLE_NAME
@@ -252,14 +251,15 @@ def velocities(
     outliers.write_text(format_outliers(results), encoding="utf-8")
     written = [table, outliers]
 
+    missing: list[str] = []
     if crd_file:
-        vectors, missing = gmt.to_vectors(
-            [r for _, r in results], gmt.station_positions(crd_file),
-        )
+        vectors, missing = gmt.to_vectors([r for _, r in results], positions)
         psvelo = out_dir / "velocities.psvelo"
+        # A dropped trailing segment leaves the pre-offset rate as the "final"
+        # one; short_final_interval cannot see that, so withhold it here too.
         n, withheld = gmt.write_psvelo(
             vectors, psvelo, reference_station=reference.upper(),
-            withhold=gmt.short_final_interval(vectors),
+            withhold={**gmt.short_final_interval(vectors), **trailing_dropped},
         )
         written.append(psvelo)
         click.echo(f"psvelo    : {n} drawn, {len(withheld)} withheld -> {psvelo}")
@@ -271,12 +271,15 @@ def velocities(
         plot_dir=plot_dir, site_list=site_list, offsets=offsets_catalog,
         outlier_mode=outlier_mode, iqr_factor=iqr_factor, reference=reference,
         n_sites=len(sites), failures=failures, written=written,
+        short_segments=short, missing_positions=missing,
     )
     click.echo(f"catalog   : {offsets_catalog or 'none (--no-offsets)'}")
     click.echo(f"outliers  : {outlier_mode}")
     click.echo(f"fitted    : {len(results)} of {len(sites)} sites -> {table}")
     for f in failures:
         click.echo(f"  NOT FITTED {f.site}: {f.reason}", err=True)
+    for f in short:
+        click.echo(f"  SHORT SEGMENT {f.site}: {f.reason}", err=True)
 
 
 @group.command("compare-velocities")
@@ -303,3 +306,7 @@ def compare_velocities(ours: Path, theirs: Path) -> None:
     click.echo("summary: " + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
     if any(r.status != "match" for r in rows):
         raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

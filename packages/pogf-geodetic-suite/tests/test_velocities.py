@@ -190,3 +190,35 @@ def test_segment_count_and_missing_sites(tmp_path):
     b = _table(tmp_path / "b", [L1])
     rows = {r.site: r.status for r in compare_velocity_tables(a, b)}
     assert rows == {"ALPH": "segments", "BRAV": "only-ours"}
+
+
+def test_dropped_trailing_segment_is_named_and_withheld_from_the_map(plots, tmp_path):
+    """An offset leaving fewer than 3 epochs after it: estimate_velocity skips
+    that segment, so the last table line is the PRE-offset rate. It must be
+    reported, and kept off the map rather than drawn as the current rate."""
+    t, _ = load_plot_file(plots / "BRAV")
+    (plots / "offsets").write_text(
+        f"ALPH {STEP_EPOCH:.4f} EQ\nBRAV {t[-2] - 1e-4:.4f} EQ\n"
+    )
+    crd = tmp_path / "X.CRD"
+    crd.write_text(
+        "TEST\n----\n\nLOCAL GEODETIC DATUM: IGS20\n\n"
+        "NUM  STATION NAME           X (M)          Y (M)          Z (M)     FLAG\n\n"
+        "  1  ALPH 00000M001  -3000000.0000   5500000.0000   1600000.0000    A\n"
+        "  2  BRAV 00000M002  -3010000.0000   5490000.0000   1610000.0000    A\n"
+    )
+    res = _run(plots, "--crd", crd, "-r", "ALPH")
+    assert res.exit_code == 0, res.output
+    assert "SHORT SEGMENT BRAV" in res.output and "NOT the current rate" in res.output
+    m = json.loads((plots / MANIFEST_NAME).read_text())
+    assert [f["site"] for f in m["short_segments"]] == ["BRAV"]
+    psvelo = (plots / "velocities.psvelo").read_text()
+    brav = [ln for ln in psvelo.splitlines() if ln.rstrip().endswith("BRAV")]
+    assert brav and all(ln.startswith("#") for ln in brav)
+
+
+def test_python_nan_is_parsed_not_dropped(tmp_path):
+    a = _table(tmp_path / "a", [L1])
+    b = _table(tmp_path / "b", [L1.replace("10.00000", "     nan")])
+    rows = compare_velocity_tables(a, b)
+    assert [r.status for r in rows] == ["differ"]
