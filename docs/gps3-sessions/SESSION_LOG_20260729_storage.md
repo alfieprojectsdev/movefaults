@@ -5550,6 +5550,13 @@ files were brought to gps3 afterwards. They stay **outside the repository** in
 - **Southern Leyte doesn't fit with either σ.** The best rχ² on the full data is
   177 with the old σ and 42 with the corrected one, and 87–97% of picks sit on the
   grid edge. Its East, Depth and Width intervals are the grid's limits.
+  **Correction, 11-13:** the "grid edge" count is almost all dip. Over 1,000
+  resamples, the rχ² pick is at dip 90° in 72% (old σ) and 80% (corrected σ), at
+  dip 65° in 24% and 8%, and never at either block-rate limit. Dip 90° is a
+  physical limit (a vertical fault); dip 65° is the grid's, and on the literature
+  it is dip absorbing a shift of the fault's buried edge. Depth and width remain
+  unresolved and the fit poor; the literature (`fault_model_priors.md`) points
+  to a creep step rather than a locked fault.
   Most of its `parameters_wrms.txt` is zero-width faults tied with each other.
 - **Our port (`modeling/inversion.py`) has the same block-step and width-0
   choices, and no E1.** The fixes are planned, not made:
