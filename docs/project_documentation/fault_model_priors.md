@@ -158,7 +158,7 @@ spread over the whole grid. Over 1,000 resamples its picks sit at dip 90° in
 block-rate limit. Dip 90° is a physical limit (a vertical fault); dip 65° is dip
 absorbing an edge shift, which is why dip should be fixed and x0 estimated. A
 creep-step model is the first thing to try.
-Bacolcol et al. (2012), as tabulated in that compilation, gives D 13 km, dip 80°
+Bacolcol et al. (2012), as tabulated in PHIVOLCS' compilation of results (`dislocation_model_results.md`), gives D 13 km, dip 80°
 and s 30 mm/yr; the publication itself hasn't been located [S].
 
 ### Masbate
