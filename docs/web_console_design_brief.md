@@ -80,6 +80,31 @@ shows both results and computes neither.
 **Panels arrive when their owner has a status endpoint.** The shell and the
 BPC come first. No panel waits on all the others.
 
+## 1b. Analyses run on gps3, from the console
+
+*Added 13 November. Supersedes the 11 November position, recorded only in the
+gps3 session log (§43), that modelling stays out of the console.*
+
+The processing team should not need to install anything. Post-processing
+analyses run on gps3 and are started from the console:
+
+| Analysis | Command it runs | Stage |
+|---|---|---|
+| Velocities, the MATLAB's table and outliers file | `pogf-timeseries velocities` | with the Results panel |
+| Export of model inputs (velocities projected on a profile) | to be ported from `velproj_loop.m` | next |
+| 2-D dislocation grid search and bootstrap | to be ported from `makeG_2ds_v3_loop.m` and `bootstrap_v2.py` | next |
+| MCMC inversion | to be ported from `06 Ku-en` | later |
+
+- **These are jobs, like a Bernese run.** The page submits a request; the run
+  worker queues it, runs it and records it. The page shows the result and the
+  settings that produced it. It computes nothing itself (section 1a).
+- **The person still chooses.** A page offers defaults for fault geometry and
+  parameter ranges, each with its published source, and the user can change
+  them. The defaults are still being compiled (`SETTLED.md`, section 6).
+- **Who may submit** follows the run buttons: named operators.
+- **This is still one console.** VADASE's live view and alerts stay in Grafana,
+  a separate process, so they stay up whatever the console or the BPE is doing.
+
 ## 2. Who uses it
 
 **COS processing staff.** They know BSW 5.2 well, from the PHIVOLCS work
