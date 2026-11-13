@@ -661,8 +661,8 @@ worked on:
   use without a geologist on hand: fault trace, dip, locking depth, width and block rate per
   segment, with the published source for each. Widening the grid alone is not the answer:
   87–97% of Southern Leyte's picks already sit on the grid's edge, and depth, width and
-  slip trade off against each other with about a dozen stations. A literature review was
-  proposed 2026-11-13.
+  slip trade off against each other with about a dozen stations. A literature review started
+  2026-11-13.
 
 - **GitHub Actions is ENABLED and still runs nothing: the account is
   billing-locked.** Enabled 2026-09-24 (it had been disabled repo-wide since
