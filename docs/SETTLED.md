@@ -290,6 +290,7 @@ a header position good to ~100 m cannot distinguish a mark from another mark
 | **Do not inherit one campaign's excluded-days list into another** | LUZON's `058 059 060 061 079 139 345` was derived from LUZON's fiducial coverage. Under PHREF, 079 (3 fiducials) and 139 (8) are fine. Anything computed from a station set must be recomputed when the set changes |
 | **Snapshot built executables, not just source, before any rebuild** | a failed compile leaves a half-built `EXE_GNU`; restoring source alone leaves nothing runnable. This is what made the 2026-09-02 recovery possible |
 | **A pre-flight test day must be the worst case for the resource under test** | DOY 200 (33 stations) passed and authorised a year that failed on all 359 days; the busiest days carry 41. A guard that picks its own easy sample is not a guard |
+| **Post-processing analyses run on gps3, started from the BSW console; nothing is installed on staff PCs, and MATLAB is not a dependency.** Velocities, the export of model inputs, the 2-D dislocation bootstrap and inversion, and later the MCMC inversion run as jobs on gps3, submitted from pages of the one BSW console and queued through the run worker (`run_worker.py`, `run_queue.py`) like a Bernese run. Compiled C or Fortran kernels are fine. The maintainer's decision, 2026-11-13. **Supersedes the 2026-11-11 position** that modelling stays a command-line or notebook step outside the console (session log §43) | Two of 11-11's three reasons no longer hold. The bootstrap that takes about 1.5 hours an iteration in MATLAB takes 0.04 s on gps3 (session log §42), so it does not compete with the BPE; and running on gps3 removes installing anything on staff PCs. The third, that fault geometry and parameter ranges need scientific judgement, is answered by documented defaults with their sources (§6), not by keeping analyses out of the console. VADASE stays separate (Grafana over TimescaleDB), for failure domains, not screens |
 
 ---
 
@@ -654,6 +655,14 @@ worked on:
   explained. LGYE has the largest differences and is also the subject of the
   East-excursion item below; no link between the two has been looked for. Whether a
   multi-year velocity moved hasn't been measured.
+
+- **Default fault geometry and parameter ranges for the 2-D dislocation models.** Running
+  analyses from the console (§3, 2026-11-13) needs defaults a processing staff member can
+  use without a geologist on hand: fault trace, dip, locking depth, width and block rate per
+  segment, with the published source for each. Widening the grid alone is not the answer:
+  87–97% of Southern Leyte's picks already sit on the grid's edge, and depth, width and
+  slip trade off against each other with about a dozen stations. A literature review was
+  proposed 2026-11-13.
 
 - **GitHub Actions is ENABLED and still runs nothing: the account is
   billing-locked.** Enabled 2026-09-24 (it had been disabled repo-wide since
