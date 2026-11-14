@@ -314,6 +314,7 @@ writes GMT `psvelo` input. It is not in the console.
 | Confirmed outliers leaving the published fit | Waiting on the team's decision (section 9, question 2). Today they change only the side-by-side fit |
 | Ambiguity fixing rate on the Day page | Not available: the AMB summaries are not archived |
 | Days left out of a run on purpose | Never shown as "excluded", because the run record does not keep plans |
+| Steps after velocities: profiles, the 2-D model, bootstrap, figures, MCMC | Still MATLAB. `matlab_to_gps3_guide.md` lists every MATLAB step and where it is done now |
 
 ## 8. Automation gaps beyond the console
 
