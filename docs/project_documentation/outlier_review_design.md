@@ -16,7 +16,7 @@ of the browser console."
 | | Automatic flags | Person decides | Where the decision goes |
 |---|---|---|---|
 | Legacy (`outlier_input-site.py`, Windows GUI; the copy in this repo is `docs/bern52/.../Outliers-input name.py`) | none in the GUI: it plots the linear fit. Automatic detection was the MATLAB's `rmoutliers` in `vel_line_v8`, whose mask the fit then ignored | right-click to mark | appends the epoch to `OUTLIERS.txt`; the work instruction then has the analyst delete those points by hand and re-run (`velocity_outlier_policy_delta.md`) |
-| `tools/velocity-reviewer` (web) | its own addition: 3×IQR on residuals from a linear fit (mean-centred, cm), drawn as suggestions | click to mark | strips the marked epochs from the PLOT files in place (first `.bak` kept) and writes `OUTLIERS.txt`. No name recorded, one analyst at a time, Plotly loaded from a CDN, no tests |
+| `tools/velocity-reviewer` (web) | its own addition: Tukey fences (Q1/Q3 ± 3×IQR) on each component's residuals from a linear fit (mean-centred, cm), drawn as suggestions. Until 2026-11-13 it compared the 3-D residual magnitude with 3×IQR alone, which flagged about 10% of clean daily data | click to mark | strips the marked epochs from the PLOT files in place (first `.bak` kept, refreshed when the PLOT file was regenerated) and writes `OUTLIERS.txt`. No name recorded, one analyst at a time, Plotly loaded from a CDN, 44 tests |
 | Console Time series page (#335, #337) | `pogf_geodetic_suite.timeseries.status`: 3×IQR per segment, on **raw values**, any of E/N/U | **nothing**: read-only | shows counts and the mode only |
 
 What the console already has. `station_status` returns every epoch's

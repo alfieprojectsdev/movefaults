@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
 from velocity_reviewer.reader import (
+    previously_stripped,
     read_123,
     read_offsets,
     read_plot,
@@ -44,6 +45,15 @@ def _get_plots_dir() -> Path:
     return _plots_dir
 
 
+def _listed_site(site: str) -> str:
+    """Upper-case the code and refuse one the 123 file doesn't list."""
+    _get_plots_dir()
+    site = site.upper()
+    if site not in _sites:
+        raise HTTPException(404, f"Site '{site}' not in 123 file")
+    return site
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 
@@ -64,17 +74,18 @@ async def list_sites():
 
 @app.get("/api/sites/{site}/data")
 async def site_data(site: str):
-    site = site.upper()
+    site = _listed_site(site)
     plots_dir = _get_plots_dir()
-
-    if site not in _sites:
-        raise HTTPException(404, f"Site '{site}' not in 123 file")
 
     plot_path = plots_dir / site
     if not plot_path.exists():
         raise HTTPException(404, f"PLOT file for '{site}' not found in {plots_dir}")
 
-    t, e, n, u = read_plot(plots_dir, site)
+    # After an export the PLOT file is stripped. Show the backup instead, with
+    # the stripped epochs as the selection, so a later session sees (and keeps)
+    # the earlier decisions rather than silently undoing them on export.
+    stripped = previously_stripped(plots_dir, site)
+    t, e, n, u = read_plot(plots_dir, site, from_backup=stripped is not None)
     data = process_site(t, e, n, u)
 
     all_offsets = read_offsets(plots_dir)
@@ -83,6 +94,8 @@ async def site_data(site: str):
     ]
 
     # Return any previously saved selection for this site (supports Prev navigation)
+    if site not in _selections and stripped:
+        _selections[site] = stripped
     data["current_selection"] = _selections.get(site, [])
     return data
 
@@ -95,7 +108,7 @@ async def get_outliers(site: str):
 @app.post("/api/sites/{site}/outliers")
 async def set_outliers(site: str, body: dict):
     """Live-update the selection as the operator clicks points."""
-    site = site.upper()
+    site = _listed_site(site)
     _selections[site] = [float(ts) for ts in body.get("timestamps", [])]
     return {"ok": True, "count": len(_selections[site])}
 
@@ -103,7 +116,7 @@ async def set_outliers(site: str, body: dict):
 @app.post("/api/sites/{site}/accept")
 async def accept_site(site: str, body: dict):
     """Finalise selection for this site and mark it done."""
-    site = site.upper()
+    site = _listed_site(site)
     _selections[site] = [float(ts) for ts in body.get("timestamps", [])]
     _done.add(site)
     return {"ok": True, "done_count": len(_done), "total": len(_sites)}
@@ -118,12 +131,18 @@ async def export_outliers():
     rmoutliers(). The operator's selection must be stripped from the PLOT files
     directly so that the final MATLAB run uses the cleaned data.
 
-    Original PLOT files are backed up as SITE.bak on first export; re-export
-    always restores from the backup before stripping (idempotent).
+    Each PLOT file is rebuilt from SITE.bak minus the current selection; see
+    write_cleaned_plots for when the backup is refreshed. OUTLIERS.txt also
+    lists epochs an earlier export stripped from sites not opened this session,
+    since it is rewritten whole.
     """
     plots_dir = _get_plots_dir()
-    out_path = write_outliers_txt(plots_dir, _selections)
-    total_epochs = sum(len(v) for v in _selections.values())
+    listed = dict(_selections)
+    for site in _sites:
+        if site not in listed and (stripped := previously_stripped(plots_dir, site)):
+            listed[site] = stripped
+    out_path = write_outliers_txt(plots_dir, listed)
+    total_epochs = sum(len(v) for v in listed.values())
     rows_removed = write_cleaned_plots(plots_dir, _selections)
     return {
         "path": str(out_path),
