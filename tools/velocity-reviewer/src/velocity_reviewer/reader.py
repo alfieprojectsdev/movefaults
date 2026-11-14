@@ -8,6 +8,7 @@ Handles:
   OUTLIERS.txt — output: SITE  decimal_year (one outlier epoch per line)
 """
 
+import os
 import shutil
 from collections import Counter
 from pathlib import Path
@@ -26,20 +27,19 @@ def read_123(plots_dir: Path) -> list[str]:
 
 
 def read_plot(
-    plots_dir: Path, site: str
+    plots_dir: Path, site: str, *, from_backup: bool = False
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-    Parse a PLOT file into (t, e, n, u) arrays.
+    Parse a PLOT file (or, with `from_backup`, its SITE.bak) into (t, e, n, u).
 
     PLOT file format (from RUNX_v2.py):
         decimal_year  east_m  north_m  up_m
     Values are in metres; mean-centring and cm conversion happen in regression.py.
     """
-    rows = [
-        line.split()
-        for line in (plots_dir / site).read_text().splitlines()
-        if line.strip()
-    ]
+    path = plots_dir / site
+    if from_backup:
+        path = path.with_suffix(".bak")
+    rows = [line.split() for line in _data_lines(path.read_text())]
     t = np.array([float(r[0]) for r in rows])
     e = np.array([float(r[1]) for r in rows])
     n = np.array([float(r[2]) for r in rows])
@@ -100,6 +100,26 @@ def _is_stripped_copy(plot_lines: list[str], bak_lines: list[str]) -> bool:
     return all(count >= 0 for count in remaining.values())
 
 
+def previously_stripped(plots_dir: Path, site: str) -> list[float] | None:
+    """
+    Epochs an earlier export stripped from this site's PLOT file.
+
+    None when there is nothing to restore from: no SITE.bak, or a PLOT file
+    regenerated since (it has rows the backup lacks). Otherwise the epochs of
+    the backup rows missing from the PLOT file, possibly an empty list.
+    """
+    plot_path = plots_dir / site
+    bak_path = plot_path.with_suffix(".bak")
+    if not (plot_path.exists() and bak_path.exists()):
+        return None
+    current = _data_lines(plot_path.read_text())
+    original = _data_lines(bak_path.read_text())
+    if not _is_stripped_copy(current, original):
+        return None
+    missing = Counter(original) - Counter(current)
+    return [float(line.split()[0]) for line in missing.elements()]
+
+
 def write_cleaned_plots(plots_dir: Path, selections: dict[str, list[float]]) -> int:
     """
     Strip selected outlier epochs from PLOT files in-place.
@@ -119,9 +139,9 @@ def write_cleaned_plots(plots_dir: Path, selections: dict[str, list[float]]) -> 
       - Rows match a selected timestamp when both round to the same 4 d.p.
 
     Known limit: a regenerated PLOT file whose rows are all in the old backup
-    (a shorter span, nothing else changed) is taken for an earlier export, and
-    the backup's extra rows come back. Delete SITE.bak after regenerating to
-    avoid it.
+    (a shorter span, nothing else changed), or one with rows deleted by hand,
+    is taken for an earlier export, and the backup's extra rows come back.
+    Delete SITE.bak after either to avoid it.
 
     Returns the total number of rows removed across all sites.
     """
@@ -152,6 +172,11 @@ def write_cleaned_plots(plots_dir: Path, selections: dict[str, list[float]]) -> 
             else:
                 kept.append(line)
 
-        plot_path.write_text("\n".join(kept) + ("\n" if kept else ""))
+        # Write beside the file and rename over it: a PLOT file truncated by an
+        # interrupted write would look regenerated to the next export and
+        # replace the backup.
+        tmp_path = plot_path.with_name(plot_path.name + ".tmp")
+        tmp_path.write_text("\n".join(kept) + ("\n" if kept else ""))
+        os.replace(tmp_path, plot_path)
 
     return total_removed

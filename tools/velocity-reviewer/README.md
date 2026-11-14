@@ -43,10 +43,14 @@ Exporting writes `OUTLIERS.txt` and strips the marked epochs from the PLOT files
 - If a PLOT file has rows its backup lacks, it was regenerated after the last
   export (new epochs, or reprocessed coordinates). It becomes the new backup
   before stripping, so the new rows are kept.
+- After an export, the page draws the site from `<SITE>.bak` and starts with
+  the stripped epochs selected, so a later session keeps earlier decisions
+  instead of undoing them. `OUTLIERS.txt` also lists them for sites not opened
+  in the current session.
 - One case it can't tell apart: a regenerated PLOT file whose rows are all in
   the old backup (a shorter span, nothing else changed) looks like an earlier
   export, and the old rows come back. Delete `<SITE>.bak` after regenerating
-  over a shorter span. The velocity numbers PHIVOLCS
+  over a shorter span, or after deleting rows from a PLOT file by hand. The velocity numbers PHIVOLCS
 publishes come from `pogf_geodetic_suite.timeseries.analysis`, not from this
 tool.
 

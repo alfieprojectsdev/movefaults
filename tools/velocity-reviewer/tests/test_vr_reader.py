@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from velocity_reviewer.reader import (
+    previously_stripped,
     read_123,
     read_offsets,
     read_plot,
@@ -179,3 +180,25 @@ def test_backup_name_is_site_dot_bak(tmp_path, site):
     _write_plot(tmp_path, site, PLOT_ROWS)
     write_cleaned_plots(tmp_path, {site: [2020.0014]})
     assert (tmp_path / f"{site}.bak").exists()
+
+
+def test_previously_stripped_reports_what_an_export_removed(tmp_path):
+    _write_plot(tmp_path, "AAAA", PLOT_ROWS)
+    assert previously_stripped(tmp_path, "AAAA") is None  # no backup yet
+    write_cleaned_plots(tmp_path, {"AAAA": [2020.0041]})
+    assert previously_stripped(tmp_path, "AAAA") == [2020.0041]
+    _t, *_ = read_plot(tmp_path, "AAAA", from_backup=True)
+    assert len(_t) == len(PLOT_ROWS)
+
+
+def test_previously_stripped_is_none_after_regeneration(tmp_path):
+    _write_plot(tmp_path, "AAAA", PLOT_ROWS)
+    write_cleaned_plots(tmp_path, {"AAAA": [2020.0041]})
+    _write_plot(tmp_path, "AAAA", PLOT_ROWS + ["2020.0123  0.014000  0.024000  0.034000"])
+    assert previously_stripped(tmp_path, "AAAA") is None
+
+
+def test_strip_leaves_no_temporary_file(tmp_path):
+    _write_plot(tmp_path, "AAAA", PLOT_ROWS)
+    write_cleaned_plots(tmp_path, {"AAAA": [2020.0041]})
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["AAAA", "AAAA.bak"]

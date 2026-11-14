@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
 from velocity_reviewer.reader import (
+    previously_stripped,
     read_123,
     read_offsets,
     read_plot,
@@ -80,7 +81,11 @@ async def site_data(site: str):
     if not plot_path.exists():
         raise HTTPException(404, f"PLOT file for '{site}' not found in {plots_dir}")
 
-    t, e, n, u = read_plot(plots_dir, site)
+    # After an export the PLOT file is stripped. Show the backup instead, with
+    # the stripped epochs as the selection, so a later session sees (and keeps)
+    # the earlier decisions rather than silently undoing them on export.
+    stripped = previously_stripped(plots_dir, site)
+    t, e, n, u = read_plot(plots_dir, site, from_backup=stripped is not None)
     data = process_site(t, e, n, u)
 
     all_offsets = read_offsets(plots_dir)
@@ -89,6 +94,8 @@ async def site_data(site: str):
     ]
 
     # Return any previously saved selection for this site (supports Prev navigation)
+    if site not in _selections and stripped:
+        _selections[site] = stripped
     data["current_selection"] = _selections.get(site, [])
     return data
 
@@ -124,12 +131,18 @@ async def export_outliers():
     rmoutliers(). The operator's selection must be stripped from the PLOT files
     directly so that the final MATLAB run uses the cleaned data.
 
-    Original PLOT files are backed up as SITE.bak on first export; re-export
-    always restores from the backup before stripping (idempotent).
+    Each PLOT file is rebuilt from SITE.bak minus the current selection; see
+    write_cleaned_plots for when the backup is refreshed. OUTLIERS.txt also
+    lists epochs an earlier export stripped from sites not opened this session,
+    since it is rewritten whole.
     """
     plots_dir = _get_plots_dir()
-    out_path = write_outliers_txt(plots_dir, _selections)
-    total_epochs = sum(len(v) for v in _selections.values())
+    listed = dict(_selections)
+    for site in _sites:
+        if site not in listed and (stripped := previously_stripped(plots_dir, site)):
+            listed[site] = stripped
+    out_path = write_outliers_txt(plots_dir, listed)
+    total_epochs = sum(len(v) for v in listed.values())
     rows_removed = write_cleaned_plots(plots_dir, _selections)
     return {
         "path": str(out_path),

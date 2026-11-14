@@ -101,3 +101,35 @@ def test_missing_env_var_is_an_error(monkeypatch):
     monkeypatch.setattr(app_module, "_plots_dir", None)
     with pytest.raises(RuntimeError, match="VELOCITY_REVIEWER_PLOTS_DIR"):
         TestClient(app_module.app).get("/api/sites")
+
+
+def _new_session(monkeypatch):
+    """What a server restart does to the in-memory state."""
+    monkeypatch.setattr(app_module, "_selections", {})
+    monkeypatch.setattr(app_module, "_done", set())
+
+
+def test_a_later_session_sees_and_keeps_earlier_removals(client, plots, monkeypatch):
+    client.post("/api/sites/AAAA/accept", json={"timestamps": [2020.0041]})
+    client.post("/api/export")
+    _new_session(monkeypatch)
+
+    data = client.get("/api/sites/AAAA/data").json()
+    assert len(data["t"]) == len(ROWS)  # drawn from the backup, stripped row included
+    assert data["current_selection"] == [2020.0041]
+
+    # Accepting what the page shows must not bring the removed row back.
+    client.post("/api/sites/AAAA/accept", json={"timestamps": data["current_selection"]})
+    client.post("/api/export")
+    assert ROWS[1] not in (plots / "AAAA").read_text().splitlines()
+
+
+def test_outliers_txt_keeps_sites_not_opened_this_session(client, plots, monkeypatch):
+    client.post("/api/sites/AAAA/accept", json={"timestamps": [2020.0041]})
+    client.post("/api/export")
+    _new_session(monkeypatch)
+
+    r = client.post("/api/export").json()
+    assert r["total_outliers"] == 1
+    assert (plots / "OUTLIERS.txt").read_text() == "AAAA 2020.0041\n"
+    assert ROWS[1] not in (plots / "AAAA").read_text().splitlines()
