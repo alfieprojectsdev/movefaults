@@ -27,18 +27,24 @@ def fit_segment(t: np.ndarray, d: np.ndarray) -> tuple[np.ndarray, float]:
 
 def iqr_outliers(t: np.ndarray, residuals: np.ndarray, threshold: float = 3.0) -> list[float]:
     """
-    Returns timestamps of points whose residuals exceed threshold × IQR.
+    Timestamps of points outside the Tukey fences of their residuals.
 
-    Operates on the combined 3D residual magnitude across E, N, U so that a
-    point is flagged if it is an outlier in *any* component.
+    `residuals` is (n,) or (n, k), one column per component. A point is flagged
+    when any column falls below Q1 - threshold*IQR or above Q3 + threshold*IQR
+    of that column: the fences MATLAB's rmoutliers('quartiles') and
+    pogf_geodetic_suite.timeseries.analysis use, applied here to residuals from
+    the linear fit rather than to raw positions. A column with zero spread flags
+    nothing.
     """
-    if len(residuals) < 4:
+    r = np.asarray(residuals, dtype=float)
+    if r.ndim == 1:
+        r = r[:, None]
+    if len(r) < 4:
         return []
-    q1, q3 = np.percentile(residuals, [25, 75])
+    q1, q3 = np.percentile(r, [25, 75], axis=0)
     iqr = q3 - q1
-    if iqr == 0.0:
-        return []
-    mask = np.abs(residuals) > threshold * iqr
+    outside = (r < q1 - threshold * iqr) | (r > q3 + threshold * iqr)
+    mask = np.any(outside & (iqr > 0), axis=1)
     return [float(ts) for ts in t[mask]]
 
 
@@ -49,7 +55,7 @@ def process_site(
     u: np.ndarray,
 ) -> dict:
     """
-    Full processing pipeline for one site: demean → cm → regression → IQR detection.
+    Full processing for one site: demean, convert to cm, fit, suggest outliers.
 
     Returns a dict ready for JSON serialisation by the FastAPI endpoint.
     """
@@ -61,10 +67,9 @@ def process_site(
     n_fit, vn = fit_segment(t, n_cm)
     u_fit, vu = fit_segment(t, u_cm)
 
-    # Use combined 3D residual magnitude for outlier detection so that
-    # a spike in any single component gets flagged.
-    combined_res = np.sqrt((e_cm - e_fit) ** 2 + (n_cm - n_fit) ** 2 + (u_cm - u_fit) ** 2)
-    auto_outliers = iqr_outliers(t, combined_res)
+    # One column per component, so a spike in any single component is flagged.
+    residuals = np.column_stack([e_cm - e_fit, n_cm - n_fit, u_cm - u_fit])
+    auto_outliers = iqr_outliers(t, residuals)
 
     return {
         "t": t.tolist(),

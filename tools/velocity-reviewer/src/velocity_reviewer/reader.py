@@ -8,6 +8,8 @@ Handles:
   OUTLIERS.txt — output: SITE  decimal_year (one outlier epoch per line)
 """
 
+import shutil
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -83,6 +85,21 @@ def write_outliers_txt(plots_dir: Path, selections: dict[str, list[float]]) -> P
     return out_path
 
 
+def _data_lines(text: str) -> list[str]:
+    return [line for line in text.splitlines() if line.strip()]
+
+
+def _is_stripped_copy(plot_lines: list[str], bak_lines: list[str]) -> bool:
+    """True when every row of the PLOT file is also in the backup.
+
+    That is what an earlier export leaves behind. A PLOT file regenerated since
+    (new epochs, or reprocessed coordinates) has rows the backup lacks.
+    """
+    remaining = Counter(bak_lines)
+    remaining.subtract(Counter(plot_lines))
+    return all(count >= 0 for count in remaining.values())
+
+
 def write_cleaned_plots(plots_dir: Path, selections: dict[str, list[float]]) -> int:
     """
     Strip selected outlier epochs from PLOT files in-place.
@@ -91,36 +108,46 @@ def write_cleaned_plots(plots_dir: Path, selections: dict[str, list[float]]) -> 
     rmoutliers() call. The outlier selection from the reviewer must be applied directly
     to the PLOT files before MATLAB runs.
 
-    For each site with a non-empty selection:
-      - Backs up the original PLOT file as SITE.bak on the first call.
-      - On re-export, always restores from SITE.bak before stripping (idempotent).
-      - Removes rows whose decimal year matches (to 4 d.p.) a selected timestamp.
-      - Writes the cleaned data back to the PLOT file.
+    For each site in `selections`:
+      - The first export copies the PLOT file to SITE.bak, byte for byte.
+      - Every export rebuilds the PLOT file from SITE.bak minus the current
+        selection, so exporting twice gives the same file, and an empty
+        selection restores the original.
+      - If the PLOT file has rows the backup lacks, it was regenerated after
+        the last export: it replaces the backup before stripping, so new epochs
+        are not lost.
+      - Rows match a selected timestamp when both round to the same 4 d.p.
+
+    Known limit: a regenerated PLOT file whose rows are all in the old backup
+    (a shorter span, nothing else changed) is taken for an earlier export, and
+    the backup's extra rows come back. Delete SITE.bak after regenerating to
+    avoid it.
 
     Returns the total number of rows removed across all sites.
     """
     total_removed = 0
     for site, timestamps in selections.items():
-        if not timestamps:
-            continue
         plot_path = plots_dir / site
         if not plot_path.exists():
             continue
-
-        # Back up the original on first export; restore from backup on re-export
-        # so that the PLOT file always reflects exactly the current selection.
         bak_path = plot_path.with_suffix(".bak")
-        if not bak_path.exists():
-            bak_path.write_text(plot_path.read_text())
+        current = _data_lines(plot_path.read_text())
+
+        if bak_path.exists():
+            original = _data_lines(bak_path.read_text())
+            if not _is_stripped_copy(current, original):
+                shutil.copyfile(plot_path, bak_path)
+                original = current
+        elif timestamps:
+            shutil.copyfile(plot_path, bak_path)
+            original = current
+        else:
+            continue  # never exported and nothing selected: leave it alone
 
         ts_set = {round(ts, 4) for ts in timestamps}
-        lines = bak_path.read_text().splitlines()
         kept: list[str] = []
-        for line in lines:
-            parts = line.split()
-            if not parts:
-                continue
-            if round(float(parts[0]), 4) in ts_set:
+        for line in original:
+            if round(float(line.split()[0]), 4) in ts_set:
                 total_removed += 1
             else:
                 kept.append(line)

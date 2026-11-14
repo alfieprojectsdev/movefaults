@@ -56,10 +56,10 @@ def main() -> None:
     os.environ["VELOCITY_REVIEWER_PLOTS_DIR"] = str(plots_dir)
 
     url = f"http://localhost:{args.port}"
-    print(f"\nVelocity Reviewer")
+    print("\nVelocity Reviewer")
     print(f"  Plots directory : {plots_dir}")
     print(f"  Address         : {url}")
-    print(f"\nPress Ctrl+C to stop.\n")
+    print("\nPress Ctrl+C to stop.\n")
 
     def _open_browser() -> None:
         time.sleep(1.2)

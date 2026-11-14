@@ -44,6 +44,15 @@ def _get_plots_dir() -> Path:
     return _plots_dir
 
 
+def _listed_site(site: str) -> str:
+    """Upper-case the code and refuse one the 123 file doesn't list."""
+    _get_plots_dir()
+    site = site.upper()
+    if site not in _sites:
+        raise HTTPException(404, f"Site '{site}' not in 123 file")
+    return site
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 
@@ -64,11 +73,8 @@ async def list_sites():
 
 @app.get("/api/sites/{site}/data")
 async def site_data(site: str):
-    site = site.upper()
+    site = _listed_site(site)
     plots_dir = _get_plots_dir()
-
-    if site not in _sites:
-        raise HTTPException(404, f"Site '{site}' not in 123 file")
 
     plot_path = plots_dir / site
     if not plot_path.exists():
@@ -95,7 +101,7 @@ async def get_outliers(site: str):
 @app.post("/api/sites/{site}/outliers")
 async def set_outliers(site: str, body: dict):
     """Live-update the selection as the operator clicks points."""
-    site = site.upper()
+    site = _listed_site(site)
     _selections[site] = [float(ts) for ts in body.get("timestamps", [])]
     return {"ok": True, "count": len(_selections[site])}
 
@@ -103,7 +109,7 @@ async def set_outliers(site: str, body: dict):
 @app.post("/api/sites/{site}/accept")
 async def accept_site(site: str, body: dict):
     """Finalise selection for this site and mark it done."""
-    site = site.upper()
+    site = _listed_site(site)
     _selections[site] = [float(ts) for ts in body.get("timestamps", [])]
     _done.add(site)
     return {"ok": True, "done_count": len(_done), "total": len(_sites)}

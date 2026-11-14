@@ -2,7 +2,8 @@
 
 A browser-based reviewer for GNSS time-series outliers. It replaces the
 Windows-only `outlier_input-site.py` GUI from the PHIVOLCS velocity workflow.
-It works, but has **no tests** and is not in `testpaths`.
+It is interim: `outlier_review_design.md` (section 4) retires it once the
+console's review view has been used on one real campaign.
 
 ## Run it
 
@@ -23,17 +24,29 @@ The PLOTS directory holds the inputs the legacy workflow already uses:
 
 ## What it does
 
-For each site: an interactive ENU plot (Plotly), automatic suggestions (points
-whose residual from the linear fit exceeds 3 × IQR) as a starting point, and
-point-and-click marking by the analyst.
-Exporting writes `OUTLIERS.txt` and strips the marked epochs from the PLOT files.
-The original is backed up as `<SITE>.bak` the first time, and every later export
-restores from that backup before stripping, so exporting twice gives the same
-result.
+For each site: an interactive ENU plot (Plotly), automatic suggestions as a
+starting point, and point-and-click marking by the analyst.
 
-The regression and IQR logic is a straight port of
-`analysis/02 Time Series/Outliers-input name.py` (mean-centred, in cm), so the
-outlier suggestions match the legacy tool. The velocity numbers PHIVOLCS
+The suggestions are points whose residual from the linear fit, in any one
+component, falls outside the Tukey fences Q1 − 3·IQR and Q3 + 3·IQR: the same
+fences as MATLAB's `rmoutliers` and `pogf_geodetic_suite.timeseries.analysis`,
+applied to residuals instead of raw positions. The legacy GUI had no automatic
+suggestions; only its fit (mean-centred, in cm) is a port of
+`analysis/02 Time Series/Outliers-input name.py`.
+
+Exporting writes `OUTLIERS.txt` and strips the marked epochs from the PLOT files:
+
+- The first export copies each PLOT file to `<SITE>.bak`.
+- Every export rebuilds the PLOT file from `<SITE>.bak` minus the current
+  selection, so exporting twice gives the same file and clearing a site's
+  selection restores it.
+- If a PLOT file has rows its backup lacks, it was regenerated after the last
+  export (new epochs, or reprocessed coordinates). It becomes the new backup
+  before stripping, so the new rows are kept.
+- One case it can't tell apart: a regenerated PLOT file whose rows are all in
+  the old backup (a shorter span, nothing else changed) looks like an earlier
+  export, and the old rows come back. Delete `<SITE>.bak` after regenerating
+  over a shorter span. The velocity numbers PHIVOLCS
 publishes come from `pogf_geodetic_suite.timeseries.analysis`, not from this
 tool.
 
@@ -41,4 +54,4 @@ tool.
 
 - Single session: state lives in the server process, so one analyst at a time.
 - The page loads Plotly from `cdn.plot.ly`, so it needs internet access.
-- No tests.
+- A site the `123` file doesn't list can't be selected or exported.
