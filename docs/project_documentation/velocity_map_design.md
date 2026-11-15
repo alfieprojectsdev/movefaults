@@ -202,9 +202,10 @@ console.
   after the next survey" (campaign) / "after about N more years of data"
   (continuous). That's honest, and it tells the host why staying in matters.
 - **Uncertainty as a filter plus one legend line, not ellipses:** "Arrows are
-  drawn only where at least 3 years of measurements give the rate to within
-  about ±2 mm per year." At sheet scale a 2 mm/yr ellipse vanishes beside a
-  60 mm/yr arrow. Ellipses stay on the staff map.
+  drawn only where years of measurements give the rate to within about ±2 mm
+  per year." It names no span, so it stays true whichever minimum decision 6
+  settles on. At sheet scale a 2 mm/yr ellipse vanishes beside a 60 mm/yr
+  arrow. Ellipses stay on the staff map.
 - **No vertical rates.**
 - **No coordinates printed.** The map is at regional scale. Campaign marks
   can be vandalised, and other LGUs' sites aren't this LGU's business.
