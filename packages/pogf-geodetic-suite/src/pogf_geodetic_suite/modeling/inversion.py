@@ -80,18 +80,20 @@ def green_function(
     x_km: np.ndarray,
     nu: float = 0.25,
     fault_length: float = 1000.0,
+    east: float = 0.0,
 ) -> np.ndarray:
     """North-component Green's function for unit strike-slip on one patch.
 
     Mirrors the MATLAB exactly, including its conventions:
 
-    * fault row ``[length, width, depth, -180 + dip, strike=0, E=0, N=0]``
-      -- ``length=1000`` is what makes this a 2-D (plane-strain) problem
+    * fault row ``[length, width, depth, -180 + dip, strike=0, E=east, N=0]``
+      -- ``length=1000`` is what makes this a 2-D (plane-strain) problem;
+      ``east`` is ``makeG_2ds_v3_loop.m``'s E1 (0 in ``makeG_2ds_v3.m``)
     * a single patch (``patchfault`` with ``nhe=nve=1`` returns the fault)
     * only the **north** component is kept (``G11 = G11(2:3:end)``)
     """
     model = np.array(
-        [[fault_length], [width], [depth], [-180.0 + dip], [0.0], [0.0], [0.0],
+        [[fault_length], [width], [depth], [-180.0 + dip], [0.0], [east], [0.0],
          [1.0], [0.0], [0.0]]
     )
     coords = np.vstack([x_km, np.zeros_like(x_km)])
