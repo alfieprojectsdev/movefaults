@@ -62,8 +62,8 @@ section 1a keeps jobs for work that writes or runs long).
 | Uncertainty | 95% confidence ellipse at the arrow tip (`psvelo -Se …/0.95`) | Same. The 2-D 95% ellipse's semi-axes are 2.448 × σ (√χ²₂(0.95) = √5.991), not 1.96 × σ |
 | E–N correlation | From the daily covariance, when it is propagated | 0, as `gmt.py` writes it: East and North are separate fits, so their formal errors are uncorrelated. Ellipses are therefore axis-aligned. No fabricated tilt |
 | Vertical | Never on the same arrows as horizontal; usually a separate map, coloured symbols or N–S bars | A separate layer, switched with **Horizontal / Vertical**: a circle at each station, red for up and blue for down, its size or shade by rate, the value on hover. Vertical is about three times noisier, and one map invites reading both at one confidence (`automation_stages.md`, item 4) |
-| Frame | Captioned: ITRF, plate-fixed, or relative to a station | **Always printed on the map and in every export:** "relative to PIMO", the epoch span, the catalogue's sha256, the outlier mode. The reference station is drawn as a marked point with no arrow |
-| Formal σ | White-noise least squares understates velocity uncertainty, often several-fold, because GNSS series carry coloured (flicker) noise | Labelled "formal 1σ, white noise only" wherever a σ or ellipse appears. A noise model is a decision below, not a silent change |
+| Frame | Captioned: ITRF, plate-fixed, or relative to a station. Philippine studies estimate in the current ITRF and display Sunda-fixed | Sunda-fixed by default once decision 1 is built; relative to a station and absolute IGS20 stay as staff options. **Always printed on the map and in every export:** the frame (and pole), the epoch span, the catalogue's sha256, the outlier mode. In relative-to-a-station mode the reference is drawn as a marked point with no arrow |
+| Formal σ | White-noise least squares understates velocity uncertainty 2–11×, because GNSS series carry coloured (flicker) noise | Until decision 2 is built, labelled "formal 1σ, white noise only" wherever a σ or ellipse appears |
 | Short or stale fits | Usually filtered out before mapping | A station whose final segment is under one year (`short_span`) or doesn't reach its latest epoch is drawn hollow and grey, listed under the map, and left out of exports unless ticked |
 | Station names | Labels beside markers | Labels on hover; a toggle shows all labels |
 | Stacked series | Stations stacked with an offset per trace, one component per panel, ordered by latitude or along a profile, at **one vertical scale** | See "Stacked time series" below |
@@ -193,14 +193,19 @@ console.
 - **The date, the frame, the version of the numbers, and who checked it.**
 
 **Rules, because this leaves the building:**
-- **Frame:** "relative to PIMO" means nothing to a lay reader. A plate-fixed
-  frame ("relative to the stable interior of the Sunda plate") reads
-  naturally, so this sheet depends on decision 1. Until then it uses a
-  sentence that names the reference station and where it is.
-- **No arrow without enough data.** A station whose velocity isn't yet
-  determined well (say σ over a third of the rate, or under 2.5 years of data)
-  gets: "Its motion will be clear after about N more years of data". That's
-  honest, and it tells the host why staying in matters.
+- **Frame:** "relative to PIMO" means nothing to a lay reader. The sheet uses
+  decision 1's Sunda-fixed frame: "motion relative to the stable interior of
+  the Sunda plate (Palawan, Borneo and the Malay Peninsula)".
+- **An arrow only where the rate is known** (decision 6). Otherwise one of
+  two sentences: "moves less than about 5 mm per year" when the rate is
+  known and small, or "measured N times since YEAR; its rate will be clear
+  after the next survey" (campaign) / "after about N more years of data"
+  (continuous). That's honest, and it tells the host why staying in matters.
+- **Uncertainty as a filter plus one legend line, not ellipses:** "Arrows are
+  drawn only where at least 3 years of measurements give the rate to within
+  about ±2 mm per year." At sheet scale a 2 mm/yr ellipse vanishes beside a
+  60 mm/yr arrow. Ellipses stay on the staff map.
+- **No vertical rates.**
 - **No coordinates printed.** The map is at regional scale. Campaign marks
   can be vandalised, and other LGUs' sites aren't this LGU's business.
 - **Nothing goes out unreviewed.** The console makes a draft. A named person
@@ -262,9 +267,9 @@ map does.
 
 - **Map tiles from an outside server.** The bundled coastline stays; a tile
   request would tell the provider where every station is.
-- **ITRF/IGS20 velocities as the default.** Absolute velocities are dominated by
-  plate motion (several cm/yr) and hide the deformation. They come with the
-  frame decision below.
+- **Absolute IGS20 velocities as the default.** They are dominated by plate
+  motion (about 30 mm/yr everywhere here) and hide the deformation. They are
+  the input to the Sunda-fixed default and a staff option (decision 1).
 - **A correlation or ellipse tilt not computed from data.**
 - **Vertical rates on the horizontal arrows.**
 - **Interpolated velocity or strain-rate grids.** They're a modelling product
@@ -275,23 +280,89 @@ map does.
 
 Each with a recommendation; open until the project lead accepts or changes it.
 
-1. **Plate-fixed frames.** Offer velocities relative to the Sunda plate (or
-   Eurasia) as well as relative to a station? That needs an Euler pole chosen
-   from the literature, which is a geologist's call. The host sheet (section 5)
-   makes this more pressing: a lay reader can follow "relative to the Sunda
-   plate" but not "relative to PIMO".
-   **Recommended:** start with relative-to-a-station only, as now. Add one
-   plate-fixed frame when a pole is signed off, recorded in `SETTLED.md` with
-   its source.
-2. **Noise model.** Formal σ from white noise understates velocity uncertainty.
-   Estimating flicker plus white noise per station (Hector is the usual open
-   tool) would give realistic ellipses, but changes every σ the team has published.
-   **Recommended:** label σ as formal now; measure white-only against
-   flicker-plus-white on PHREF 2025 before proposing a switch.
-3. **Fault traces layer.** Drawing active faults helps reading a field. PHIVOLCS'
-   own trace data, or a public set (e.g. GEM's Global Active Faults, CC BY-SA)?
-   **Recommended:** PHIVOLCS' traces if they may be bundled in a public
-   repository; otherwise none until that is settled.
+1. **Plate-fixed frames.** *Recommended from the literature (review of
+   2026-11-16), pending sign-off.*
+   **Recommended:** velocities **relative to the Sunda plate** by default on
+   staff maps, exports and host sheets, the convention of Philippine GNSS
+   studies (Yu et al. 2013, doi:10.1016/j.jseaes.2010.12.007; Hsu et al. 2016,
+   doi:10.1002/2016JB013082). Relative to a station (for fault-crossing work)
+   and absolute IGS20 stay as staff options.
+   - **Pole:** GSRM v2.1 Sunda in IGS08: 51.07929°N, 94.63186°W,
+     0.33318°/Myr anticlockwise, i.e. ω = (−0.0609, −0.7511, 0.9332) mas/yr
+     (Kreemer, Blewitt & Klein 2014, doi:10.1002/2014GC005407; values from
+     the GSRM `poles.IGS08` file). IGS08 differs from IGS20 by translation
+     rates only, at most 0.2 mm/yr here, so no correction.
+   - **Method:**
+     - Fit each station's **own** daily IGS20 XYZ (the final CRDs, whose
+       daily datum is already tied to IGS20 reference stations),
+       converted to ENU about the station itself. Never difference against
+       a reference station for this.
+     - Subtract ω × r, rotated to ENU, from the horizontals.
+     - Unit test: at PUER (9.74°N, 118.73°E) the pole predicts about
+       31.7 mm/yr east and −12.8 mm/yr north.
+     - This is a new path beside today's relative-to-a-station series.
+   - **Alternative:** Eurasia-fixed with the ITRF2020 plate model's Eurasia
+     pole, ω = (−0.085, −0.519, 0.753) ± 0.003 mas/yr, **plus its origin-rate
+     bias (0.37, 0.35, 0.74) mm/yr on the horizontals, vertical discarded**
+     (Altamimi et al. 2023, doi:10.1029/2023GL106373). Native to IGS20, but
+     every site behind it lies west of 59°E, and it shows Palawan and Borneo
+     moving 5–7 mm/yr.
+   - **Do not use:**
+     - an "ITRF2020 Sunda" pole: ITRF2020's plate model has no Sunda plate,
+       and the EarthScope calculator silently returns zero rotation for it;
+     - poles in a no-net-rotation frame (e.g. NNR-MORVEL56) on IGS velocities;
+     - Simons et al. 2007 (doi:10.1029/2005JB003868) as printed: its
+       longitude must be read as **94.2°W, rotating anticlockwise**, despite
+       the "°E, clockwise" in the abstract, and as an ITRF2000 pole it also
+       needs the 1.7 mm/yr Z-rate correction.
+   - **State on the map:** published Sunda poles agree to about 2 mm/yr, and
+     the realisation misfit at Sunda reference sites is up to about 5 mm/yr
+     until PHIVOLCS checks its own residuals at NTUS (Singapore) and the
+     Palawan CORS (PPPC, PKLY, PNDO).
+   - **Follow-up:** add NTUS and the Palawan CORS to the national solution as
+     frame checks; re-estimate an IGS20 Sunda pole when enough stable-Sunda
+     stations accumulate. Record the pole, its frame and the sign convention
+     in `SETTLED.md` once signed off.
+2. **Noise model.** *Recommended from the literature (review of 2026-11-16),
+   pending sign-off.*
+   **Recommended:** never publish white-noise or ADDNEQ2 formal σ as a
+   velocity uncertainty; it is 2–11× too small (Zhang et al. 1997,
+   doi:10.1029/97JB01380; Mao et al. 1999, doi:10.1029/1998JB900033).
+   - **Continuous stations:**
+     - A white-plus-flicker maximum-likelihood fit per station and ENU
+       component with Hector or its Python port HectorP (Bos et al. 2013,
+       doi:10.1007/s00190-012-0605-0): rate, annual and semi-annual terms,
+       and a step at every `offsets` catalogue epoch.
+     - Store σ_white, σ_flicker, the span, days, offsets, model and tool
+       version with each velocity.
+     - Cross-check with MIDAS on the same step file (Blewitt et al. 2016,
+       doi:10.1002/2015JB012552). Send a station to review when
+       |v_Hector − v_MIDAS| > 2√(σ_H² + σ_M²) or σ_MIDAS > 3 σ_Hector.
+       MIDAS returns the pre-event rate when an earthquake falls after the
+       series' midpoint, which is why it checks rather than replaces Hector.
+     - Hector is too slow for the on-request field, so it runs as a cached
+       batch job after each run; the map reads its results.
+   - **Campaign sites** (too few epochs to estimate noise):
+     - Average each campaign; add a white floor of 2 mm horizontal (3 mm for
+       tripod setups, 6 mm vertical) per campaign, and a random walk of
+       1 mm/√yr horizontal. Replace the random walk with the median from
+       PHIVOLCS' own continuous stations once measured.
+     - Fit the rate only. Inflate σ by √(χ²/dof) and flag the site when
+       χ²/dof > 3; never deflate.
+     - Precedents: McCaffrey et al. 2007, doi:10.1111/j.1365-246X.2007.03371.x;
+       Hammond et al. 2011, doi:10.1029/2010JB007817.
+     - The span sets the precision; a third campaign mostly adds the ability
+       to catch a blunder.
+   - **Precondition:** today's IGS20 series span at most about 13 months
+     (LUZON 2025 to January 2026, PHREF 2025), against a published minimum
+     of 2.5–3 years (Blewitt & Lavallée 2002, doi:10.1029/2001JB000570, DOI
+     to be confirmed). **No station qualifies for a public arrow until
+     earlier years are reprocessed in IGS20.** Measure white against flicker
+     on the longest reprocessed stations, not on PHREF 2025 alone.
+3. **Fault traces layer.** *Settled 2026-11-16:* PHIVOLCS' geomatics group
+   will provide the traces as KMZ/KML. Still to confirm on receipt: whether
+   they may be bundled in this public repository, or must be loaded on gps3
+   from a file kept outside it.
 4. **Who approves a host sheet before it goes out**, and whether PHIVOLCS'
    public-information rules apply to it.
    **Recommended:** the project lead names one or two approvers. The console
@@ -300,18 +371,37 @@ Each with a recommendation; open until the project lead accepts or changes it.
 5. **Language.** English, Filipino, or both, on one sheet?
    **Recommended:** English with a Filipino version of the plain-language
    lines, written once and checked by a native speaker, not machine-translated.
-6. **The thresholds for drawing a host's arrow** (section 5).
-   **Recommended:** σ under a third of the rate and at least 2.5 years of
-   data, checked against PHREF and LUZON before the first sheet goes out.
+6. **The thresholds for drawing a host's arrow** (section 5). *Recommended
+   from the literature (review of 2026-11-16), pending sign-off.* This
+   replaces the earlier "σ under a third of the rate", which depends on the
+   frame: in Sunda-fixed it would tell a stable Palawan host its rate is
+   "not yet known" when it is known to be near zero.
+
+   | | Continuous station | Campaign site | The sheet shows |
+   |---|---|---|---|
+   | **Arrow** | final segment ≥ 3 yr (≥ 2.5 yr with no steps); σ_E and σ_N ≤ 2 mm/yr; Hector and MIDAS agree; no unmodelled catalogue event; \|v\| ≥ max(3σ, 5 mm/yr) | ≥ 3 campaigns over ≥ 3 yr; modelled σ ≤ 2 mm/yr; no χ² or offset flag; \|v\| ≥ max(3σ, 5 mm/yr) | an arrow and "about N mm per year toward the [direction]" |
+   | **Known, barely moving** | the same precision tests, \|v\| < 5 mm/yr | the same, \|v\| < 5 mm/yr | a dot: "moves less than about 5 mm per year" |
+   | **Provisional** (staff map only) | 1–2.5 yr, σ from the network-median flicker; or a Hector–MIDAS disagreement under review | 2 campaigns over ≥ 3 yr, or ≥ 3 over 2–3 yr; σ ≤ 3 mm/yr | no arrow; "its rate will be clear after the next survey / about N more years" |
+   | **Unknown** | < 1 yr, σ > 2 mm/yr, or an unresolved flag | < 2 yr, one campaign, σ > 3 mm/yr, or a flag | no arrow; "measured, rate not yet known" |
+
+   The 5 mm/yr floor is the frame's realisation misfit (decision 1), rounded
+   up; lower it once NTUS and the Palawan CORS confirm a smaller one. Span
+   and σ thresholds follow Blewitt & Lavallée 2002, GAGE's 3-year rule,
+   Hammond et al. 2011 and McCaffrey et al. 2007; the tiers themselves are a
+   synthesis, not a published standard.
 
 ## Stages
 
-1. Velocity field, its table and exports.
-2. The host sheet, as a draft-only page, once decisions 4 and 6 are made; the
-   plate-fixed sentence follows decision 1.
-3. Stacked series, with map selection.
-4. Event displacement.
-5. The profile tool, with phase 2's `velproj` port.
-6. Later: plate-fixed frames, noise model, common-mode, displacement between dates.
+1. Velocity field, its table and exports, relative to a station (as today's
+   series) with formal σ labelled.
+2. Absolute IGS20 velocities and the Sunda-fixed frame (decision 1), and the
+   Hector/MIDAS batch job (decision 2).
+3. The host sheet, as a draft-only page, once decisions 4 and 6 are made and
+   reprocessing has given IGS20 series of at least 3 years.
+4. Stacked series, with map selection.
+5. Event displacement.
+6. The profile tool, with phase 2's `velproj` port.
+7. Later: an IGS20 Sunda pole of our own, common-mode, displacement between
+   dates.
 
 Each stage is one PR with its own tests and a work-instruction update.
