@@ -412,3 +412,35 @@ def test_matches_the_matlab_run(cfg_path):
     i_r, i_w = legacy_picks(r)
     assert i_r == their_rchi
     assert set(i_w) == their_wrms
+
+
+def test_bootstrap_refuses_more_than_one_reference_row():
+    prof = Profile(azimuth_deg=90.0, origin_en=(0.0, 0.0))
+    two = pd.concat([_reference_row(), _reference_row()], ignore_index=True)
+    with pytest.raises(ValueError, match="one row"):
+        bootstrap(_population(), two, prof, SMALL, n_samples=1, sample_size=3, seed=0)
+
+
+def test_bootstrap_refuses_a_resample_with_nothing_to_fit():
+    # Every population station off the band: after the reference is dropped,
+    # nothing is left, and that must not yield a NaN "pick".
+    prof = Profile(azimuth_deg=90.0, origin_en=(0.0, 0.0), halfwidth_km=5.0)
+    far = _stations([("FAR1", 0.0, 50_000.0, 1.0, 0.0, 0.5, 0.5)])
+    near_ref = _stations([("REFS", -1_000.0, 0.0, 0.0, 0.0, 0.5, 0.5)])
+    with pytest.raises(ValueError, match="no stations"):
+        bootstrap(far, near_ref, prof, SMALL, n_samples=1, sample_size=2, seed=0)
+
+
+def test_intervals_refuse_an_unknown_pick():
+    run = bootstrap(
+        _population(), _reference_row(), Profile(90.0, (0.0, 0.0)), SMALL,
+        n_samples=2, sample_size=9, seed=1,
+    )  # fmt: skip
+    with pytest.raises(ValueError, match="which"):
+        run.intervals("wmrs")
+
+
+def test_read_velocities_refuses_an_empty_file(tmp_path):
+    (tmp_path / "empty.csv").write_text("")
+    with pytest.raises(ValueError, match="empty"):
+        read_velocities(tmp_path / "empty.csv")

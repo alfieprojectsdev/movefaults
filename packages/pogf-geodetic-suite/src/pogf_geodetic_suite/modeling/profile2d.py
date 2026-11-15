@@ -65,7 +65,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from .disloc import disloc
+from .inversion import green_function
 
 D2R = np.pi / 180.0
 
@@ -173,8 +173,11 @@ class GridResult:
 
 def read_velocities(path: str | Path) -> pd.DataFrame:
     """A PHm.csv (comma) or PHm.txt (tab) velocity table, with its header row."""
-    text = Path(path).read_text()
-    sep = "\t" if "\t" in text.splitlines()[0] else ","
+    with open(path) as f:
+        header = f.readline()
+    if not header.strip():
+        raise ValueError(f"{path}: empty file, or no header row")
+    sep = "\t" if "\t" in header else ","
     df = pd.read_csv(path, sep=sep)
     missing = [c for c in COLUMNS if c not in df.columns]
     if missing:
@@ -188,6 +191,11 @@ def project(df: pd.DataFrame, profile: Profile, *, sigma: Sigma = "legacy") -> P
     Rows are sorted by distance with a stable sort, as MATLAB's `sort` is, so
     duplicated stations (a bootstrap resample) keep their order.
     """
+    return _project(df, profile, sigma)[0]
+
+
+def _project(df: pd.DataFrame, profile: Profile, sigma: Sigma) -> tuple[ProfileData, np.ndarray]:
+    """`project`, plus the row of `df` behind each projected station."""
     vel = df["velocity"].to_numpy(float)
     azi = df["azimuth"].to_numpy(float)
     se = df["erreast"].to_numpy(float)
@@ -206,9 +214,7 @@ def project(df: pd.DataFrame, profile: Profile, *, sigma: Sigma = "legacy") -> P
         raise ValueError(f"sigma must be 'legacy' or 'propagated', not {sigma!r}")
 
     idx, along = _on_profile(E, N, profile)
-    return ProfileData(
-        df["sites"].to_numpy(str)[idx].astype(str), along[idx], v_orth[idx], err[idx]
-    )
+    return ProfileData(df["sites"].to_numpy(str)[idx], along[idx], v_orth[idx], err[idx]), idx
 
 
 def _on_profile(E: np.ndarray, N: np.ndarray, profile: Profile) -> tuple[np.ndarray, np.ndarray]:
@@ -259,21 +265,13 @@ def green_table(x_km: np.ndarray, grid: Grid, *, nu: float = 0.25) -> np.ndarray
     """
     x_km = np.asarray(x_km, float)
     out = np.zeros(grid.shape[:4] + (len(x_km),))
-    coords = np.vstack([x_km, np.zeros_like(x_km)])
-    model = np.zeros((10, 1))
-    model[0] = 1000.0
-    model[7] = 1.0
     for a, e1 in enumerate(grid.e1):
-        model[5] = e1
         for b, d in enumerate(grid.depth):
-            model[2] = d
             for c, w in enumerate(grid.width):
                 if w == 0:
                     continue
-                model[1] = w
                 for k, dip in enumerate(grid.dip):
-                    model[3] = -180.0 + dip
-                    out[a, b, c, k] = disloc(model, coords, nu=nu, strict=False)[1]
+                    out[a, b, c, k] = green_function(d, w, dip, x_km, nu=nu, east=e1)
     return out
 
 
@@ -289,6 +287,8 @@ def solve_grid(G: np.ndarray, data: ProfileData, grid: Grid) -> GridResult:
     zero G (zero width) gives slip 0, as MATLAB's backslash does.
     """
     x, v, err = data.x_km, data.v_orth, data.err
+    if len(x) == 0:
+        raise ValueError("no stations left to fit")
     if G.shape[-1] != len(x):
         raise ValueError(f"G has {G.shape[-1]} stations, the data {len(x)}")
     if np.any(err <= 0):
@@ -349,7 +349,12 @@ class BootstrapRun:
         self, which: str = "rchi", q: tuple[float, float] = (0.025, 0.975)
     ) -> pd.DataFrame:
         """bootstrap_v2.py's plot(): quantiles of each parameter over the picks."""
-        rows = self.rchi_picks if which == "rchi" else [m for it in self.wrms_picks for m in it]
+        if which == "rchi":
+            rows = self.rchi_picks
+        elif which == "wrms":
+            rows = [m for it in self.wrms_picks for m in it]
+        else:
+            raise ValueError(f"which must be 'rchi' or 'wrms', not {which!r}")
         df = pd.DataFrame(rows)[["East", "Depth", "Width", "Dip", "Rate", "Slip"]]
         return df.quantile([q[0], 0.5, q[1]]).T.rename(
             columns={q[0]: "low", 0.5: "median", q[1]: "high"}
@@ -379,12 +384,13 @@ def bootstrap(
     The MATLAB's random draws can't be reproduced (pandas' unseeded global
     state); a seeded run is compared with it by distribution, not row by row.
     """
+    if len(reference_row) != 1:
+        raise ValueError(f"reference_row must be one row, not {len(reference_row)}")
     reference = str(reference_row["sites"].iloc[0]).strip()
     both = pd.concat([population, reference_row], ignore_index=True)
-    projected = project(both, profile, sigma=sigma)
     # Projected position of each row of `both`; rows outside the band have none,
     # as velproj_loop.m would drop them from any resample.
-    order, _ = _on_profile(both["Ecoord"].to_numpy(float), both["Ncoord"].to_numpy(float), profile)
+    projected, order = _project(both, profile, sigma)
     position = {int(row): p for p, row in enumerate(order)}
     if len(both) - 1 not in position:
         raise ValueError(f"the reference {reference} is outside the profile band")
@@ -417,6 +423,7 @@ def bootstrap(
         "profile": asdict(profile),
         "grid": grid.as_lists(),
         "population_sha256": _frame_sha256(population),
+        "reference_sha256": _frame_sha256(reference_row),
     }
     return BootstrapRun(rchi_picks, wrms_picks, settings)
 
@@ -434,11 +441,10 @@ def _fmt(v: float) -> str:
 
 def write_parameters(result: GridResult, path: str | Path) -> None:
     """parameters.txt as MATLAB's writetable writes it: a header, spaces, 15 significant digits."""
-    t = result.table()
-    lines = [" ".join(f'"{c}"' if " " in c else c for c in PARAMETER_COLUMNS)]
-    cols = [t[c].to_numpy() for c in PARAMETER_COLUMNS]
-    lines += [" ".join(_fmt(col[i]) for col in cols) for i in range(len(t))]
-    Path(path).write_text("\n".join(lines) + "\n")
+    header = " ".join(f'"{c}"' if " " in c else c for c in PARAMETER_COLUMNS)
+    values = result.table()[PARAMETER_COLUMNS].to_numpy(float)
+    # "%.15g" is _fmt's format, applied by numpy without a Python loop per row.
+    np.savetxt(path, values, fmt="%.15g", delimiter=" ", header=header, comments="")
 
 
 def pick_line(model: dict[str, float]) -> str:
