@@ -62,7 +62,16 @@ from .profile2d import (
 )
 
 AXES = ("e1", "depth", "width", "dip", "rate")
+PROFILE_KEYS = ("azimuth_deg", "origin_en", "halfwidth_km")
 SETTINGS_NAME = "settings.json"
+# Every file a grid or bootstrap run can leave in its folder.
+RESULT_NAMES = ("parameters.txt", "parameters_rchi.txt", "parameters_wrms.txt", "intervals.txt", SETTINGS_NAME)
+# What a settings file may hold at its top level: the settings, and what a run
+# adds to its record (read back without complaint, so a record is a settings file).
+TOP_KEYS = (
+    "profile", "grid", "reference", "sigma", "drop", "n_samples", "sample_size", "seed",
+    "nu", "velocities", "stations", "population_sha256", "reference_sha256",
+)  # fmt: skip
 
 
 # ── settings ─────────────────────────────────────────────────────────────────
@@ -78,10 +87,13 @@ def parse_axis(value: Any, name: str) -> np.ndarray:
             raise click.ClickException(
                 f"{name}: expected from:to:step, e.g. 0:15:1, got {value!r}"
             ) from None
-        if step <= 0 or hi < lo:
+        # `not (...)` so that a nan or inf anywhere is refused here, by name.
+        if not (np.isfinite(lo) and np.isfinite(hi) and 0 < step < np.inf and hi >= lo):
             raise click.ClickException(f"{name}: need step > 0 and to >= from, got {value!r}")
-        # Half a step past the end, so 0:15:1 includes 15 whatever the rounding.
-        axis = np.arange(lo, hi + step / 2, step, dtype=float)
+        # MATLAB's a:s:b: as many whole steps as fit, never past `to`. The small
+        # tolerance keeps 0:0.3:0.1 at 0.3 whatever the rounding; it must not be
+        # half a step, which would turn 0:11:4 into 0, 4, 8, 12.
+        axis = lo + step * np.arange(int(np.floor((hi - lo) / step + 1e-9)) + 1, dtype=float)
     else:
         try:
             axis = np.asarray(value, dtype=float).ravel()
@@ -102,17 +114,24 @@ def _merge(settings_file: Path | None, given: dict[str, Any]) -> dict[str, Any]:
             raise click.ClickException(f"{settings_file}: {exc}") from None
         if not isinstance(loaded, dict):
             raise click.ClickException(f"{settings_file}: expected a JSON object")
+        # A misspelt key would otherwise be dropped and its default used in silence.
+        unknown = [k for k in loaded if k not in TOP_KEYS]
+        for key, allowed in (("profile", PROFILE_KEYS), ("grid", AXES)):
+            section = loaded.get(key, {})
+            if not isinstance(section, dict):
+                raise click.ClickException(f"{settings_file}: {key} must be an object")
+            unknown += [f"{key}.{k}" for k in section if k not in allowed]
+        if unknown:
+            raise click.ClickException(f"{settings_file}: unknown settings: {', '.join(unknown)}")
         for key, value in loaded.items():
             if key in ("profile", "grid"):
-                if not isinstance(value, dict):
-                    raise click.ClickException(f"{settings_file}: {key} must be an object")
                 merged[key].update(value)
             else:
                 merged[key] = value
     for key, value in given.items():
         if value is None or value == ():
             continue
-        if key in ("azimuth_deg", "origin_en", "halfwidth_km"):
+        if key in PROFILE_KEYS:
             merged["profile"][key] = value
         elif key in AXES:
             merged["grid"][key] = value
@@ -131,6 +150,8 @@ def _profile(merged: dict[str, Any]) -> Profile:
             "the profile needs " + " and ".join(missing) + " (or the same in --settings)"
         )
     try:
+        if isinstance(p["origin_en"], str):  # "12" would otherwise read as (1.0, 2.0)
+            raise TypeError
         origin = tuple(float(v) for v in p["origin_en"])
         azimuth = float(p["azimuth_deg"])
         halfwidth = float(p.get("halfwidth_km", 200.0))
@@ -193,18 +214,30 @@ def _record(profile: Profile, grid: Grid | None, **more: Any) -> dict[str, Any]:
     return out
 
 
-def _out_dir(out: Path, names: list[str], overwrite: bool) -> None:
-    """Make `out`, refusing to replace earlier results unless told to.
+def _refuse_results(out: Path, overwrite: bool) -> None:
+    """Refuse to replace earlier results unless told to. Writes nothing.
 
     bootstrap_v2.py appends to parameters_rchi.txt, so two runs with different
     settings end up in one file with nothing to tell them apart.
     """
-    out.mkdir(parents=True, exist_ok=True)
-    there = [n for n in names if (out / n).exists()]
+    there = [n for n in RESULT_NAMES if (out / n).exists()]
     if there and not overwrite:
         raise click.ClickException(
             f"{out} already holds {', '.join(there)}: choose another --out, or pass --overwrite"
         )
+
+
+def _out_dir(out: Path, names: list[str]) -> None:
+    """Make `out` ready for this run's files, once there is something to write.
+
+    An earlier run's files this run won't rewrite are removed (`--overwrite`
+    was given, or `_refuse_results` would have stopped the run): left in place,
+    a parameters.txt or intervals.txt would sit beside a settings.json that
+    didn't produce it.
+    """
+    out.mkdir(parents=True, exist_ok=True)
+    for stale in set(RESULT_NAMES) - set(names):
+        (out / stale).unlink(missing_ok=True)
 
 
 def _model_text(model: dict[str, float]) -> str:
@@ -244,7 +277,9 @@ def _shared(grid_too: bool):
                 click.option("--width", help="Width, km: from:to:step."),
                 click.option("--dip", help="Dip, degrees: from:to:step."),
                 click.option("--rate", help="Block rate, mm/yr: from:to:step."),
-                click.option("--overwrite", is_flag=True, help="Replace results already in --out."),
+                click.option("--overwrite", is_flag=True,
+                             help="Replace results already in --out; an earlier run's files this run "
+                                  "doesn't write are removed."),
             ]  # fmt: skip
         for option in reversed(options):
             fn = option(fn)
@@ -318,6 +353,7 @@ def grid(velocities: Path, settings_file: Path | None, out: Path, table: bool, o
     sigma = _choice(merged, "sigma", ("legacy", "propagated"))
     drop = _choice(merged, "drop", ("first", "reference"))
     names = ["parameters_rchi.txt", "parameters_wrms.txt", SETTINGS_NAME] + (["parameters.txt"] if table else [])
+    _refuse_results(out, overwrite)  # before the grid is solved, not after
     try:
         df = read_velocities(velocities)
         _, _, reference = _split_reference(df, merged)
@@ -326,7 +362,7 @@ def grid(velocities: Path, settings_file: Path | None, out: Path, table: bool, o
         i_rchi, i_wrms = legacy_picks(result)
     except ValueError as exc:
         raise click.ClickException(str(exc)) from None
-    _out_dir(out, names, overwrite)
+    _out_dir(out, names)
     if table:
         write_parameters(result, out / "parameters.txt")
     (out / "parameters_rchi.txt").write_text(pick_line(result.model(i_rchi)) + "\n")
@@ -384,17 +420,24 @@ def bootstrap_cmd(velocities: Path, settings_file: Path | None, out: Path, overw
         n_samples = int(merged["n_samples"])
         df = read_velocities(velocities)
         population, reference_row, reference = _split_reference(df, merged)
-        sample_size = int(merged.get("sample_size") or len(population))
+        # `is None`, not falsy: a sample_size of 0 in the file is refused below, not defaulted.
+        sample_size = int(len(population) if merged.get("sample_size") is None else merged["sample_size"])
         seed = int(merged["seed"]) if merged.get("seed") is not None else secrets.randbits(32)
         if n_samples < 1 or sample_size < 1:
             raise ValueError("n_samples and sample_size must be at least 1")
-        _out_dir(out, names, overwrite)
+        _refuse_results(out, overwrite)
         click.echo(f"{n_samples} resamples of {sample_size} from {len(population)} stations, "
                    f"{axes.size:,} models each, seed {seed}", err=True)  # fmt: skip
         run = bootstrap(population, reference_row, prof, axes, n_samples=n_samples,
                         sample_size=sample_size, seed=seed, sigma=sigma, drop=drop)  # type: ignore[arg-type]
     except (TypeError, ValueError) as exc:
         raise click.ClickException(str(exc)) from None
+    # A record repeats its run only on the table that run read; say so when it isn't.
+    for key, what in (("population_sha256", "stations"), ("reference_sha256", "reference row")):
+        if merged.get(key) not in (None, run.settings[key]):
+            click.echo(f"warning: the {what} in {velocities} are not the ones the settings were recorded "
+                       f"with ({key} differs), so this does not repeat that run", err=True)  # fmt: skip
+    _out_dir(out, names)
     (out / "parameters_rchi.txt").write_text("".join(pick_line(m) + "\n" for m in run.rchi_picks))
     (out / "parameters_wrms.txt").write_text(
         "".join(pick_line(m) + "\n" for ties in run.wrms_picks for m in ties)

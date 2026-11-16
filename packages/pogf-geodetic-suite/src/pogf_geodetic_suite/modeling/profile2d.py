@@ -49,8 +49,8 @@ WHAT IS NOT HERE YET
 --------------------
 The changes ``fault_model_priors.md`` recommends (dip fixed and the buried
 edge estimated, null / creep-step / locked models, minimum chi-square,
-jackknife) come as further switches, each with a delta report. Figures and the
-command line come after them.
+jackknife) come as further switches, each with a delta report. Figures come
+after them. The command line is ``cli.py`` (``pogf-modeling``).
 """
 
 from __future__ import annotations

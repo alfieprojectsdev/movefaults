@@ -64,7 +64,14 @@ def test_axis_includes_both_ends_like_matlab():
     np.testing.assert_array_equal(parse_axis([3, 1, 2], "rate"), [3, 1, 2])
 
 
-@pytest.mark.parametrize("bad", ["0:15", "a:b:c", "0:15:0", "15:0:1", []])
+def test_axis_never_passes_its_end():
+    """MATLAB's 0:4:11 is 0, 4, 8: a step that doesn't land on the end stops short of it."""
+    np.testing.assert_array_equal(parse_axis("0:11:4", "depth"), [0, 4, 8])
+    np.testing.assert_array_equal(parse_axis("0:5:6", "depth"), [0])
+    np.testing.assert_allclose(parse_axis("0:0.3:0.1", "e1"), [0, 0.1, 0.2, 0.3])
+
+
+@pytest.mark.parametrize("bad", ["0:15", "a:b:c", "0:15:0", "15:0:1", "nan:1:1", "0:inf:1", "0:1:nan", []])
 def test_a_bad_axis_is_refused_by_name(bad):
     import click
 
@@ -228,3 +235,49 @@ def test_bad_settings_are_refused(table, tmp_path):
     bad.write_text(json.dumps({"sigma": "other", "profile": {"azimuth_deg": 90, "origin_en": [0, 0]}}))
     r = run("profile", table, "--settings", bad)
     assert r.exit_code != 0 and "sigma is one of" in r.output
+
+
+# ── review fixes ─────────────────────────────────────────────────────────────
+
+
+def test_overwrite_leaves_no_file_from_the_earlier_run(table, tmp_path):
+    """A parameters.txt the new run didn't write would sit beside a settings.json that didn't make it."""
+    out = tmp_path / "run"
+    assert run("grid", table, "-o", out, *PROFILE_ARGS, *GRID_ARGS).exit_code == 0
+    assert (out / "parameters.txt").exists()
+    r = run("grid", table, "-o", out, *PROFILE_ARGS, *GRID_ARGS, "--rate", "20:30:10", "--no-table", "--overwrite")
+    assert r.exit_code == 0, r.output
+    assert not (out / "parameters.txt").exists()
+    r = _boot(table, out, "--overwrite")
+    assert r.exit_code == 0, r.output
+    assert (out / "intervals.txt").exists()
+    assert run("grid", table, "-o", out, *PROFILE_ARGS, *GRID_ARGS, "--no-table", "--overwrite").exit_code == 0
+    assert not (out / "intervals.txt").exists()
+
+
+def test_a_failed_bootstrap_leaves_no_folder(table, tmp_path):
+    r = _boot(table, tmp_path / "o", "--reference", "REFS", "--drop", "reference", "--halfwidth", "200", "--seed", "-1")
+    assert r.exit_code != 0 and not (tmp_path / "o").exists()
+
+
+def test_a_misspelt_setting_is_refused_by_name(table, tmp_path):
+    settings = tmp_path / "s.json"
+    settings.write_text(json.dumps({
+        "profile": {"azimuth_deg": 90, "origin_en": [0, 0], "halfwidth": 50}, "samples": 3,
+    }))  # fmt: skip
+    r = run("profile", table, "--settings", settings)
+    assert r.exit_code != 0 and "profile.halfwidth" in r.output and "samples" in r.output
+
+
+def test_repeating_a_record_on_another_table_says_so(table, tmp_path):
+    first = tmp_path / "first"
+    assert _boot(table, first, "--seed", "3").exit_code == 0
+    same = run("bootstrap", table, "-o", tmp_path / "same", "--settings", first / SETTINGS_NAME)
+    assert same.exit_code == 0 and "warning" not in same.output
+    df = pd.read_csv(table)
+    df.loc[3, "velocity"] += 1.0
+    other = tmp_path / "other.csv"
+    df.to_csv(other, index=False)
+    r = run("bootstrap", other, "-o", tmp_path / "again", "--settings", first / SETTINGS_NAME)
+    assert r.exit_code == 0, r.output
+    assert "warning" in r.output and "population_sha256" in r.output
