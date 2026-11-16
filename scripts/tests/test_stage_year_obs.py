@@ -108,17 +108,63 @@ def test_packings_are_ranked(tree):
     assert (dest / "GGGG0030.24o.gz").is_symlink()
 
 
-def test_rerun_is_idempotent_and_repoints_a_changed_choice(tree, capsys):
-    src2, src3, pool = tree
+def test_rerun_is_idempotent(tree, capsys):
+    src2, _, _ = tree
     assert run(src2, "--apply") == 0
     capsys.readouterr()
     assert run(src2, "--apply") == 0
-    assert "0 links made (0 repointed), 6 already there" in capsys.readouterr().out
-    (src3 / "DDDD00PHL_R_20240010000_01D_30S_MO.crx.gz").unlink()
+    assert "0 links made (0 repointed), 6 already there, 0 removed" in capsys.readouterr().out
+
+
+def test_a_changed_choice_is_refused_until_pruned(tree, capsys):
+    """A link the staging no longer chooses would run beside its replacement."""
+    src2, src3, pool = tree
+    dest = pool / "CAMP"
     assert run(src2, "--apply") == 0
-    captured = capsys.readouterr()
-    assert (pool / "CAMP" / "DDDD0010.24o").is_symlink()
-    assert "not in this staging" in captured.err, "the dangling RINEX 3 link is called out"
+    (src3 / "AAAA00PHL_R_20240010000_01D_30S_MO.crx.gz").write_text("RINEX 3 arrives for AAAA day 1")
+    capsys.readouterr()
+    for extra in ((), ("--apply",)):  # the dry run refuses as --apply would
+        assert run(src2, *extra) == 1
+        assert "not in this staging and would run too" in capsys.readouterr().err
+    assert (dest / "AAAA0010.24o").is_symlink(), "nothing was changed by the refusals"
+    assert not (dest / "AAAA00PHL_R_20240010000_01D_30S_MO.crx.gz").exists()
+
+    assert run(src2, "--prune") == 0
+    assert "would remove 1 links" in capsys.readouterr().out
+    assert run(src2, "--apply", "--prune") == 0
+    assert "1 removed" in capsys.readouterr().out
+    assert not (dest / "AAAA0010.24o").exists()
+    assert (dest / "AAAA00PHL_R_20240010000_01D_30S_MO.crx.gz").is_symlink()
+    assert (dest / "AAAA0020.24d.gz").is_symlink(), "other days are untouched"
+
+
+def test_prune_takes_a_newly_excluded_station_and_only_links(tree, capsys):
+    src2, _, pool = tree
+    dest = pool / "CAMP"
+    assert run(src2, "--apply") == 0
+    assert run(src2, "--exclude", "AAAA", "--apply", "--prune") == 0
+    assert not (dest / "AAAA0010.24o").exists() and not (dest / "AAAA0020.24d.gz").exists()
+    assert (dest / "BBBB0010.24o").is_symlink()
+    # A regular file for the year is never removed: the run is refused instead.
+    (dest / "ZZZZ0010.24o").write_text("copied in by hand")
+    capsys.readouterr()
+    assert run(src2, "--exclude", "AAAA", "--apply", "--prune") == 1
+    assert "regular files" in capsys.readouterr().err
+    assert (dest / "ZZZZ0010.24o").read_text() == "copied in by hand"
+
+
+def test_a_mistyped_exclude_or_range_is_refused(tree, capsys):
+    src2, _, pool = tree
+    assert run(src2, "--exclude", "AAAB", "--apply") == 1
+    assert "names no station" in capsys.readouterr().err and not (pool / "CAMP").exists()
+    with pytest.raises(SystemExit):
+        run(src2, "--from", "200", "--to", "100")
+
+
+def test_rinex3_stations_are_named(tree, capsys):
+    src2, _, _ = tree
+    run(src2)
+    assert "RINEX 3 taken for: DDDD EEEE" in capsys.readouterr().out
 
 
 def test_existing_files_of_other_years_and_campaigns_are_left_alone(tree):

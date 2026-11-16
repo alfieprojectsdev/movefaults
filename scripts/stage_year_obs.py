@@ -7,7 +7,8 @@ WHY NOT THE OTHER STAGING SCRIPTS
   the as-fetched file-server metadata. Run against a campaign whose station
   files have since been corrected (PHSUP, PHNAT), it would replace them.
 
-This one touches nothing but $D/<campaign>, and only adds links.
+This one touches nothing but $D/<campaign>, and there only links for the year
+and day range asked for. It never touches a regular file or another year.
 
 WHAT IS STAGED
 Every daily file for the year, one per station-day:
@@ -35,6 +36,13 @@ Usage:
         --rinex2 /srv/gnss-archive/datapool/PHIVOLCS/2023              # dry run
     scripts/stage_year_obs.py --year 2023 --campaign PHSUP --rinex2 ... --apply
     ... --exclude PALA --exclude MABN        # stations to leave out
+
+RUNNING IT AGAIN
+A second run makes what is missing and leaves the rest. When its choices have
+changed (a RINEX 3 file has arrived for a station-day linked as RINEX 2, or a
+station is now excluded), the links it no longer chooses would run beside
+their replacements, so it refuses until told to remove them with --prune. The
+dry run reports the same refusals --apply would make.
 """
 from __future__ import annotations
 
@@ -51,7 +59,7 @@ Key = tuple[str, int]  # (station, day of year)
 def patterns(year: int) -> tuple[re.Pattern, re.Pattern]:
     yy = f"{year % 100:02d}"
     rx2 = re.compile(rf"^([A-Za-z0-9]{{4}})(\d{{3}})0\.{yy}([oOdD])(\.gz|\.Z)?$")
-    rx3 = re.compile(rf"^([A-Z0-9]{{4}})\S*_R_{year}(\d{{3}})\d{{4}}_01D_\S*[oO]\.(?i:rnx|crx)")
+    rx3 = re.compile(rf"^([A-Z0-9]{{4}})\S*_R_{year}(\d{{3}})\d{{4}}_01D_\S*[oO]\.(?i:rnx|crx)(\.gz|\.Z)?$")
     return rx2, rx3
 
 
@@ -126,8 +134,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--to", dest="last", type=int, default=366)
     ap.add_argument("--exclude", action="append", default=[], metavar="CODE",
                     help="a station to leave out (repeatable)")
+    ap.add_argument("--prune", action="store_true",
+                    help="with --apply: remove links in $D/<campaign> for this year and day "
+                         "range that this staging no longer chooses (links only, never files)")
     ap.add_argument("--apply", action="store_true")
     args = ap.parse_args(argv)
+    if not 1 <= args.first <= args.last <= 366:
+        ap.error("--from and --to are days of the year, with --from not after --to")
 
     if "D" not in os.environ:
         print("refusing: $D is not set; source LOADGPS.setvar first", file=sys.stderr)
@@ -139,21 +152,32 @@ def main(argv: list[str] | None = None) -> int:
         if not d.is_dir():
             print(f"refusing: {d} is not a folder", file=sys.stderr)
             return 1
+    # A link holds its target as text, read from the link's own folder: a
+    # relative --rinex2 would make links that point nowhere.
+    rinex2_dir, rinex3_dir = args.rinex2.absolute(), rinex3_dir.absolute()
     rx2_pattern, rx3_pattern = patterns(args.year)
     exclude = {c.upper() for c in args.exclude}
-    links, used, ambiguous = choose(
-        index_dir(args.rinex2, rx2_pattern), index_dir(rinex3_dir, rx3_pattern),
-        rx2_pattern, args.first, args.last, exclude,
-    )
-    stations = {(m[1].upper()) for n in links if (m := rx2_pattern.match(n) or rx3_pattern.match(n))}
-    per_day = collections.Counter(
-        int(m[2]) for n in links if (m := rx2_pattern.match(n) or rx3_pattern.match(n))
-    )
+    rx2, rx3 = index_dir(rinex2_dir, rx2_pattern), index_dir(rinex3_dir, rx3_pattern)
+    unknown = exclude - {code for code, _ in set(rx2) | set(rx3)}
+    if unknown:
+        # A mistyped code would otherwise print as excluded and still be staged.
+        print(f"refusing: --exclude names no station with {args.year} files: "
+              f"{' '.join(sorted(unknown))}", file=sys.stderr)
+        return 1
+    links, used, ambiguous = choose(rx2, rx3, rx2_pattern, args.first, args.last, exclude)
+    matches = [rx2_pattern.match(n) or rx3_pattern.match(n) for n in links]
+    stations = {m[1] for m in matches}
+    per_day = collections.Counter(int(m[2]) for m in matches)
     print(f"{args.campaign} {args.year} DOY {args.first}-{args.last}: {len(links):,} station-days, "
           f"{len(stations)} stations, {len(per_day)} days "
           f"({min(per_day.values(), default=0)} to {max(per_day.values(), default=0)} a day)")
     for kind, n in sorted(used.items()):
         print(f"  {n:>7,}  {kind}")
+    from_rinex3 = sorted({m[1] for n, m in zip(links, matches, strict=True) if rx3_pattern.match(n)})
+    if from_rinex3:
+        # RINEX 3 replaces RINEX 2 by four-character code alone: name them, so a
+        # network station sharing a code with a file in the RINEX 3 folder shows.
+        print(f"  RINEX 3 taken for: {' '.join(from_rinex3)}")
     if exclude:
         print(f"  excluded: {' '.join(sorted(exclude))}")
     for key, names in ambiguous:
@@ -164,16 +188,39 @@ def main(argv: list[str] | None = None) -> int:
     if not links:
         print(f"refusing: no {args.year} daily files found", file=sys.stderr)
         return 1
-    if not args.apply:
-        print("Dry run: nothing written.")
-        return 0
-
-    dest.mkdir(parents=True, exist_ok=True)
+    # What is already in the campaign's folder for this year and range. RNX_COP
+    # takes everything there, so a link this staging no longer chooses would run
+    # beside its replacement: two files for one station-day.
+    there = sorted(dest.iterdir()) if dest.is_dir() else []
     blocked = [n for n in links if (dest / n).exists() and not (dest / n).is_symlink()]
+    stale = [
+        path for path in there
+        if (m := rx2_pattern.match(path.name) or rx3_pattern.match(path.name))
+        and args.first <= int(m[2]) <= args.last and path.name not in links
+    ]
+    stale_links = [p for p in stale if p.is_symlink()]
+    stale_files = [p for p in stale if not p.is_symlink()]
     if blocked:
         print(f"refusing: {len(blocked)} link names are regular files in {dest}, "
               f"e.g. {blocked[0]}", file=sys.stderr)
         return 1
+    if stale_files:
+        print(f"refusing: {len(stale_files)} regular files in {dest} for {args.year} DOY "
+              f"{args.first}-{args.last} are not in this staging and would run too, "
+              f"e.g. {stale_files[0].name}", file=sys.stderr)
+        return 1
+    if stale_links and not args.prune:
+        print(f"refusing: {len(stale_links):,} links in {dest} for {args.year} DOY "
+              f"{args.first}-{args.last} are not in this staging and would run too, "
+              f"e.g. {stale_links[0].name}. --prune removes them", file=sys.stderr)
+        return 1
+    if not args.apply:
+        if stale_links:
+            print(f"  would remove {len(stale_links):,} links this staging no longer chooses")
+        print("Dry run: nothing written.")
+        return 0
+
+    dest.mkdir(parents=True, exist_ok=True)
     made = kept = replaced = 0
     for name, src in sorted(links.items()):
         link = dest / name
@@ -185,16 +232,10 @@ def main(argv: list[str] | None = None) -> int:
             replaced += 1
         link.symlink_to(src)
         made += 1
-    stale = [
-        path.name for path in sorted(dest.iterdir())
-        if (m := rx2_pattern.match(path.name) or rx3_pattern.match(path.name))
-        and args.first <= int(m[2]) <= args.last and path.name not in links
-    ]
-    print(f"{dest}: {made:,} links made ({replaced:,} repointed), {kept:,} already there")
-    if stale:
-        # RNX_COP takes everything in the directory, so these would run too.
-        print(f"WARNING: {len(stale):,} files in {dest} for {args.year} DOY {args.first}-{args.last} "
-              f"are not in this staging, e.g. {stale[0]}", file=sys.stderr)
+    for path in stale_links:
+        path.unlink()
+    print(f"{dest}: {made:,} links made ({replaced:,} repointed), {kept:,} already there, "
+          f"{len(stale_links):,} removed")
     return 0
 
 
