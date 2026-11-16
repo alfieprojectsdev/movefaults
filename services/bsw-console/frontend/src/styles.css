@@ -10,7 +10,7 @@
   --queued-bd:#4D7FAA;--queued-ink:#123E5E;--none:#FFFFFF;--none-bd:#CBD1CB;--hatch:#D5DAD4;--hl:#FFF2C2;
   --prop-bg:#FFF2C2;--prop-ink:#5A4500;--prop-bd:#8A6D00;--hdr:#1B2420;--hdr-ink:#EEF1EC;--hdr-dim:#C9D1CB;
   --hdr-ctl:#26312C;--hdr-bd:#4A5650;--hdr-hover:#2C3833;--hdr-on:#3A4A43;--live:#7FB8E8;--eq:#C2570C;
-  --badge:#1B2420;--badge-ink:#FFFFFF;--old:#8C938E;color-scheme:light;
+  --badge:#1B2420;--badge-ink:#FFFFFF;--old:#8C938E;--up:#B8382A;--down:#2563A8;color-scheme:light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -22,7 +22,7 @@
     --queued-bd:#4D7FAA;--queued-ink:#BFDAF2;--none:#1A201D;--none-bd:#3C4641;--hatch:#2F3833;--hl:#4A3F12;
     --prop-bg:#3D3410;--prop-ink:#F2DC8A;--prop-bd:#B39532;--hdr:#0B0F0D;--hdr-ink:#E4E9E5;--hdr-dim:#A9B3AC;
     --hdr-ctl:#1A201D;--hdr-bd:#3C4641;--hdr-hover:#1E2522;--hdr-on:#2C3833;--eq:#E8833A;--badge:#E4E9E5;
-    --badge-ink:#111614;--old:#6B746E;color-scheme:dark;
+    --badge-ink:#111614;--old:#6B746E;--up:#E8705F;--down:#6FA8E8;color-scheme:dark;
   }
 }
 :root[data-theme="dark"] {
@@ -34,7 +34,7 @@
   --queued-bd:#4D7FAA;--queued-ink:#BFDAF2;--none:#1A201D;--none-bd:#3C4641;--hatch:#2F3833;--hl:#4A3F12;
   --prop-bg:#3D3410;--prop-ink:#F2DC8A;--prop-bd:#B39532;--hdr:#0B0F0D;--hdr-ink:#E4E9E5;--hdr-dim:#A9B3AC;
   --hdr-ctl:#1A201D;--hdr-bd:#3C4641;--hdr-hover:#1E2522;--hdr-on:#2C3833;--eq:#E8833A;--badge:#E4E9E5;
-  --badge-ink:#111614;--old:#6B746E;color-scheme:dark;
+  --badge-ink:#111614;--old:#6B746E;--up:#E8705F;--down:#6FA8E8;color-scheme:dark;
 }
 
 body { margin:0; background:var(--bg); color:var(--ink); font-family:"Segoe UI",system-ui,-apple-system,sans-serif; font-size:14px; }
@@ -81,6 +81,12 @@ main { width:100%; max-width:1320px; margin:0 auto; box-sizing:border-box; paddi
 .t th { text-align:left; font-weight:600; color:var(--muted); padding:8px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
 .t td { padding:8px 12px; border-bottom:1px solid var(--line2); vertical-align:top; }
 .t .num { text-align:right; font-variant-numeric:tabular-nums; }
+.t .nowrap { white-space:nowrap; }
+.t tr[aria-current="true"] > * { background:var(--hl); }
+/* a button that reads as a link: a sortable heading, a station code in a table */
+.linkish { font:inherit; color:var(--link); background:none; border:0; padding:0; cursor:pointer; text-align:inherit; }
+.linkish:hover { color:var(--link-h); text-decoration:underline; }
+th .linkish { color:inherit; font-weight:inherit; }
 
 dl.kv { display:grid; grid-template-columns:max-content 1fr; gap:6px 16px; margin:0; font-size:13px; }
 dl.kv dt { color:var(--muted); }

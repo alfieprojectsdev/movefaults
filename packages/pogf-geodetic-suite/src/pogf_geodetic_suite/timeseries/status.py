@@ -156,9 +156,11 @@ from ..modeling.coordinates import ecef_to_geodetic
 from .analysis import OffsetEvent, OffsetType, estimate_velocity
 from .crd_pipeline import (
     CrdDirs,
+    StationEpoch,
     crd_datums,
     crd_directory_to_enu,
     crd_dirs_text,
+    crd_station_xyz,
     days_without_station,
     session_to_decimal_year,
 )
@@ -166,8 +168,10 @@ from .gmt import MIN_SPAN_YEARS, REFERENCE_WARN_DEG, arc_degrees
 from .offsets_catalog import load_offsets_catalog
 
 __all__ = [
+    "FIELD_SCHEMA",
     "REFERENCE_WARN_DEG",
     "SCHEMA",
+    "field_status",
     "OutlierMode",
     "series_status",
     "station_positions",
@@ -484,20 +488,8 @@ def station_status(
     events: list[OffsetEvent] | None = None
     provenance: dict[str, str] | None = None
     if offsets_catalog is not None:
-        path = Path(offsets_catalog)
-        before = _sha256(path)
-        # The loader keeps the file's case; merge rather than overwrite, so
-        # "abcd" and "ABCD" lines both reach the fit (series_status re-sorts).
-        catalog: dict[str, list[OffsetEvent]] = {}
-        for name, evs in load_offsets_catalog(path).items():
-            catalog.setdefault(name.upper(), []).extend(evs)
+        catalog, provenance = _load_catalog(offsets_catalog)
         events = catalog.get(code, [])
-        # The hash is provenance for the events actually fitted: refuse if the
-        # file changed between hashing and parsing.
-        digest = _sha256(path)
-        if digest != before:
-            raise ValueError(f"{path} changed while it was being read; try again")
-        provenance = {"path": str(path), "sha256": digest}
 
     result = series_status(
         t, enu_m,
@@ -510,6 +502,32 @@ def station_status(
         offsets_catalog=provenance,
         exclude_epochs=[session_date_to_decimal_year(s) for s in exclude_sessions or []],
     )
+    _add_reference_distance(result, enu_m, code, ref)
+    if (missing := _reference_gap_warning(crd_dir, ref)) is not None:
+        result["warnings"].append(missing)
+    if (mixed := _datum_warning(crd_dir, set(t.tolist()))) is not None:
+        result["warnings"].append(mixed)
+    return result
+
+
+def _load_catalog(offsets_catalog: str | Path) -> tuple[dict[str, list[OffsetEvent]], dict[str, str]]:
+    """Every station's events, keyed upper-case, and the file's provenance."""
+    path = Path(offsets_catalog)
+    before = _sha256(path)
+    # The loader keeps the file's case; merge rather than overwrite, so
+    # "abcd" and "ABCD" lines both reach the fit (series_status re-sorts).
+    catalog: dict[str, list[OffsetEvent]] = {}
+    for name, evs in load_offsets_catalog(path).items():
+        catalog.setdefault(name.upper(), []).extend(evs)
+    # The hash is provenance for the events actually fitted: refuse if the
+    # file changed between hashing and parsing.
+    digest = _sha256(path)
+    if digest != before:
+        raise ValueError(f"{path} changed while it was being read; try again")
+    return catalog, {"path": str(path), "sha256": digest}
+
+
+def _add_reference_distance(result: dict[str, Any], enu_m: np.ndarray, code: str, ref: str) -> None:
     # The first epoch's ENU vector is the straight line from the reference to the
     # station, whatever its axes, and its length gives the arc between them.
     distance = arc_degrees(float(np.linalg.norm(enu_m[0])))
@@ -522,23 +540,138 @@ def station_status(
             "motion between them. Choose a nearer reference to read the components"
         )
         result["warnings"].append(result["reference_warning"])
+
+
+def _reference_gap_warning(crd_dir: CrdDirs, ref: str) -> str | None:
     missing, days = days_without_station(crd_dir, ref)
-    if missing:
-        result["warnings"].append(
-            f"the reference {ref} is missing from {missing} of {days} daily CRD files: "
-            "those days give no epoch for any station"
+    if not missing:
+        return None
+    return (
+        f"the reference {ref} is missing from {missing} of {days} daily CRD files: "
+        "those days give no epoch for any station"
+    )
+
+
+def _datum_warning(crd_dir: CrdDirs, epochs: set[float]) -> str | None:
+    datums = crd_datums(crd_dir, epochs=epochs)
+    if len(datums) <= 1:
+        return None
+    spans = "; ".join(
+        f"{name} {first:.4f} to {last:.4f}"
+        for name, (first, last) in sorted(datums.items(), key=lambda kv: kv[1])
+    )
+    return (
+        f"the CRD files use more than one geodetic datum ({spans}): "
+        "a step where they meet is the frame, not motion"
+    )
+
+
+FIELD_SCHEMA = "pogf.timeseries.field/1"
+
+
+def field_status(
+    crd_dir: CrdDirs,
+    reference: str,
+    *,
+    offsets_catalog: str | Path | None = None,
+    outlier_mode: OutlierMode | str = OutlierMode.RECORD,
+    outlier_iqr_factor: float = 3.0,
+    min_span_years: float = MIN_SPAN_YEARS,
+) -> dict[str, Any]:
+    """
+    Every station's final-segment velocity relative to `reference`: a velocity field.
+
+    The same fit as `station_status`, station by station, from one pass over
+    the CRD files instead of one per station, so the field and the one-station
+    view can't disagree. Per station it keeps what a map needs (position,
+    velocity and 1-sigma, span, flags, warnings), not the series.
+
+    Network-wide warnings (days without the reference, a datum change) are
+    given once in `warnings`, not repeated per station. A station whose fit
+    fails is listed in `left_out` with the reason, so a short map is never silent.
+
+    Raises:
+        ValueError: no usable CRD files, the reference in none of them, or a
+                    malformed catalog.
+    """
+    ref = reference.upper()[:4]
+    epochs = crd_directory_to_enu(crd_dir, ref)
+    by_station: dict[str, list[StationEpoch]] = {}
+    for ep in epochs:
+        by_station.setdefault(ep.station.upper()[:4], []).append(ep)
+
+    catalog: dict[str, list[OffsetEvent]] | None = None
+    provenance: dict[str, str] | None = None
+    if offsets_catalog is not None:
+        catalog, provenance = _load_catalog(offsets_catalog)
+
+    xyz = crd_station_xyz(crd_dir)
+    where = station_positions(xyz, ref)["positions"]
+
+    stations: list[dict[str, Any]] = []
+    left_out: list[dict[str, str]] = []
+    for code in sorted(by_station):
+        eps = by_station[code]
+        t = np.array([ep.decimal_year for ep in eps])
+        enu_m = np.array([[ep.east_m, ep.north_m, ep.up_m] for ep in eps])
+        try:
+            result = series_status(
+                t, enu_m,
+                station=code,
+                reference=ref,
+                offsets=None if catalog is None else catalog.get(code, []),
+                outlier_mode=outlier_mode,
+                outlier_iqr_factor=outlier_iqr_factor,
+                min_span_years=min_span_years,
+                offsets_catalog=provenance,
+            )  # fmt: skip
+        except ValueError as exc:
+            left_out.append({"station": code, "reason": str(exc)})
+            continue
+        _add_reference_distance(result, enu_m, code, ref)
+        pos = where.get(code)
+        if pos is None:
+            left_out.append({"station": code, "reason": "no position in the CRD files"})
+            continue
+        stations.append(
+            {
+                "station": code,
+                "lat": pos["lat"],
+                "lon": pos["lon"],
+                "reference_distance_deg": result["reference_distance_deg"],
+                "far_from_reference": result["reference_warning"] is not None,
+                "velocity": result["velocity"],
+                "t_first": float(t.min()),
+                "t_last": float(t.max()),
+                "n_epochs": len(t),
+                "n_segments": len(result["segments"]),
+                "n_offsets": len(result["offsets"]),
+                "warnings": result["warnings"],
+            }
         )
-    datums = crd_datums(crd_dir, epochs=set(t.tolist()))
-    if len(datums) > 1:
-        spans = "; ".join(
-            f"{name} {first:.4f} to {last:.4f}"
-            for name, (first, last) in sorted(datums.items(), key=lambda kv: kv[1])
-        )
-        result["warnings"].append(
-            f"the CRD files use more than one geodetic datum ({spans}): "
-            "a step where they meet is the frame, not motion"
-        )
-    return result
+
+    warnings = []
+    if (missing := _reference_gap_warning(crd_dir, ref)) is not None:
+        warnings.append(missing)
+    if (mixed := _datum_warning(crd_dir, {ep.decimal_year for ep in epochs})) is not None:
+        warnings.append(mixed)
+    if catalog is None:
+        warnings.append("no offsets catalog: every series is fitted as one segment")
+    all_t = [ep.decimal_year for ep in epochs]
+    return {
+        "schema": FIELD_SCHEMA,
+        "reference": ref,
+        "reference_position": where.get(ref),
+        "offsets_catalog": provenance,
+        "outlier_rule": {"mode": OutlierMode(outlier_mode).value, "factor": outlier_iqr_factor},
+        "min_span_years": min_span_years,
+        "sigma": "formal 1-sigma, white noise only",
+        "t_first": min(all_t),
+        "t_last": max(all_t),
+        "stations": stations,
+        "left_out": left_out,
+        "warnings": warnings,
+    }
 
 
 def session_date_to_decimal_year(session_date: str) -> float:

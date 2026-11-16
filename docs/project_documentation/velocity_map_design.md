@@ -1,6 +1,6 @@
 # Velocity and displacement maps, and stacked time series, in the BSW console
 
-*Design, 2026-11-15. Not built. Complements the Time series page
+*Design, 2026-11-15. Stage 1 (the velocity field, relative to a station) was built on 2026-11-16; the rest is not. Complements the Time series page
 (`docs/bsw_console_work_instruction.md`, section 6), which shows one station at a
 time.*
 
@@ -64,7 +64,7 @@ section 1a keeps jobs for work that writes or runs long).
 | Vertical | Never on the same arrows as horizontal; usually a separate map, coloured symbols or N–S bars | A separate layer, switched with **Horizontal / Vertical**: a circle at each station, red for up and blue for down, its size or shade by rate, the value on hover. Vertical is about three times noisier, and one map invites reading both at one confidence (`automation_stages.md`, item 4) |
 | Frame | Captioned: ITRF, plate-fixed, or relative to a station. Philippine studies estimate in the current ITRF and display Sunda-fixed | Sunda-fixed by default once decision 1 is built; relative to a station and absolute IGS20 stay as staff options. **Always printed on the map and in every export:** the frame (and pole), the epoch span, the catalogue's sha256, the outlier mode. In relative-to-a-station mode the reference is drawn as a marked point with no arrow |
 | Formal σ | White-noise least squares understates velocity uncertainty 2–11×, because GNSS series carry coloured (flicker) noise | Until decision 2 is built, labelled "formal 1σ, white noise only" wherever a σ or ellipse appears |
-| Short or stale fits | Usually filtered out before mapping | A station whose final segment is under one year (`short_span`) or doesn't reach its latest epoch is drawn hollow and grey, listed under the map, and left out of exports unless ticked |
+| Short or stale fits | Usually filtered out before mapping | A station whose final segment is under one year (`short_span`) or doesn't reach its latest epoch gets a hollow grey marker and **no arrow**: a rate from days of data can be hundreds of mm/yr. It is listed under the map struck through, with the reason, and written into the exports as a comment line (`gmt.py`'s WITHHELD convention), so nothing is deleted |
 | Station names | Labels beside markers | Labels on hover; a toggle shows all labels |
 | Stacked series | Stations stacked with an offset per trace, one component per panel, ordered by latitude or along a profile, at **one vertical scale** | See "Stacked time series" below |
 
@@ -221,7 +221,7 @@ same cached field as the map.
 Both endpoints are read-only and answer like today's `/timeseries` endpoints:
 `configured`/`available` and a message when they can't.
 
-- `GET /api/campaigns/{c}/timeseries/field?reference=PIMO&kind=velocity|step&event=2019.8027&rate_changes=0`
+- `GET /api/campaigns/{c}/velocity-field?reference=PIMO` (built), with `/velocity-field/export?format=psvelo|vertical|csv`. Event steps (`kind=step&event=2019.8027&rate_changes=0`) come with stage 5.
   - Per station:
     - code, lon, lat, distance from the reference;
     - Ve, Vn, Vu and σ, or dE, dN, dU and σ;
@@ -229,7 +229,7 @@ Both endpoints are read-only and answer like today's `/timeseries` endpoints:
     - warnings.
   - Once per response: the caption fields (reference, span, catalogue path and
     sha256, outlier mode) and the stations left out, with why.
-- `GET /api/campaigns/{c}/timeseries/stack?reference=PIMO&stations=A,B,C`
+- `GET /api/campaigns/{c}/time-series-stack?reference=PIMO&stations=A,B,C` (not built)
   - Per station: `series` (t and E, N, U in mm) and its fitted model (segment
     lines and steps), so the page can draw raw, detrended or rate-removed
     without asking again.
@@ -394,7 +394,7 @@ Each with a recommendation; open until the project lead accepts or changes it.
 ## Stages
 
 1. Velocity field, its table and exports, relative to a station (as today's
-   series) with formal σ labelled.
+   series) with formal σ labelled. **Built 2026-11-16.**
 2. Absolute IGS20 velocities and the Sunda-fixed frame (decision 1), and the
    Hector/MIDAS batch job (decision 2).
 3. The host sheet, as a draft-only page, once decisions 4 and 6 are made and

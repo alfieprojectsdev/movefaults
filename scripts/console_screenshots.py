@@ -64,6 +64,18 @@ OTHERS = {
     "FAR1": (24.5, 127.5),
     "FAR2": (1.3, 127.0),
 }
+# Made-up velocities for them, so the velocity field has arrows to draw: east and
+# north in mm/yr relative to REF0, then the daily scatter in metres. The scatter is
+# far larger than a real station's on purpose, so the error ellipses are big enough to
+# see in the picture. They describe no real motion.
+MOTION = {
+    "SYN2": (-18.0, 9.0, 0.03),
+    "SYN3": (12.0, -6.0, 0.05),
+    "SYN4": (25.0, 14.0, 0.09),
+    "SYN5": (-8.0, -20.0, 0.06),
+    "FAR1": (40.0, -15.0, 0.04),
+    "FAR2": (-30.0, 22.0, 0.12),
+}
 EQ = 2024.5
 SPIKE = (2025, 100)
 YEAR = 2025
@@ -90,10 +102,23 @@ def _xyz(lat: float, lon: float) -> tuple[float, float, float]:
 
 def time_series(savedisk: Path, root: Path) -> Path:
     """Three years of noisy daily positions for a made-up station, one step at an
-    earthquake and one large spike, beside REF0 and OTHERS, which do not move. Seeded,
-    so a retake draws the same plot."""
+    earthquake and one large spike, beside REF0, which does not move, and OTHERS,
+    which drift at MOTION. Seeded, so a retake draws the same plot; the others draw
+    from their own generator, so SYN1's series is the one it always was."""
     rng = random.Random(20261105)
-    others = {code: _xyz(*where) for code, where in OTHERS.items()}
+    drift = random.Random(20261116)
+
+    def others_at(t: float) -> dict[str, tuple[float, float, float]]:
+        out = {}
+        for code, (lat, lon) in OTHERS.items():
+            ve, vn, scatter = MOTION[code]
+            east = ve / 1000.0 * (t - 2023) + drift.gauss(0, scatter)
+            north = vn / 1000.0 * (t - 2023) + drift.gauss(0, scatter / 2)
+            out[code] = _xyz(
+                lat + north / 111195.0, lon + east / (111195.0 * math.cos(math.radians(lat)))
+            )
+        return out
+
     for old in ("2020", "2021"):
         shutil.rmtree(savedisk / "LUZON" / old, ignore_errors=True)
     for year in (2023, 2024, 2025):
@@ -112,7 +137,7 @@ def time_series(savedisk: Path, root: Path) -> Path:
             dz += rng.gauss(0, 0.0035)
             # Degrees from REF0, so their labels on the map do not overlap.
             xyz = (REF[0] + 300000.0, REF[1] - 200000.0 + dy, REF[2] + 125000.0 + dz)
-            rows = [("REF0", REF), ("SYN1", xyz), *others.items()]
+            rows = [("REF0", REF), ("SYN1", xyz), *others_at(t).items()]
             (sta / f"FIN_{year}{doy:03d}0.CRD").write_text(
                 HEAD + "".join(_row(i, name, at) for i, (name, at) in enumerate(rows, 1)),
                 encoding="ascii",
@@ -286,6 +311,20 @@ def map_shots(page: Page, url: str, out: Path) -> None:
     print(out / "station_map.png", out / "reference_warning.png")
 
 
+def field_shot(page: Page, url: str, out: Path) -> None:
+    """The velocity field over the map: every made-up station's arrow and ellipse
+    relative to REF0, with the scale arrow. Read-only."""
+    open_route(page, url, f"#/c/LUZON/{YEAR}/time-series")
+    page.get_by_role("button", name="Velocity field").click()
+    page.get_by_role("heading", name="Velocity field · relative to REF0").wait_for(timeout=20000)
+    page.wait_for_load_state("networkidle")
+    panel = page.get_by_role("region", name="Map of the stations")
+    panel.get_by_role("button", name="All stations").click()
+    page.wait_for_timeout(700)  # the move is animated, and the arrows follow the zoom
+    panel.screenshot(path=out / "velocity_field.png")
+    print(out / "velocity_field.png")
+
+
 def equipment_shot(page: Page, url: str, out: Path) -> None:
     """The panel with one station chosen. Its disagreement is the test suite's."""
     open_route(page, url, f"#/c/LUZON/{YEAR}/stations")
@@ -385,6 +424,7 @@ def main() -> int:
             equipment_shot(page, url, args.out)
             redo_shot(page, url, args.out)
             map_shots(page, url, args.out)
+            field_shot(page, url, args.out)
             time_series_shots(page, url, args.out)
             browser.close()
     finally:

@@ -37,27 +37,45 @@ vi.mock('uplot', () => {
 vi.mock('uplot/dist/uPlot.min.css', () => ({}))
 
 // The map library is replaced the same way: jsdom has no layout for it to measure.
-;(globalThis as any).__leaflet = { markers: [], circles: [], fits: [] }
+;(globalThis as any).__leaflet = { markers: [], circles: [], lines: [], polygons: [], fits: [], handlers: {}, resized: 0 }
 vi.mock('leaflet', () => {
   const state = () => (globalThis as any).__leaflet
-  const layer = () => ({
-    addTo() { return this }, bringToBack() { return this },
+  const kinds = ['markers', 'circles', 'lines', 'polygons'] as const
+  // A layer remembers the group it was added to, so clearing one group leaves the others' layers.
+  const layer = (extra: object = {}) => ({
+    group: null as unknown,
+    addTo(target: unknown) { this.group = target; return this }, bringToBack() { return this },
+    ...extra,
   })
   const L = {
+    // A flat, fixed projection: 100 px per degree, north up.
     map: () => ({
+      groups: [] as { clearLayers(): void }[],
       setView() { return this },
       fitBounds(b: unknown) { state().fits.push(b); return this },
-      remove() {},
+      on(name: string, fn: () => void) { state().handlers[name] = fn; return this },
+      invalidateSize() { state().resized += 1; return this },
+      latLngToContainerPoint: ([lat, lon]: [number, number]) => ({ x: lon * 100, y: -lat * 100 }),
+      containerPointToLatLng: ([x, y]: [number, number]) => ({ lat: -y / 100, lng: x / 100 }),
+      // Removing a map takes its layers with it.
+      remove() { for (const g of this.groups) g.clearLayers() },
     }),
-    layerGroup: () => ({
-      addTo() { return this },
-      clearLayers() { state().markers.length = 0; state().circles.length = 0 },
-    }),
+    layerGroup: () => {
+      const group = {
+        addTo(m: { groups: unknown[] }) { m.groups.push(group); return group },
+        clearLayers() {
+          for (const k of kinds) state()[k] = state()[k].filter((l: { group: unknown }) => l.group !== group)
+        },
+      }
+      return group
+    },
     latLngBounds: (points: unknown) => points,
-    geoJSON: layer,
-    circle: (at: unknown, opts: unknown) => { state().circles.push({ at, opts }); return layer() },
+    geoJSON: () => layer(),
+    circle: (at: unknown, opts: unknown) => { const c = layer({ at, opts }); state().circles.push(c); return c },
+    polyline: (points: unknown, opts: unknown) => { const l = layer({ points, opts }); state().lines.push(l); return l },
+    polygon: (points: unknown, opts: unknown) => { const l = layer({ points, opts }); state().polygons.push(l); return l },
     circleMarker: (at: unknown, opts: unknown) => {
-      const m: any = { at, opts, ...layer(), label: '', permanent: false, handlers: {} as Record<string, () => void> }
+      const m: any = layer({ at, opts, label: '', permanent: false, handlers: {} as Record<string, () => void> })
       m.bindTooltip = (label: string, o: { permanent: boolean }) => { m.label = label; m.permanent = o.permanent; return m }
       m.on = (name: string, fn: () => void) => { m.handlers[name] = fn; return m }
       state().markers.push(m)

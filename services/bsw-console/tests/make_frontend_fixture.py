@@ -40,6 +40,7 @@ URLS = [
     "/api/campaigns/LUZON/years/2025/inventory",
     "/api/campaigns/LUZON/time-series",
     "/api/campaigns/LUZON/time-series/SYN1",
+    "/api/campaigns/LUZON/velocity-field",
     "/api/equipment-report",
     "/api/stations/ALBU/equipment",
 ]

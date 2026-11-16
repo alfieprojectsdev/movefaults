@@ -205,6 +205,24 @@ export type TsStation =
       decisions?: TsDecision[]
       decided_fit?: TsDecidedFit | null
     }
+/** One station of the velocity field (pogf_geodetic_suite.timeseries.status.field_status). */
+export type TsFieldStation = {
+  station: string; lat: number; lon: number; reference_distance_deg: number; far_from_reference: boolean
+  velocity: { segment: number; velocity_mm_yr: Enu; sigma_mm_yr: Enu; span_yr: number; short_span: boolean; covers_latest_epoch: boolean }
+  t_first: number; t_last: number; n_epochs: number; n_segments: number; n_offsets: number; warnings: string[]
+}
+/** Every station's final-segment velocity relative to one reference (bsw_console/timeseries.py, field). */
+export type TsField =
+  | TsNotConfigured
+  | TsUnavailable
+  | {
+      configured: true; available: true; schema: string; campaign: string; reference: string
+      reference_position: { lat: number; lon: number } | null
+      offsets_catalog: { path: string; sha256: string } | null
+      outlier_rule: { mode: string; factor: number }
+      min_span_years: number; sigma: string; t_first: number; t_last: number
+      stations: TsFieldStation[]; left_out: { station: string; reason: string }[]; warnings: string[]
+    }
 /** One epoch's current outlier decision (bsw_console/outliers.py). */
 export type TsDecision = {
   epoch: string; decision: 'outlier' | 'not_outlier'; by: string; ts: string; reason: string
