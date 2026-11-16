@@ -222,6 +222,8 @@ def for_station(s: Settings, c: Campaign, code: str, reference: str | None = Non
 # catalog changes. About 0.1 s a station to compute, so it is done on request
 # and remembered, not queued (velocity_map_design.md).
 _FIELD: dict[tuple[str, str], tuple[tuple, dict]] = {}
+# Every reference tried adds a whole field; keep the most recent few.
+_FIELD_KEEP = 16
 
 
 def field(s: Settings, c: Campaign, reference: str | None = None) -> dict:
@@ -242,7 +244,10 @@ def field(s: Settings, c: Campaign, reference: str | None = None) -> dict:
         hit = _FIELD.get((c.name, ref))
         if hit is None or hit[0] != key:
             hit = (key, field_status(dirs, ref, offsets_catalog=s.ts_offsets))
+            _FIELD.pop((c.name, ref), None)  # re-inserted last: the newest
             _FIELD[(c.name, ref)] = hit
+            while len(_FIELD) > _FIELD_KEEP:
+                _FIELD.pop(next(iter(_FIELD)), None)
     except (OSError, ValueError) as exc:
         return {**base, "available": False, "message": str(exc)}
     return {**base, "available": True, **hit[1]}
@@ -251,21 +256,13 @@ def field(s: Settings, c: Campaign, reference: str | None = None) -> dict:
 EXPORTS = ("psvelo", "vertical", "csv")
 
 
-def _withheld(entry: dict) -> str | None:
-    """Why a station's rate should not be drawn as a velocity, if it shouldn't."""
-    v = entry["velocity"]
-    if v["short_span"]:
-        return f"final segment spans {v['span_yr']:.2f} yr, under the minimum"
-    if not v["covers_latest_epoch"]:
-        return "the newest epochs are too few to fit: this is the rate before the latest event"
-    return None
-
-
 def field_export(s: Settings, c: Campaign, reference: str | None, kind: str) -> tuple[str, str]:
     """(file name, text) of the field as a GMT psvelo file, a vertical-rate file
     or a CSV table. The GMT files are timeseries.gmt's own, so a figure made from
     them shows what the page shows. A station whose rate is not a velocity (short
-    or stale final segment) is written as a comment with the reason, not dropped."""
+    or stale final segment) is not dropped: the GMT files write it as a comment
+    with the reason, the CSV keeps its row and gives the reason in `withheld`.
+    Stations left out of the field and its network-wide warnings go in the header."""
     if kind not in EXPORTS:
         raise HTTPException(422, "format is one of: " + ", ".join(EXPORTS))
     f = field(s, c, reference)
@@ -278,6 +275,8 @@ def field_export(s: Settings, c: Campaign, reference: str | None, kind: str) -> 
         f"offsets catalog sha256: {f['offsets_catalog']['sha256']}",
         f"outlier mode: {f['outlier_rule']['mode']}",
         f"sigma: {f['sigma']}",
+        *(f"left out: {x['station']}: {' '.join(x['reason'].split())}" for x in f["left_out"]),
+        *(f"warning: {' '.join(w.split())}" for w in f["warnings"]),
     ]
     name = f"{c.name}_velocity_relative_to_{ref}"
     if kind == "csv":
@@ -288,7 +287,7 @@ def field_export(s: Settings, c: Campaign, reference: str | None, kind: str) -> 
         w.writerow(["station", "lon", "lat", "ve_mm_yr", "vn_mm_yr", "vu_mm_yr",
                     "sig_ve", "sig_vn", "sig_vu", "span_yr", "n_epochs",
                     "short_span", "covers_latest_epoch", "reference_distance_deg",
-                    "far_from_reference"])  # fmt: skip
+                    "far_from_reference", "withheld"])  # fmt: skip
         for e in f["stations"]:
             v, sg = e["velocity"]["velocity_mm_yr"], e["velocity"]["sigma_mm_yr"]
             w.writerow([e["station"], f"{e['lon']:.6f}", f"{e['lat']:.6f}",
@@ -296,7 +295,8 @@ def field_export(s: Settings, c: Campaign, reference: str | None, kind: str) -> 
                         f"{sg['e']:.3f}", f"{sg['n']:.3f}", f"{sg['u']:.3f}",
                         f"{e['velocity']['span_yr']:.3f}", e["n_epochs"],
                         e["velocity"]["short_span"], e["velocity"]["covers_latest_epoch"],
-                        f"{e['reference_distance_deg']:.2f}", e["far_from_reference"]])  # fmt: skip
+                        f"{e['reference_distance_deg']:.2f}", e["far_from_reference"],
+                        e["withheld"] or ""])  # fmt: skip
         return name + ".csv", out.getvalue()
     vectors = [
         VelocityVector(
@@ -311,11 +311,14 @@ def field_export(s: Settings, c: Campaign, reference: str | None, kind: str) -> 
         )
         for e in f["stations"]
     ]  # fmt: skip
-    withhold = {e["station"]: why for e in f["stations"] if (why := _withheld(e))}
+    withhold = {e["station"]: e["withheld"] for e in f["stations"] if e["withheld"]}
     write = write_psvelo if kind == "psvelo" else write_vertical
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "field"
-        write(vectors, path, reference_station=ref, withhold=withhold, notes=notes)
+        # The field has already decided which rates are velocities, its speed
+        # backstop included (status.field_withheld), so the writer's own is off.
+        extra = {"max_speed_mm_yr": None} if kind == "psvelo" else {}
+        write(vectors, path, reference_station=ref, withhold=withhold, notes=notes, **extra)
         text = path.read_text(encoding="utf-8")
     return name + (".psvelo" if kind == "psvelo" else "_vertical.txt"), text
 

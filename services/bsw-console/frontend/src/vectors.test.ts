@@ -7,18 +7,15 @@ const station = (code: string, e: number, n: number, over: Partial<TsFieldStatio
     segment: 0, velocity_mm_yr: { e, n, u: 1 }, sigma_mm_yr: { e: 1, n: 2, u: 3 },
     span_yr: 3, short_span: false, covers_latest_epoch: true, ...over,
   },
-  t_first: 2020, t_last: 2023, n_epochs: 100, n_segments: 1, n_offsets: 0, warnings: [],
+  withheld: null, t_first: 2020, t_last: 2023, n_epochs: 100, n_segments: 1, n_offsets: 0, warnings: [],
 })
 
 describe('which stations get an arrow', () => {
-  it('a fitted final segment that reaches the newest epoch does', () => {
+  it('is the field\'s own answer, never worked out again on the page', () => {
     expect(withheld(station('AAAA', 1, 1))).toBeNull()
-  })
-  it('a short final segment does not, and says how short', () => {
-    expect(withheld(station('AAAA', 1, 1, { short_span: true, span_yr: 0.25 }))).toMatch(/0\.25 yr/)
-  })
-  it('a rate from before the latest event does not', () => {
-    expect(withheld(station('AAAA', 1, 1, { covers_latest_epoch: false }))).toMatch(/before the latest event/)
+    // Short by its numbers, but the field did not withhold it: the page follows the field.
+    expect(withheld(station('AAAA', 1, 1, { short_span: true, span_yr: 0.25 }))).toBeNull()
+    expect(withheld({ ...station('AAAA', 1, 1), withheld: 'a reason from the server' })).toBe('a reason from the server')
   })
 })
 

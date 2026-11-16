@@ -37,7 +37,7 @@ vi.mock('uplot', () => {
 vi.mock('uplot/dist/uPlot.min.css', () => ({}))
 
 // The map library is replaced the same way: jsdom has no layout for it to measure.
-;(globalThis as any).__leaflet = { markers: [], circles: [], lines: [], polygons: [], fits: [], handlers: {}, resized: 0 }
+;(globalThis as any).__leaflet = { markers: [], circles: [], lines: [], polygons: [], fits: [], handlers: {}, resized: 0, panes: {} }
 vi.mock('leaflet', () => {
   const state = () => (globalThis as any).__leaflet
   const kinds = ['markers', 'circles', 'lines', 'polygons'] as const
@@ -55,6 +55,7 @@ vi.mock('leaflet', () => {
       fitBounds(b: unknown) { state().fits.push(b); return this },
       on(name: string, fn: () => void) { state().handlers[name] = fn; return this },
       invalidateSize() { state().resized += 1; return this },
+      createPane(name: string) { const el = document.createElement('div'); state().panes[name] = el; return el },
       latLngToContainerPoint: ([lat, lon]: [number, number]) => ({ x: lon * 100, y: -lat * 100 }),
       containerPointToLatLng: ([x, y]: [number, number]) => ({ lat: -y / 100, lng: x / 100 }),
       // Removing a map takes its layers with it.

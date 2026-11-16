@@ -36,7 +36,10 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
     one.data && one.data.configured && !one.data.available && station && one.data.station === station && one.data.reference === chosen
       ? one.data.message
       : null
-  const pickReference = (r: string) => { setReference(r); if (r === station) setStation('') }
+  // The arrow scale someone chose; null is the automatic one.
+  const [scale, setScale] = useState<number | null>(null)
+  // A new reference is a new field: its arrows get the automatic scale again.
+  const pickReference = (r: string) => { setReference(r); setScale(null); if (r === station) setStation('') }
   // A reference just picked is not in `shown` until its summary answers, and neither
   // list nor map knows yet: the reference as a station would never load.
   const pickStation = (s: string) => { if (s !== (reference || shown)) setStation(s) }
@@ -45,7 +48,6 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
   // answer is for the reference now chosen (useApi keeps the last answer).
   const [showField, setShowField] = useState(false)
   const [layer, setLayer] = useState<Layer>('horizontal')
-  const [scale, setScale] = useState<number | null>(null)
   const fieldApi = useApi<TsField>(showField && shown ? `/api/campaigns/${campaign}/velocity-field${q}` : null)
   const answered = showField && shown && fieldApi.data && fieldApi.data.configured && fieldApi.data.reference === chosen ? fieldApi.data : null
   const field = answered && answered.available ? answered : null

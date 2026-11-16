@@ -209,6 +209,8 @@ export type TsStation =
 export type TsFieldStation = {
   station: string; lat: number; lon: number; reference_distance_deg: number; far_from_reference: boolean
   velocity: { segment: number; velocity_mm_yr: Enu; sigma_mm_yr: Enu; span_yr: number; short_span: boolean; covers_latest_epoch: boolean }
+  /** Why this rate is not a velocity (field_withheld), or null. Decided once, by the package. */
+  withheld: string | null
   t_first: number; t_last: number; n_epochs: number; n_segments: number; n_offsets: number; warnings: string[]
 }
 /** Every station's final-segment velocity relative to one reference (bsw_console/timeseries.py, field). */

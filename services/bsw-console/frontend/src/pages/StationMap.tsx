@@ -6,6 +6,7 @@ import { arrowHead, azimuth, compass, ELLIPSE_95, ellipse, scaleBar, speed, tip,
 import type { TsFieldStation } from '../types'
 
 type Mode = 'station' | 'reference'
+const VECTOR_PANE = 'velocities'
 /** The velocity field to draw over the stations: which component, and how long a mm/yr is. */
 export type FieldLayer = { stations: TsFieldStation[]; layer: 'horizontal' | 'vertical'; pxPerMm: number }
 
@@ -52,6 +53,12 @@ export default function StationMap({ positions, distances, reference, station, w
     if (!host.current) return
     const m = L.map(host.current, { attributionControl: false, scrollWheelZoom: false, zoomSnap: 0.5 })
     map.current = m
+    // The velocities get a pane of their own under the stations' (Leaflet's overlay
+    // pane is 400), so an arrow or a rate circle never covers a marker, whichever was
+    // drawn last, and never takes a click meant for one.
+    const under = m.createPane(VECTOR_PANE)
+    under.style.zIndex = '350'
+    under.style.pointerEvents = 'none'
     vectors.current = L.layerGroup().addTo(m)
     marks.current = L.layerGroup().addTo(m)
     m.on('zoomend', () => draw.current())
@@ -75,6 +82,10 @@ export default function StationMap({ positions, distances, reference, station, w
     fit(coreStations(positions))
   }, [positions])
 
+  // The markers follow which stations have a velocity and which component is shown,
+  // not the arrow scale: a press of + or - redraws the arrows only.
+  const fieldStations = field?.stations
+  const fieldLayer = field?.layer
   useEffect(() => {
     const group = marks.current
     if (!group) return
@@ -91,7 +102,7 @@ export default function StationMap({ positions, distances, reference, station, w
       }).addTo(group)
     }
     const faint = token('--faint', '#7A827C')
-    const inField = new Map((field?.stations ?? []).map((s) => [s.station, s]))
+    const inField = new Map((fieldStations ?? []).map((s) => [s.station, s]))
     for (const [code, p] of Object.entries(positions)) {
       const isRef = code === reference
       const isOn = code === station
@@ -111,7 +122,7 @@ export default function StationMap({ positions, distances, reference, station, w
       else if (entry) {
         const v = entry.velocity.velocity_mm_yr
         const sg = entry.velocity.sigma_mm_yr
-        label += field?.layer === 'vertical'
+        label += fieldLayer === 'vertical'
           ? ` · up ${v.u.toFixed(1)} ± ${sg.u.toFixed(1)} mm/yr`
           : ` · ${speed(entry).toFixed(1)} mm/yr toward ${compass(azimuth(v.e, v.n))} (E ${v.e.toFixed(1)} ± ${sg.e.toFixed(1)}, N ${v.n.toFixed(1)} ± ${sg.n.toFixed(1)})`
       }
@@ -119,7 +130,7 @@ export default function StationMap({ positions, distances, reference, station, w
       mark.on('click', () => click.current(code))
       mark.addTo(group)
     }
-  }, [positions, distances, reference, station, warnDeg, field])
+  }, [positions, distances, reference, station, warnDeg, fieldStations, fieldLayer])
 
   // The velocities themselves. Lengths are pixels at the current zoom: each shape is
   // laid out around the station's screen position and turned back into coordinates.
@@ -143,7 +154,7 @@ export default function StationMap({ positions, distances, reference, station, w
         const colour = v.u >= 0 ? token('--up', '#B8382A') : token('--down', '#2563A8')
         L.circleMarker(at, {
           radius: verticalRadius(v.u), color: colour, weight: 2, fillColor: colour,
-          fillOpacity: verticalClear(v.u, sg.u) ? 0.55 : 0, interactive: false,
+          fillOpacity: verticalClear(v.u, sg.u) ? 0.55 : 0, interactive: false, pane: VECTOR_PANE,
         }).addTo(group)
         continue
       }
@@ -153,10 +164,10 @@ export default function StationMap({ positions, distances, reference, station, w
         return [ll.lat, ll.lng]
       }
       const end = tip(v.e, v.n, field.pxPerMm)
-      L.polygon(ellipse(end, sg.e, sg.n, field.pxPerMm).map(place), { color: soft, weight: 1, fill: false, interactive: false }).addTo(group)
-      L.polyline([at, place(end)], { color: ink, weight: 2, interactive: false }).addTo(group)
+      L.polygon(ellipse(end, sg.e, sg.n, field.pxPerMm).map(place), { color: soft, weight: 1, fill: false, interactive: false, pane: VECTOR_PANE }).addTo(group)
+      L.polyline([at, place(end)], { color: ink, weight: 2, interactive: false, pane: VECTOR_PANE }).addTo(group)
       const head = arrowHead({ x: 0, y: 0 }, end)
-      if (head.length) L.polygon(head.map(place), { color: ink, weight: 1, fillColor: ink, fillOpacity: 1, interactive: false }).addTo(group)
+      if (head.length) L.polygon(head.map(place), { color: ink, weight: 1, fillColor: ink, fillOpacity: 1, interactive: false, pane: VECTOR_PANE }).addTo(group)
     }
   }
   useEffect(() => draw.current(), [field, reference, positions])

@@ -304,8 +304,9 @@ velocity at once, for the reference you chose: 5.2's GMT velocity map, without G
 - **Under the map:** what the arrows are relative to, the epochs covered, a table
   of every station (press a heading to sort, a station to open its series), and
   three files: GMT `psvelo`, GMT vertical rates and a CSV table. Each file names
-  the reference station and the offsets catalogue in its header, and writes a
-  station without a velocity as a comment line with the reason.
+  the reference station and the offsets catalogue in its header. The two GMT
+  files write a station without a velocity as a comment line with the reason;
+  the CSV keeps its row and gives the reason in its last column, `withheld`.
 
 **Read it with three cautions.** The velocities are relative to the reference, not
 ITRF: with another reference every arrow changes. The uncertainties are formal

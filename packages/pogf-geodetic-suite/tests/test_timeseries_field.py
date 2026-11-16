@@ -14,6 +14,7 @@ import pytest
 from pogf_geodetic_suite.timeseries.status import (
     FIELD_SCHEMA,
     field_status,
+    field_withheld,
     station_status,
 )
 
@@ -131,6 +132,28 @@ def test_short_series_is_flagged_not_dropped(field):
     short = _by_code(field)["SHRT"]
     assert short["velocity"]["short_span"] is True
     assert _by_code(field)["AAAA"]["velocity"]["short_span"] is False
+
+
+def test_withheld_says_why_a_rate_is_not_a_velocity(field):
+    by = _by_code(field)
+    assert "under the minimum" in by["SHRT"]["withheld"]
+    assert by["AAAA"]["withheld"] is None and by["FARR"]["withheld"] is None
+    assert field["max_speed_mm_yr"] == 200.0
+
+
+def test_field_withheld_rules():
+    def v(e=10.0, n=0.0, **over):
+        base = {"short_span": False, "covers_latest_epoch": True, "span_yr": 3.0,
+                "velocity_mm_yr": {"e": e, "n": n, "u": 0.0}}  # fmt: skip
+        return {**base, **over}
+
+    assert field_withheld(v(), 200.0) is None
+    assert "0.25 yr" in field_withheld(v(short_span=True, span_yr=0.25), 200.0)
+    assert "before the latest event" in field_withheld(v(covers_latest_epoch=False), 200.0)
+    # Long enough and still wrong: the backstop, on the horizontal rate.
+    assert "250 mm/yr" in field_withheld(v(e=150.0, n=200.0), 200.0)
+    assert field_withheld(v(e=150.0, n=200.0), None) is None
+    assert field_withheld(v(e=0.0, n=0.0), 200.0) is None
 
 
 def test_far_station_is_flagged(field):

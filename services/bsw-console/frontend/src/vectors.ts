@@ -15,14 +15,9 @@ export type XY = { x: number; y: number }
  * sqrt(5.991). One sigma would cover only 39% in two dimensions. */
 export const ELLIPSE_95 = 2.448
 
-/** Why a station's rate is not drawn as a velocity, or null when it is. The same two
- * tests the exports withhold on (bsw_console/timeseries.py, _withheld). */
-export function withheld(s: TsFieldStation): string | null {
-  const v = s.velocity
-  if (v.short_span) return `final segment spans ${v.span_yr.toFixed(2)} yr, under the minimum`
-  if (!v.covers_latest_epoch) return 'the newest epochs are too few to fit: this is the rate before the latest event'
-  return null
-}
+/** Why a station's rate is not drawn as a velocity, or null when it is. The package
+ * decides (status.field_withheld) and the exports use the same answer; the page only reads it. */
+export const withheld = (s: TsFieldStation): string | null => s.withheld
 
 export const speed = (s: TsFieldStation) => Math.hypot(s.velocity.velocity_mm_yr.e, s.velocity.velocity_mm_yr.n)
 

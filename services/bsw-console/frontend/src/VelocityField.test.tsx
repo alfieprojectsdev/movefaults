@@ -13,7 +13,7 @@ const POS = { REF0: at(14.5, 120.5), AAAA: at(14.6, 120.6), BBBB: at(14.4, 120.4
 const entry = (station: keyof typeof POS, e: number, n: number, u: number, sigU: number, over: object = {}, top: object = {}) => ({
   station, ...POS[station], reference_distance_deg: 0.1, far_from_reference: false,
   velocity: { segment: 0, velocity_mm_yr: { e, n, u }, sigma_mm_yr: { e: 1, n: 2, u: sigU }, span_yr: 3.2, short_span: false, covers_latest_epoch: true, ...over },
-  t_first: 2020.0027, t_last: 2023.5, n_epochs: 300, n_segments: 1, n_offsets: 0, warnings: [], ...top,
+  withheld: null, t_first: 2020.0027, t_last: 2023.5, n_epochs: 300, n_segments: 1, n_offsets: 0, warnings: [], ...top,
 })
 const field = {
   ...(responses[FIELD] as object),
@@ -23,8 +23,8 @@ const field = {
     entry('AAAA', 10, 0, 4, 1),
     entry('BBBB', -3, 4, -6, 1, {}, { n_offsets: 2 }),
     entry('FARR', 0, -20, 0.5, 2, {}, { reference_distance_deg: 8, far_from_reference: true }),
-    entry('SHRT', 300, 0, 90, 30, { short_span: true, span_yr: 0.25 }),
-    entry('STAL', 7, 7, 1, 1, { covers_latest_epoch: false }),
+    entry('SHRT', 300, 0, 90, 30, { short_span: true, span_yr: 0.25 }, { withheld: 'final segment spans 0.25 yr, under the minimum' }),
+    entry('STAL', 7, 7, 1, 1, { covers_latest_epoch: false }, { withheld: 'the newest epochs are too few to fit: this is the rate before the latest event' }),
   ],
 }
 const summary = {
@@ -125,6 +125,42 @@ it('the scale buttons lengthen and shorten every arrow, and the scale arrow foll
   expect(screen.getByTestId('field-legend').textContent).toContain('95%')
   fireEvent.click(screen.getByRole('button', { name: 'Shorter arrows' }))
   expect(pxPerMm()).toBe(before)
+})
+
+it('the velocities are drawn in their own pane, under the stations and out of the way of clicks', async () => {
+  serve()
+  await page()
+  await showField()
+  const pane = leaflet().panes.velocities
+  expect(Number(pane.style.zIndex)).toBeLessThan(400) // Leaflet's overlay pane, where the markers are
+  expect(pane.style.pointerEvents).toBe('none')
+  for (const shape of [...leaflet().lines, ...leaflet().polygons]) expect(shape.opts.pane).toBe('velocities')
+  fireEvent.click(screen.getByRole('button', { name: 'Vertical' }))
+  const rates = leaflet().markers.filter((m: { label: string }) => m.label === '')
+  for (const c of rates) expect(c.opts.pane).toBe('velocities')
+  expect(stationMark('AAAA').opts.pane).toBeUndefined()
+})
+
+it('a press of the scale buttons redraws the arrows and leaves the station markers alone', async () => {
+  serve()
+  await page()
+  await showField()
+  const before = stationMark('AAAA')
+  fireEvent.click(screen.getByRole('button', { name: 'Longer arrows' }))
+  expect(stationMark('AAAA')).toBe(before)
+})
+
+it('a new reference gets the automatic scale again', async () => {
+  serve()
+  await page()
+  await showField()
+  const auto = pxPerMm()
+  fireEvent.click(screen.getByRole('button', { name: 'Longer arrows' }))
+  expect(pxPerMm()).not.toBe(auto)
+  serve({ [BASE]: { ...summary, reference: 'AAAA' }, [FIELD]: { ...field, reference: 'AAAA' } })
+  fireEvent.change(screen.getByRole('combobox', { name: 'Reference station' }), { target: { value: 'AAAA' } })
+  await settle()
+  expect(pxPerMm()).toBe(auto)
 })
 
 it('the map is measured again when it grows for the field', async () => {

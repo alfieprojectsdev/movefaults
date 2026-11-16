@@ -719,19 +719,8 @@ def test_velocity_field_exports_carry_the_frame(client) -> None:
     cells = csv_rows[1].split(",")
     assert cells[0] == "SYN1" and cells[3] == f"{v['e']:.3f}"
     assert cells[csv_rows[0].split(",").index("short_span")] == "True"
-
-
-def test_velocity_field_export_says_why_a_rate_is_withheld() -> None:
-    """A rate from under a year of data, or from before the latest event, is not a vector."""
-    from bsw_console import timeseries
-
-    def entry(**velocity) -> dict:
-        base = {"short_span": False, "covers_latest_epoch": True, "span_yr": 3.0}
-        return {"velocity": {**base, **velocity}}
-
-    assert "0.25 yr" in timeseries._withheld(entry(short_span=True, span_yr=0.25))
-    assert "before the latest event" in timeseries._withheld(entry(covers_latest_epoch=False))
-    assert timeseries._withheld(entry()) is None
+    # The CSV keeps the row, so it has to carry the reason itself.
+    assert csv_rows[0].endswith(",withheld") and "under the minimum" in csv_rows[1]
 
 
 def test_velocity_field_export_refuses_unknown_formats_and_missing_fields(client, bsw) -> None:

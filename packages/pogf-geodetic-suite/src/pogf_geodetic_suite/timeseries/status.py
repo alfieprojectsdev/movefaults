@@ -168,10 +168,12 @@ from .gmt import MIN_SPAN_YEARS, REFERENCE_WARN_DEG, arc_degrees
 from .offsets_catalog import load_offsets_catalog
 
 __all__ = [
+    "FIELD_MAX_SPEED_MM_YR",
     "FIELD_SCHEMA",
     "REFERENCE_WARN_DEG",
     "SCHEMA",
     "field_status",
+    "field_withheld",
     "OutlierMode",
     "series_status",
     "station_positions",
@@ -568,6 +570,28 @@ def _datum_warning(crd_dir: CrdDirs, epochs: set[float]) -> str | None:
 
 FIELD_SCHEMA = "pogf.timeseries.field/1"
 
+#: Horizontal rates above this are not plausible anywhere in the Philippines
+#: (about 80 mm/yr at most, relative to a far IGS station). The same backstop as
+#: `gmt.write_psvelo`'s, for a fit that is long enough and still wrong.
+FIELD_MAX_SPEED_MM_YR = 200.0
+
+
+def field_withheld(velocity: dict[str, Any], max_speed_mm_yr: float | None) -> str | None:
+    """Why a final-segment rate should not be shown as a velocity, or None.
+
+    The one rule the map, the table and every export use, so they cannot
+    disagree about which stations have a velocity.
+    """
+    if velocity["short_span"]:
+        return f"final segment spans {velocity['span_yr']:.2f} yr, under the minimum"
+    if not velocity["covers_latest_epoch"]:
+        return "the newest epochs are too few to fit: this is the rate before the latest event"
+    v = velocity["velocity_mm_yr"]
+    speed = math.hypot(v["e"], v["n"])
+    if max_speed_mm_yr is not None and speed > max_speed_mm_yr:
+        return f"{speed:.0f} mm/yr horizontal is over {max_speed_mm_yr:g}: not a plausible velocity"
+    return None
+
 
 def field_status(
     crd_dir: CrdDirs,
@@ -577,6 +601,7 @@ def field_status(
     outlier_mode: OutlierMode | str = OutlierMode.RECORD,
     outlier_iqr_factor: float = 3.0,
     min_span_years: float = MIN_SPAN_YEARS,
+    max_speed_mm_yr: float | None = FIELD_MAX_SPEED_MM_YR,
 ) -> dict[str, Any]:
     """
     Every station's final-segment velocity relative to `reference`: a velocity field.
@@ -590,12 +615,21 @@ def field_status(
     given once in `warnings`, not repeated per station. A station whose fit
     fails is listed in `left_out` with the reason, so a short map is never silent.
 
+    Each station carries `withheld`: None, or why its rate is not a velocity
+    (`field_withheld`). The rate is still returned, so a page can show it
+    struck through; nothing downstream should draw or publish it.
+
     Raises:
         ValueError: no usable CRD files, the reference in none of them, or a
                     malformed catalog.
     """
     ref = reference.upper()[:4]
     epochs = crd_directory_to_enu(crd_dir, ref)
+    if not epochs:
+        # The reference is in the files, but alone on every day it has.
+        raise ValueError(
+            f"No station shares a day with the reference {ref} in {crd_dirs_text(crd_dir)}"
+        )
     by_station: dict[str, list[StationEpoch]] = {}
     for ep in epochs:
         by_station.setdefault(ep.station.upper()[:4], []).append(ep)
@@ -641,6 +675,7 @@ def field_status(
                 "reference_distance_deg": result["reference_distance_deg"],
                 "far_from_reference": result["reference_warning"] is not None,
                 "velocity": result["velocity"],
+                "withheld": field_withheld(result["velocity"], max_speed_mm_yr),
                 "t_first": float(t.min()),
                 "t_last": float(t.max()),
                 "n_epochs": len(t),
@@ -665,6 +700,7 @@ def field_status(
         "offsets_catalog": provenance,
         "outlier_rule": {"mode": OutlierMode(outlier_mode).value, "factor": outlier_iqr_factor},
         "min_span_years": min_span_years,
+        "max_speed_mm_yr": max_speed_mm_yr,
         "sigma": "formal 1-sigma, white noise only",
         "t_first": min(all_t),
         "t_last": max(all_t),
