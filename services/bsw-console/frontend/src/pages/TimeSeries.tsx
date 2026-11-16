@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useApi } from '../lib'
-import type { Enu, Session, TsStation, TsSummary } from '../types'
+import type { Enu, Session, TsField, TsStation, TsSummary } from '../types'
+import { defaultScale, speed, withheld } from '../vectors'
+import VelocityField, { FieldControls, type Layer } from './VelocityField'
 import { Failed, Loading } from './common'
 import TsPlot, { type PlotPoint } from './TsPlot'
 import OutlierDecision from './OutlierDecision'
@@ -34,10 +36,25 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
     one.data && one.data.configured && !one.data.available && station && one.data.station === station && one.data.reference === chosen
       ? one.data.message
       : null
-  const pickReference = (r: string) => { setReference(r); if (r === station) setStation('') }
+  // The arrow scale someone chose; null is the automatic one.
+  const [scale, setScale] = useState<number | null>(null)
+  // A new reference is a new field: its arrows get the automatic scale again.
+  const pickReference = (r: string) => { setReference(r); setScale(null); if (r === station) setStation('') }
   // A reference just picked is not in `shown` until its summary answers, and neither
   // list nor map knows yet: the reference as a station would never load.
   const pickStation = (s: string) => { if (s !== (reference || shown)) setStation(s) }
+
+  // The velocity field: asked for only when switched on, and shown only when the
+  // answer is for the reference now chosen (useApi keeps the last answer).
+  const [showField, setShowField] = useState(false)
+  const [layer, setLayer] = useState<Layer>('horizontal')
+  const fieldApi = useApi<TsField>(showField && shown ? `/api/campaigns/${campaign}/velocity-field${q}` : null)
+  const answered = showField && shown && fieldApi.data && fieldApi.data.configured && fieldApi.data.reference === chosen ? fieldApi.data : null
+  const field = answered && answered.available ? answered : null
+  // The automatic scale puts the typical drawn arrow at about 40 px.
+  const auto = useMemo(() => defaultScale((field?.stations ?? []).filter((s) => !withheld(s)).map(speed)), [field])
+  const pxPerMm = scale ?? auto
+  const onMap = useMemo(() => (field ? { stations: field.stations, layer, pxPerMm } : null), [field, layer, pxPerMm])
 
   return (
     <>
@@ -52,10 +69,19 @@ export default function TimeSeries({ campaign }: { campaign: string }) {
       {sum.data && !sum.data.configured && (
         <div className="banner idle" role="status"><strong>Not configured.</strong> <span>{sum.data.message}</span></div>
       )}
+      {sum.data && sum.data.configured && sum.data.positions && shown && (
+        <FieldControls on={showField} onToggle={() => setShowField((v) => !v)} layer={layer} onLayer={setLayer} pxPerMm={pxPerMm} onScale={setScale} />
+      )}
       {sum.data && sum.data.configured && sum.data.positions && (
         <StationMap positions={sum.data.positions} distances={sum.data.distances ?? {}} reference={shown} station={station}
-          warnDeg={sum.data.reference_warn_deg ?? 5} onReference={pickReference} onStation={pickStation} />
+          warnDeg={sum.data.reference_warn_deg ?? 5} onReference={pickReference} onStation={pickStation} field={onMap} />
       )}
+      {showField && shown && fieldApi.error && <Failed error={fieldApi.error} />}
+      {showField && shown && !answered && !fieldApi.error && <Loading what="the velocity field" />}
+      {answered && !answered.available && (
+        <div className="banner warn" role="status"><strong>Cannot compute the velocity field.</strong> <span>{answered.message}</span></div>
+      )}
+      {field && <VelocityField field={field} campaign={campaign} query={q} station={station} warnDeg={(sum.data && sum.data.configured && sum.data.reference_warn_deg) || 5} onStation={pickStation} />}
       {candidates.length > 0 && (
         <label className="row" style={{ fontSize: 13 }}>
           Reference station

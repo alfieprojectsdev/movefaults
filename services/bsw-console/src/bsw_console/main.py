@@ -32,7 +32,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import actions, equipment, inventory, outliers, station_tools, stations, status, timeseries
@@ -260,6 +260,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def time_series(name: str, station: str, reference: str | None = None) -> dict:
         c = campaign(name)
         return timeseries.for_station(s, c, _station_code(station), _station_code(reference))
+
+    # The velocity field (velocity_map_design.md, stage 1): every station's
+    # final-segment velocity relative to the chosen reference, read-only.
+    @app.get("/api/campaigns/{name}/velocity-field")
+    def velocity_field(name: str, reference: str | None = None) -> dict:
+        return timeseries.field(s, campaign(name), _station_code(reference))
+
+    @app.get("/api/campaigns/{name}/velocity-field/export")
+    def velocity_field_export(
+        name: str, format: str, reference: str | None = None
+    ) -> PlainTextResponse:
+        file_name, text = timeseries.field_export(
+            s, campaign(name), _station_code(reference), format
+        )
+        return PlainTextResponse(
+            text, headers={"Content-Disposition": f'attachment; filename="{file_name}"'}
+        )
 
     # Outlier decisions (outlier_review_design.md): a signed-in person confirms
     # or overrides the rule's flag on one epoch. Appended, never edited; no CRD

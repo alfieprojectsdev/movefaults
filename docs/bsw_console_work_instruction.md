@@ -288,6 +288,35 @@ the plot:
 
 ![The map with a far-away reference to the north-east, its ring far from the other stations, which are all orange, and the warning above the plot giving the distance.](images/bsw_console/reference_warning.png)
 
+**Velocity field.** Above the map, **Velocity field** draws every station's
+velocity at once, for the reference you chose: 5.2's GMT velocity map, without GMT.
+
+- **Horizontal** draws an arrow from each station. Its length is the rate: the
+  scale arrow in the corner says how long 20 or 50 mm/yr is, and **−** and **+**
+  change it. Arrows keep their length when you zoom the map. The thin ellipse at
+  the tip is the 95% confidence region.
+- **Vertical** draws a circle instead: red for up, blue for down, larger for a
+  faster rate, and hollow when the rate is under twice its uncertainty, so not
+  clearly different from zero.
+- **A station with a hollow grey marker has no arrow.** Its final segment is under
+  one year, or its newest epochs are too few to fit, so its rate isn't a velocity.
+  The table under the map lists it struck through, with the reason.
+- **Under the map:** what the arrows are relative to, the epochs covered, a table
+  of every station (press a heading to sort, a station to open its series), and
+  three files: GMT `psvelo`, GMT vertical rates and a CSV table. Each file names
+  the reference station and the offsets catalogue in its header. The two GMT
+  files write a station without a velocity as a comment line with the reason;
+  the CSV keeps its row and gives the reason in its last column, `withheld`.
+
+**Read it with three cautions.** The velocities are relative to the reference, not
+ITRF: with another reference every arrow changes. The uncertainties are formal
+(white noise only) and too small, by a factor of 2 to 11 in the literature, so an
+ellipse is a lower bound. And orange stations are over 5 degrees from the
+reference, where East, North and Up are tilted. A very wide ellipse means a
+noisy or disturbed series: open that station and look.
+
+![The map of synthetic stations with the velocity field on: an arrow and a small ellipse at each station, and a scale arrow in the corner.](images/bsw_console/velocity_field.png)
+
 The page after a flagged epoch was confirmed: the ring on the plot, a line saying what was recorded, and a velocity row marked "not published" beside the one that counts.
 
 ![Time series page for a synthetic station: East, North and Up over three years with an earthquake step and one ringed outlier, a line saying what was recorded, and the velocity and segment tables.](images/bsw_console/time_series.png)

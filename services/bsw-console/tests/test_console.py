@@ -640,6 +640,102 @@ def test_time_series_station_is_four_characters_never_a_path(client) -> None:
     assert client.post("/api/campaigns/LUZON/time-series/SYN1").status_code == 405
 
 
+# --- the velocity field (velocity_map_design.md, stage 1) -----------------------------------
+
+
+def test_velocity_field_is_what_field_status_returns(client, bsw) -> None:
+    from bsw_console import timeseries
+    from pogf_geodetic_suite.timeseries.status import field_status
+
+    body = client.get("/api/campaigns/LUZON/velocity-field").json()
+    assert body["configured"] is True and body["available"] is True
+    dirs = timeseries.crd_dirs(bsw, bsw.campaign("LUZON"))
+    direct = field_status(dirs, "REF0", offsets_catalog=bsw.ts_offsets)
+    for key in ("schema", "reference", "stations", "left_out", "warnings", "t_first", "t_last"):
+        assert body[key] == direct[key], key
+    assert [e["station"] for e in body["stations"]] == ["SYN1"]
+    assert "white noise" in body["sigma"], "the page labels sigma with this"
+
+
+def test_velocity_field_agrees_with_the_one_station_page(client) -> None:
+    field = client.get("/api/campaigns/LUZON/velocity-field").json()
+    one = client.get("/api/campaigns/LUZON/time-series/SYN1").json()
+    assert field["stations"][0]["velocity"] == one["velocity"]
+
+
+def test_velocity_field_is_recomputed_when_a_crd_file_changes(client, bsw) -> None:
+    import os
+
+    first = client.get("/api/campaigns/LUZON/velocity-field").json()
+    assert client.get("/api/campaigns/LUZON/velocity-field").json() == first
+    crd = sorted(_ts_dir(bsw).glob("*.CRD"))[-1]
+    lines = crd.read_text().splitlines()
+    crd.write_text("\n".join(ln for ln in lines if "SYN1" not in ln) + "\n")
+    os.utime(crd, ns=(crd.stat().st_atime_ns, crd.stat().st_mtime_ns + 1_000_000))
+    again = client.get("/api/campaigns/LUZON/velocity-field").json()
+    assert again["stations"][0]["n_epochs"] == first["stations"][0]["n_epochs"] - 1
+
+
+def test_velocity_field_needs_a_reference_and_explains(bsw) -> None:
+    import dataclasses
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    c = TestClient(create_app(dataclasses.replace(bsw, ts_reference=None)))
+    body = c.get("/api/campaigns/LUZON/velocity-field").json()
+    assert body["available"] is False and "reference" in body["message"]
+    ok = c.get("/api/campaigns/LUZON/velocity-field?reference=ref0").json()
+    assert ok["available"] is True and ok["reference"] == "REF0"
+    bad = c.get("/api/campaigns/LUZON/velocity-field?reference=NOPE").json()
+    assert bad["available"] is False and "NOPE" in bad["message"]
+    assert c.get("/api/campaigns/LUZON/velocity-field?reference=..%2F").status_code == 422
+    off = TestClient(create_app(dataclasses.replace(bsw, ts_offsets=None)))
+    assert off.get("/api/campaigns/LUZON/velocity-field").json()["configured"] is False
+
+
+def test_velocity_field_exports_carry_the_frame(client) -> None:
+    field = client.get("/api/campaigns/LUZON/velocity-field").json()
+    v = field["stations"][0]["velocity"]["velocity_mm_yr"]
+    for fmt, suffix in (("psvelo", ".psvelo"), ("vertical", "_vertical.txt"), ("csv", ".csv")):
+        r = client.get(f"/api/campaigns/LUZON/velocity-field/export?format={fmt}")
+        assert r.status_code == 200, fmt
+        assert r.headers["content-disposition"] == (
+            f'attachment; filename="LUZON_velocity_relative_to_REF0{suffix}"'
+        )
+        text = r.text
+        assert "REF0" in text.splitlines()[0] or "RELATIVE TO STATION REF0" in text, fmt
+        assert field["offsets_catalog"]["sha256"] in text, fmt
+        assert "white noise" in text, fmt
+        if fmt != "csv":
+            # The fixture's final segment is under a year: withheld, with the reason,
+            # and still in the file.
+            assert field["stations"][0]["velocity"]["short_span"] is True
+            held = [ln for ln in text.splitlines() if ln.startswith("# WITHHELD")]
+            assert len(held) == 1 and "SYN1" in held[0] and "under the minimum" in held[0], fmt
+            assert not [ln for ln in text.splitlines() if ln and not ln.startswith("#")], fmt
+    csv_rows = [ln for ln in text.splitlines() if not ln.startswith("#")]
+    assert csv_rows[0].startswith("station,lon,lat,ve_mm_yr")
+    cells = csv_rows[1].split(",")
+    assert cells[0] == "SYN1" and cells[3] == f"{v['e']:.3f}"
+    assert cells[csv_rows[0].split(",").index("short_span")] == "True"
+    # The CSV keeps the row, so it has to carry the reason itself.
+    assert csv_rows[0].endswith(",withheld") and "under the minimum" in csv_rows[1]
+
+
+def test_velocity_field_export_refuses_unknown_formats_and_missing_fields(client, bsw) -> None:
+    import dataclasses
+
+    from bsw_console.main import create_app
+    from fastapi.testclient import TestClient
+
+    assert client.get("/api/campaigns/LUZON/velocity-field/export?format=exe").status_code == 422
+    assert client.get("/api/campaigns/LUZON/velocity-field/export").status_code == 422
+    c = TestClient(create_app(dataclasses.replace(bsw, ts_reference=None)))
+    r = c.get("/api/campaigns/LUZON/velocity-field/export?format=csv")
+    assert r.status_code == 409 and "reference" in r.json()["detail"]
+
+
 def test_a_worker_run_credits_who_asked_not_the_service_account() -> None:
     """bernese-worker runs as the service account and tags run_start with the
     request's submitted_by. The person who asked is who started it."""

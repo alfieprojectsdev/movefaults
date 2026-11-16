@@ -31,12 +31,17 @@ available=false and the reason.
 
 from __future__ import annotations
 
+import csv
+import io
+import tempfile
 from pathlib import Path
 
 from fastapi import HTTPException
 from pogf_geodetic_suite.timeseries.crd_pipeline import crd_station_xyz
+from pogf_geodetic_suite.timeseries.gmt import VelocityVector, write_psvelo, write_vertical
 from pogf_geodetic_suite.timeseries.status import (
     OutlierMode,
+    field_status,
     session_date_to_decimal_year,
     station_positions,
     station_status,
@@ -211,6 +216,111 @@ def for_station(s: Settings, c: Campaign, code: str, reference: str | None = Non
                 ],
             }
     return out
+
+
+# The whole field per campaign and reference, kept until a CRD file or the
+# catalog changes. About 0.1 s a station to compute, so it is done on request
+# and remembered, not queued (velocity_map_design.md).
+_FIELD: dict[tuple[str, str], tuple[tuple, dict]] = {}
+# Every reference tried adds a whole field; keep the most recent few.
+_FIELD_KEEP = 16
+
+
+def field(s: Settings, c: Campaign, reference: str | None = None) -> dict:
+    """Every station's velocity relative to the chosen reference: field_status,
+    with the same answers as `summary` when it can't."""
+    if (no := _not_configured(s)) is not None:
+        return no
+    ref = _reference(s, reference)
+    dirs = crd_dirs(s, c)
+    base = {"configured": True, **_inputs(s, c, dirs, ref)}
+    if ref is None:
+        return {**base, "available": False, "message": "Choose a reference station first."}
+    if not dirs:
+        return {**base, "available": False, "message": _no_dirs(c)}
+    try:
+        st = s.ts_offsets.stat()
+        key = (tuple(_fingerprint(d) for d in dirs), str(s.ts_offsets), st.st_size, st.st_mtime_ns)
+        hit = _FIELD.get((c.name, ref))
+        if hit is None or hit[0] != key:
+            hit = (key, field_status(dirs, ref, offsets_catalog=s.ts_offsets))
+            _FIELD.pop((c.name, ref), None)  # re-inserted last: the newest
+            _FIELD[(c.name, ref)] = hit
+            while len(_FIELD) > _FIELD_KEEP:
+                _FIELD.pop(next(iter(_FIELD)), None)
+    except (OSError, ValueError) as exc:
+        return {**base, "available": False, "message": str(exc)}
+    return {**base, "available": True, **hit[1]}
+
+
+EXPORTS = ("psvelo", "vertical", "csv")
+
+
+def field_export(s: Settings, c: Campaign, reference: str | None, kind: str) -> tuple[str, str]:
+    """(file name, text) of the field as a GMT psvelo file, a vertical-rate file
+    or a CSV table. The GMT files are timeseries.gmt's own, so a figure made from
+    them shows what the page shows. A station whose rate is not a velocity (short
+    or stale final segment) is not dropped: the GMT files write it as a comment
+    with the reason, the CSV keeps its row and gives the reason in `withheld`.
+    Stations left out of the field and its network-wide warnings go in the header."""
+    if kind not in EXPORTS:
+        raise HTTPException(422, "format is one of: " + ", ".join(EXPORTS))
+    f = field(s, c, reference)
+    if not f.get("configured") or not f.get("available"):
+        raise HTTPException(409, f.get("message", "the velocity field is not available"))
+    ref = f["reference"]
+    notes = [
+        f"campaign: {c.name}",
+        f"epoch span: {f['t_first']:.4f} to {f['t_last']:.4f}",
+        f"offsets catalog sha256: {f['offsets_catalog']['sha256']}",
+        f"outlier mode: {f['outlier_rule']['mode']}",
+        f"sigma: {f['sigma']}",
+        *(f"left out: {x['station']}: {' '.join(x['reason'].split())}" for x in f["left_out"]),
+        *(f"warning: {' '.join(w.split())}" for w in f["warnings"]),
+    ]
+    name = f"{c.name}_velocity_relative_to_{ref}"
+    if kind == "csv":
+        out = io.StringIO()
+        for line in [f"velocities relative to station {ref}; not ITRF velocities", *notes]:
+            out.write(f"# {line}\n")
+        w = csv.writer(out, lineterminator="\n")
+        w.writerow(["station", "lon", "lat", "ve_mm_yr", "vn_mm_yr", "vu_mm_yr",
+                    "sig_ve", "sig_vn", "sig_vu", "span_yr", "n_epochs",
+                    "short_span", "covers_latest_epoch", "reference_distance_deg",
+                    "far_from_reference", "withheld"])  # fmt: skip
+        for e in f["stations"]:
+            v, sg = e["velocity"]["velocity_mm_yr"], e["velocity"]["sigma_mm_yr"]
+            w.writerow([e["station"], f"{e['lon']:.6f}", f"{e['lat']:.6f}",
+                        f"{v['e']:.3f}", f"{v['n']:.3f}", f"{v['u']:.3f}",
+                        f"{sg['e']:.3f}", f"{sg['n']:.3f}", f"{sg['u']:.3f}",
+                        f"{e['velocity']['span_yr']:.3f}", e["n_epochs"],
+                        e["velocity"]["short_span"], e["velocity"]["covers_latest_epoch"],
+                        f"{e['reference_distance_deg']:.2f}", e["far_from_reference"],
+                        e["withheld"] or ""])  # fmt: skip
+        return name + ".csv", out.getvalue()
+    vectors = [
+        VelocityVector(
+            station=e["station"], lon_deg=e["lon"], lat_deg=e["lat"],
+            ve_mm_yr=e["velocity"]["velocity_mm_yr"]["e"],
+            vn_mm_yr=e["velocity"]["velocity_mm_yr"]["n"],
+            sig_ve=e["velocity"]["sigma_mm_yr"]["e"],
+            sig_vn=e["velocity"]["sigma_mm_yr"]["n"],
+            vu_mm_yr=e["velocity"]["velocity_mm_yr"]["u"],
+            sig_vu=e["velocity"]["sigma_mm_yr"]["u"],
+            final_span_yr=e["velocity"]["span_yr"],
+        )
+        for e in f["stations"]
+    ]  # fmt: skip
+    withhold = {e["station"]: e["withheld"] for e in f["stations"] if e["withheld"]}
+    write = write_psvelo if kind == "psvelo" else write_vertical
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "field"
+        # The field has already decided which rates are velocities, its speed
+        # backstop included (status.field_withheld), so the writer's own is off.
+        extra = {"max_speed_mm_yr": None} if kind == "psvelo" else {}
+        write(vectors, path, reference_station=ref, withhold=withhold, notes=notes, **extra)
+        text = path.read_text(encoding="utf-8")
+    return name + (".psvelo" if kind == "psvelo" else "_vertical.txt"), text
 
 
 def epoch_flag(s: Settings, c: Campaign, station: str, reference: str, epoch: str) -> bool:
