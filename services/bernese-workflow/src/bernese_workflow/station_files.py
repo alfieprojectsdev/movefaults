@@ -25,7 +25,9 @@ WHAT IT REPORTS
        from ${V_CRDINF}.ABB (see run_plan.check_station_files_for_pcf).
   RINEX  stations with RINEX on a day to be run but absent from the STA, the
        CRD or the BLQ (the BLQ check also says why: after END TABLE,
-       indented one column, or absent).
+       indented one column, or absent); and stations in the STA with RINEX on
+       a day no TYPE 002 row covers (blocking), or covers only in part
+       (warning).
 
 WHICH FINDINGS BLOCK
 run_plan puts a blocking finding in RunPlan.problems, where each entry refuses
@@ -46,6 +48,9 @@ GTATML stops the run with NOT FOUND (PHDEN DOY 200, docs/SETTLED.md section
 one blocks. A stray ATL header beside a correct block is a warning. A reversed
 window and an unreadable date are warnings: what Bernese does with them has
 not been observed, so they are reported rather than allowed to refuse a run.
+A day with RINEX that no TYPE 002 row covers blocks, because ADDNEQ2 stops on
+it (D_STACRX:getLongStaId_timint, PHSUP 2023: BLNA and MILA); a day covered
+only in part is a warning, for the same reason as a reversed window.
 
 ABB IS WARNING ONLY, AND STAYS SO UNTIL A FAILURE IS RECORDED
 What Bernese does with a station missing from the abbreviation file has not
@@ -256,6 +261,8 @@ KINDS = (
     "missing_blq",
     "missing_atl",
     "missing_abb",
+    "sta_no_window",
+    "sta_part_window",
 )
 
 
@@ -549,6 +556,8 @@ def check_rinex_stations(
     blq_text: str | None = None,
     blq_label: str = "BLQ",
     sta_read: bool = True,
+    rows: Iterable[StaRow] = (),
+    year: int | None = None,
 ) -> list[Finding]:
     """Stations with RINEX on one of ``days`` but absent from the STA, CRD or BLQ.
 
@@ -558,6 +567,9 @@ def check_rinex_stations(
     ``sta_read`` False: the STA yielded no rows, which check_sta already
     reports once as sta_empty; a missing_sta line for every station would
     bury that one finding, so STA presence is not checked.
+
+    With ``rows`` and ``year``, also the days a station that IS in the STA has
+    RINEX but no TYPE 002 row in force (see sta_window_findings).
     """
     from pogf_geodetic_suite.qc.completeness import compress_ranges
 
@@ -587,11 +599,86 @@ def check_rinex_stations(
     for doy in sorted(set(days)):
         for code in coverage.by_day.get(doy, set()):
             days_by_code.setdefault(code, []).append(doy)
-    return [
+    out = [
         Finding(label, kind, code, f"RINEX on DOY {compress_ranges(doys)} but {why}", True)
         for code, doys in sorted(days_by_code.items())
         for kind, label, why in why_missing(code)
     ]
+    if year is not None and sta_read:
+        out += sta_window_findings(rows, days_by_code, year, sta_label)
+    return out
+
+
+def _day_bounds(year: int, doy: int) -> tuple[dt.datetime, dt.datetime]:
+    lo = dt.datetime(year, 1, 1) + dt.timedelta(days=doy - 1)
+    return lo, lo + dt.timedelta(days=1)
+
+
+def _covered(windows: list[tuple[dt.datetime | None, dt.datetime | None]], lo, hi) -> str:
+    """'all', 'part' or 'none': how much of [lo, hi) the windows cover together.
+
+    A window touches the day by the rule overlaps are scoped with (``_touches``,
+    so a single-instant row inside the day counts). Two rows that meet
+    mid-day, the IGS convention for an equipment change, cover the whole day.
+    """
+    touching = [w for w in windows if _touches(w, lo, hi)]
+    if not touching:
+        return "none"
+    spans = sorted((max(a or lo, lo), min(b or hi, hi)) for a, b in touching)
+    reach = lo
+    for a, b in spans:
+        if a > reach:
+            return "part"
+        reach = max(reach, b)
+    return "all" if reach >= hi else "part"
+
+
+def sta_window_findings(
+    rows: Iterable[StaRow],
+    days_by_code: Mapping[str, list[int]],
+    year: int,
+    label: str,
+) -> list[Finding]:
+    """Days a station has RINEX and is in the STA, but no TYPE 002 row is in force.
+
+    Blocking when no row touches the day at all: Bernese reads the station's
+    information at the day's epochs and stops with getLongStaId_timint
+    "not found in station information file" (BLNA, PHSUP 2023 DOY 016: its
+    last row ended 2020-11-25; MILA 2023 DOY 068-075: its row started on 17
+    March, the data on 9 March). A day covered only in part is a warning: what
+    Bernese does with the uncovered hours has not been observed here.
+
+    A code with two STA names (BILI) is covered by the rows of either.
+    Unreadable dates read as open (None), as everywhere in this module;
+    check_sta reports those rows separately.
+    """
+    from pogf_geodetic_suite.qc.completeness import compress_ranges
+
+    windows: dict[str, list[tuple[dt.datetime | None, dt.datetime | None]]] = {}
+    for r in rows:
+        windows.setdefault(r.code, []).append((r.start, r.end))
+    out: list[Finding] = []
+    for code, doys in sorted(days_by_code.items()):
+        if code not in windows:
+            continue  # missing_sta, reported by the caller
+        by_state: dict[str, list[int]] = {"none": [], "part": []}
+        for doy in doys:
+            state = _covered(windows[code], *_day_bounds(year, doy))
+            if state != "all":
+                by_state[state].append(doy)
+        if by_state["none"]:
+            out.append(
+                Finding(label, "sta_no_window", code,
+                        f"RINEX on DOY {compress_ranges(by_state['none'])} but no "
+                        "TYPE 002 row covers those days", True)
+            )  # fmt: skip
+        if by_state["part"]:
+            out.append(
+                Finding(label, "sta_part_window", code,
+                        f"RINEX on DOY {compress_ranges(by_state['part'])} but TYPE 002 "
+                        "rows cover only part of each day (warning only)", False)
+            )  # fmt: skip
+    return out
 
 
 def check_station_files(
@@ -657,6 +744,8 @@ def check_station_files(
             blq_text=blq[1] if blq else None,
             blq_label=blq[0] if blq else "BLQ",
             sta_read=bool(rows),
+            rows=rows,
+            year=year,
         )
     return out
 

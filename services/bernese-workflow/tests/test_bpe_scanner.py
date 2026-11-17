@@ -58,6 +58,21 @@ EXPECTED = {
         # not the number of parameters the solution needs.
         {"requested_num_of_parameters": "101", "maximum_size_of_the_array": "100"},
     ),
+    # Rebuilt from the recorded lines: the campaign was cleaned before its
+    # output was kept. The ### warning from the same routine is not the cause.
+    "PSU230160_RP230160_511_000": (
+        "ADDNEQ2",
+        # "STATION": kind_of cuts at the first colon, which here is inside the
+        # parenthesised epoch. The row's message is pasted as printed, so both
+        # sides cut the same way.
+        ("D_STACRX:getLongStaId_timint", "STATION"),
+        {"station_information_file": "${P}/PSU230160/STA/PHSUP.STA"},
+    ),
+    "PSU240930_RP240930_201_000": (
+        "RNXGRA",
+        ("O_RNXBASE:updTimeSysIfMissing", "UNKNOWN_SYSTEM"),
+        {"rinex_file_name": "${P}/PSU240930/RAW/ALIC00AUS_20240930.RXO"},
+    ),
     "MXP230100_MX230100_511_000": (
         "ADDNEQ2",
         ("OPNERR", "OPEN_FAILED"),

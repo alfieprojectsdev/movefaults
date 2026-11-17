@@ -1,0 +1,39 @@
+
+
+ PROTOCOL FILE FOR BPE SCRIPT
+ ----------------------------
+ Campaign           : /home/gps3/GPSDATA/CAMPAIGN54/PSU240930
+ Session            : 0930
+ Year               : 2024
+ User name          : gps3
+ PCF name           : PHSUP_DLY.PCF
+ Script name        : RNXGRA
+ Option directory   : R2S_GEN
+ Path to user area  : /home/gps3/GPSUSER
+ Path to work area  : /home/gps3/GPSWORK//BPE_PHSUP_DLY_32841_24_0930_201_000
+ Path to executables: /home/gps3/BERN54/SOURCE/PGM/EXE_GNU
+ Process ID         : 201
+ Sub-process ID     : 000
+ PARAM1             : NEXTJOB
+ PARAM2             : 901
+ CPU name           : localhost
+ Server host        : gps3
+ Remote host        : gps3  (system pid: 4021144)
+
+ Date         Time      Run time  Pgm.time  Sta Program   Message
+ ----------------------------------------------------------------------------
+ 17-NOV-2026  15:49:30  00:00:00            MSG RUNBPE.pm SCRIPT  STARTED
+ 17-NOV-2026  15:49:30  00:00:00            MSG RNXGRA    Unknown system character P ignored!
+ 17-NOV-2026  15:49:30  00:00:00            MSG RNXGRA    GNSS selection: GPS
+
+ ### FN O_RNXBASE:getAndChkSysNbr, PG RNXGRA
+        Missing satellite system
+
+
+ *** SR O_RNXBASE:updTimeSysIfMissing, PG RNXGRA
+        Unknown system
+        RINEX file name: ${P}/PSU240930/RAW/ALIC00AUS_20240930.RXO
+
+ 17-NOV-2026  15:49:30  00:00:00  00:00:00  ERR RNXGRA    ERROR IN MAIN PROGRAM
+ 17-NOV-2026  15:49:30  00:00:00            MSG RUNBPE.pm SCRIPT  ENDED
+ ----------------------------------------------------------------------------

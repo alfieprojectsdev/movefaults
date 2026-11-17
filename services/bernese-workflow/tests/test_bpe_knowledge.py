@@ -48,7 +48,7 @@ def test_every_captured_failure_has_a_row() -> None:
         failed += 1
         assert report.cause is not None, path.name
         assert kb.lookup(report.cause) is not None, f"{path.name}: {report.cause.signature}"
-    assert failed == 10
+    assert failed == 12
 
 
 def test_lookup_ignores_emitter_case_and_message_numbers() -> None:
