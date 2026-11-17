@@ -1,0 +1,37 @@
+
+ PROTOCOL FILE FOR BPE SCRIPT
+ ----------------------------
+ Campaign           : /home/gps3/GPSDATA/CAMPAIGN54/PSU230160
+ Session            : 0160
+ Year               : 2023
+ User name          : gps3
+ PCF name           : PHSUP_DLY.PCF
+ Script name        : ADDNEQ2
+ Option directory   : R2S_FIN
+ Path to user area  : /home/gps3/GPSUSER
+ Path to work area  : /home/gps3/GPSWORK//BPE_PHSUP_DLY_00000_23_0160_511_000
+ Path to executables: /home/gps3/BERN54/SOURCE/PGM/EXE_GNU
+ Process ID         : 511
+ Sub-process ID     : 000
+ CPU name           : localhost
+ Server host        : gps3
+ Remote host        : gps3
+
+ Date         Time      Run time  Pgm.time  Sta Program   Message
+ ----------------------------------------------------------------------------
+ 17-NOV-2026  07:10:24  00:00:00            MSG RUNBPE.pm SCRIPT  STARTED
+ 17-NOV-2026  07:10:24  00:00:00            MSG ADDNEQ2   PROGRAM STARTED
+
+ ### FN D_STACRX:getLongStaId_timint, PG ADDNEQ2 (17-Nov-2026 07:10:34)
+        Empty "Long Name" column for station "BILI BILI" found in
+        station information file: ${P}/PSU230160/STA/PHSUP.STA
+        (short name used instead)
+
+
+ *** FN D_STACRX:getLongStaId_timint, PG ADDNEQ2 (17-Nov-2026 07:10:34)
+        Station "BLNA BLNA" (2023-01-16 07:00:00  2023-01-16 07:00:00) not found in
+        station information file: ${P}/PSU230160/STA/PHSUP.STA
+
+ 17-NOV-2026  07:10:34  00:00:10  00:00:10  ERR ADDNEQ2   ERROR IN MAIN PROGRAM
+ 17-NOV-2026  07:10:34  00:00:10            MSG RUNBPE.pm SCRIPT  ENDED
+ ----------------------------------------------------------------------------

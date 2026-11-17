@@ -249,6 +249,81 @@ def test_stations_with_rinex_missing_from_sta_crd_or_blq():
     assert [f.file for f in findings if f.station == "NEWS"] == ["X.STA", "X.CRD", "X.BLQ"]
 
 
+def _windows(sta, cov, days):
+    findings = sf.check_station_files(sta=("X.STA", sta), coverage=cov, days=days, year=2025)
+    return {(f.kind, f.station): (f.detail, f.blocking) for f in findings if "window" in f.kind}
+
+
+def test_rinex_on_a_day_no_sta_row_covers_blocks():
+    # BLNA's shape: last row closed years before the data; MILA's: the row
+    # starts after the first days with data.
+    sta = sta_text(
+        [
+            ("BLNA BLNA", T0, "2020 11 25 00 00 00"),
+            ("MILA MILA", T0, "2016 01 01 00 00 00"),
+            ("MILA MILA", "2025 01 17 00 00 00", OPEN),
+            ("GOOD GOOD", T0, OPEN),
+        ]
+    )
+    cov = _coverage({d: {"BLNA", "MILA", "GOOD"} for d in range(9, 20)})
+    got = _windows(sta, cov, range(9, 20))
+    assert got == {
+        ("sta_no_window", "BLNA"): (
+            "RINEX on DOY 009-019 but no TYPE 002 row covers those days", True),
+        ("sta_no_window", "MILA"): (
+            "RINEX on DOY 009-016 but no TYPE 002 row covers those days", True),
+    }  # fmt: skip
+
+
+def test_rows_meeting_mid_day_cover_it_and_a_gap_mid_day_only_warns():
+    sta = sta_text(
+        [
+            # equipment change at noon, the IGS convention: the day is covered
+            ("SWAP SWAP", T0, "2025 01 10 12 00 00"),
+            ("SWAP SWAP", "2025 01 10 12 00 00", OPEN),
+            # six hours of DOY 010 with no row
+            ("HOLE HOLE", T0, "2025 01 10 06 00 00"),
+            ("HOLE HOLE", "2025 01 10 12 00 00", OPEN),
+        ]
+    )
+    got = _windows(sta, _coverage({10: {"SWAP", "HOLE"}}), [10])
+    assert got == {
+        ("sta_part_window", "HOLE"): (
+            "RINEX on DOY 010 but TYPE 002 rows cover only part of each day (warning only)",
+            False),
+    }  # fmt: skip
+
+
+def test_a_row_closed_at_23_59_59_covers_its_day():
+    # LUZON.STA's convention: close at 23:59:59, open the next row at 00:00:00.
+    sta = sta_text(
+        [
+            ("ANTP ANTP", T0, "2025 01 10 23 59 59"),
+            ("ANTP ANTP", "2025 01 11 00 00 00", OPEN),
+            ("LAST LAST", T0, "2025 01 10 23 59 59"),
+        ]
+    )
+    cov = _coverage({d: {"ANTP", "LAST"} for d in (10, 11)})
+    assert _windows(sta, cov, [10, 11]) == {
+        ("sta_no_window", "LAST"): (
+            "RINEX on DOY 011 but no TYPE 002 row covers those days", True),
+    }  # fmt: skip
+
+
+def test_a_station_absent_from_the_sta_is_missing_sta_not_a_window_finding():
+    sta = sta_text([("GOOD GOOD", T0, OPEN)])
+    findings = sf.check_station_files(
+        sta=("X.STA", sta), coverage=_coverage({5: {"NEWS"}}), days=[5], year=2025
+    )
+    assert _kinds(findings) == [("missing_sta", "NEWS")]
+
+
+def test_days_not_being_run_are_not_checked_for_a_window():
+    sta = sta_text([("ENDS ENDS", T0, "2025 01 15 00 00 00")])
+    cov = _coverage({d: {"ENDS"} for d in (10, 20)})
+    assert _windows(sta, cov, [10]) == {}
+
+
 def test_a_blq_block_indented_one_column_is_named_as_such():
     sta = sta_text([("CALU CALU", T0, OPEN)])
     blq = _blq(["AGUS"], []).replace("$$ Ocean", " CALU               CALU\r\n$$ Ocean")

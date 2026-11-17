@@ -163,7 +163,55 @@ entries:
       .CRD line.
     source: 'AIUB FAQ, "GETSTAF: COORDINATES NOT FOUND"'
 
+  - emitter: D_STACRX:getLongStaId_timint
+    message: 'Station "BLNA BLNA" (2023-01-16 07:00:00  2023-01-16 07:00:00) not found in'
+    scope: configuration
+    status: established
+    diagnosis: >
+      The station has observations on this day, and has rows in the .STA, but
+      none of its TYPE 002 rows covers the day, so ADDNEQ2 cannot name it. The
+      station and the moment Bernese looked for are in the message. Seen twice
+      in PHSUP 2023: BLNA, whose last row ended 2020-11-25, and MILA, whose
+      second row started on 17 March while its data started on 9 March. The
+      same family of messages also prints ### warnings (an empty "Long Name"
+      column, "short name used instead"); those do not stop a run.
+    remedy: >
+      Ask whoever keeps the station's field records whether it really ran on
+      those days, and with what receiver and antenna. If it did, extend or add
+      its TYPE 002 row in the .STA in $D/REF54 named by V_STAINF (keep the
+      file's CRLF line endings, and back it up first). If nobody can say, take
+      the station's files for those days out of V_RNXDIR. bernese-run-year
+      --plan lists every such station before a run, as a PROBLEM line ending
+      "no TYPE 002 row covers those days".
+    confirm: >
+      bernese-run-year --plan has no "no TYPE 002 row covers" line, then the
+      day completes
+    source: >
+      PHSUP 2023 DOY 016, run f402f3c4 (BLNA); after BLNA was removed, run
+      c7164a19 solved the day with 77 stations. MILA DOY 068-075 found by a
+      scan of the staged days before the run reached them.
+
   # --- Data staging ----------------------------------------------------------
+
+  - emitter: O_RNXBASE:updTimeSysIfMissing
+    message: Unknown system
+    scope: session
+    status: proposed
+    diagnosis: >
+      RNXGRA could not tell which satellite system a RINEX file holds, so it
+      could not set the file's time system. The file named in RINEX FILE NAME
+      is the one; a ### "Missing satellite system" warning just above it says
+      the same. Seen on a fiducial from the BKG mirror that was an empty stub:
+      a header and no observations (ALIC, 2024 DOY 093).
+    remedy: >
+      Look at the file the message names, in RAW of the session's campaign,
+      and at its source in V_RNXDIR. If it has no observations, move it out of
+      V_RNXDIR (keep it aside rather than deleting it) and fetch it again
+      later; the day then runs without that station. Then redo the day.
+    confirm: the redone day completes without the station
+    source: >
+      PHSUP 2024 DOY 093, run d6b5ce39 (ALIC00AUS_R_20240930000_01D_30S_MO,
+      an empty file from the mirror). The day has not been rerun yet.
 
   - emitter: O_CCRNXO:concatenateOrMergeRinexFiles
     message: No input files

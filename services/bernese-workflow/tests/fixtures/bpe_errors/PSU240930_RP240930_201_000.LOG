@@ -1,0 +1,18 @@
+Perl version: 5.038002
+Perl path   : /usr/bin/perl
+LOGFILE_HEADER
+4: "" ""
+
+>>> CPU/Real time for pgm "RNXGRA": 0:00:00.159 / 0:00:00.159
+
+Call to RNXGRA failed:
+
+ ### FN O_RNXBASE:getAndChkSysNbr, PG RNXGRA
+        Missing satellite system
+
+
+ *** SR O_RNXBASE:updTimeSysIfMissing, PG RNXGRA
+        Unknown system
+        RINEX file name: ${P}/PSU240930/RAW/ALIC00AUS_20240930.RXO
+
+Test: 0, 1,  @ quit
