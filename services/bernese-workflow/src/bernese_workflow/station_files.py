@@ -614,12 +614,24 @@ def _day_bounds(year: int, doy: int) -> tuple[dt.datetime, dt.datetime]:
     return lo, lo + dt.timedelta(days=1)
 
 
-def _covered(windows: list[tuple[dt.datetime | None, dt.datetime | None]], lo, hi) -> str:
+# A gap this short between rows, or before the day's end, is not a gap: STA
+# files close a row at 23:59:59 (or 23:59:00) and open the next at 00:00:00.
+# LUZON.STA does so on 138 rows; read strictly, every one of those days would
+# be reported as covered only in part.
+_EDGE = dt.timedelta(minutes=1)
+
+
+def _covered(
+    windows: list[tuple[dt.datetime | None, dt.datetime | None]],
+    lo: dt.datetime,
+    hi: dt.datetime,
+) -> str:
     """'all', 'part' or 'none': how much of [lo, hi) the windows cover together.
 
     A window touches the day by the rule overlaps are scoped with (``_touches``,
     so a single-instant row inside the day counts). Two rows that meet
-    mid-day, the IGS convention for an equipment change, cover the whole day.
+    mid-day, the IGS convention for an equipment change, cover the whole day,
+    and so do rows that leave at most ``_EDGE`` between them.
     """
     touching = [w for w in windows if _touches(w, lo, hi)]
     if not touching:
@@ -627,10 +639,10 @@ def _covered(windows: list[tuple[dt.datetime | None, dt.datetime | None]], lo, h
     spans = sorted((max(a or lo, lo), min(b or hi, hi)) for a, b in touching)
     reach = lo
     for a, b in spans:
-        if a > reach:
+        if a > reach + _EDGE:
             return "part"
         reach = max(reach, b)
-    return "all" if reach >= hi else "part"
+    return "all" if reach + _EDGE >= hi else "part"
 
 
 def sta_window_findings(
@@ -709,8 +721,8 @@ def check_station_files(
         # No days to run: nothing an overlap could affect, so active is empty
         # and every overlap scopes down to a warning.
         first, last = (min(days), max(days)) if days else (1, 1)
-        lo = dt.datetime(year, 1, 1) + dt.timedelta(days=first - 1)
-        hi = dt.datetime(year, 1, 1) + dt.timedelta(days=last)
+        lo, _ = _day_bounds(year, first)
+        _, hi = _day_bounds(year, last)
         out = [_scope_overlap(f, active, lo, hi) for f in out]
     if blq is not None:
         out += check_blq(blq[1], blq[0])

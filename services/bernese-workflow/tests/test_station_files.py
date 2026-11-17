@@ -294,6 +294,22 @@ def test_rows_meeting_mid_day_cover_it_and_a_gap_mid_day_only_warns():
     }  # fmt: skip
 
 
+def test_a_row_closed_at_23_59_59_covers_its_day():
+    # LUZON.STA's convention: close at 23:59:59, open the next row at 00:00:00.
+    sta = sta_text(
+        [
+            ("ANTP ANTP", T0, "2025 01 10 23 59 59"),
+            ("ANTP ANTP", "2025 01 11 00 00 00", OPEN),
+            ("LAST LAST", T0, "2025 01 10 23 59 59"),
+        ]
+    )
+    cov = _coverage({d: {"ANTP", "LAST"} for d in (10, 11)})
+    assert _windows(sta, cov, [10, 11]) == {
+        ("sta_no_window", "LAST"): (
+            "RINEX on DOY 011 but no TYPE 002 row covers those days", True),
+    }  # fmt: skip
+
+
 def test_a_station_absent_from_the_sta_is_missing_sta_not_a_window_finding():
     sta = sta_text([("GOOD GOOD", T0, OPEN)])
     findings = sf.check_station_files(
