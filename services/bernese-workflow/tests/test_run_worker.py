@@ -39,7 +39,7 @@ from bernese_workflow.run_queue import (
     read_json,
     validate,
 )
-from bernese_workflow.run_worker import Setup, Worker, WorkerRunning, main
+from bernese_workflow.run_worker import Setup, Worker, WorkerRunning, _with_network_check, main
 from bernese_workflow.run_year import SimplePlan
 
 FIXTURES = Path(__file__).parent / "fixtures" / "bpe_errors"
@@ -1055,3 +1055,55 @@ def test_cli_submit_allow_header_mismatches(env: Env) -> None:
     assert main([*state, "submit", "start", *args]) == 0
     reqs = [read_json(p) for p in sorted(env.queue.queue.glob("*.json"))]
     assert [r.get("allow_header_mismatches") for r in reqs] == [True, None]
+
+
+# --- network check ----------------------------------------------------------------------
+
+
+def test_a_finished_run_reports_what_the_network_check_could_see(env: Env) -> None:
+    req = env.submit(START, **{"from": 40, "to": 41})
+    with env.worker() as w:
+        w.step()
+    rec = env.done(req)
+    assert rec["outcome"] == "ok", rec["detail"]
+    # The fake BSW writes no coordinates, so nothing can be compared, and it says so.
+    assert "network check: none of 2 days could be checked" in rec["detail"]
+    assert rec["network_suspect"] == []
+
+
+def test_a_network_check_that_breaks_leaves_the_run_ok(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(*_args: object, **_kw: object) -> None:
+        raise OSError("disk gone")
+
+    monkeypatch.setattr("bernese_workflow.run_worker.network_check.check_year", broken)
+    req = env.submit(START, **{"from": 40, "to": 40})
+    with env.worker() as w:
+        w.step()
+    rec = env.done(req)
+    assert rec["outcome"] == "ok"
+    assert "network check did not run: disk gone" in rec["detail"]
+
+
+def test_a_request_may_not_arrive_carrying_the_network_result(env: Env) -> None:
+    req = env.submit(START, **{"from": 40, "to": 40})
+    with pytest.raises(InvalidRequest, match="network_suspect"):
+        validate({**req, "network_suspect": []})
+
+
+def test_a_run_with_no_other_detail_reports_the_check_without_a_stray_separator(
+    tmp_path: Path,
+) -> None:
+    detail, _ = _with_network_check(tmp_path, 2023, [40], "", {})
+    assert detail == "network check: none of 1 day could be checked"
+
+
+def test_a_redo_reports_the_network_check_for_its_day(env: Env) -> None:
+    old_set(env, 40)
+    req = env.submit(REDO, doy=40)
+    with env.worker() as w:
+        w.step()
+    rec = env.done(req)
+    assert rec["outcome"] == "ok", rec["detail"]
+    assert "network check: none of 1 day could be checked" in rec["detail"]
