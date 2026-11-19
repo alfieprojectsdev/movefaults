@@ -141,7 +141,7 @@ cross-check files, which no run reads. The Plan page shows which days lack produ
 
 ## Using it
 
-Six command-line entry points (root `pyproject.toml`), then the library below them:
+Seven command-line entry points (root `pyproject.toml`), then the library below them:
 
 - `bernese-run-year` plans and runs a range of days as parallel BPE blocks (the
   production BPE step since 2026-11-04);
@@ -151,6 +151,9 @@ Six command-line entry points (root `pyproject.toml`), then the library below th
   (read-only);
 - `bernese-check-equipment` compares the `.STA` equipment with field-ops records
   (read-only, advisory);
+- `bernese-check-network` reports solved days where part of the network shifted
+  against the rest (read-only); the worker runs it after each run and redo and adds
+  the result to the request's detail, so it reaches the email;
 - `bernese-notify` emails the person who started a run (above);
 - `bernese-update-products` fetches new products and reports stale reference files (above).
 

@@ -60,7 +60,7 @@ from pathlib import Path
 from types import FrameType
 from typing import IO
 
-from . import bpe_processes
+from . import bpe_processes, network_check
 from . import redo as rd
 from .bpe_knowledge import KnowledgeBase
 from .bpe_lock import BPELock, BPELockHeld
@@ -152,6 +152,26 @@ def describe(req: dict) -> str:
     return (
         f"{req['kind']} {req['campaign']} {req['year']} {_days(req)} ({req['pcf']}){allowed} "
         f"by {req['submitted_by']}"
+    )
+
+
+def _with_network_check(
+    year_dir: Path, year: int, doys: list[int], detail: str, fields: dict
+) -> tuple[str, dict]:
+    """Add the network check to a run's result. It reports; it never changes the outcome."""
+    if not doys:
+        return detail, fields
+    lead = f"{detail}; " if detail else ""
+    try:
+        result = network_check.check_year(year_dir, year, doys)
+    except Exception as exc:  # noqa: BLE001 -- the solved days stand either way
+        logger.exception("network check failed")
+        return f"{lead}network check did not run: {exc}", fields
+    for finding in result.findings:
+        logger.warning("%s", finding)
+    return (
+        f"{lead}{result.summary()}",
+        {**fields, "network_suspect": [f.doy for f in result.findings]},
     )
 
 
@@ -508,6 +528,9 @@ class Worker:
         outcome, detail, fields = self._summary(out)
         if req["kind"] == PREFLIGHT:
             fields["preflight_day"] = plan.todo[0]
+            return outcome, detail, fields
+        solved = [o.doy for o in out if o.status == "ok"]
+        detail, fields = _with_network_check(s.sol_dir.parent, req["year"], solved, detail, fields)
         return outcome, detail, fields
 
     def _redo(self, active: Path, req: dict) -> tuple[str, str, dict]:
@@ -554,14 +577,12 @@ class Worker:
         day = next((o for o in out if o.doy == doy), None)
         if day is not None and day.status == "ok":
             m.set_state(rd.SUCCEEDED)
-            return (
-                "ok",
+            detail, fields = _with_network_check(
+                year_dir, year, [doy],
                 f"DOY {doy:03d} redone; the old set is in {m.aside}",
-                {
-                    **aside,
-                    "days": {f"{doy:03d}": "ok"},
-                },
-            )
+                {**aside, "days": {f"{doy:03d}": "ok"}},
+            )  # fmt: skip
+            return "ok", detail, fields
         removed = self._restore(s.ledger, m, req)
         why = (day.error or day.note) if day else "run_year did not report the day"
         stopped = day is not None and day.status == "not_run" and day.halt_kind == HALT_STOPPED
