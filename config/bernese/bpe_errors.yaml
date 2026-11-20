@@ -196,7 +196,7 @@ entries:
   - emitter: O_RNXBASE:updTimeSysIfMissing
     message: Unknown system
     scope: session
-    status: proposed
+    status: established
     diagnosis: >
       RNXGRA could not tell which satellite system a RINEX file holds, so it
       could not set the file's time system. The file named in RINEX FILE NAME
@@ -211,7 +211,8 @@ entries:
     confirm: the redone day completes without the station
     source: >
       PHSUP 2024 DOY 093, run d6b5ce39 (ALIC00AUS_R_20240930000_01D_30S_MO,
-      an empty file from the mirror). The day has not been rerun yet.
+      an empty file from the mirror). The file was moved to RINEX3/EMPTY and
+      run 1c07dd84 then solved the day with 80 stations, ALIC not among them.
 
   - emitter: O_CCRNXO:concatenateOrMergeRinexFiles
     message: No input files
