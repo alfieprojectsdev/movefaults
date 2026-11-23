@@ -39,7 +39,15 @@ from bernese_workflow.run_queue import (
     read_json,
     validate,
 )
-from bernese_workflow.run_worker import Setup, Worker, WorkerRunning, _with_network_check, main
+from bernese_workflow.run_worker import (
+    Setup,
+    Worker,
+    WorkerRunning,
+    _with_codspp_check,
+    _with_network_check,
+    _with_post_run_checks,
+    main,
+)
 from bernese_workflow.run_year import SimplePlan
 
 FIXTURES = Path(__file__).parent / "fixtures" / "bpe_errors"
@@ -1096,10 +1104,19 @@ def test_a_run_with_no_other_detail_reports_the_check_without_a_stray_separator(
     tmp_path: Path,
 ) -> None:
     detail, _ = _with_network_check(tmp_path, 2023, [40], "", {})
+    assert detail == "network check: none of 1 day could be checked"
+    detail, _ = _with_codspp_check(tmp_path, 2023, [40], "", {})
+    assert detail == "CODSPP check: none of 1 day could be checked"
+
+
+def test_the_post_run_checks_report_both_in_order(tmp_path: Path) -> None:
+    detail, fields = _with_post_run_checks(tmp_path, 2023, [40], "1 days ok", {})
     assert detail == (
-        "network check: none of 1 day could be checked; "
+        "1 days ok; network check: none of 1 day could be checked; "
         "CODSPP check: none of 1 day could be checked"
     )
+    assert fields == {"network_suspect": [], "codspp_rejected": {}}
+    assert _with_post_run_checks(tmp_path, 2023, [], "0 days ok", {}) == ("0 days ok", {})
 
 
 # --- CODSPP check -----------------------------------------------------------------------

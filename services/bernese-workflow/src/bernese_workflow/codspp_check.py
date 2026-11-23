@@ -31,16 +31,23 @@ broken code data. PHSUP 2024 has BATU 100% bad on 20 days exactly a week apart
 (DOY 084-217), which is not yet explained. It reads only saved files and changes nothing. A day with
 no summary is counted as not checked, never as clean.
 
+codspp_qc.py is not this. It classifies stations from the per-cluster CODSPP output
+inside a session campaign, which production deletes once a day is banked, and it
+reads only CODXTR's single worst-station line. It isn't wired into any run.
+
 Usage:
     bernese-check-codspp --campaign PHSUP --year 2023
     bernese-check-codspp --campaign PHSUP --year 2024 --from 80 --to 170
 
-Exit codes: 0 no station rejected, 1 at least one rejected, 2 nothing could be checked.
+Exit codes: 0 no station dropped, 1 at least one rejected station was not estimated
+(or its coordinates are missing, so it may not have been), 2 nothing could be checked.
+A station rejected but still estimated, like GUES above, is printed and exits 0.
 """
 
 from __future__ import annotations
 
 import argparse
+import calendar
 import os
 import re
 import sys
@@ -94,6 +101,8 @@ def read_rejections(path: Path) -> dict[str, tuple[str, float | None]]:
         # The share follows the FILE line, within the next few lines.
         pct = None
         for follow in lines[i + 1 : i + 4]:
+            if _MESSAGE.search(follow):
+                break  # the next station's message: this one printed no share
             p = _BAD_PCT.match(follow)
             if p:
                 pct = float(p[1])
@@ -224,11 +233,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--campaign", required=True, help="result campaign under $S, e.g. PHSUP")
     ap.add_argument("--year", type=int, required=True)
     ap.add_argument("--from", dest="doy_from", type=int, default=1)
-    ap.add_argument("--to", dest="doy_to", type=int, default=366)
+    ap.add_argument(
+        "--to", dest="doy_to", type=int, default=None, help="default: the year's last day"
+    )
     ap.add_argument(
         "--year-dir", type=Path, help="the year's result directory; default $S/<campaign>/<year>"
     )
     args = ap.parse_args(argv)
+    last = 366 if calendar.isleap(args.year) else 365
+    if args.doy_to is None:
+        args.doy_to = last
+    if not 1 <= args.doy_from <= args.doy_to <= last:
+        ap.error(f"--from {args.doy_from} --to {args.doy_to} is not a span within 1-{last}")
 
     year_dir = args.year_dir
     if year_dir is None:
@@ -238,17 +254,15 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         year_dir = Path(savedisk) / args.campaign / str(args.year)
 
-    found = _summaries(year_dir, args.year)
-    wanted = [d for d in sorted(found) if args.doy_from <= d <= args.doy_to]
-    if not wanted:
-        span = f"DOY {args.doy_from:03d}-{args.doy_to:03d}"
-        print(f"CODSPP check: no processing summaries in {span} of {year_dir}")
-        return 2
-    result = check_year(year_dir, args.year, wanted)
+    # Every day of the span is asked about, so one without a summary is reported as
+    # not checked instead of dropping out of the count.
+    result = check_year(year_dir, args.year, range(args.doy_from, args.doy_to + 1))
     for line in result.station_lines():
         print(line)
     print(result.summary())
-    return 1 if result.rejections else 0
+    if not result.checked:
+        return 2
+    return 1 if any(r.estimated is not True for r in result.rejections) else 0
 
 
 if __name__ == "__main__":

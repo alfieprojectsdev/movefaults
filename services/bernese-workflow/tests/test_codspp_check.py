@@ -122,3 +122,50 @@ def test_the_cli_exits_by_what_it_found(year_dir: Path, capsys: pytest.CaptureFi
     assert "ISAB: rejected by CODSPP on 1 day (DOY 002)" in capsys.readouterr().out
     empty = year_dir.parent / "1999"
     assert cc.main(["--campaign", "X", "--year", "1999", "--year-dir", str(empty)]) == 2
+
+
+def test_a_share_is_never_taken_from_the_next_station(tmp_path: Path) -> None:
+    prc = tmp_path / "R2S.PRC"
+    prc.write_text(
+        " ### PG CODXTR: NUMBER OF BAD OBS LARGER THAN 50% FOR STATION: AAAA AAAA\n"
+        " ### PG CODXTR: NUMBER OF BAD OBS LARGER THAN 50% FOR STATION: BBBB BBBB\n"
+        "                FILE   : ${P}/X/OBS/BBBB0010.CZO\n"
+        "                BAD OBS:    99.85 %\n"
+    )
+    assert cc.read_rejections(prc) == {"AAAA": (cc.BAD_OBS, None), "BBBB": (cc.BAD_OBS, 99.85)}
+
+
+def test_the_cli_reports_a_day_without_a_summary_as_not_checked(
+    year_dir: Path, capsys: pytest.CaptureFixture
+) -> None:
+    for doy in (80, 82):
+        _write(year_dir, doy, "nothing rejected\n", ["PTAG"])
+    args = ["--campaign", "X", "--year", str(YEAR), "--year-dir", str(year_dir)]
+    assert cc.main([*args, "--from", "80", "--to", "82"]) == 0
+    assert capsys.readouterr().out.strip() == (
+        "CODSPP check: 2 days checked, no station rejected; 1 day not checked"
+    )
+
+
+def test_the_cli_refuses_a_span_outside_the_year(year_dir: Path) -> None:
+    args = ["--campaign", "X", "--year", str(YEAR), "--year-dir", str(year_dir)]
+    for span in (["--from", "170", "--to", "80"], ["--from", "0"], ["--to", "366"]):
+        with pytest.raises(SystemExit) as exc:
+            cc.main([*args, *span])
+        assert exc.value.code == 2  # argparse's usage error, before any file is read
+
+
+def test_a_rejected_station_still_estimated_does_not_fail_the_cli(
+    year_dir: Path, capsys: pytest.CaptureFixture
+) -> None:
+    # Both rejected stations estimated anyway, as GUES was on 2024 DOY 163.
+    _write(year_dir, 163, CODXTR, ["PTAG"])
+    crd = year_dir / "STA" / f"FIN_{YEAR}1630.CRD"
+    crd.write_text(
+        crd.read_text()
+        .replace("1600000.00000", "1600000.00000    A")
+        .replace("1600001.00000", "1600001.00000    A")
+    )
+    args = ["--campaign", "X", "--year", str(YEAR), "--year-dir", str(year_dir)]
+    assert cc.main([*args, "--from", "163", "--to", "163"]) == 0
+    assert "not in the solution on 0 of 1" in capsys.readouterr().out
