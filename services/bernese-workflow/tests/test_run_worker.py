@@ -1096,7 +1096,61 @@ def test_a_run_with_no_other_detail_reports_the_check_without_a_stray_separator(
     tmp_path: Path,
 ) -> None:
     detail, _ = _with_network_check(tmp_path, 2023, [40], "", {})
-    assert detail == "network check: none of 1 day could be checked"
+    assert detail == (
+        "network check: none of 1 day could be checked; "
+        "CODSPP check: none of 1 day could be checked"
+    )
+
+
+# --- CODSPP check -----------------------------------------------------------------------
+
+
+def test_a_finished_run_reports_the_codspp_check(env: Env) -> None:
+    req = env.submit(START, **{"from": 40, "to": 41})
+    with env.worker() as w:
+        w.step()
+    rec = env.done(req)
+    assert rec["outcome"] == "ok", rec["detail"]
+    # The fake BSW writes a processing summary with no CODXTR rejection in it.
+    assert "CODSPP check: 2 days checked, no station rejected" in rec["detail"]
+    assert rec["codspp_rejected"] == {}
+
+
+def test_a_codspp_check_that_breaks_leaves_the_run_ok(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(*_args: object, **_kw: object) -> None:
+        raise OSError("disk gone")
+
+    monkeypatch.setattr("bernese_workflow.run_worker.codspp_check.check_year", broken)
+    req = env.submit(START, **{"from": 40, "to": 40})
+    with env.worker() as w:
+        w.step()
+    rec = env.done(req)
+    assert rec["outcome"] == "ok"
+    assert "CODSPP check did not run: disk gone" in rec["detail"]
+    assert "network check: none of 1 day could be checked" in rec["detail"]
+
+
+def test_a_broken_network_check_still_runs_the_codspp_check(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(*_args: object, **_kw: object) -> None:
+        raise OSError("disk gone")
+
+    monkeypatch.setattr("bernese_workflow.run_worker.network_check.check_year", broken)
+    req = env.submit(START, **{"from": 40, "to": 40})
+    with env.worker() as w:
+        w.step()
+    rec = env.done(req)
+    assert "network check did not run: disk gone" in rec["detail"]
+    assert "CODSPP check: 1 day checked, no station rejected" in rec["detail"]
+
+
+def test_a_request_may_not_arrive_carrying_the_codspp_result(env: Env) -> None:
+    req = env.submit(START, **{"from": 40, "to": 40})
+    with pytest.raises(InvalidRequest, match="codspp_rejected"):
+        validate({**req, "codspp_rejected": {}})
 
 
 def test_a_redo_reports_the_network_check_for_its_day(env: Env) -> None:

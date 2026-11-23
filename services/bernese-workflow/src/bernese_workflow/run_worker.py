@@ -60,7 +60,7 @@ from pathlib import Path
 from types import FrameType
 from typing import IO
 
-from . import bpe_processes, network_check
+from . import bpe_processes, codspp_check, network_check
 from . import redo as rd
 from .bpe_knowledge import KnowledgeBase
 from .bpe_lock import BPELock, BPELockHeld
@@ -166,13 +166,32 @@ def _with_network_check(
         result = network_check.check_year(year_dir, year, doys)
     except Exception as exc:  # noqa: BLE001 -- the solved days stand either way
         logger.exception("network check failed")
-        return f"{lead}network check did not run: {exc}", fields
+        return _with_codspp_check(
+            year_dir, year, doys, f"{lead}network check did not run: {exc}", fields
+        )
     for finding in result.findings:
         logger.warning("%s", finding)
-    return (
+    return _with_codspp_check(
+        year_dir, year, doys,
         f"{lead}{result.summary()}",
         {**fields, "network_suspect": [f.doy for f in result.findings]},
-    )
+    )  # fmt: skip
+
+
+def _with_codspp_check(
+    year_dir: Path, year: int, doys: list[int], detail: str, fields: dict
+) -> tuple[str, dict]:
+    """Add the CODSPP check to a run's result. Like the network check, it only reports."""
+    lead = f"{detail}; " if detail else ""
+    try:
+        result = codspp_check.check_year(year_dir, year, doys)
+    except Exception as exc:  # noqa: BLE001 -- the solved days stand either way
+        logger.exception("CODSPP check failed")
+        return f"{lead}CODSPP check did not run: {exc}", fields
+    for line in result.station_lines():
+        logger.warning("%s", line)
+    rejected = {s: [r.doy for r in rs] for s, rs in result.by_station().items()}
+    return f"{lead}{result.summary()}", {**fields, "codspp_rejected": rejected}
 
 
 class Worker:

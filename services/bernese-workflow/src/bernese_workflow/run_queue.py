@@ -48,7 +48,8 @@ MAXSESS_DEFAULT = 6
 # moved, so a request that arrives already carrying it must not be run.
 WORKER_FIELDS = frozenset(
     {"started", "worker", "manifest", "superseded", "removed", "days", "preflight_day",
-     "outcome", "detail", "finished", "applied_to", "network_suspect"}
+     "outcome", "detail", "finished", "applied_to", "network_suspect",
+     "codspp_rejected"}
 )  # fmt: skip
 
 
