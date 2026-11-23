@@ -71,7 +71,7 @@ reading the headers of this one day.
 | RINEX 2 | Ready in format: production already reads RINEX 2 |
 | Orbits, clocks, ERP, biases | **Not on gps3.** CODE's `REPRO_2020` lists `COD0R03FIN_*` files for each day, with GPS orbits since 1994 |
 | Satellite clocks | **Unknown.** AIUB describes 30 s clocks from 2000. What exists for 1996 has to be read from the files, and Selective Availability was on until May 2000 |
-| Ionosphere map | **Unknown.** `REPRO_2020`'s description lists no `GIM.ION` file, and production's `COD0OPSFIN` set has one |
+| Ionosphere map | **Not in `REPRO_2020`**, whose description lists no `GIM.ION` file while production's `COD0OPSFIN` set has one. CODE's operational archive has `COD08434.ION.Z` for the day (step 1) |
 | IGSR3 reference set, for run A | **To write.** `$D/REF54` has the `IGS14` and `IGS20` sets and nothing for IGSR3. `R2S_COP` and the planner need `IGS14R3.FIX`, `IGS14R3_R.CRD`, `IGS14R3_R.VEL` and `IGS14R3.PSD`, written from `IGS14R3.SNX`. How is not yet worked out |
 | Station information | **To write.** Only GUAM, PERT, PLWN and S01R are in `LUZON.STA`, and marker and antenna names need mapping |
 | Ocean loading | **To obtain.** Of the 14, only PLWN and S01R have blocks in `LUZON.BLQ` |
@@ -104,8 +104,13 @@ Stop at any step that fails, and write down what it said.
    directory of its own, not `$D/REF54` or `GLOBAL/CONFIG`: production reads those,
    and files there can share a name. Then copy across only what the pilot needs and
    whose name isn't already taken, such as `ANT_COD_R20.PCV` into `$D/REF54`, and the
-   products into `$D/COD0R03FIN`. A test request from gps3 to AIUB's page on
-   2026-11-06 returned nothing usable, so this may need another route. The product's
+   products into `$D/COD0R03FIN`. AIUB's own page returned nothing usable to gps3 on
+   2026-11-06, but the SWITCH mirror that `fetch_igs_products.sh` already uses holds
+   the set (checked 2026-11-23): `REPRO_2020/CODE/repro_2020_y1996.tgz`, one
+   1.7 GB tarball for the whole year, and `REPRO_2020/BSWUSER54/REF/`. The
+   ionosphere map comes from the operational archive instead: `CODE/1996/COD08434.ION.Z`
+   is on the mirror. It is an operational product of its time, not repro3. Both
+   configurations use it, so it is not a difference between A and B. The product's
    use has to be acknowledged in anything published (reference in
    `docs/bern52/AIUB_AFTP.TXT`).
 2. **Copy, don't move, and rename the session.** Copy the 14 RINEX files from
