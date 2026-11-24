@@ -64,6 +64,7 @@ bernese-check-stations = "bernese_workflow.station_files:main"
 # Advisory, read-only: .STA equipment against field-ops records (exits 0 on disagreement).
 bernese-check-equipment = "bernese_workflow.equipment_check:main"
 bernese-check-network = "bernese_workflow.network_check:main"
+bernese-check-codspp = "bernese_workflow.codspp_check:main"
 field-ops-api = "field_ops.main:start"
 # The Bernese processing console: a read-only web view over bernese-workflow.
 bsw-console = "bsw_console.main:start"
