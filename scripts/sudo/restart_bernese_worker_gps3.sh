@@ -4,7 +4,11 @@
 #
 # Run: sudo bash /home/gps3/repos/movefaults_clean/scripts/sudo/restart_bernese_worker_gps3.sh > ~/bernese_worker_restart.log 2>&1
 #
-# Deploying new code, first as gps3 (no sudo):
+# Deploying new code, first as gps3 (no sudo). Check that nothing is active or
+# queued before the checkout (`~/repos/mf_run/.venv/bin/bernese-worker list`; not
+# `uv run`, which syncs the venv without --all-extras): the checkout and the sync
+# change the code under a running worker, before this script's own idle check
+# gets a chance to refuse.
 #   git -C ~/repos/mf_run fetch origin && git -C ~/repos/mf_run checkout --detach origin/main
 #   cd ~/repos/mf_run && uv sync --all-extras --dry-run   # expect only the project reinstalled
 #   uv sync --all-extras
@@ -32,8 +36,10 @@ echo "== old pid: $old"
 for d in active queue; do
   [ -d "$STATE/$d" ] || { echo "FATAL: $STATE/$d missing; is STATE right?" >&2; exit 1; }
 done
-active=$(find "$STATE/active" -maxdepth 1 -name '*.json' -printf '%f\n')
+# queue/ before active/: a claim renames queue/ -> active/, so reading active/ first
+# could miss a request that moved between the two reads and see both empty.
 queued=$(find "$STATE/queue" -maxdepth 1 -name '*.json' -printf '%f\n')
+active=$(find "$STATE/active" -maxdepth 1 -name '*.json' -printf '%f\n')
 if [ "$old" != 0 ]; then
   # A running worker with a request in active/ is mid-run; with one in queue/ it
   # claims it within 5 s. Both would make the restart wait up to TimeoutStopSec.
