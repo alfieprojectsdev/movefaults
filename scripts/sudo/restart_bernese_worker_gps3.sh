@@ -16,20 +16,37 @@
 # The console (bsw-console-alpha) runs from the same checkout; restart it separately
 # if its own code changed.
 #
-# It refuses unless the worker is idle with an empty queue. A restart mid-request
-# would make systemd wait up to TimeoutStopSec=3h while the worker finishes its
-# block (see install_bernese_worker_gps3.sh). A queued request counts too: the
-# worker starts one within 5 s, so a non-empty queue means it is about to be busy.
-# Queue new requests after the restart. A worker that is not running at all is
-# restarted whatever the queue holds: there is nothing to interrupt.
+# When it restarts. A restart while the worker runs a request would make systemd
+# wait up to TimeoutStopSec=3h while it finishes its block (see
+# install_bernese_worker_gps3.sh), so:
+#   - running a request: refused.
+#   - idle: restarted only with an empty queue. An idle worker claims a queued
+#     request within one poll (5 s), so a queued one means it is about to be busy.
+#   - stuck (halted, waiting for the BPE lock, blocked by a BPE running without
+#     the lock): restarted whatever the queue holds. In these states the worker
+#     holds no request and checks for SIGTERM before claiming one
+#     (run_worker.Worker.step), so it exits within a poll.
+#   - not running at all: restarted; there is nothing to interrupt. A request
+#     left in active/ is what Worker.recover handles on start.
+# The state comes from the worker's status.json, trusted only when it names the
+# live pid and was written in the last 2 minutes (the worker rewrites it at least
+# every 60 s). Otherwise the idle rule applies.
 set -euo pipefail
 RUN_CHECKOUT=/home/gps3/repos/mf_run
-STATE=/home/gps3/.local/state/bernese-workflow/worker
 
 [ "$(id -u)" -eq 0 ] || { echo "FATAL: run with sudo" >&2; exit 1; }
 echo "== $(date -Is) code: $(sudo -u gps3 -H git -C "$RUN_CHECKOUT" log --oneline -1)"
 old=$(systemctl show -p MainPID --value bernese-worker)
 echo "== old pid: $old"
+# The worker's queue: $BERNESE_WORKER_STATE in its own environment (the unit
+# sources LOADGPS.setvar with set -a), else run_queue.DEFAULT_STATE. sudo strips
+# this shell's environment, so read the live process's.
+STATE=
+if [ "$old" != 0 ] && [ -r "/proc/$old/environ" ]; then
+  STATE=$(tr '\0' '\n' < "/proc/$old/environ" | sed -n 's/^BERNESE_WORKER_STATE=//p')
+fi
+STATE=${STATE:-/home/gps3/.local/state/bernese-workflow/worker}
+echo "== state dir: $STATE"
 # Only *.json counts: that is all the worker reads (run_queue.Queue.pending), so a
 # stray file must not block a restart forever. A missing directory is fatal, not
 # empty: a wrong $STATE would otherwise pass every check below.
@@ -40,18 +57,40 @@ done
 # could miss a request that moved between the two reads and see both empty.
 queued=$(find "$STATE/queue" -maxdepth 1 -name '*.json' -printf '%f\n')
 active=$(find "$STATE/active" -maxdepth 1 -name '*.json' -printf '%f\n')
+# status.json -> "<state> <age in s>", or "unknown" when it is missing, unreadable,
+# written by another pid, or older than 120 s.
+wstate=$(python3 -I - "$STATE/status.json" "$old" <<'PY'
+import datetime as dt, json, sys
+try:
+    s = json.load(open(sys.argv[1]))
+    age = (dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(s["updated"])).total_seconds()
+    ok = str(s.get("pid")) == sys.argv[2] and 0 <= age < 120
+    print(f"{s['state']} {age:.0f}" if ok else "unknown")
+except Exception:
+    print("unknown")
+PY
+)
+echo "== worker state: $wstate"
+nq=$(echo -n "$queued" | grep -c . || true)
 if [ "$old" != 0 ]; then
-  # A running worker with a request in active/ is mid-run; with one in queue/ it
-  # claims it within 5 s. Both would make the restart wait up to TimeoutStopSec.
-  [ -z "$active" ] || { echo "FATAL: a request is running ($active); not restarting" >&2; exit 1; }
-  [ -z "$queued" ] || { echo "FATAL: $(echo "$queued" | wc -l) request(s) queued; the worker is about to start one" >&2; exit 1; }
+  case "${wstate%% *}" in
+    running)
+      echo "FATAL: the worker is running a request (${active:-see bernese-worker list}); not restarting" >&2; exit 1;;
+    halted|waiting-for-bpe-lock|blocked-by-running-bpe)
+      echo "== the worker is ${wstate%% *}: it holds no request, so it is restarted (active: ${active:-none}; queued: $nq)";;
+    *)
+      # idle, or a state that can't be trusted: the strict rule.
+      [ -z "$active" ] || { echo "FATAL: a request is in active/ ($active) and the worker is ${wstate%% *}; not restarting" >&2; exit 1; }
+      [ -z "$queued" ] || { echo "FATAL: $nq request(s) queued and the worker is ${wstate%% *}; an idle worker claims one within 5 s. If it is stuck, check bernese-worker list" >&2; exit 1; };;
+  esac
 else
   # No worker process: nothing can be interrupted. A request left in active/ is
   # what Worker.recover handles on start.
-  echo "== worker not running; active: ${active:-none}; queued: $(echo -n "$queued" | grep -c . || true)"
+  echo "== worker not running; active: ${active:-none}; queued: $nq"
 fi
-# Residual race: a request submitted between the check above and the restart
-# below is claimed within 5 s, and the restart then waits for its block.
+# Residual race: a request submitted, or a BPE lock freed, between the check above
+# and the restart below can be claimed in that moment, and the restart then waits
+# for its block.
 systemctl restart bernese-worker
 # Check twice: a worker that dies on start (bad code, unsynced venv) shows a pid
 # for a moment, then fails and waits RestartSec=30 with MainPID=0.
@@ -69,6 +108,9 @@ if [ "$again" != "$new" ] || ! systemctl is-active --quiet bernese-worker; then
   exit 1
 fi
 echo "== still up after 20 s: pid $again"
+# A smoke check only: a fault on the first claimed request comes later. The state
+# shows a worker that is already halted or recovering.
+echo "== worker state now: $(python3 -I -c 'import json,sys; s=json.load(open(sys.argv[1])); print(s["state"], s.get("reason", ""))' "$STATE/status.json" 2>/dev/null || echo unreadable)"
 # status exits non-zero for an unhealthy unit and pipefail would turn that into
 # the script's exit code after the checks above have already passed.
 systemctl --no-pager status bernese-worker | head -6 || true
