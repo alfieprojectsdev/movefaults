@@ -296,6 +296,40 @@ checked identical afterwards, all 30 solutions, coordinates included.)*
 
 ---
 
+## A rehearsal with a 5.2 operator
+
+On 25 and 26 October 2026, before the console existed, the developers
+rehearsed a weekday on which the maintainer is away and a 5.2 operator has to
+reprocess LUZON 2025, DOY 120 to 126, on gps3. It was a role-play, not a
+session with staff: the operator was played from the developers' side, as an
+experienced 5.2 user who had never used 5.4. Read-only commands were run for
+real. The run and its failure were simulated from a recorded one.
+
+She got stuck at several points. The table shows what was built for each one:
+
+| Where she stopped | What exists now |
+|---|---|
+| No login of her own, only the maintainer's account | A console login for each person; the maintainer names the operators |
+| `G` printed "cannot connect to X server" | The console, in a browser on an office PC |
+| RAW held leftovers from earlier runs, so the data looked missing | The Inventory and Plan pages read the DATAPOOL, the real input |
+| Redoing a day meant deleting results, and moving the FIN files kept 2 of the day's 7 | Redo moves all 7 aside first, and puts them back if the redo fails |
+| Three runs had made her seven days, and only file dates told them apart | The run record, shown on each Day page; fixed or float on the Calendar |
+| The failure line said "at 0", and the cause was in one of about 9,000 files | The failed step named, the known-errors list looked up, an email to the starter |
+| Nothing stopped a second BPE, and a run died with its SSH window | One machine-wide BPE lock; the run worker runs as a service |
+
+Her habits worked. She checked SAVEDISK first, and stopped before deleting
+anything. She read the HLM and AMB listings down to the real cause instead of
+trusting a summary line. She refused to run a PCF nobody had explained. That is
+why every status in the console links to the Bernese file it came from.
+
+Two of the problems it found are still open. The known-errors entry for HELMR1
+"NO REDUNDANCY" still says only that the fiducials are missing. The day it
+cites failed for a different reason: the fiducials were there, the outlier step
+rejected them after a bad ambiguity fix, and the float PCF solved the day. And
+only one person can answer "is something broken?".
+
+---
+
 ## When a run fails
 
 On 29 August 2026 a year-long run produced nothing for nine hours: 24 days in a
