@@ -14,12 +14,19 @@ Where things stand:
   by 40.5 mm at most. **The cause is the Bernese programs replaced in September**,
   with patches and a local build, shown on three test days. One-year velocities moved by a median of 0.01 mm/yr
   horizontally and 0.04 mm/yr in Up, and by 0.61 mm/yr at most.
-- Preparing a campaign (staging, products, ocean loading) and checking results
-  afterwards are still done with the scripts in `scripts/`.
+- **2025 has been run on the same station-days as the 5.2 run on gps2**
+  (PHPAR, 365 of 365 days), and a larger network with every file on hand
+  (PHSUP) has daily solutions for 2023, 2024 and 2025. The comparison is in
+  `docs/phpar_2025_parity_results.md`.
+- Orbits, clocks and the other daily products are fetched every night. Staging
+  a campaign, ocean loading and most checks of results are still done with the
+  scripts in `scripts/`.
 - A browser console on gps3 shows the processing to anyone with a login. Its
-  Start, Stop and Redo buttons work for the people the maintainer names as
-  operators. How to use it, step by step, is in
-  `docs/bsw_console_work_instruction.md`.
+  Start, Stop and Redo buttons work only for the people the maintainer names as
+  operators. On 27 November 2026 nobody is named yet, so the buttons are
+  switched off. How to use the console, step by step, is in the work
+  instruction for the BSW 5.4 console, which the maintainer hands out. An
+  earlier draft is in `docs/bsw_console_work_instruction.md`.
 
 ---
 
@@ -59,21 +66,29 @@ Someone asks for:  Campaign = LUZON, Year = 2025, Days = 121-151
                    (an operator on the console's Plan page, or the maintainer
                    on the command line)
 
+Every night (cron, bernese-update-products):
+  - fetch any missing CODE orbits, clocks, ERP, biases and ionosphere maps of
+    the last 60 days from the SWITCH S3 mirror (the AIUB FTP server is blocked
+    from gps3); a file already there is never replaced
+  - compare the reference files a run reads (CONFIG, REF54) with AIUB's and
+    report the differences; nothing is changed, because a new reference file
+    would change days already solved
+
 Before the run (the maintainer, with scripts/):
-  - fetch CODE orbits, clocks, ERP, biases and ionosphere maps from the SWITCH
-    S3 mirror (the AIUB FTP server is blocked from gps3)
-  - stage the RINEX files and merge the ocean-loading (BLQ) file
+  - stage the year's RINEX files (stage_year_obs.py) and merge the
+    ocean-loading (BLQ) file
 
 The run (the processing service):
   1. Plan: leave out days with fewer than three reference stations; check the
      PCF's steps and their WAITs, and (on the console's Plan page) every day's
      products; check the station files (STA, CRD, BLQ, ATL, ABB) the way
-     Bernese reads them, and refuse the run on a blocking finding; show MAXPAR
-     beside the busiest day's station count, and run that day first as the
-     real test of it
+     Bernese reads them, including that an STA row covers every station-day
+     with data, and refuse the run on a blocking finding; show MAXPAR beside
+     the busiest day's station count, and run that day first as the real test
+     of it
   2. Take the machine-wide BPE lock, so only one run uses Bernese at a time
-  3. Check each day's RINEX headers against the .STA and refuse on a mismatch,
-     then run Bernese non-interactively, several days at once, each day in its
+  3. Check each day's RINEX headers against the .STA and refuse on a mismatch
+     (a comparison campaign such as PHSUP logs it instead), then run Bernese non-interactively, several days at once, each day in its
      own working campaign, every step of the PCF
   4. On a failure: name the failed step, look the message up in the
      known-errors list, and decide whether the run stops
@@ -81,10 +96,18 @@ The run (the processing service):
      run that is started again skips them
   6. Record every attempt in the run record (the ledger)
 
+After a run or Redo started from the console (the run worker):
+  - look for solved days whose network came apart, and for stations the
+    code-only positioning step (CODSPP) rejected; both are reported, never
+    acted on
+  - email the person who started the run, once their address is on file
+
 Afterwards:
-  The console shows each day's state, the run's progress, each day's results,
-  the stations in the solution and any dropped since the day before, and the
-  HELMCHK RMS. There is no database of coordinates yet.
+  The console shows each day's state, including days a plan left out, the
+  run's progress, each day's results, the stations in the solution and any
+  dropped since the day before, the HELMCHK RMS and the share of ambiguities
+  each method resolved. The Time series page shows each station's series and
+  the velocity field. There is no database of coordinates yet.
 ```
 
 Every BPE step (RNXGRA, RXOBV3, MAUPRP, GNSQIF, HELMCHK and the rest) is
@@ -129,9 +152,9 @@ error, duration and station count, and that checksum for each run. Runs started
 after 4 November 2026 also keep who started the run, the exact command, the code
 version, the PCF and the orbit products it read. Runs up to that date, including
 LUZON January 2026 and the PHREF 2025 reprocess, don't have these. The console
-shows what a run has on each day's page. What it does not
-yet keep is the ambiguity fixing rate: Bernese's ambiguity summaries are not
-archived.
+shows what a run has on each day's page. Bernese's ambiguity summaries are not
+archived, but the day's archived processing summary repeats their totals, and
+the Day page lists each resolution method's share from it.
 
 **An example from our own files of why this matters.** When the velocity script
 was rewritten in Python (see "Your velocity script runs without MATLAB"), the
@@ -182,8 +205,7 @@ The processing lead reprocessed the full 2025 PH network on one of the Windows
 servers, and it took **several weeks**. That gap is worth understanding rather
 than celebrating, because the runs are **not the same job**:
 
-- That run processed the national network (**about 52 stations a day**); ours
-  process LUZON or PHREF.
+- That run processed the national network; LUZON and PHREF are smaller.
 - That run used the full production PCF including `FTP_DWLD`, which fetches
   products over the network for every session; ours read products staged
   beforehand.
@@ -195,14 +217,19 @@ than celebrating, because the runs are **not the same job**:
 So the right conclusion is **"this looks very promising and we should measure
 it properly"**, not "we are twenty times faster". A like-for-like run (same
 station set, same PCF, same products) is the honest way to find the real
-number, and it has not been done yet. If the difference turns out to be mostly
+number. Half of it has now been done. PHPAR ran 2025 on exactly the
+station-days of the 5.2 run copied from gps2: 32,546 of them, a median of 89
+stations a day, 365 of 365 days, between 7 November 09:31 and 9 November 02:15.
+It used our PCF, so it still read products staged beforehand and made no weekly
+or monthly combinations. If the remaining difference turns out to be mostly
 `FTP_DWLD` waiting on remote servers, that is worth knowing too: the win would
 be in staging data once, not in the processing.
 
-For the national network: `PHIVOLCS.CRD` catalogues **439 stations**, but a
-daily solution estimates **52** (50 PHIVOLCS and 2 IGS). That is comfortably
-inside every limit that matters, so the national daily processing does **not**
-need to be split into subnetworks. If we ever process many more of those 439
+For the national network: `PHIVOLCS.CRD` catalogues **439 stations**. The 5.2
+daily solutions of 2025 estimate **80 to 96** of them a day (median 89), and
+PHSUP, with every 2025 file on hand, has about 93 a day and runs as one network.
+That is inside every limit that matters, so the national daily processing does
+**not** need to be split into subnetworks. If we ever process many more of those 439
 sites, that changes, and PHIVOLCS' existing regional grouping (Luzon;
 Ragay-Bondoc-Marinduque-Masbate; **CBPN**, that is Cebu, Bohol, Panay and
 Negros; Samar-Leyte; Cotabato-Sindangan; Eastern Mindanao) is the partition we
@@ -288,8 +315,8 @@ Three things now stand between a failure and a lost night.
   here, what to check and change, and where that knowledge came from. An entry
   is *established* when we have seen the error on our own runs and the fix was
   confirmed by a run that then worked, and *proposed* when it comes from AIUB's
-  FAQ or reasoning and has not been seen here yet. Today it holds 11 entries,
-  7 established and 4 proposed, written by the developers. The processing lead
+  FAQ or reasoning and has not been seen here yet. Today it holds 13 entries,
+  9 established and 4 proposed, written by the developers. The processing lead
   is asked to review them, drawing on the notebook of errors and fixes the team
   already keeps. The console's Known errors page lists them with how often each
   has fired.
@@ -301,6 +328,30 @@ Three things now stand between a failure and a lost night.
   belongs to one day's data is
   counted: 3 days in a row failing with the same error stop the run, and so do
   5 failed days in a row of any kind. A day that succeeds resets the count.
+
+Some failures are now caught before Bernese starts. PHSUP 2023 stopped twice on
+stations that were in the .STA but had no row for the days they had data (BLNA
+and MILA). Bernese finds that about an hour into the day; the plan now refuses
+such a station-day before the run.
+
+A day can also finish "ok" and still be wrong, and two checks after each
+console run and Redo look for that:
+
+- **A network that came apart.** Each station's position is compared with the
+  14 days before and the 14 days after. A day is reported when at least a
+  quarter of its stations moved more than 15 mm. In PHSUP 2023 six days were
+  reported (DOY 087, 254, 264, 271, 337 and 360), with groups of stations
+  shifted against the rest by up to about 195 mm, and the run had recorded every
+  one as ok.
+- **A station CODSPP rejected.** When the code-only positioning step rejects a
+  station, Bernese carries it along without estimating it, and nothing fails.
+  That is how ISAB and ORAS went missing from PHSUP 2023 for months: their old
+  receivers wrote files dated weeks early.
+
+Both checks report; they never change a day's outcome. The findings are kept
+with the run request and go into its email. The person who started a run is emailed when it
+starts, every 6 hours while it runs, and when it ends or gets stuck, once their
+address is on file.
 
 **Nothing is fixed automatically.** The list tells a person what to check; it
 never changes a setting or re-runs a day by itself. The 29 August run, put
@@ -330,8 +381,13 @@ each for a reason: BR14 and LUZD (below), and KA08, whose last segment has a
 single point, which the MATLAB reports with no error bars and the Python
 refuses to fit.
 
-The console's Time series page runs this code. The velocities PHIVOLCS
-publishes are still produced the existing way, with the MATLAB.
+The console's Time series page runs this code, for one station or, as a map
+of arrows with 95% error ellipses, for the whole campaign; the map's table can
+be exported for GMT (`psvelo`) or as CSV. The same code also writes the MATLAB's
+own `Velocity_rover(regress)_10` and `outliers` files from a PLOT folder
+(`pogf-timeseries velocities`), so you can compare it with your own MATLAB runs
+(`pogf-timeseries compare-velocities`). The velocities PHIVOLCS publishes are
+still produced the existing way, with the MATLAB.
 
 Two things came out of the rewrite that are worth knowing.
 
@@ -369,10 +425,12 @@ Orchestration takes the mechanical steps. The judgement steps stay with people:
 
 | Automated | Human |
 |-----------|-------|
-| Product download and staging (by the maintainer's scripts) | Deciding which product tier to use (ultra-rapid, rapid or final) |
-| RINEX staging | Reviewing HELMCHK results for possible co-seismic displacement |
-| BPE execution, every step in the PCF | Interpreting the ambiguity fixing rate (not shown in the console yet: the summaries aren't archived) |
+| Product download, every night | Deciding which product tier to use (ultra-rapid, rapid or final) |
+| Comparing the reference files with AIUB's | Deciding whether to update one, which changes days already solved |
+| RINEX staging (by the maintainer's scripts) | Reviewing HELMCHK results for possible co-seismic displacement |
+| BPE execution, every step in the PCF | Interpreting the ambiguity fixing rate, shown per method on the Day page |
 | Listing the stations in each day's solution, and any dropped since the day before | Deciding whether a dropped station reflects a real data problem |
+| Reporting days whose network came apart, and stations CODSPP rejected | Finding out why, and deciding whether to redo the day |
 | Archiving each day's results in SAVEDISK | Velocity model review and publication |
 | Checking each day's results are complete and marking the day done | Final QC sign-off before results enter the velocity product |
 | Showing each run's state in the console | Offset event classification (EQ, VE, CE, UK) |
@@ -428,7 +486,8 @@ exists to measure. That distinction needs someone who knows the site.
 
 > An operator checks a range of days on the Plan page, queues a preflight, then
 > Start. The run worker on gps3 runs it under the BPE lock, overnight if need
-> be. The next morning the Calendar shows each day fixed, float or failed. A
+> be, and emails the operator when it ends. The next morning the Calendar
+> shows each day fixed, float, failed or left out by the plan. A
 > failed day opens on its Failure page with the failed step and, if the error is
 > known, the remedy. After the cause is fixed (say a `.STA` entry), the operator
 > uses Redo on that day: a daily solution is one network, so the whole day runs
@@ -520,7 +579,10 @@ changes go into the reference files the campaigns read, in `${D}/REF54`.
 |---|---|---|---|
 | Machine time per day | about 2 h attended (T420) | 5 min 33 s unattended for one LUZON day | measured |
 | A month of processing | weeks of attended work | 53 min for LUZON January 2026, several days at once | in production since 4 November 2026 |
-| Starting a run | the RUNBPE panels, at the machine | the console's Plan page, from any office PC | operators only; the maintainer sets who |
+| Starting a run | the RUNBPE panels, at the machine | the console's Plan page, from any office PC | operators only; the maintainer sets who, and nobody is set yet |
+| Knowing how a run went | keep a window open | an email to whoever started it, at the start, every 6 hours and at the end | built; an operator needs an address on file |
+| Products | downloaded by hand, mirror by mirror | fetched every night | in use |
+| A day that solved but is wrong | found later, if at all | a network that came apart, or a station CODSPP rejected, reported after each console run | in use; reports only |
 | Reproducibility | settings not recorded | driver scripts, PCFs and changed panels copied into version control; every run recorded with a checksum of its settings, and with who, what and which code for runs after 4 November 2026 | in use; runs read the files on gps3, and a change there has to be copied back |
 | Velocity calculation | MATLAB (licensed) | Python, agreeing with the MATLAB | runs in the console; published velocities still come from the MATLAB |
 | Outlier review | right-click, then edit PLOT files | decisions recorded with your name; a side-by-side fit | in use; leaving outliers out of the published fit is still open |
@@ -528,6 +590,7 @@ changes go into the reference files the campaigns read, in `${D}/REF54`.
 | When a run fails | read the log files after the run | failed step named, known errors looked up, run stops itself | in use |
 | Running many days | one session at a time | several days at once, each in its own campaign | in use |
 | PHREF 2025 reprocessed | | all 360 planned days | differences from the old solutions come from the Bernese programs replaced in September |
+| 2025 against the 5.2 run | | PHPAR, the same 32,546 station-days, 365 of 365 days | done; results in `docs/phpar_2025_parity_results.md` |
 
 The goal is not to make the software do the science. The goal is to make the
 software do the filing, so that you can do the science.
